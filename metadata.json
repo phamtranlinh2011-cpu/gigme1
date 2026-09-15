@@ -1,0 +1,6 @@
+{
+  "name": "GigMe",
+  "description": "Nền tảng Siêu kết nối việc làm siêu nhỏ & Mọi dịch vụ dành cho giới trẻ và sinh viên với Smart Escrow và định vị geofence.",
+  "requestFramePermissions": ["camera", "microphone", "geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

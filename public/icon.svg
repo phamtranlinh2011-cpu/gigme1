@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#070B14"/>
+      <stop offset="50%" stop-color="#0F172A"/>
+      <stop offset="100%" stop-color="#050811"/>
+    </linearGradient>
+    <linearGradient id="boltGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00E5FF"/>
+      <stop offset="60%" stop-color="#00B4D8"/>
+      <stop offset="100%" stop-color="#FF6B00"/>
+    </linearGradient>
+    <linearGradient id="glowGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF6B00"/>
+      <stop offset="100%" stop-color="#FFAA00"/>
+    </linearGradient>
+    <filter id="neonGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="12" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Dark Rounded Container -->
+  <rect width="512" height="512" rx="128" fill="url(#bgGrad)"/>
+  
+  <!-- Outer Cyber Border -->
+  <rect x="16" y="16" width="480" height="480" rx="112" fill="none" stroke="#00E5FF" stroke-opacity="0.35" stroke-width="4" stroke-dasharray="16 8"/>
+
+  <!-- Glowing Shield / Hex Core -->
+  <path d="M256 64 L416 136 V272 C416 360 348 436 256 464 C164 436 96 360 96 272 V136 Z" 
+        fill="#0D1929" stroke="#00E5FF" stroke-width="8" stroke-linejoin="round" filter="url(#neonGlow)"/>
+
+  <!-- Modern Dynamic Stylized G & Lightning -->
+  <!-- Top Arc of G -->
+  <path d="M336 176 C312 152 284 140 252 140 C186 140 136 192 136 260 C136 328 186 380 252 380 C310 380 354 344 364 290 H260" 
+        fill="none" stroke="#00E5FF" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- High-Voltage Escrow Bolt cutting through -->
+  <polygon points="280,100 190,260 270,260 230,420 350,230 270,230" 
+           fill="url(#boltGrad)" filter="url(#neonGlow)"/>
+
+  <!-- Mini Gold Trust Sparkles -->
+  <circle cx="390" cy="130" r="10" fill="#FFB703"/>
+  <circle cx="120" cy="380" r="8" fill="#00E5FF"/>
+</svg>

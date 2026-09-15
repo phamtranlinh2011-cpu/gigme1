@@ -1,0 +1,626 @@
+import React, { useState, useEffect } from 'react';
+import {
+  Zap,
+  Lock,
+  Mail,
+  Phone,
+  User,
+  Calendar,
+  KeyRound,
+  ArrowRight,
+  Sparkles,
+  AlertCircle,
+  CheckCircle2,
+} from 'lucide-react';
+import { useGigMe } from '../context/GigMeContext';
+
+export const AuthScreen: React.FC = () => {
+  const {
+    login,
+    register,
+    sendOtp,
+    resetPasswordWithOtp,
+    loginWithPhoneOtp,
+    loginSocial,
+    generatedOtp,
+    otpTargetContact,
+    otpExpiresAt,
+    showNotification,
+  } = useGigMe();
+
+  const [activeTab, setActiveTab] = useState<'LOGIN' | 'REGISTER' | 'PHONE_OTP' | 'FORGOT'>('LOGIN');
+
+  // Login form
+  const [loginContact, setLoginContact] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+
+  // Register form
+  const [regName, setRegName] = useState('');
+  const [regContact, setRegContact] = useState('');
+  const [regGender, setRegGender] = useState('Nam');
+  const [regBirthDate, setRegBirthDate] = useState('');
+  const [regPassword, setRegPassword] = useState('');
+  const [regConfirmPassword, setRegConfirmPassword] = useState('');
+
+  // Phone OTP login
+  const [phoneInput, setPhoneInput] = useState('');
+  const [phoneOtpInput, setPhoneOtpInput] = useState('');
+  const [phoneCountdown, setPhoneCountdown] = useState(0);
+
+  // Forgot Password
+  const [forgotContact, setForgotContact] = useState('');
+  const [forgotOtpInput, setForgotOtpInput] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [forgotCountdown, setForgotCountdown] = useState(0);
+
+  // State for inline feedback
+  const [authError, setAuthError] = useState<string | null>(null);
+
+  // Cooldown countdown timer
+  useEffect(() => {
+    if (phoneCountdown <= 0) return;
+    const timer = setInterval(() => {
+      setPhoneCountdown((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [phoneCountdown]);
+
+  useEffect(() => {
+    if (forgotCountdown <= 0) return;
+    const timer = setInterval(() => {
+      setForgotCountdown((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [forgotCountdown]);
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError(null);
+    if (!loginContact.trim()) {
+      setAuthError('Vui lòng nhập Gmail hoặc Số điện thoại!');
+      return;
+    }
+    if (!loginPassword.trim()) {
+      setAuthError('Vui lòng nhập mật khẩu đăng nhập!');
+      return;
+    }
+    const success = login(loginContact, loginPassword);
+    if (!success) {
+      setAuthError('Tài khoản hoặc mật khẩu không chính xác. Vui lòng thử lại!');
+    }
+  };
+
+  const handleRegister = (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError(null);
+
+    const name = regName.trim();
+    const contact = regContact.trim();
+    const pass = regPassword.trim();
+    const confirm = regConfirmPassword.trim();
+
+    if (!name) {
+      setAuthError('Vui lòng nhập họ và tên của bạn!');
+      return;
+    }
+    if (!contact) {
+      setAuthError('Vui lòng nhập Gmail hoặc Số điện thoại!');
+      return;
+    }
+    if (pass.length < 6) {
+      setAuthError('Mật khẩu bảo mật phải có tối thiểu 6 ký tự!');
+      return;
+    }
+    if (pass !== confirm) {
+      setAuthError('Mật khẩu xác nhận không trùng khớp. Vui lòng nhập lại!');
+      return;
+    }
+
+    const birth = regBirthDate.trim() || '01/01/2000';
+    const success = register(name, contact, regGender, birth, pass, confirm);
+    if (!success) {
+      setAuthError('Gmail hoặc Số điện thoại này đã được đăng ký. Bạn có thể bấm Đăng nhập ngay!');
+    }
+  };
+
+  const handleSendPhoneOtp = () => {
+    if (!phoneInput.trim()) {
+      showNotification('Thiếu số điện thoại', 'Vui lòng nhập số điện thoại trước khi bấm gửi mã!');
+      return;
+    }
+    const ok = sendOtp(phoneInput, 'PHONE_LOGIN');
+    if (ok) {
+      setPhoneCountdown(60);
+    }
+  };
+
+  const handlePhoneOtpLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError(null);
+    if (!phoneInput.trim()) {
+      setAuthError('Vui lòng nhập số điện thoại của bạn!');
+      return;
+    }
+    if (!phoneOtpInput.trim()) {
+      setAuthError('Bạn chưa nhập mã OTP! Bắt buộc phải có mã OTP 6 số để đăng nhập.');
+      return;
+    }
+    if (phoneOtpInput.trim().length !== 6) {
+      setAuthError('Mã OTP phải có đúng 6 chữ số!');
+      return;
+    }
+    const success = loginWithPhoneOtp(phoneInput, phoneOtpInput);
+    if (!success) {
+      setAuthError('Mã OTP không hợp lệ hoặc đã hết hạn (3 phút). Vui lòng thử lại!');
+    }
+  };
+
+  const handleSendForgotOtp = () => {
+    setAuthError(null);
+    if (!forgotContact.trim()) {
+      setAuthError('Vui lòng nhập Gmail hoặc Số điện thoại để nhận OTP!');
+      return;
+    }
+    const ok = sendOtp(forgotContact, 'FORGOT_PASSWORD');
+    if (ok) {
+      setForgotCountdown(60);
+    }
+  };
+
+  const handleResetPassword = (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError(null);
+    if (!forgotOtpInput.trim()) {
+      setAuthError('Bạn chưa nhập mã OTP! Không thể đặt lại mật khẩu.');
+      return;
+    }
+    if (forgotOtpInput.trim().length !== 6) {
+      setAuthError('Mã OTP phải gồm 6 chữ số!');
+      return;
+    }
+    if (newPassword.trim().length < 6) {
+      setAuthError('Mật khẩu mới phải có ít nhất 6 ký tự!');
+      return;
+    }
+    const ok = resetPasswordWithOtp(forgotOtpInput, newPassword);
+    if (ok) {
+      setActiveTab('LOGIN');
+      setAuthError(null);
+    } else {
+      setAuthError('Mã OTP không hợp lệ hoặc đã hết hạn!');
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-[#0A0E17] flex flex-col justify-center items-center px-4 py-8 text-white selection:bg-[#00E5FF] selection:text-black">
+      <div className="w-full max-w-md">
+        {/* Brand Header */}
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-[#00E5FF] to-[#FF6B00] shadow-[0_0_30px_rgba(0,229,255,0.4)] mb-4">
+            <Zap className="w-9 h-9 text-black fill-current" />
+          </div>
+          <h1 className="text-3xl font-black tracking-tight">
+            Gig<span className="text-[#00E5FF]">Me</span>
+          </h1>
+          <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto">
+            Nền tảng Siêu kết nối việc làm siêu nhỏ & Smart Escrow chống bùng tiền cho sinh viên
+          </p>
+        </div>
+
+        {/* Tab switch */}
+        <div className="flex bg-[#131E30] p-1 rounded-2xl border border-slate-800 mb-6 text-xs font-extrabold">
+          <button
+            id="tab-auth-login"
+            onClick={() => {
+              setActiveTab('LOGIN');
+              setAuthError(null);
+            }}
+            className={`flex-1 py-2 rounded-xl transition ${
+              activeTab === 'LOGIN' ? 'bg-[#00E5FF] text-black shadow-md' : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            Đăng Nhập
+          </button>
+
+          <button
+            id="tab-auth-register"
+            onClick={() => {
+              setActiveTab('REGISTER');
+              setAuthError(null);
+            }}
+            className={`flex-1 py-2 rounded-xl transition ${
+              activeTab === 'REGISTER' ? 'bg-[#FF6B00] text-black shadow-md' : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            Đăng Ký
+          </button>
+
+          <button
+            id="tab-auth-otp"
+            onClick={() => {
+              setActiveTab('PHONE_OTP');
+              setAuthError(null);
+            }}
+            className={`flex-1 py-2 rounded-xl transition ${
+              activeTab === 'PHONE_OTP' ? 'bg-purple-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            Đăng Nhập SĐT (OTP)
+          </button>
+        </div>
+
+        {/* Card Form */}
+        <div className="rounded-3xl bg-[#0F172A] border border-[#1E293B] p-6 shadow-2xl">
+          {/* Inline Error Banner */}
+          {authError && (
+            <div className="mb-4 p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs flex items-center space-x-2.5">
+              <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+              <span className="font-medium">{authError}</span>
+            </div>
+          )}
+
+          {/* 1. LOGIN */}
+          {activeTab === 'LOGIN' && (
+            <form onSubmit={handleLogin} className="space-y-4 text-xs">
+              <div>
+                <label className="block text-slate-400 mb-1 font-semibold">Gmail hoặc Số điện thoại</label>
+                <div className="relative">
+                  <Mail className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
+                  <input
+                    type="text"
+                    id="login-contact-input"
+                    required
+                    value={loginContact}
+                    onChange={(e) => setLoginContact(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 rounded-xl bg-[#131E30] border border-slate-700 text-white"
+                    placeholder="vietanh.dhbk@gmail.com hoặc 0912..."
+                  />
+                </div>
+              </div>
+
+              <div>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="text-slate-400 font-semibold">Mật khẩu</label>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('FORGOT')}
+                    className="text-[11px] text-[#00E5FF] hover:underline"
+                  >
+                    Quên mật khẩu?
+                  </button>
+                </div>
+                <div className="relative">
+                  <Lock className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
+                  <input
+                    type="password"
+                    id="login-password-input"
+                    required
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 rounded-xl bg-[#131E30] border border-slate-700 text-white"
+                    placeholder="••••••••"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                id="submit-login-btn"
+                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#00E5FF] to-cyan-500 text-black font-extrabold text-sm hover:brightness-110 shadow-lg shadow-cyan-500/20 transition flex items-center justify-center space-x-1.5"
+              >
+                <span>Đăng Nhập Vào GigMe</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </form>
+          )}
+
+          {/* 2. REGISTER */}
+          {activeTab === 'REGISTER' && (
+            <form onSubmit={handleRegister} className="space-y-3 text-xs">
+              <div>
+                <label className="block text-slate-400 mb-1 font-semibold">Họ và tên đầy đủ</label>
+                <div className="relative">
+                  <User className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
+                  <input
+                    type="text"
+                    required
+                    value={regName}
+                    onChange={(e) => setRegName(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 rounded-xl bg-[#131E30] border border-slate-700 text-white"
+                    placeholder="Nguyễn Văn A"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-slate-400 mb-1 font-semibold">Gmail hoặc Số điện thoại</label>
+                <div className="relative">
+                  <Mail className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
+                  <input
+                    type="text"
+                    required
+                    value={regContact}
+                    onChange={(e) => setRegContact(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 rounded-xl bg-[#131E30] border border-slate-700 text-white"
+                    placeholder="sinhvien@gmail.com"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-slate-400 mb-1 font-semibold">Giới tính</label>
+                  <select
+                    value={regGender}
+                    onChange={(e) => setRegGender(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-[#131E30] border border-slate-700 text-white"
+                  >
+                    <option value="Nam">Nam</option>
+                    <option value="Nữ">Nữ</option>
+                    <option value="Khác">Khác</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 mb-1 font-semibold">Ngày sinh (Tùy chọn)</label>
+                  <div className="relative">
+                    <Calendar className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
+                    <input
+                      type="text"
+                      value={regBirthDate}
+                      onChange={(e) => setRegBirthDate(e.target.value)}
+                      className="w-full pl-9 pr-3 py-2 rounded-xl bg-[#131E30] border border-slate-700 text-white"
+                      placeholder="15/08/2003"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-slate-400 mb-1 font-semibold">Mật khẩu</label>
+                  <input
+                    type="password"
+                    required
+                    value={regPassword}
+                    onChange={(e) => setRegPassword(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-[#131E30] border border-slate-700 text-white"
+                    placeholder="••••••••"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-400 mb-1 font-semibold">Xác nhận</label>
+                  <input
+                    type="password"
+                    required
+                    value={regConfirmPassword}
+                    onChange={(e) => setRegConfirmPassword(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-[#131E30] border border-slate-700 text-white"
+                    placeholder="••••••••"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                id="submit-register-btn"
+                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#FF6B00] to-amber-500 text-black font-extrabold text-sm hover:brightness-110 shadow-lg shadow-orange-500/20 transition mt-2"
+              >
+                Đăng Ký Tài Khoản Mới
+              </button>
+            </form>
+          )}
+
+          {/* 3. PHONE OTP LOGIN */}
+          {activeTab === 'PHONE_OTP' && (
+            <form onSubmit={handlePhoneOtpLogin} className="space-y-4 text-xs">
+              <div>
+                <label className="block text-slate-400 mb-1 font-semibold">Số điện thoại di động</label>
+                <div className="flex space-x-2">
+                  <div className="relative flex-1">
+                    <Phone className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
+                    <input
+                      type="tel"
+                      required
+                      value={phoneInput}
+                      onChange={(e) => setPhoneInput(e.target.value)}
+                      className="w-full pl-9 pr-3 py-2 rounded-xl bg-[#131E30] border border-slate-700 text-white font-mono"
+                      placeholder="0912345678"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleSendPhoneOtp}
+                    disabled={phoneCountdown > 0}
+                    className={`px-3.5 py-2 rounded-xl font-extrabold whitespace-nowrap transition ${
+                      phoneCountdown > 0
+                        ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
+                        : 'bg-[#00E5FF] text-black hover:brightness-110'
+                    }`}
+                  >
+                    {phoneCountdown > 0 ? `Gửi lại (${phoneCountdown}s)` : 'Gửi Mã OTP'}
+                  </button>
+                </div>
+              </div>
+
+              {generatedOtp && (
+                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold flex items-center">
+                      <Sparkles className="w-3.5 h-3.5 mr-1" /> Tin nhắn SMS OTP:
+                    </span>
+                    <span className="text-[10px] text-emerald-300 font-mono">Hiệu lực 3 phút</span>
+                  </div>
+                  <div className="flex items-center space-x-2 py-1">
+                    <span className="text-xs text-slate-300">Mã xác thực của bạn:</span>
+                    <strong className="font-mono text-base tracking-[0.2em] text-emerald-300 bg-black/50 px-2.5 py-0.5 rounded-lg border border-emerald-500/40">
+                      {generatedOtp}
+                    </strong>
+                  </div>
+                  <p className="text-[10px] text-slate-400">
+                    * Bắt buộc phải nhập chính xác 6 số này vào ô bên dưới mới có thể đăng nhập.
+                  </p>
+                </div>
+              )}
+
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-slate-400 font-semibold">Nhập mã OTP 6 số</label>
+                  <span className="text-[10px] text-rose-400 font-medium">* Bắt buộc nhập mã</span>
+                </div>
+                <div className="relative">
+                  <KeyRound className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]{6}"
+                    maxLength={6}
+                    required
+                    value={phoneOtpInput}
+                    onChange={(e) => setPhoneOtpInput(e.target.value.replace(/\D/g, ''))}
+                    className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-[#131E30] border border-slate-700 text-white font-mono tracking-[0.3em] text-center text-base font-bold placeholder:tracking-normal placeholder:text-xs placeholder:font-normal placeholder:text-slate-500"
+                    placeholder="Nhập đủ 6 chữ số OTP"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-extrabold text-sm hover:brightness-110 shadow-lg shadow-purple-600/20 transition"
+              >
+                Xác Thực OTP & Đăng Nhập
+              </button>
+            </form>
+          )}
+
+          {/* 4. FORGOT PASSWORD */}
+          {activeTab === 'FORGOT' && (
+            <form onSubmit={handleResetPassword} className="space-y-4 text-xs">
+              <div className="flex items-center justify-between">
+                <h4 className="font-bold text-white">Khôi phục mật khẩu qua OTP</h4>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('LOGIN')}
+                  className="text-[#00E5FF] hover:underline text-[11px]"
+                >
+                  Quay lại đăng nhập
+                </button>
+              </div>
+
+              <div>
+                <label className="block text-slate-400 mb-1 font-semibold">Gmail hoặc Số điện thoại tài khoản</label>
+                <div className="flex space-x-2">
+                  <input
+                    type="text"
+                    required
+                    value={forgotContact}
+                    onChange={(e) => setForgotContact(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-[#131E30] border border-slate-700 text-white"
+                    placeholder="vietanh.dhbk@gmail.com"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleSendForgotOtp}
+                    disabled={forgotCountdown > 0}
+                    className={`px-3.5 py-2 rounded-xl font-extrabold whitespace-nowrap transition ${
+                      forgotCountdown > 0
+                        ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
+                        : 'bg-[#00E5FF] text-black hover:brightness-110'
+                    }`}
+                  >
+                    {forgotCountdown > 0 ? `Gửi lại (${forgotCountdown}s)` : 'Nhận OTP'}
+                  </button>
+                </div>
+              </div>
+
+              {generatedOtp && (
+                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold flex items-center">
+                      <Sparkles className="w-3.5 h-3.5 mr-1" /> Tin nhắn OTP:
+                    </span>
+                    <span className="text-[10px] text-emerald-300 font-mono">Hiệu lực 3 phút</span>
+                  </div>
+                  <div className="flex items-center space-x-2 py-1">
+                    <span className="text-xs text-slate-300">Mã xác thực:</span>
+                    <strong className="font-mono text-base tracking-[0.2em] text-emerald-300 bg-black/50 px-2.5 py-0.5 rounded-lg border border-emerald-500/40">
+                      {generatedOtp}
+                    </strong>
+                  </div>
+                  <p className="text-[10px] text-slate-400">
+                    * Bắt buộc nhập chính xác 6 số này vào ô bên dưới để đặt lại mật khẩu mới.
+                  </p>
+                </div>
+              )}
+
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-slate-400 font-semibold">Nhập mã OTP 6 số</label>
+                  <span className="text-[10px] text-rose-400 font-medium">* Bắt buộc nhập mã</span>
+                </div>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]{6}"
+                  maxLength={6}
+                  required
+                  value={forgotOtpInput}
+                  onChange={(e) => setForgotOtpInput(e.target.value.replace(/\D/g, ''))}
+                  className="w-full px-3 py-2.5 rounded-xl bg-[#131E30] border border-slate-700 text-white font-mono tracking-[0.3em] text-center text-base font-bold placeholder:tracking-normal placeholder:text-xs placeholder:font-normal placeholder:text-slate-500"
+                  placeholder="Nhập đủ 6 chữ số OTP"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-400 mb-1 font-semibold">Mật khẩu mới</label>
+                <input
+                  type="password"
+                  required
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl bg-[#131E30] border border-slate-700 text-white"
+                  placeholder="Mật khẩu tối thiểu 6 ký tự"
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="w-full py-2.5 rounded-xl bg-[#00E5FF] text-black font-extrabold text-sm hover:brightness-110 transition"
+              >
+                Cập Nhật Mật Khẩu Mới
+              </button>
+            </form>
+          )}
+
+          {/* Social Logins */}
+          <div className="mt-6 pt-4 border-t border-slate-800 text-center">
+            <span className="text-[11px] text-slate-500 block mb-3 font-semibold">Hoặc tiếp tục nhanh với</span>
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                onClick={() => loginSocial('Google', 'student.google@gmail.com')}
+                className="py-2 rounded-xl bg-[#131E30] hover:bg-slate-800 border border-slate-700 font-bold text-xs text-white transition flex items-center justify-center space-x-1"
+              >
+                <span>Google</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => loginSocial('Facebook', 'sinhvien.fb@facebook.com')}
+                className="py-2 rounded-xl bg-[#131E30] hover:bg-slate-800 border border-slate-700 font-bold text-xs text-blue-400 transition flex items-center justify-center space-x-1"
+              >
+                <span>Facebook</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => loginSocial('Apple', 'student.apple@icloud.com')}
+                className="py-2 rounded-xl bg-[#131E30] hover:bg-slate-800 border border-slate-700 font-bold text-xs text-slate-200 transition flex items-center justify-center space-x-1"
+              >
+                <span>Apple</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};

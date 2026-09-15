@@ -1,0 +1,38 @@
+{
+  "id": "/",
+  "name": "GigMe Vietnam - Việc Làm Siêu Nhỏ & Smart Escrow",
+  "short_name": "GigMe VN",
+  "description": "Nền tảng Siêu kết nối việc làm siêu nhỏ & Mọi dịch vụ dành cho giới trẻ và sinh viên với Smart Escrow và định vị geofence.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0A0E17",
+  "theme_color": "#00E5FF",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

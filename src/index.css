@@ -1,0 +1,282 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --electric-cyan: #00e5ff;
+    --neon-orange: #ff6b00;
+  }
+
+  body {
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  }
+}
+
+/* Dark Mode Defaults */
+html.dark body {
+  background-color: #0a0e17;
+  color: #f8fafc;
+}
+
+/* Deep AMOLED Pure Black Mode (#000000 for zero-power OLED screens) */
+html.theme-amoled body,
+html.theme-amoled {
+  background-color: #000000 !important;
+  color: #f8fafc !important;
+}
+
+html.theme-amoled .bg-\[\#0A0E17\],
+html.theme-amoled [class*="bg-[#0A0E17]"],
+html.theme-amoled [class*="from-[#0A0E17]"],
+html.theme-amoled [class*="to-[#0A0E17]"] {
+  background-color: #000000 !important;
+}
+
+html.theme-amoled .bg-\[\#0F172A\],
+html.theme-amoled [class*="bg-[#0F172A]"],
+html.theme-amoled .bg-\[\#0A1322\],
+html.theme-amoled [class*="bg-[#0A1322]"],
+html.theme-amoled .bg-\[\#131E30\],
+html.theme-amoled [class*="bg-[#131E30]"],
+html.theme-amoled .bg-\[\#0F1D30\],
+html.theme-amoled [class*="bg-[#0F1D30]"],
+html.theme-amoled .bg-\[\#0F1E33\],
+html.theme-amoled [class*="bg-[#0F1E33]"] {
+  background-color: #070707 !important;
+  border-color: #1a1a1a !important;
+}
+
+html.theme-amoled header,
+html.theme-amoled nav {
+  background-color: rgba(0, 0, 0, 0.96) !important;
+  border-color: #181818 !important;
+}
+
+/* Dynamic Light Mode overrides */
+html:not(.dark) body {
+  background-color: #f8fafc;
+  color: #0f172a;
+}
+
+/* Background containers and cards */
+html:not(.dark) .bg-\[\#0A0E17\],
+html:not(.dark) [class*="bg-[#0A0E17]"] {
+  background-color: #f8fafc !important;
+  color: #0f172a;
+}
+
+html:not(.dark) .bg-\[\#0F172A\],
+html:not(.dark) [class*="bg-[#0F172A]"],
+html:not(.dark) .bg-\[\#0A1322\],
+html:not(.dark) [class*="bg-[#0A1322]"] {
+  background-color: #ffffff !important;
+  color: #0f172a;
+  border-color: #e2e8f0;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
+}
+
+html:not(.dark) .bg-\[\#131E30\],
+html:not(.dark) [class*="bg-[#131E30]"],
+html:not(.dark) .bg-\[\#0F1D30\],
+html:not(.dark) [class*="bg-[#0F1D30]"],
+html:not(.dark) .bg-\[\#0F1E33\],
+html:not(.dark) [class*="bg-[#0F1E33]"] {
+  background-color: #f1f5f9 !important;
+  color: #0f172a;
+  border-color: #e2e8f0;
+}
+
+html:not(.dark) .bg-\[\#1E293B\],
+html:not(.dark) .bg-slate-900,
+html:not(.dark) .bg-slate-950,
+html:not(.dark) [class*="bg-slate-900"],
+html:not(.dark) [class*="bg-slate-950"] {
+  background-color: #ffffff !important;
+  color: #0f172a;
+  border-color: #e2e8f0;
+}
+
+/* Gradients in light mode */
+html:not(.dark) [class*="from-[#0F1D30]"],
+html:not(.dark) [class*="from-[#0F1E33]"],
+html:not(.dark) [class*="from-[#0F172A]"],
+html:not(.dark) [class*="from-[#0A0E17]"] {
+  --tw-gradient-from: #ffffff var(--tw-gradient-from-position) !important;
+  --tw-gradient-to: #f1f5f9 var(--tw-gradient-to-position) !important;
+  --tw-gradient-stops: var(--tw-gradient-from), #f8fafc var(--tw-gradient-via-position), var(--tw-gradient-to) !important;
+  background-color: #ffffff !important;
+}
+
+html:not(.dark) [class*="to-[#0A1322]"],
+html:not(.dark) [class*="to-[#0A0E17]"],
+html:not(.dark) [class*="to-[#0F172A]"] {
+  --tw-gradient-to: #f1f5f9 var(--tw-gradient-to-position) !important;
+}
+
+html:not(.dark) .border-\[\#1E293B\],
+html:not(.dark) [class*="border-[#1E293B]"],
+html:not(.dark) .border-slate-800,
+html:not(.dark) .border-slate-700 {
+  border-color: #e2e8f0 !important;
+}
+
+/* Headings and labels in light mode - keeping saturated buttons with white text */
+html:not(.dark) h1.text-white,
+html:not(.dark) h2.text-white,
+html:not(.dark) h3.text-white,
+html:not(.dark) h4.text-white,
+html:not(.dark) p.text-white,
+html:not(.dark) span.text-white:not([class*="bg-red"]):not([class*="bg-rose"]):not([class*="bg-emerald"]):not([class*="bg-purple"]):not([class*="bg-blue"]):not([class*="bg-indigo"]):not([class*="bg-amber"]),
+html:not(.dark) div.text-white:not([class*="bg-red"]):not([class*="bg-rose"]):not([class*="bg-emerald"]):not([class*="bg-purple"]):not([class*="bg-blue"]):not([class*="bg-indigo"]):not([class*="bg-amber"]) {
+  color: #0f172a;
+}
+
+/* Ensure buttons with colored backgrounds keep white text */
+html:not(.dark) button[class*="bg-red-"],
+html:not(.dark) button[class*="bg-rose-"],
+html:not(.dark) button[class*="bg-emerald-"],
+html:not(.dark) button[class*="bg-purple-"],
+html:not(.dark) button[class*="bg-blue-"],
+html:not(.dark) button[class*="bg-indigo-"] {
+  color: #ffffff !important;
+}
+
+html:not(.dark) .text-slate-200 {
+  color: #1e293b;
+}
+
+html:not(.dark) .text-slate-300 {
+  color: #334155;
+}
+
+html:not(.dark) .text-slate-400 {
+  color: #64748b;
+}
+
+html:not(.dark) .text-slate-500 {
+  color: #64748b;
+}
+
+/* Header and Navigation in Light Mode */
+html:not(.dark) header,
+html:not(.dark) nav {
+  background-color: rgba(255, 255, 255, 0.95) !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+}
+
+html:not(.dark) input:not([type="checkbox"]):not([type="radio"]),
+html:not(.dark) select,
+html:not(.dark) textarea {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+
+html:not(.dark) input::placeholder,
+html:not(.dark) textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0d1424;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #00e5ff;
+}
+
+html:not(.dark) ::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+html:not(.dark) ::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+}
+
+html:not(.dark) ::-webkit-scrollbar-thumb:hover {
+  background: #00b4d8;
+}
+
+/* Animations */
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.3;
+  }
+  100% {
+    transform: scale(0.95);
+    opacity: 0.8;
+  }
+}
+
+.animate-pulse-ring {
+  animation: pulse-ring 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes sweep {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-radar-sweep {
+  animation: sweep 4s linear infinite;
+  transform-origin: center center;
+}
+
+/* Smooth UI animations and transitions */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-up {
+  animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+button, a, input, select {
+  transition-property: background-color, border-color, color, box-shadow, transform, opacity;
+  transition-duration: 180ms;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+

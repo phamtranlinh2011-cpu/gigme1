@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "69521665492",
+    "project_id": "gigme-47333",
+    "storage_bucket": "gigme-47333.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:69521665492:android:c30dfae6d3cfa210f43a41",
+        "android_client_info": {
+          "package_name": "com.gigme.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAneQb_8QQdbMZq7NXYbndZj6dmahu839Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
