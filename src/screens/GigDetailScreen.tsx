@@ -43,6 +43,7 @@ export const GigDetailScreen: React.FC<GigDetailScreenProps> = ({
     currentGigBids,
     currentUser,
     roleMode,
+    toggleRoleMode,
     startVoipCall,
     acceptGigDirectly,
     placeBid,
@@ -256,48 +257,70 @@ export const GigDetailScreen: React.FC<GigDetailScreenProps> = ({
 
           {/* Action buttons */}
           {!isOwner && gig.status === 'OPEN' && (
-            <div className="flex flex-wrap gap-2">
-              {/* Nếu phòng đấu giá trực tiếp đang mở, ưu tiên nút vào phòng */}
-              {gig.auctionRoomOpen && (
-                <button
-                  onClick={() => setIsLiveAuctionOpen(true)}
-                  className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-red-600 via-orange-600 to-amber-500 text-white font-black text-xs hover:brightness-110 shadow-lg shadow-red-500/30 transition flex items-center space-x-1.5 animate-bounce"
-                >
-                  <Radio className="w-4 h-4" />
-                  <span>🔴 Vào Đấu Giá Trực Tiếp!</span>
-                </button>
-              )}
-
-              {gig.isReverseAuction ? (
-                <button
-                  id="open-bid-modal-btn"
-                  onClick={() => {
-                    if (isNewbie) {
-                      onOpenVerify();
-                    } else {
-                      setShowBidModal(true);
-                    }
-                  }}
-                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#00E5FF] to-cyan-500 text-black font-extrabold text-xs hover:brightness-110 shadow-lg shadow-cyan-500/20 transition flex items-center space-x-1.5"
-                >
-                  <Gavel className="w-4 h-4" />
-                  <span>Đấu Giá Thầu Kèo Này</span>
-                </button>
+            <div>
+              {roleMode === 'CLIENT' ? (
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/20 via-orange-500/10 to-transparent border border-amber-500/40 text-xs">
+                  <div>
+                    <span className="font-extrabold text-white block">
+                      🚫 Bạn đang ở chế độ Người Thuê (Không thể nhận làm việc)
+                    </span>
+                    <span className="text-amber-200/80 text-[11px] mt-0.5 block">
+                      Khi chọn Thuê thì không thể Làm. Chuyển sang chế độ Người Làm để nhận kèo hoặc đấu giá.
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={toggleRoleMode}
+                    className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#FF6B00] to-amber-400 text-black font-extrabold text-xs hover:brightness-110 shrink-0 shadow-md transition"
+                  >
+                    Chuyển sang Người Làm &rarr;
+                  </button>
+                </div>
               ) : (
-                <button
-                  id="direct-accept-gig-btn"
-                  onClick={() => {
-                    if (isNewbie) {
-                      onOpenVerify();
-                    } else {
-                      acceptGigDirectly(gig);
-                    }
-                  }}
-                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-[#00E5FF] text-black font-extrabold text-xs hover:brightness-110 shadow-lg shadow-emerald-500/20 transition flex items-center space-x-1.5"
-                >
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>Nhận Kèo Ngay</span>
-                </button>
+                <div className="flex flex-wrap gap-2">
+                  {/* Nếu phòng đấu giá trực tiếp đang mở, ưu tiên nút vào phòng */}
+                  {gig.auctionRoomOpen && (
+                    <button
+                      onClick={() => setIsLiveAuctionOpen(true)}
+                      className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-red-600 via-orange-600 to-amber-500 text-white font-black text-xs hover:brightness-110 shadow-lg shadow-red-500/30 transition flex items-center space-x-1.5 animate-bounce"
+                    >
+                      <Radio className="w-4 h-4" />
+                      <span>🔴 Vào Đấu Giá Trực Tiếp!</span>
+                    </button>
+                  )}
+
+                  {gig.isReverseAuction ? (
+                    <button
+                      id="open-bid-modal-btn"
+                      onClick={() => {
+                        if (isNewbie) {
+                          onOpenVerify();
+                        } else {
+                          setShowBidModal(true);
+                        }
+                      }}
+                      className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#00E5FF] to-cyan-500 text-black font-extrabold text-xs hover:brightness-110 shadow-lg shadow-cyan-500/20 transition flex items-center space-x-1.5"
+                    >
+                      <Gavel className="w-4 h-4" />
+                      <span>Đấu Giá Thầu Kèo Này</span>
+                    </button>
+                  ) : (
+                    <button
+                      id="direct-accept-gig-btn"
+                      onClick={() => {
+                        if (isNewbie) {
+                          onOpenVerify();
+                        } else {
+                          acceptGigDirectly(gig);
+                        }
+                      }}
+                      className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-[#00E5FF] text-black font-extrabold text-xs hover:brightness-110 shadow-lg shadow-emerald-500/20 transition flex items-center space-x-1.5"
+                    >
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>Nhận Kèo Ngay</span>
+                    </button>
+                  )}
+                </div>
               )}
             </div>
           )}

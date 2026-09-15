@@ -211,7 +211,7 @@ export const GeminiVisionStudentIdModal: React.FC<GeminiVisionStudentIdModalProp
           {/* Preset Sample Selector */}
           <div>
             <label className="block text-slate-300 font-semibold mb-1.5">
-              Chọn mẫu thẻ sinh viên thực tế để quét thử:
+              Hoặc chọn phôi thẻ sinh viên mẫu chuẩn:
             </label>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               {PRESET_CARDS.map((card, idx) => (

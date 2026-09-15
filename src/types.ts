@@ -89,6 +89,21 @@ export interface UserEntity {
   studentId?: string; // Mã số sinh viên (MSSV)
   studentEmail?: string; // Email trường cấp (*.edu.vn)
   studentSsoProvider?: string; // Cổng đào tạo đã xác thực
+  defaultBank?: {
+    bankName: string;
+    accountNumber: string;
+    accountHolder: string;
+  };
+  reviews?: Array<{
+    id: string;
+    reviewerName: string;
+    reviewerSchool?: string;
+    rating: number;
+    comment: string;
+    tags?: string[];
+    createdAt: string;
+    gigTitle?: string;
+  }>;
 }
 
 export interface GigEntity {
@@ -169,6 +184,13 @@ export interface CampusLeaderboardEntry {
   recentGigTitle: string;
 }
 
+export interface MarketplaceMediaItem {
+  id: string;
+  type: 'image' | 'video';
+  url: string;
+  name: string;
+}
+
 export interface MarketplaceItemEntity {
   id: string;
   title: string;
@@ -183,6 +205,7 @@ export interface MarketplaceItemEntity {
   sellerPhone: string;
   status: 'AVAILABLE' | 'RESERVED' | 'SOLD';
   imageUrl?: string;
+  mediaFiles?: MarketplaceMediaItem[];
   createdAt: number;
 }
 

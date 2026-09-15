@@ -241,6 +241,7 @@ interface GigMeContextType {
   fileDispute: (gigId: string, reason: string) => void;
   depositVietQr: (amount: number, bankName: string) => void;
   withdrawToBank: (bankName: string, accountNumber: string, accountHolderName: string, amount: number, pin?: string, useBiometrics?: boolean) => boolean;
+  saveDefaultBank: (bankName: string, accountNumber: string, accountHolder: string) => void;
 
   // 19 Advanced features
   verifyNfcCccd: (idNumber: string, fullName: string, birthDate: string) => boolean;
@@ -358,9 +359,9 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const saved = localStorage.getItem(STORAGE_KEYS.CURRENT_USER_ID);
     if (saved === 'user_526h0044' || saved === 'user_freelancer_lan' || saved === 'user_cafe_passio') {
       localStorage.removeItem(STORAGE_KEYS.CURRENT_USER_ID);
-      return 'user_student_tdtu';
+      return null;
     }
-    return saved || 'user_student_tdtu';
+    return saved || null;
   });
 
   const [roleMode, setRoleMode] = useState<AppRoleMode>(() => {
@@ -789,7 +790,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             } catch {
               // ignore
             }
-            showNotification('🔔 WebPush Đã Cấp Quyền', 'Đã cấp quyền thông báo thành công và gửi thông báo kiểm thử!', true, true);
+            showNotification('🔔 WebPush Đã Cấp Quyền', 'Đã cấp quyền thông báo thành công cho thiết bị của bạn!', true, true);
           } else {
             showNotification('🔔 Đã Phát Chuông Ting Ting', 'Âm thanh thông báo đã phát. (Bạn có thể cho phép thông báo trên trình duyệt để nhận khi ẩn tab)', true);
           }
@@ -2241,6 +2242,11 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const updatedUser: UserEntity = {
       ...currentUser,
       walletBalance: currentUser.walletBalance - amount,
+      defaultBank: {
+        bankName,
+        accountNumber,
+        accountHolder: accountHolderName,
+      },
     };
     const tx: WalletTransactionEntity = {
       id: txId,
@@ -2277,6 +2283,24 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       true
     );
     return true;
+  };
+
+  const saveDefaultBank = (bankName: string, accountNumber: string, accountHolder: string) => {
+    if (!currentUser) return;
+    const updatedUser: UserEntity = {
+      ...currentUser,
+      defaultBank: {
+        bankName,
+        accountNumber,
+        accountHolder,
+      },
+    };
+    setUsers((prev) => prev.map((u) => (u.id === currentUser.id ? updatedUser : u)));
+    cloudService.saveUser(updatedUser);
+    showNotification(
+      'Đã lưu tài khoản ngân hàng',
+      `Đã cập nhật ${bankName} (${accountNumber}) làm tài khoản nhận tiền Napas 247 mặc định!`
+    );
   };
 
   // NFC CCCD SCAN SIMULATION - C06 BỘ CÔNG AN
@@ -2907,6 +2931,17 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               badges.push('🚀 Thần Tốc Campus');
             }
 
+            const newReviewItem = {
+              id: `rev_${Date.now()}`,
+              reviewerName: currentUser?.kycName || currentUser?.name || 'Sinh viên Campus',
+              reviewerSchool: currentUser?.studentSchool || 'Đại học TDTU',
+              rating,
+              comment: review,
+              tags,
+              createdAt: new Date().toLocaleDateString('vi-VN'),
+              gigTitle: gig.title,
+            };
+
             const updatedUser: UserEntity = {
               ...u,
               eloRating: finalElo,
@@ -2916,6 +2951,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               rating: Number(((u.rating * u.reviewCount + rating) / (u.reviewCount + 1)).toFixed(1)),
               reviewCount: u.reviewCount + 1,
               trustScore: Math.min(850, u.trustScore + (rating >= 4 ? 8 : -15)),
+              reviews: [newReviewItem, ...(u.reviews || [])],
             };
             cloudService.saveUser(updatedUser);
             return updatedUser;
@@ -3027,6 +3063,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         fileDispute,
         depositVietQr,
         withdrawToBank,
+        saveDefaultBank,
         verifyNfcCccd,
         verifyFaceLiveness,
         linkStudentSso,

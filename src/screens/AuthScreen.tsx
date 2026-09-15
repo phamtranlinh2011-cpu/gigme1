@@ -196,14 +196,16 @@ export const AuthScreen: React.FC = () => {
       <div className="w-full max-w-md">
         {/* Brand Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-[#00E5FF] to-[#FF6B00] shadow-[0_0_30px_rgba(0,229,255,0.4)] mb-4">
-            <Zap className="w-9 h-9 text-black fill-current" />
-          </div>
+          <img
+            src="/logo.png"
+            alt="GigMe Logo"
+            className="w-24 h-24 rounded-full mx-auto shadow-[0_0_35px_rgba(0,229,255,0.4)] border-2 border-cyan-400/40 object-cover mb-3"
+          />
           <h1 className="text-3xl font-black tracking-tight">
             Gig<span className="text-[#00E5FF]">Me</span>
           </h1>
           <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto">
-            Nền tảng Siêu kết nối việc làm siêu nhỏ & Smart Escrow chống bùng tiền cho sinh viên
+            Nền tảng việc làm sinh viên & Smart Escrow bảo chứng 100%
           </p>
         </div>
 

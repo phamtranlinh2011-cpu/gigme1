@@ -38,7 +38,22 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentTab, onSelectTab })
           <span className="text-[10px] font-bold mt-0.5 truncate max-w-full">Radar</span>
         </button>
 
-        {/* Tab 2: Campus Flea Market (Thanh lý đồ cũ) */}
+        {/* Tab 2: Tin Nhắn Chat (Kế mục Radar) */}
+        <button
+          id="nav-chat-btn"
+          onClick={() => onSelectTab('CHAT')}
+          className={`flex-1 min-w-0 flex flex-col items-center py-1 px-1 rounded-xl transition relative ${
+            currentTab === 'CHAT' ? activeColor : 'text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <div className="relative">
+            <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5" />
+            <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+          </div>
+          <span className="text-[10px] font-bold mt-0.5 truncate max-w-full">Tin Nhắn</span>
+        </button>
+
+        {/* Tab 3: Campus Flea Market (Thanh lý đồ cũ) */}
         <button
           id="nav-marketplace-btn"
           onClick={() => onSelectTab('MARKETPLACE')}
@@ -47,7 +62,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentTab, onSelectTab })
           }`}
         >
           <BookOpen className="w-4 h-4 sm:w-5 sm:h-5" />
-          <span className="text-[10px] font-bold mt-0.5 truncate max-w-full">Flea Market</span>
+          <span className="text-[10px] font-bold mt-0.5 truncate max-w-full">Chợ KTX</span>
         </button>
 
         {/* Central Action: Đăng Kèo */}
@@ -66,7 +81,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentTab, onSelectTab })
           </button>
         </div>
 
-        {/* Tab 3: Bảng Xếp Hạng Top Trợ Thủ */}
+        {/* Tab 4: Bảng Xếp Hạng Top Trợ Thủ */}
         <button
           id="nav-leaderboard-btn"
           onClick={() => onSelectTab('LEADERBOARD')}
@@ -78,7 +93,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentTab, onSelectTab })
           <span className="text-[10px] font-bold mt-0.5 truncate max-w-full">BXH Top</span>
         </button>
 
-        {/* Tab 4: Wallet & Escrow */}
+        {/* Tab 5: Wallet & Escrow */}
         <button
           id="nav-wallet-btn"
           onClick={() => onSelectTab('WALLET')}
@@ -90,7 +105,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentTab, onSelectTab })
           <span className="text-[10px] font-bold mt-0.5 truncate max-w-full">Ví</span>
         </button>
 
-        {/* Tab 5: 2-in-1 Profile */}
+        {/* Tab 6: 2-in-1 Profile */}
         <button
           id="nav-profile-btn"
           onClick={() => onSelectTab('PROFILE')}

@@ -975,7 +975,11 @@ export const BankWithdrawDialog: React.FC<{ isOpen: boolean; onClose: () => void
     if (isOpen) {
       setReceiptTx(null);
       if (currentUser) {
-        if (currentUser.kycName) {
+        if (currentUser.defaultBank) {
+          setBankName(currentUser.defaultBank.bankName);
+          setAccountNumber(currentUser.defaultBank.accountNumber);
+          setAccountHolderName(currentUser.defaultBank.accountHolder);
+        } else if (currentUser.kycName) {
           setAccountHolderName(currentUser.kycName);
         } else if (currentUser.name) {
           setAccountHolderName(currentUser.name.toUpperCase());
@@ -1167,7 +1171,12 @@ export const BankWithdrawDialog: React.FC<{ isOpen: boolean; onClose: () => void
             </div>
 
             <div>
-              <label className="block text-slate-300 mb-1 font-semibold">Số tiền muốn rút (VND)</label>
+              <div className="flex justify-between items-center mb-1">
+                <label className="text-slate-300 font-semibold">Số tiền muốn rút (VND)</label>
+                <span className="text-[10px] text-slate-400">
+                  Khả dụng: <strong className="text-emerald-400">{currentUser ? formatVnd(currentUser.walletBalance) : '0đ'}</strong>
+                </span>
+              </div>
               <input
                 type="number"
                 step="10000"
@@ -1177,6 +1186,38 @@ export const BankWithdrawDialog: React.FC<{ isOpen: boolean; onClose: () => void
                 className="w-full px-3 py-2 rounded-xl bg-[#131E30] border border-slate-700 text-white font-mono font-bold text-sm"
                 placeholder="Ví dụ: 100000"
               />
+
+              {/* Quick Amount Chips */}
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {[50000, 100000, 200000, 500000].map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => setAmount(preset)}
+                    className={`px-2 py-1 rounded-lg border text-[10px] font-bold font-mono transition ${
+                      amount === preset
+                        ? 'bg-red-500/20 border-red-500 text-red-300'
+                        : 'bg-[#131E30] border-slate-700 text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    {formatVnd(preset)}
+                  </button>
+                ))}
+                {currentUser && currentUser.walletBalance > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setAmount(currentUser.walletBalance)}
+                    className="px-2 py-1 rounded-lg bg-cyan-500/10 border border-cyan-500/30 text-[#00E5FF] text-[10px] font-bold transition hover:bg-cyan-500/20"
+                  >
+                    Rút Hết Số Dư
+                  </button>
+                )}
+              </div>
+
+              <div className="flex justify-between items-center text-[10px] text-slate-400 pt-1.5 px-0.5">
+                <span>Phí giao dịch rút tiền: <strong className="text-emerald-400">0đ (Miễn phí)</strong></span>
+                <span>Thời gian: <strong className="text-cyan-300">&lt; 3 giây</strong></span>
+              </div>
             </div>
 
             {/* Verification Method: PIN vs Biometrics */}

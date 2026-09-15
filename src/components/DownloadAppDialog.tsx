@@ -78,9 +78,11 @@ export const DownloadAppDialog: React.FC<DownloadAppDialogProps> = ({ isOpen, on
         {/* Header */}
         <div className="flex items-center justify-between pb-4 border-b border-slate-800">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#00E5FF] to-[#FF6B00] flex items-center justify-center text-black shadow-lg shadow-cyan-500/20">
-              <Smartphone className="w-5 h-5 stroke-[2.5]" />
-            </div>
+            <img
+              src="/logo.png"
+              alt="GigMe Logo"
+              className="w-10 h-10 rounded-full object-cover border border-cyan-400/40 shadow-lg shadow-cyan-500/20"
+            />
             <div>
               <h3 className="font-extrabold text-base flex items-center space-x-1.5">
                 <span>Tải & Cài Đặt GigMe App</span>

@@ -160,6 +160,77 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onOpenVerify }) => {
         </div>
       </div>
 
+      {/* Default Bank Card (Napas 247) */}
+      <div className="rounded-3xl bg-[#0F172A] border border-[#1E293B] p-4 sm:p-5 shadow-xl">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center space-x-2">
+            <div className="p-2 rounded-xl bg-emerald-500/15 text-emerald-400">
+              <Building2 className="w-4 h-4" />
+            </div>
+            <div>
+              <h4 className="font-extrabold text-xs text-white flex items-center space-x-1.5">
+                <span>Tài Khoản Nhận Tiền Mặc Định</span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/30">
+                  Napas 247
+                </span>
+              </h4>
+              <p className="text-[10px] text-slate-400">Tự động điền khi rút tiền, giải ngân siêu tốc 24/7</p>
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              playNotificationSound('BUTTON_CLICK');
+              setIsBankWithdrawOpen(true);
+            }}
+            className="text-[11px] font-bold text-[#00E5FF] hover:underline"
+          >
+            {currentUser?.defaultBank ? 'Đổi tài khoản' : '+ Liên kết ngay'}
+          </button>
+        </div>
+
+        {currentUser?.defaultBank ? (
+          <div className="p-3.5 rounded-2xl bg-gradient-to-r from-[#131E30] to-[#16233B] border border-slate-700/80 flex items-center justify-between">
+            <div className="space-y-1">
+              <div className="flex items-center space-x-2">
+                <span className="font-bold text-white text-xs">{currentUser.defaultBank.bankName}</span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 font-mono font-bold">
+                  •••• {currentUser.defaultBank.accountNumber.slice(-4)}
+                </span>
+              </div>
+              <div className="text-[11px] text-slate-400 font-mono flex items-center space-x-2">
+                <span className="text-white font-semibold uppercase">{currentUser.defaultBank.accountHolder}</span>
+                <span className="text-emerald-400 text-[10px]">✓ Đã khớp E-KYC</span>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                playNotificationSound('BUTTON_CLICK');
+                setIsBankWithdrawOpen(true);
+              }}
+              className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-red-600 to-rose-500 hover:brightness-110 text-white font-extrabold text-xs shadow-md shadow-red-500/20 transition flex items-center space-x-1"
+            >
+              <ArrowUpRight className="w-3.5 h-3.5" />
+              <span>Rút Về TK Này</span>
+            </button>
+          </div>
+        ) : (
+          <div className="p-3 rounded-2xl bg-[#131E30] border border-dashed border-slate-700 flex items-center justify-between">
+            <div className="text-xs text-slate-400">
+              Chưa lưu tài khoản ngân hàng. Nhấn để cài đặt số tài khoản Napas 247 nhận tiền tức thì.
+            </div>
+            <button
+              onClick={() => {
+                playNotificationSound('BUTTON_CLICK');
+                setIsBankWithdrawOpen(true);
+              }}
+              className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-400 font-bold text-xs shrink-0 ml-2"
+            >
+              Thiết lập
+            </button>
+          </div>
+        )}
+      </div>
+
       {/* Payment Services & Student Support Hub */}
       <div className="space-y-2">
         <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400 block px-1">

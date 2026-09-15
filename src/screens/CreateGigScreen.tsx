@@ -59,11 +59,25 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
     analyzePhotoWithAi,
     aiDetectedResult,
     clearAiResult,
+    roleMode,
+    toggleRoleMode,
   } = useGigMe();
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [isVietQrOpen, setIsVietQrOpen] = useState(false);
   const [isEstimatorModalOpen, setIsEstimatorModalOpen] = useState(false);
+
+  // Back step navigation handler:
+  // Step 3 -> Step 2 -> Step 1 -> onBack()
+  const handleBack = () => {
+    if (step === 3) {
+      setStep(2);
+    } else if (step === 2) {
+      setStep(1);
+    } else {
+      onBack();
+    }
+  };
 
   // Form Fields
   const [title, setTitle] = useState('');
@@ -140,7 +154,7 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
       {/* Top Header */}
       <div className="flex items-center justify-between mb-4 sm:mb-6">
         <button
-          onClick={onBack}
+          onClick={handleBack}
           className="flex items-center space-x-1.5 text-xs text-slate-400 hover:text-white transition"
         >
           <ArrowLeft className="w-4 h-4" />
@@ -151,6 +165,27 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
 
         <span className="text-xs font-mono font-bold text-[#00E5FF]">Bước {step}/3</span>
       </div>
+
+      {/* Role Enforcement Warning if in FREELANCER mode */}
+      {roleMode === 'FREELANCER' && (
+        <div className="mb-4 p-4 rounded-2xl bg-gradient-to-r from-orange-950/60 to-amber-950/40 border border-[#FF6B00]/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+          <div>
+            <span className="font-extrabold text-white block">
+              ⚡ Bạn đang ở chế độ Người Làm (Freelancer)
+            </span>
+            <p className="text-slate-300 text-[11px] mt-0.5">
+              Để đăng việc mới và bảo lãnh thù lao Smart Escrow, bạn cần chuyển sang chế độ <strong>Người Thuê</strong>.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={toggleRoleMode}
+            className="px-3.5 py-1.5 rounded-xl bg-[#00E5FF] text-black font-extrabold text-xs hover:brightness-110 shrink-0 shadow-md transition"
+          >
+            Chuyển sang Người Thuê &rarr;
+          </button>
+        </div>
+      )}
 
       {/* Step Indicator Bar */}
       <div className="grid grid-cols-3 gap-2 mb-5">

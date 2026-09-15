@@ -1,8 +1,8 @@
 {
   "id": "/",
-  "name": "GigMe Vietnam - Việc Làm Siêu Nhỏ & Smart Escrow",
-  "short_name": "GigMe VN",
-  "description": "Nền tảng Siêu kết nối việc làm siêu nhỏ & Mọi dịch vụ dành cho giới trẻ và sinh viên với Smart Escrow và định vị geofence.",
+  "name": "GigMe - Việc Làm Sinh Viên",
+  "short_name": "GigMe Sinh Viên",
+  "description": "Nền tảng kết nối việc làm sinh viên campus với bảo chứng ký quỹ Smart Escrow an toàn 100%.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

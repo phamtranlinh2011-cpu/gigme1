@@ -1,0 +1,67 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Test connection endpoint
+    match /test/connection {
+      allow read: if true;
+    }
+
+    // User profiles
+    match /users/{userId} {
+      allow read: if true;
+      allow create, update: if true; // Allows initial signup & sync
+      allow delete: if false;
+    }
+
+    // Gigs & jobs
+    match /gigs/{gigId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if true;
+      allow delete: if true;
+
+      // Subcollection for chat messages within a gig
+      match /messages/{messageId} {
+        allow read: if true;
+        allow create, update: if true;
+        allow delete: if false;
+      }
+    }
+
+    // Global chat messages
+    match /messages/{messageId} {
+      allow read: if true;
+      allow create, update: if true;
+      allow delete: if false;
+    }
+
+    // Transactions ledger
+    match /transactions/{transactionId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    // Campus Marketplace
+    match /marketplace/{itemId} {
+      allow read: if true;
+      allow create, update, delete: if true;
+    }
+
+    // SafeWalk sessions
+    match /safewalk/{sessionId} {
+      allow read, write: if true;
+    }
+  }
+}

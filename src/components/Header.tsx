@@ -85,19 +85,21 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="max-w-7xl mx-auto px-3 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-2">
         {/* Brand & Logo */}
         <div className="flex items-center space-x-2 sm:space-x-3 cursor-pointer select-none shrink-0">
-          <div className="relative flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-[#00E5FF] to-[#FF6B00] shadow-[0_0_12px_rgba(0,229,255,0.4)]">
-            <Zap className="w-4 h-4 sm:w-6 sm:h-6 text-black fill-current" />
-          </div>
+          <img
+            src="/logo.png"
+            alt="GigMe Logo"
+            className="w-9 h-9 sm:w-11 sm:h-11 rounded-full object-cover shadow-[0_0_15px_rgba(0,229,255,0.4)] border border-cyan-400/40"
+          />
           <div>
             <div className="flex items-center space-x-1">
               <span className="text-lg sm:text-xl font-extrabold tracking-tight text-white">Gig</span>
               <span className="text-lg sm:text-xl font-extrabold text-[#00E5FF]">Me</span>
               <span className="text-[9px] sm:text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-[#1A2333] text-[#00E5FF] border border-[#00E5FF]/30">
-                VN
+                Sinh Viên
               </span>
             </div>
             <p className="text-[10px] text-slate-400 font-medium hidden sm:block">
-              Siêu kết nối việc làm siêu nhỏ & Smart Escrow
+              Nền tảng việc làm sinh viên & Smart Escrow
             </p>
           </div>
         </div>

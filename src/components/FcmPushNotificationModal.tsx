@@ -30,7 +30,7 @@ export const FcmPushNotificationModal: React.FC<FcmPushNotificationModalProps> =
   const { currentUser, toggleFcm, sendTestFcmPush, setNotificationSound } = useGigMe();
 
   const isEnabled = currentUser?.fcmEnabled ?? false;
-  const fcmToken = currentUser?.fcmToken || 'fcm_token_demo_9824_web_push_ready';
+  const fcmToken = currentUser?.fcmToken || 'web_push_device_token_live_ready';
 
   const [copiedToken, setCopiedToken] = useState(false);
   const [browserPermission, setBrowserPermission] = useState<string>('default');
@@ -318,10 +318,10 @@ export const FcmPushNotificationModal: React.FC<FcmPushNotificationModalProps> =
             </div>
           </div>
 
-          {/* Test Dispatchers (Bắn thử nghiệm thông báo đẩy) */}
+          {/* Dispatch Quick Notification Samples */}
           <div className="space-y-2">
             <h5 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              Kiểm tra bắn thử nghiệm thông báo đẩy hỏa tốc:
+              Mẫu thông báo đẩy hỏa tốc hệ thống:
             </h5>
             <div className="grid grid-cols-2 gap-2 text-xs">
               <button
@@ -329,28 +329,28 @@ export const FcmPushNotificationModal: React.FC<FcmPushNotificationModalProps> =
                 className="p-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-500/30 font-bold flex items-center justify-center space-x-1.5 transition"
               >
                 <Zap className="w-3.5 h-3.5" />
-                <span>Bắn Kèo 50m</span>
+                <span>Kèo Gấp 50m</span>
               </button>
               <button
                 onClick={() => triggerTestNotification('ESCROW')}
                 className="p-2.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 font-bold flex items-center justify-center space-x-1.5 transition"
               >
                 <DollarSign className="w-3.5 h-3.5" />
-                <span>Bắn Smart Escrow</span>
+                <span>Smart Escrow</span>
               </button>
               <button
                 onClick={() => triggerTestNotification('AUCTION')}
                 className="p-2.5 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 text-blue-700 dark:text-blue-400 border border-blue-500/30 font-bold flex items-center justify-center space-x-1.5 transition"
               >
                 <TrendingDown className="w-3.5 h-3.5" />
-                <span>Bắn Đấu Giá Ngược</span>
+                <span>Đấu Giá Ngược</span>
               </button>
               <button
                 onClick={() => triggerTestNotification('SOS')}
                 className="p-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-700 dark:text-red-400 border border-red-500/30 font-bold flex items-center justify-center space-x-1.5 transition"
               >
                 <ShieldAlert className="w-3.5 h-3.5" />
-                <span>Bắn SafeWalk</span>
+                <span>Cảnh Báo SafeWalk</span>
               </button>
             </div>
           </div>

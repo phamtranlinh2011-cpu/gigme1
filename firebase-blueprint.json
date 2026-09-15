@@ -1,0 +1,93 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile in GigMe campus platform",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string", "maxLength": 100 },
+        "email": { "type": "string", "maxLength": 120 },
+        "phone": { "type": "string", "maxLength": 20 },
+        "role": { "type": "string", "enum": ["USER", "ADMIN"] },
+        "studentSchool": { "type": "string", "maxLength": 150 },
+        "studentId": { "type": "string", "maxLength": 50 },
+        "walletBalance": { "type": "number" },
+        "escrowLockedBalance": { "type": "number" },
+        "trustScore": { "type": "number" },
+        "rating": { "type": "number" },
+        "avatarUrl": { "type": "string", "maxLength": 500 }
+      },
+      "required": ["id", "name", "email"]
+    },
+    "Gig": {
+      "title": "Gig",
+      "description": "Micro-job posting on campus with Smart Escrow",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string", "maxLength": 200 },
+        "description": { "type": "string", "maxLength": 3000 },
+        "category": { "type": "string", "maxLength": 50 },
+        "price": { "type": "number" },
+        "locationName": { "type": "string", "maxLength": 200 },
+        "latitude": { "type": "number" },
+        "longitude": { "type": "number" },
+        "clientId": { "type": "string", "maxLength": 100 },
+        "clientName": { "type": "string", "maxLength": 100 },
+        "freelancerId": { "type": "string", "maxLength": 100 },
+        "freelancerName": { "type": "string", "maxLength": 100 },
+        "status": { "type": "string", "enum": ["OPEN", "IN_PROGRESS", "SUBMITTED", "COMPLETED", "DISPUTED", "CLIENT_REFUNDED"] },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["id", "title", "price", "clientId", "status"]
+    },
+    "ChatMessage": {
+      "title": "ChatMessage",
+      "description": "Real-time communication message inside a gig workspace",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "gigId": { "type": "string", "maxLength": 100 },
+        "senderId": { "type": "string", "maxLength": 100 },
+        "senderName": { "type": "string", "maxLength": 100 },
+        "message": { "type": "string", "maxLength": 2000 },
+        "attachmentType": { "type": "string", "maxLength": 50 },
+        "timestamp": { "type": "number" }
+      },
+      "required": ["id", "gigId", "senderId", "message", "timestamp"]
+    },
+    "WalletTransaction": {
+      "title": "WalletTransaction",
+      "description": "Financial ledger record for VietQR deposits, Escrow hold, and payouts",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string", "maxLength": 100 },
+        "type": { "type": "string", "maxLength": 50 },
+        "amount": { "type": "number" },
+        "timestamp": { "type": "number" },
+        "isSuccess": { "type": "boolean" }
+      },
+      "required": ["id", "userId", "type", "amount", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profile collection"
+    },
+    "/gigs/{gigId}": {
+      "schema": "Gig",
+      "description": "Gigs job postings collection"
+    },
+    "/gigs/{gigId}/messages/{messageId}": {
+      "schema": "ChatMessage",
+      "description": "Chat messages within a gig"
+    },
+    "/transactions/{transactionId}": {
+      "schema": "WalletTransaction",
+      "description": "User wallet transaction histories"
+    }
+  }
+}

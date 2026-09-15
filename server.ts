@@ -1146,41 +1146,30 @@ async function startServer() {
     });
   });
 
-  // 8.4 OPEN API BANKING WEBHOOK (CASSO / SEPAY / VIETQR AUTO-MATCHER)
-  app.post('/api/banking/webhook', (req: Request, res: Response) => {
-    const payload = req.body;
-    if (!payload) {
-      return res.status(400).json({ error: 'Payload không hợp lệ' });
-    }
-
+  // 8.4 REAL BANKING WEBHOOKS (SEPAY / CASSO / VIETQR AUTO-MATCHER)
+  function processBankDeposit(
+    refCode: string,
+    amount: number,
+    content: string,
+    bankAccount: string,
+    gatewayName: 'SePay' | 'Casso' | 'VietQR' | 'Napas247'
+  ) {
     const db = ensureDbExists();
 
-    // Normalize webhook fields from various VietQR / Casso / SePAY formats
-    const refCode = String(
-      payload.id ||
-      payload.reference ||
-      payload.reference_number ||
-      payload.code ||
-      payload.transaction_id ||
-      `WH_${Date.now()}`
-    );
-
-    const amount = Number(payload.amount || payload.transferAmount || 0);
-    const content = String(payload.content || payload.description || payload.order_info || '').trim();
-    const bankAccount = String(payload.bank_account || payload.subAccount || payload.gateway || 'Napas247');
-
     if (amount <= 0) {
-      return res.status(400).json({ error: 'Số tiền biến động phải lớn hơn 0' });
+      return { success: false, error: 'Số tiền biến động phải lớn hơn 0' };
     }
 
     // STRICT ANTI-DUPE: Check if this transaction reference was already recorded
-    const existing = db.transactions.find((t: any) => t.id === `tx_wh_${refCode}` || t.bankInfo === refCode);
+    const existing = db.transactions.find(
+      (t: any) => t.id === `tx_wh_${refCode}` || t.bankInfo === refCode
+    );
     if (existing) {
-      return res.json({
+      return {
         success: true,
         duplicate: true,
-        message: 'Giao dịch đã được khớp lệnh trước đó (Chống bug/dupe thành công)',
-      });
+        message: 'Giao dịch đã được khớp lệnh trước đó (Chống trùng lặp thành công)',
+      };
     }
 
     // Match user by GIGME syntax in transfer content
@@ -1218,7 +1207,7 @@ async function startServer() {
         userId: matchedUser.id,
         type: 'VIETQR_DEPOSIT',
         amount,
-        title: 'Nạp tiền VietQR Tự Động (Open API Webhook)',
+        title: `Nạp tiền ${gatewayName} Tự Động (Real Webhook)`,
         subtitle: `${bankAccount} • Khớp lệnh tức thì 24/7`,
         bankInfo: refCode,
         note: content,
@@ -1232,13 +1221,22 @@ async function startServer() {
       broadcastSse('user_updated', matchedUser);
       broadcastSse('transaction_saved', tx);
 
-      return res.json({
+      // Broadcast real PWA push notification for balance update
+      broadcastSse('push_notification', {
+        title: `💰 Biến động số dư +${amount.toLocaleString('vi-VN')}đ`,
+        body: `Ví GigMe của bạn vừa được nạp thành công qua ${gatewayName}. Số dư mới: ${matchedUser.walletBalance.toLocaleString('vi-VN')}đ`,
+        type: 'WALLET_DEPOSIT',
+        userId: matchedUser.id,
+      });
+
+      return {
         success: true,
         creditedUserId: matchedUser.id,
         creditedUserName: matchedUser.name,
         amount,
         newBalance: matchedUser.walletBalance,
-      });
+        gateway: gatewayName,
+      };
     } else {
       // Record unassigned transaction for Admin manual matching
       const unassignedTx = {
@@ -1246,8 +1244,8 @@ async function startServer() {
         userId: 'admin_root',
         type: 'VIETQR_DEPOSIT',
         amount,
-        title: 'Giao dịch VietQR chưa gắn tài khoản',
-        subtitle: `Cần tra soát: "${content}" (${amount.toLocaleString('vi-VN')}đ)`,
+        title: `Giao dịch ${gatewayName} cần đối soát`,
+        subtitle: `Nội dung: "${content}" (${amount.toLocaleString('vi-VN')}đ)`,
         bankInfo: refCode,
         note: content,
         timestamp: Date.now(),
@@ -1259,13 +1257,141 @@ async function startServer() {
 
       broadcastSse('transaction_saved', unassignedTx);
 
-      return res.json({
+      return {
         success: true,
         unassigned: true,
-        message: 'Đã ghi nhận giao dịch vào hàng chờ đối soát của Admin',
+        message: 'Đã ghi nhận giao dịch vào hàng chờ đối soát',
         amount,
-      });
+        gateway: gatewayName,
+      };
     }
+  }
+
+  // SePay Webhook Endpoint (Hỗ trợ cấu hình Webhook chính thức từ SePay)
+  app.post('/api/webhook/sepay', (req: Request, res: Response) => {
+    // Check Authorization token if configured
+    const apiKey = process.env.SEPAY_API_KEY;
+    if (apiKey) {
+      const authHeader = req.headers.authorization || '';
+      if (!authHeader.includes(apiKey)) {
+        return res.status(401).json({ error: 'Unauthorized: Sai SePay API Key' });
+      }
+    }
+
+    const payload = req.body || {};
+    // SePay payload: { id, gateway, transactionDate, accountNumber, subAccount, code, content, transferType, transferAmount, accumulated, referenceCode, description }
+    const refCode = String(payload.referenceCode || payload.id || `SEPAY_${Date.now()}`);
+    const amount = Number(payload.transferAmount || payload.amount || 0);
+    const content = String(payload.content || payload.description || '').trim();
+    const bankAccount = String(payload.accountNumber || payload.gateway || 'SePay Gateway');
+
+    // Only process incoming transfers
+    if (payload.transferType && payload.transferType !== 'in') {
+      return res.json({ success: true, message: 'Bỏ qua biến động chuyển đi (out)' });
+    }
+
+    const result = processBankDeposit(refCode, amount, content, bankAccount, 'SePay');
+    return res.json(result);
+  });
+
+  // Casso Webhook Endpoint (Hỗ trợ cấu hình Webhook chính thức từ Casso.vn)
+  app.post('/api/webhook/casso', (req: Request, res: Response) => {
+    // Check secure token if configured
+    const secureToken = process.env.CASSO_SECURE_TOKEN || process.env.CASSO_API_KEY;
+    if (secureToken) {
+      const headerToken = req.headers['secure-token'] || req.headers.authorization;
+      if (headerToken !== secureToken && headerToken !== `Bearer ${secureToken}`) {
+        return res.status(401).json({ error: 'Unauthorized: Sai Casso Secure Token' });
+      }
+    }
+
+    const body = req.body || {};
+    // Casso sends either { error: 0, data: [ { id, tid, description, amount, ... } ] } or single item
+    const transactionsList = Array.isArray(body.data) ? body.data : [body];
+    const results: any[] = [];
+
+    for (const item of transactionsList) {
+      const refCode = String(item.tid || item.id || `CASSO_${Date.now()}`);
+      const amount = Number(item.amount || 0);
+      const content = String(item.description || item.content || '').trim();
+      const bankAccount = String(item.bank_sub_acc_id || item.corresponsive_name || 'Casso Bank');
+
+      const result = processBankDeposit(refCode, amount, content, bankAccount, 'Casso');
+      results.push(result);
+    }
+
+    return res.json({
+      error: 0,
+      message: 'Casso Webhook processed successfully',
+      results,
+    });
+  });
+
+  // Universal Banking Webhook (Tương thích VietQR Scanner và Open API)
+  app.post('/api/banking/webhook', (req: Request, res: Response) => {
+    const payload = req.body;
+    if (!payload) {
+      return res.status(400).json({ error: 'Payload không hợp lệ' });
+    }
+
+    const refCode = String(
+      payload.id ||
+      payload.reference ||
+      payload.reference_number ||
+      payload.code ||
+      payload.transaction_id ||
+      `WH_${Date.now()}`
+    );
+
+    const amount = Number(payload.amount || payload.transferAmount || 0);
+    const content = String(payload.content || payload.description || payload.order_info || '').trim();
+    const bankAccount = String(payload.bank_account || payload.subAccount || payload.gateway || 'Napas247');
+
+    const result = processBankDeposit(refCode, amount, content, bankAccount, 'VietQR');
+    return res.json(result);
+  });
+
+  // Webhook Health & Configuration Info Endpoint
+  app.get('/api/webhook/status', (_req: Request, res: Response) => {
+    const db = ensureDbExists();
+    const bankingTxs = db.transactions.filter((t: any) => t.type === 'VIETQR_DEPOSIT');
+    res.json({
+      status: 'ONLINE',
+      webhooks: {
+        sepay: {
+          endpoint: '/api/webhook/sepay',
+          configured: !!process.env.SEPAY_API_KEY,
+        },
+        casso: {
+          endpoint: '/api/webhook/casso',
+          configured: !!process.env.CASSO_SECURE_TOKEN,
+        },
+        universal: {
+          endpoint: '/api/banking/webhook',
+          configured: true,
+        },
+      },
+      totalBankingTransactions: bankingTxs.length,
+      recentTransactions: bankingTxs.slice(0, 5),
+    });
+  });
+
+  // PWA Web Push Dispatch Endpoint
+  app.post('/api/push/send', (req: Request, res: Response) => {
+    const { title, body, type, userId } = req.body || {};
+    if (!title) {
+      return res.status(400).json({ error: 'Title is required' });
+    }
+
+    broadcastSse('push_notification', {
+      title,
+      body: body || '',
+      type: type || 'GENERAL',
+      userId: userId || null,
+      timestamp: Date.now(),
+    });
+
+    res.json({ success: true, message: 'Web Push notification broadcasted' });
   });
 
   // 9. SafeWalk

@@ -463,7 +463,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             <MapPin className="w-10 h-10 text-slate-600 mx-auto mb-3" />
             <h4 className="text-sm font-bold text-white">Chưa có công việc nào quanh khu vực này</h4>
             <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
-              Hệ thống đã xóa toàn bộ dữ liệu giả lập. Bạn có thể là người đầu tiên đăng việc mới hoặc điều chỉnh bộ lọc tìm kiếm!
+              Hiện tại chưa có công việc nào trong phạm vi tìm kiếm. Hãy là người đầu tiên đăng việc mới hoặc mở rộng bán kính tìm kiếm!
             </p>
             <div className="flex flex-wrap items-center justify-center gap-2 mt-4">
               <button

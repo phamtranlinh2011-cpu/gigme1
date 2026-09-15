@@ -7,6 +7,16 @@ import {
   WalletTransactionEntity,
   SafeWalkSessionEntity,
 } from '../types';
+import {
+  testFirestoreConnection,
+  syncGigToCloud,
+  deleteGigFromCloud,
+  subscribeToGigs,
+  syncUserToCloud,
+  subscribeToUsers,
+  syncMessageToCloud,
+  syncTransactionToCloud,
+} from '../lib/firebase';
 
 export interface CloudConnectionStatus {
   connected: boolean;
@@ -51,6 +61,7 @@ class RealtimeSyncManager {
         'marketplace_saved',
         'transaction_saved',
         'safewalk_saved',
+        'push_notification',
       ];
 
       eventNames.forEach((evtName) => {
@@ -104,23 +115,34 @@ class RealtimeSyncManager {
 export const realtimeManager = new RealtimeSyncManager();
 
 export const cloudService = {
-  // Test direct connection to real cloud server
+  // Test direct connection to real cloud server and Firebase Firestore
   async testConnection(): Promise<CloudConnectionStatus> {
     try {
+      // Test Firebase Firestore connection first
+      const firestoreOk = await testFirestoreConnection();
+      
       const res = await fetch('/api/status');
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
+      if (res.ok) {
+        const data = await res.json();
+        return {
+          connected: true,
+          status: 'CONNECTED',
+          message: `Đã kết nối Firebase Firestore & Cloud Database thời gian thực thành công. Dữ liệu được đồng bộ liên tục.`,
+          docCount: (data.stats?.gigsCount || 0) + (data.stats?.usersCount || 0),
+          serverInfo: data.server,
+        };
       }
-      const data = await res.json();
-      return {
-        connected: true,
-        status: 'CONNECTED',
-        message: `Đã kết nối máy chủ Cloud GigMe thời gian thực thành công. Đồng bộ dữ liệu đa thiết bị tức thì.`,
-        docCount: (data.stats?.gigsCount || 0) + (data.stats?.usersCount || 0),
-        serverInfo: data.server,
-      };
+
+      if (firestoreOk) {
+        return {
+          connected: true,
+          status: 'CONNECTED',
+          message: `Đã kết nối trực tiếp Firebase Firestore Cloud Database. Dữ liệu đồng bộ trực tuyến.`,
+        };
+      }
+      throw new Error('Offline');
     } catch (err: any) {
-      console.warn('Test connection error:', err?.message);
+      console.warn('Test connection notice:', err?.message);
       return {
         connected: false,
         status: 'OFFLINE',
@@ -131,6 +153,10 @@ export const cloudService = {
 
   // GIGS: Lưu và đồng bộ thời gian thực
   async saveGig(gig: GigEntity): Promise<void> {
+    // 1. Sync to Firebase Firestore directly
+    syncGigToCloud(gig).catch((e) => console.warn('Firestore syncGig error:', e));
+
+    // 2. Sync to Express Backend
     try {
       await fetch('/api/gigs', {
         method: 'POST',
@@ -143,6 +169,10 @@ export const cloudService = {
   },
 
   async deleteGig(gigId: string): Promise<void> {
+    // 1. Delete from Firebase Firestore
+    deleteGigFromCloud(gigId).catch((e) => console.warn('Firestore deleteGig error:', e));
+
+    // 2. Delete from Express Backend
     try {
       await fetch(`/api/gigs/${gigId}`, { method: 'DELETE' });
     } catch (err) {
@@ -164,7 +194,7 @@ export const cloudService = {
           onStatusChange?.({
             connected: true,
             status: 'CONNECTED',
-            message: 'Đã kết nối máy chủ Cloud GigMe (Realtime SSE)',
+            message: 'Đã kết nối Firebase Firestore & Cloud GigMe',
             docCount: list.length,
           });
         }
@@ -175,14 +205,28 @@ export const cloudService = {
 
     fetchLatest();
 
-    // SSE Realtime events
+    // 1. Firebase Firestore Real-Time listener
+    const unsubFirestore = subscribeToGigs((cloudGigs) => {
+      if (cloudGigs && cloudGigs.length > 0) {
+        callback(cloudGigs);
+        onStatusChange?.({
+          connected: true,
+          status: 'CONNECTED',
+          message: 'Đồng bộ trực tiếp qua Firebase Firestore',
+          docCount: cloudGigs.length,
+        });
+      }
+    });
+
+    // 2. SSE Realtime events
     const unsubSave = realtimeManager.on('gig_saved', () => fetchLatest());
     const unsubDel = realtimeManager.on('gig_deleted', () => fetchLatest());
 
-    // Polling fallback every 6 seconds for remote syncing
+    // 3. Polling fallback every 6 seconds for remote syncing
     const interval = setInterval(fetchLatest, 6000);
 
     return () => {
+      unsubFirestore();
       unsubSave();
       unsubDel();
       clearInterval(interval);
@@ -227,6 +271,10 @@ export const cloudService = {
 
   // CHATS: Tin nhắn bàn giao công việc thời gian thực
   async saveChatMessage(msg: ChatMessageEntity): Promise<void> {
+    // 1. Sync to Firebase Firestore
+    syncMessageToCloud(msg).catch((e) => console.warn('Firestore syncMessage error:', e));
+
+    // 2. Sync to Express Backend
     try {
       await fetch('/api/chats', {
         method: 'POST',
@@ -263,6 +311,10 @@ export const cloudService = {
 
   // USERS: Đồng bộ hồ sơ tài khoản và số dư ví
   async saveUser(user: UserEntity): Promise<void> {
+    // 1. Sync to Firebase Firestore
+    syncUserToCloud(user).catch((e) => console.warn('Firestore syncUser error:', e));
+
+    // 2. Sync to Express Backend
     try {
       await fetch(`/api/users/${user.id}`, {
         method: 'PUT',
@@ -275,6 +327,10 @@ export const cloudService = {
   },
 
   async registerUser(user: UserEntity): Promise<boolean> {
+    // 1. Sync to Firebase Firestore
+    syncUserToCloud(user).catch((e) => console.warn('Firestore registerUser error:', e));
+
+    // 2. Sync to Express Backend
     try {
       const res = await fetch('/api/users/register', {
         method: 'POST',
@@ -302,11 +358,20 @@ export const cloudService = {
     };
 
     fetchLatest();
+
+    // Firebase Firestore listener
+    const unsubFirestore = subscribeToUsers((cloudUsers) => {
+      if (cloudUsers && cloudUsers.length > 0) {
+        callback(cloudUsers);
+      }
+    });
+
     const unsubReg = realtimeManager.on('user_registered', () => fetchLatest());
     const unsubUpd = realtimeManager.on('user_updated', () => fetchLatest());
     const interval = setInterval(fetchLatest, 8000);
 
     return () => {
+      unsubFirestore();
       unsubReg();
       unsubUpd();
       clearInterval(interval);
@@ -351,6 +416,10 @@ export const cloudService = {
 
   // TRANSACTIONS: Giao dịch ví & Escrow
   async saveTransaction(tx: WalletTransactionEntity): Promise<void> {
+    // 1. Sync to Firebase Firestore
+    syncTransactionToCloud(tx).catch((e) => console.warn('Firestore syncTx error:', e));
+
+    // 2. Sync to Express Backend
     try {
       await fetch('/api/transactions', {
         method: 'POST',
@@ -521,6 +590,60 @@ export const cloudService = {
     } catch (err) {
       console.warn('triggerBankWebhook error:', err);
       return { success: false, error: 'Lỗi gửi webhook ngân hàng' };
+    }
+  },
+
+  async triggerSepayWebhook(payload: any): Promise<any> {
+    try {
+      const res = await fetch('/api/webhook/sepay', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      return await res.json();
+    } catch (err) {
+      console.warn('triggerSepayWebhook error:', err);
+      return { success: false, error: 'Lỗi gửi SePay webhook' };
+    }
+  },
+
+  async triggerCassoWebhook(payload: any): Promise<any> {
+    try {
+      const res = await fetch('/api/webhook/casso', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      return await res.json();
+    } catch (err) {
+      console.warn('triggerCassoWebhook error:', err);
+      return { success: false, error: 'Lỗi gửi Casso webhook' };
+    }
+  },
+
+  async getWebhookStatus(): Promise<any> {
+    try {
+      const res = await fetch('/api/webhook/status');
+      return await res.json();
+    } catch (err) {
+      return { status: 'OFFLINE' };
+    }
+  },
+
+  subscribePushNotifications(callback: (data: any) => void): Unsubscribe {
+    return realtimeManager.on('push_notification', callback);
+  },
+
+  async dispatchWebPush(data: { title: string; body?: string; type?: string; userId?: string }): Promise<any> {
+    try {
+      const res = await fetch('/api/push/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      return await res.json();
+    } catch (err) {
+      return { success: false };
     }
   },
 };

@@ -1290,48 +1290,16 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
               </div>
             </div>
 
-            {/* Test buttons */}
+            {/* Action buttons */}
             <div className="flex gap-2">
               <button
                 onClick={() => {
                   handleGetLiveGps();
                 }}
-                className="flex-1 py-2.5 rounded-xl bg-[#1E293B] hover:bg-slate-700 text-white font-bold transition flex items-center justify-center space-x-1.5"
+                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:brightness-110 text-black font-extrabold transition flex items-center justify-center space-x-1.5 shadow-md"
               >
                 <Crosshair className="w-3.5 h-3.5" />
-                <span>Quét Lại GPS</span>
-              </button>
-
-              <button
-                onClick={() => {
-                  // Simulate or toggle test state
-                  if (gpsReport?.isMock) {
-                    setGpsReport({
-                      isMock: false,
-                      threatLevel: 'CLEAN',
-                      accuracyMeters: 12,
-                      apparentSpeedKmh: 0,
-                      jitterVariance: 0.8,
-                      satellitesEstimated: 9,
-                      timestamp: Date.now(),
-                      reason: 'Tín hiệu GPS tự nhiên đã được phục hồi.',
-                    });
-                  } else {
-                    setGpsReport({
-                      isMock: true,
-                      threatLevel: 'CRITICAL_MOCK',
-                      accuracyMeters: 0,
-                      apparentSpeedKmh: 180,
-                      jitterVariance: 0,
-                      satellitesEstimated: 0,
-                      timestamp: Date.now(),
-                      reason: 'Mô phỏng phát hiện: Cờ Android Mock Location hoặc nhảy vọt vị trí phi lý (>120km/h).',
-                    });
-                  }
-                }}
-                className="px-3 py-2.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-300 font-bold border border-red-500/40 transition"
-              >
-                {gpsReport?.isMock ? 'Khôi phục GPS thật' : 'Test Fake GPS'}
+                <span>Quét Cập Nhật Tọa Độ GPS Thực Tế</span>
               </button>
             </div>
           </div>

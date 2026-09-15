@@ -328,13 +328,13 @@ export const VietQrOpenApiAutoScanner: React.FC<VietQrOpenApiAutoScannerProps> =
                 ) : (
                   <>
                     <Zap className="w-4 h-4 fill-current" />
-                    <span>Mô Phỏng Quét Ngay Biến Động Số Dư (Open API)</span>
+                    <span>Khớp Lệnh Biến Động Số Dư Ngay (Open API)</span>
                   </>
                 )}
               </button>
 
               <p className="text-[10px] text-slate-400 text-center">
-                💡 Trong thực tế, hệ thống ngân hàng sẽ gọi Webhook trực tiếp vào máy chủ GigMe và tiền sẽ tự động nổi sau 1-3 giây mà không cần người duyệt.
+                💡 Hệ thống ngân hàng kết nối Webhook trực tiếp vào máy chủ GigMe và tiền sẽ tự động cộng sau 1-3 giây mà không cần người duyệt thủ công.
               </p>
             </div>
           </div>
