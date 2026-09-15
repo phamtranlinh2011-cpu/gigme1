@@ -59,6 +59,11 @@ service cloud.firestore {
       allow create, update, delete: if true;
     }
 
+    // Bids & job applications
+    match /bids/{bidId} {
+      allow read, write: if true;
+    }
+
     // SafeWalk sessions
     match /safewalk/{sessionId} {
       allow read, write: if true;

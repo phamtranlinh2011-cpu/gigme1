@@ -1470,7 +1470,10 @@ Danh mục: ${category}`;
   // 11. Vite Middleware or Static Assets
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: {
+        middlewareMode: true,
+        hmr: false,
+      },
       appType: 'spa',
     });
     app.use(vite.middlewares);

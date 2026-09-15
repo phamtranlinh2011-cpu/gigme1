@@ -17,7 +17,15 @@ import {
   FirestoreError
 } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
-import { GigEntity, UserEntity, ChatMessageEntity, WalletTransactionEntity } from '../types';
+import { 
+  GigEntity, 
+  UserEntity, 
+  ChatMessageEntity, 
+  WalletTransactionEntity,
+  BidEntity,
+  MarketplaceItemEntity,
+  SafeWalkSessionEntity
+} from '../types';
 
 // Initialize Firebase SDK
 export const app = initializeApp(firebaseConfig);
@@ -248,6 +256,158 @@ export function subscribeToTransactions(
     },
     (err: FirestoreError) => {
       handleFirestoreError(err, OperationType.LIST, `transactions?userId=${userId}`);
+      if (onError) onError(err);
+    }
+  );
+}
+
+export function subscribeToAllTransactions(
+  onUpdate: (transactions: WalletTransactionEntity[]) => void,
+  onError?: (err: unknown) => void
+) {
+  const txRef = collection(db, 'transactions');
+  return onSnapshot(
+    txRef,
+    (snapshot) => {
+      const list: WalletTransactionEntity[] = [];
+      snapshot.forEach((doc) => {
+        list.push(doc.data() as WalletTransactionEntity);
+      });
+      list.sort((a, b) => b.timestamp - a.timestamp);
+      onUpdate(list);
+    },
+    (err: FirestoreError) => {
+      handleFirestoreError(err, OperationType.LIST, 'transactions');
+      if (onError) onError(err);
+    }
+  );
+}
+
+// --- ALL CHAT MESSAGES ---
+export function subscribeToAllMessages(
+  onUpdate: (messages: ChatMessageEntity[]) => void,
+  onError?: (err: unknown) => void
+) {
+  const messagesRef = collection(db, 'messages');
+  return onSnapshot(
+    messagesRef,
+    (snapshot) => {
+      const msgs: ChatMessageEntity[] = [];
+      snapshot.forEach((doc) => {
+        msgs.push(doc.data() as ChatMessageEntity);
+      });
+      msgs.sort((a, b) => a.timestamp - b.timestamp);
+      onUpdate(msgs);
+    },
+    (err: FirestoreError) => {
+      handleFirestoreError(err, OperationType.LIST, 'messages');
+      if (onError) onError(err);
+    }
+  );
+}
+
+// --- BIDS ---
+export async function syncBidToCloud(bid: BidEntity): Promise<void> {
+  const path = `bids/${bid.id}`;
+  try {
+    const cleanData = JSON.parse(JSON.stringify(bid));
+    await setDoc(doc(db, 'bids', bid.id), cleanData, { merge: true });
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, path);
+  }
+}
+
+export function subscribeToBids(
+  onUpdate: (bids: BidEntity[]) => void,
+  onError?: (err: unknown) => void
+) {
+  const bidsRef = collection(db, 'bids');
+  return onSnapshot(
+    bidsRef,
+    (snapshot) => {
+      const bids: BidEntity[] = [];
+      snapshot.forEach((doc) => {
+        bids.push(doc.data() as BidEntity);
+      });
+      bids.sort((a, b) => b.createdAt - a.createdAt);
+      onUpdate(bids);
+    },
+    (err: FirestoreError) => {
+      handleFirestoreError(err, OperationType.LIST, 'bids');
+      if (onError) onError(err);
+    }
+  );
+}
+
+// --- MARKETPLACE ---
+export async function syncMarketplaceItemToCloud(item: MarketplaceItemEntity): Promise<void> {
+  const path = `marketplace/${item.id}`;
+  try {
+    const cleanData = JSON.parse(JSON.stringify(item));
+    await setDoc(doc(db, 'marketplace', item.id), cleanData, { merge: true });
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, path);
+  }
+}
+
+export async function deleteMarketplaceItemFromCloud(itemId: string): Promise<void> {
+  const path = `marketplace/${itemId}`;
+  try {
+    await deleteDoc(doc(db, 'marketplace', itemId));
+  } catch (err) {
+    handleFirestoreError(err, OperationType.DELETE, path);
+  }
+}
+
+export function subscribeToMarketplace(
+  onUpdate: (items: MarketplaceItemEntity[]) => void,
+  onError?: (err: unknown) => void
+) {
+  const marketRef = collection(db, 'marketplace');
+  return onSnapshot(
+    marketRef,
+    (snapshot) => {
+      const items: MarketplaceItemEntity[] = [];
+      snapshot.forEach((doc) => {
+        items.push(doc.data() as MarketplaceItemEntity);
+      });
+      items.sort((a, b) => b.createdAt - a.createdAt);
+      onUpdate(items);
+    },
+    (err: FirestoreError) => {
+      handleFirestoreError(err, OperationType.LIST, 'marketplace');
+      if (onError) onError(err);
+    }
+  );
+}
+
+// --- SAFE WALK ---
+export async function syncSafeWalkToCloud(session: SafeWalkSessionEntity): Promise<void> {
+  const path = `safewalk/${session.id}`;
+  try {
+    const cleanData = JSON.parse(JSON.stringify(session));
+    await setDoc(doc(db, 'safewalk', session.id), cleanData, { merge: true });
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, path);
+  }
+}
+
+export function subscribeToSafeWalk(
+  onUpdate: (sessions: SafeWalkSessionEntity[]) => void,
+  onError?: (err: unknown) => void
+) {
+  const safeWalkRef = collection(db, 'safewalk');
+  return onSnapshot(
+    safeWalkRef,
+    (snapshot) => {
+      const list: SafeWalkSessionEntity[] = [];
+      snapshot.forEach((doc) => {
+        list.push(doc.data() as SafeWalkSessionEntity);
+      });
+      onUpdate(list);
+    },
+    (err: FirestoreError) => {
+      handleFirestoreError(err, OperationType.LIST, 'safewalk');
       if (onError) onError(err);
     }
   );

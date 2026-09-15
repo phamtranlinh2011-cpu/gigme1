@@ -1053,31 +1053,37 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         (u.phone && u.phone === trimmedContact)
     );
     if (!user) {
-      // Direct Cloud Server verification
-      fetch('/api/users/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contact: trimmedContact, password: trimmedPass }),
-      })
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.success && data.user) {
-            setUsers((prev) => [...prev.filter((u) => u.id !== data.user.id), data.user]);
-            setCurrentUserId(data.user.id);
-            showNotification('Đăng nhập thành công!', `Chào mừng trở lại, ${data.user.name}!`, true);
-          } else {
+      if (cloudService.isExpressAvailable()) {
+        fetch('/api/users/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contact: trimmedContact, password: trimmedPass }),
+        })
+          .then((res) => (res.ok ? res.json() : null))
+          .then((data) => {
+            if (data?.success && data?.user) {
+              setUsers((prev) => [...prev.filter((u) => u.id !== data.user.id), data.user]);
+              setCurrentUserId(data.user.id);
+              showNotification('Đăng nhập thành công!', `Chào mừng trở lại, ${data.user.name}!`, true);
+            } else {
+              showNotification(
+                'Tài khoản không tồn tại',
+                `Không tìm thấy tài khoản với ${trimmedContact}. Vui lòng kiểm tra lại hoặc Đăng ký mới!`
+              );
+            }
+          })
+          .catch(() => {
             showNotification(
               'Tài khoản không tồn tại',
               `Không tìm thấy tài khoản với ${trimmedContact}. Vui lòng kiểm tra lại hoặc Đăng ký mới!`
             );
-          }
-        })
-        .catch(() => {
-          showNotification(
-            'Tài khoản không tồn tại',
-            `Không tìm thấy tài khoản với ${trimmedContact}. Vui lòng kiểm tra lại hoặc Đăng ký mới!`
-          );
-        });
+          });
+      } else {
+        showNotification(
+          'Tài khoản không tồn tại',
+          `Không tìm thấy tài khoản với ${trimmedContact}. Vui lòng kiểm tra lại hoặc Đăng ký mới!`
+        );
+      }
       return false;
     }
 
