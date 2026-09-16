@@ -82,7 +82,7 @@ export const LateCancellationModal: React.FC<LateCancellationModalProps> = ({
               <div className="p-3 rounded-xl bg-red-950/50 border border-red-500/40 text-red-300 space-y-1.5">
                 <div className="flex items-center space-x-1.5 font-black text-xs text-red-200">
                   <ShieldAlert className="w-4 h-4 text-red-400" />
-                  <span>CẢNH BÁO: HỦY ĐƠN TRỄ HẠN (>10 PHÚT)</span>
+                  <span>CẢNH BÁO: HỦY ĐƠN TRỄ HẠN (&gt; 10 PHÚT)</span>
                 </div>
                 <p className="text-[11px] leading-relaxed">
                   Bạn đã giữ đơn quá 10 phút, làm lỡ dở thời gian của khách hàng. Theo quy định nền tảng:

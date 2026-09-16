@@ -897,6 +897,54 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
             </div>
           </div>
 
+          {/* Live Tracking Real-time Notification Banner (Grab / ShopeeFood standard) */}
+          {isLiveTracking && (
+            <div className="p-3 rounded-2xl bg-gradient-to-r from-emerald-950/80 via-slate-900 to-cyan-950/80 border border-emerald-500/50 shadow-lg flex items-center justify-between gap-2 animate-fade-in">
+              <div className="flex items-center space-x-2.5 min-w-0">
+                <div className="w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-400/60 flex items-center justify-center text-base shrink-0 animate-bounce">
+                  {selectedGig.category === 'Đưa đón & SafeWalk' ? '🚶‍♂️' : selectedGig.isFlash || selectedGig.category === 'Vận chuyển & Ship' ? '🛵' : '🚴‍♂️'}
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center space-x-1.5">
+                    <span className="text-white font-black text-xs truncate">
+                      {selectedGig.category === 'Đưa đón & SafeWalk' ? '🚶‍♂️' : selectedGig.isFlash || selectedGig.category === 'Vận chuyển & Ship' ? '🛵' : '🚴‍♂️'} Người làm đang cách bạn{' '}
+                      <strong className="text-[#00E5FF]">
+                        {(() => {
+                          const totalD = osrmRouteDetails?.distanceMeters ?? routeStats.distanceMeters ?? 450;
+                          const rem = Math.max(30, Math.round(totalD * (1 - trackingProgress)));
+                          return rem >= 1000 ? `${(rem / 1000).toFixed(1)} km` : `${rem}m`;
+                        })()}
+                      </strong>
+                    </span>
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping shrink-0" />
+                  </div>
+                  <p className="text-[11px] text-emerald-300 font-semibold truncate">
+                    Khoảng ~
+                    {(() => {
+                      const totalD = osrmRouteDetails?.distanceMeters ?? routeStats.distanceMeters ?? 450;
+                      const rem = Math.max(30, Math.round(totalD * (1 - trackingProgress)));
+                      const isWalk = selectedGig.category === 'Đưa đón & SafeWalk';
+                      return Math.max(1, Math.ceil(rem / (isWalk ? 75 : 350)));
+                    })()}
+                    {' '}phút tới nơi • Cập nhật chuyển động GPS thời gian thực
+                  </p>
+                </div>
+              </div>
+              <div className="text-right shrink-0">
+                <span className="px-2.5 py-1 rounded-full bg-emerald-400 text-black font-black text-[10px] shadow">
+                  ETA:{' '}
+                  {(() => {
+                    const totalD = osrmRouteDetails?.distanceMeters ?? routeStats.distanceMeters ?? 450;
+                    const rem = Math.max(30, Math.round(totalD * (1 - trackingProgress)));
+                    const isWalk = selectedGig.category === 'Đưa đón & SafeWalk';
+                    return Math.max(1, Math.ceil(rem / (isWalk ? 75 : 350)));
+                  })()}{' '}
+                  PHÚT
+                </span>
+              </div>
+            </div>
+          )}
+
           {/* Route details banner */}
           <div className="p-2.5 rounded-xl bg-[#09101C] border border-cyan-500/20 flex flex-wrap items-center justify-between gap-3 text-[11px]">
             <div className="flex flex-wrap items-center gap-3 sm:gap-4">

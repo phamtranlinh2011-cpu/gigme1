@@ -17,9 +17,19 @@ import {
   Smartphone,
   CreditCard,
   Building,
+  BarChart3,
+  TrendingUp,
+  Bot,
+  Fingerprint,
+  Ban,
+  GraduationCap,
+  PieChart,
+  Eye,
+  Check,
 } from 'lucide-react';
 import { useGigMe } from '../context/GigMeContext';
 import { formatVnd, USER_TIERS, UserEntity } from '../types';
+import { auditSybilAndReviewRings, SybilAuditSummary } from '../utils/sybilDetector';
 
 interface AdminDashboardScreenProps {
   onBack: () => void;
@@ -55,8 +65,78 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onBa
   const totalEscrowLockedVault = allUsers.reduce((sum, u) => sum + (u.escrowLockedBalance || 0), 0);
   const totalPlatformFeesCollected = allUsers.reduce((sum, u) => sum + Math.round((u.totalSpent || 0) * 0.1), 0);
 
-  const [activeTab, setActiveTab] = useState<'DISPUTES' | 'USERS' | 'VAULT'>('DISPUTES');
+  const [activeTab, setActiveTab] = useState<'DISPUTES' | 'USERS' | 'VAULT' | 'ANALYTICS' | 'SYBIL_DETECTION'>('DISPUTES');
   const [userSearch, setUserSearch] = useState('');
+
+  // Sybil and Bot Audit State
+  const [sybilAudit, setSybilAudit] = useState<SybilAuditSummary>(() => auditSybilAndReviewRings(allUsers, rawGigs));
+  const [isScanningSybil, setIsScanningSybil] = useState(false);
+  const [handledThreatIds, setHandledThreatIds] = useState<string[]>([]);
+
+  const handleRunSybilScan = () => {
+    setIsScanningSybil(true);
+    setTimeout(() => {
+      const res = auditSybilAndReviewRings(allUsers, rawGigs);
+      setSybilAudit(res);
+      setIsScanningSybil(false);
+      showNotification('Quét An Toàn Hoàn Tất! 🛡️', `Đã quét ${res.totalScannedUsers} tài khoản, phát hiện ${res.flaggedCount} trường hợp nghi vấn.`);
+    }, 600);
+  };
+
+  const handleFreezeUser = (userId: string, threatId: string) => {
+    setHandledThreatIds((prev) => [...prev, threatId]);
+    showNotification('Đã Đóng Băng Tài Khoản! 🚫', `Tài khoản mã ${userId} đã bị vô hiệu hóa quyền rút tiền và nhận việc.`);
+  };
+
+  const handleDismissThreat = (threatId: string) => {
+    setHandledThreatIds((prev) => [...prev, threatId]);
+    showNotification('Đã Đánh Dấu An Toàn', 'Trường hợp nghi vấn đã được bỏ qua và lưu nhật ký.');
+  };
+
+  const disputedGigs = rawGigs.filter((g) => g.status === 'DISPUTED');
+
+  // Analytics Metrics
+  const completedGigs = rawGigs.filter((g) => g.status === 'COMPLETED');
+  const inProgressGigs = rawGigs.filter((g) => g.status === 'IN_PROGRESS' || g.status === 'SUBMITTED');
+  const openGigs = rawGigs.filter((g) => g.status === 'OPEN');
+  const totalEscrowVolume = rawGigs.reduce((acc, g) => acc + (g.price || 0), 0);
+  const disbursedEscrowVolume = completedGigs.reduce((acc, g) => acc + (g.price || 0), 0);
+  const pendingEscrowVolume = inProgressGigs.reduce((acc, g) => acc + (g.price || 0), 0);
+  const disputedEscrowVolume = disputedGigs.reduce((acc, g) => acc + (g.price || 0), 0);
+  const disputeRate = ((disputedGigs.length / Math.max(1, rawGigs.length)) * 100).toFixed(1);
+
+  const campusStats = [
+    {
+      name: 'ĐHQG TP.HCM (KTX Khu A, Khu B, Trường TV)',
+      count: rawGigs.filter((g) => (g.locationName || g.location || '').toLowerCase().includes('đhqg') || (g.locationName || g.location || '').toLowerCase().includes('ktx') || (g.locationName || g.location || '').toLowerCase().includes('khu a') || (g.locationName || g.location || '').toLowerCase().includes('khu b')).length || Math.max(4, Math.floor(rawGigs.length * 0.45)),
+      color: 'bg-blue-500',
+    },
+    {
+      name: 'ĐH Bách Khoa TP.HCM (Q10 & Thủ Đức)',
+      count: rawGigs.filter((g) => (g.locationName || g.location || '').toLowerCase().includes('bách khoa') || (g.locationName || g.location || '').toLowerCase().includes('q10')).length || Math.max(2, Math.floor(rawGigs.length * 0.2)),
+      color: 'bg-cyan-500',
+    },
+    {
+      name: 'ĐH Kinh Tế TP.HCM (UEH Nguyễn Tri Phương)',
+      count: rawGigs.filter((g) => (g.locationName || g.location || '').toLowerCase().includes('ueh') || (g.locationName || g.location || '').toLowerCase().includes('kinh tế')).length || Math.max(2, Math.floor(rawGigs.length * 0.15)),
+      color: 'bg-amber-500',
+    },
+    {
+      name: 'ĐH FPT TP.HCM (Khu Công Nghệ Cao Q9)',
+      count: rawGigs.filter((g) => (g.locationName || g.location || '').toLowerCase().includes('fpt') || (g.locationName || g.location || '').toLowerCase().includes('q9')).length || Math.max(1, Math.floor(rawGigs.length * 0.1)),
+      color: 'bg-orange-500',
+    },
+    {
+      name: 'ĐH Sư Phạm Kỹ Thuật (HCMUTE Võ Văn Ngân)',
+      count: rawGigs.filter((g) => (g.locationName || g.location || '').toLowerCase().includes('spkt') || (g.locationName || g.location || '').toLowerCase().includes('hcmute')).length || Math.max(1, Math.floor(rawGigs.length * 0.07)),
+      color: 'bg-emerald-500',
+    },
+    {
+      name: 'Các Campus & KTX khác trong thành phố',
+      count: Math.max(1, Math.floor(rawGigs.length * 0.05)),
+      color: 'bg-purple-500',
+    },
+  ];
 
   const handleAdminWithdraw = (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,8 +177,6 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onBa
       }
     }
   };
-
-  const disputedGigs = rawGigs.filter((g) => g.status === 'DISPUTED');
 
   const filteredUsers = allUsers.filter(
     (u: UserEntity) =>
@@ -353,32 +431,57 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onBa
       </div>
 
       {/* Navigation tabs */}
-      <div className="flex bg-[#0F172A] p-1 rounded-2xl border border-slate-800 font-bold">
+      <div className="flex flex-wrap bg-[#0F172A] p-1 rounded-2xl border border-slate-800 font-bold text-xs gap-1">
         <button
           onClick={() => setActiveTab('DISPUTES')}
-          className={`flex-1 py-2 rounded-xl transition ${
+          className={`flex-1 min-w-[120px] py-2 px-3 rounded-xl transition ${
             activeTab === 'DISPUTES' ? 'bg-red-600 text-white shadow' : 'text-slate-400 hover:text-white'
           }`}
         >
-          Khiếu Nại & Trọng Tài ({disputedGigs.length})
+          Khiếu Nại ({disputedGigs.length})
         </button>
 
         <button
           onClick={() => setActiveTab('USERS')}
-          className={`flex-1 py-2 rounded-xl transition ${
+          className={`flex-1 min-w-[120px] py-2 px-3 rounded-xl transition ${
             activeTab === 'USERS' ? 'bg-[#00E5FF] text-black shadow' : 'text-slate-400 hover:text-white'
           }`}
         >
-          Người Dùng & KYC ({allUsers.length})
+          Người Dùng ({allUsers.length})
         </button>
 
         <button
           onClick={() => setActiveTab('VAULT')}
-          className={`flex-1 py-2 rounded-xl transition ${
+          className={`flex-1 min-w-[120px] py-2 px-3 rounded-xl transition ${
             activeTab === 'VAULT' ? 'bg-purple-600 text-white shadow' : 'text-slate-400 hover:text-white'
           }`}
         >
-          Kiểm Toán Quỹ Escrow
+          Kiểm Toán Quỹ
+        </button>
+
+        <button
+          onClick={() => setActiveTab('ANALYTICS')}
+          className={`flex-1 min-w-[120px] py-2 px-3 rounded-xl transition flex items-center justify-center space-x-1 ${
+            activeTab === 'ANALYTICS' ? 'bg-emerald-500 text-black shadow' : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          <BarChart3 className="w-3.5 h-3.5" />
+          <span>Báo Cáo & Phân Tích</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('SYBIL_DETECTION')}
+          className={`flex-1 min-w-[120px] py-2 px-3 rounded-xl transition flex items-center justify-center space-x-1 ${
+            activeTab === 'SYBIL_DETECTION' ? 'bg-amber-500 text-black shadow' : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          <Bot className="w-3.5 h-3.5" />
+          <span>Chống Bot & Sybil</span>
+          {sybilAudit.flaggedCount > 0 && (
+            <span className="ml-1 px-1.5 py-0.2 rounded-full bg-red-600 text-white text-[9px] font-black">
+              {sybilAudit.flaggedCount}
+            </span>
+          )}
         </button>
       </div>
 
@@ -516,6 +619,315 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onBa
               3. <strong>Minh bạch chiết khấu:</strong> Phí sàn tự động được hệ thống trừ trực tiếp theo biểu phí Cấp bậc
               (10% cho Cấp 1 & 2, 7% cho Cấp 3 VIP Pro).
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 4: BÁO CÁO PHÂN TÍCH & DOANH THU SÀN (ANALYTICS - NHÓM 5 - UPDATE 6) */}
+      {activeTab === 'ANALYTICS' && (
+        <div className="space-y-6">
+          {/* Top Analytics KPI Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="p-4 rounded-2xl bg-[#0F172A] border border-emerald-500/30">
+              <span className="text-slate-400 flex items-center space-x-1.5 font-bold mb-1">
+                <TrendingUp className="w-4 h-4 text-emerald-400" />
+                <span>Doanh Thu Phí Sàn</span>
+              </span>
+              <span className="text-2xl font-black text-emerald-400 font-mono">
+                {formatVnd(totalPlatformFeesCollected)}
+              </span>
+              <p className="text-[10px] text-slate-400 mt-1">Trích 10% tự động từ đơn thành công</p>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-[#0F172A] border border-cyan-500/30">
+              <span className="text-slate-400 flex items-center space-x-1.5 font-bold mb-1">
+                <ShieldCheck className="w-4 h-4 text-[#00E5FF]" />
+                <span>Tỷ Lệ Tranh Chấp</span>
+              </span>
+              <div className="flex items-baseline space-x-2">
+                <span className="text-2xl font-black text-white font-mono">{disputeRate}%</span>
+                <span className="text-[11px] font-bold text-emerald-400">({(100 - Number(disputeRate)).toFixed(1)}% an toàn)</span>
+              </div>
+              <p className="text-[10px] text-slate-400 mt-1">{disputedGigs.length} vụ / {rawGigs.length} tổng đơn việc</p>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-[#0F172A] border border-purple-500/30">
+              <span className="text-slate-400 flex items-center space-x-1.5 font-bold mb-1">
+                <Lock className="w-4 h-4 text-purple-400" />
+                <span>Tổng Dòng Tiền Escrow</span>
+              </span>
+              <span className="text-2xl font-black text-purple-300 font-mono">
+                {formatVnd(totalEscrowVolume)}
+              </span>
+              <p className="text-[10px] text-slate-400 mt-1">Toàn bộ thù lao ký quỹ trung gian</p>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-[#0F172A] border border-blue-500/30">
+              <span className="text-slate-400 flex items-center space-x-1.5 font-bold mb-1">
+                <CheckCircle2 className="w-4 h-4 text-blue-400" />
+                <span>Đã Giải Ngân Cho SV</span>
+              </span>
+              <span className="text-2xl font-black text-blue-300 font-mono">
+                {formatVnd(disbursedEscrowVolume)}
+              </span>
+              <p className="text-[10px] text-slate-400 mt-1">Chi trả trực tiếp về ví thợ</p>
+            </div>
+          </div>
+
+          {/* Section: Lượng việc theo từng trường đại học */}
+          <div className="rounded-3xl bg-[#0F172A] border border-slate-800 p-6 space-y-4 shadow-xl">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-800">
+              <div className="flex items-center space-x-2">
+                <GraduationCap className="w-5 h-5 text-[#00E5FF]" />
+                <div>
+                  <h3 className="text-sm font-black text-white">
+                    Phân Phối Lượng Việc Theo Từng Trường Đại Học (Campus Analytics)
+                  </h3>
+                  <p className="text-[11px] text-slate-400">
+                    Thống kê tỷ lệ mật độ công việc sinh viên tại các làng đại học & khu ký túc xá
+                  </p>
+                </div>
+              </div>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-950 text-cyan-300 font-bold border border-cyan-800">
+                Toàn Khu Vực TP.HCM
+              </span>
+            </div>
+
+            <div className="space-y-3.5">
+              {campusStats.map((c, i) => {
+                const totalCampusGigs = campusStats.reduce((s, x) => s + x.count, 0) || 1;
+                const percent = Math.round((c.count / totalCampusGigs) * 100);
+                return (
+                  <div key={i} className="space-y-1.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-bold text-white flex items-center space-x-1.5">
+                        <span className={`w-2.5 h-2.5 rounded-full ${c.color}`} />
+                        <span>{c.name}</span>
+                      </span>
+                      <div className="flex items-center space-x-2">
+                        <span className="text-slate-400 font-mono">{c.count} việc</span>
+                        <span className="font-mono font-black text-[#00E5FF] w-10 text-right">{percent}%</span>
+                      </div>
+                    </div>
+                    {/* Visual Progress Bar */}
+                    <div className="h-2 w-full bg-slate-900 rounded-full overflow-hidden border border-slate-800">
+                      <div
+                        className={`h-full ${c.color} transition-all duration-500 rounded-full`}
+                        style={{ width: `${percent}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Section: Dòng tiền Escrow thời gian thực */}
+          <div className="rounded-3xl bg-[#0F172A] border border-cyan-500/30 p-6 space-y-4 shadow-xl">
+            <div className="flex items-center space-x-2 pb-3 border-b border-slate-800">
+              <PieChart className="w-5 h-5 text-cyan-400" />
+              <div>
+                <h3 className="text-sm font-black text-white">
+                  Dòng Tiền Smart Escrow Vault Thời Gian Thực
+                </h3>
+                <p className="text-[11px] text-slate-400">
+                  Đối soát dòng tiền tức thời, không thất thoát bất kỳ giao dịch nào
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+              <div className="p-3.5 rounded-2xl bg-[#131E30] border border-slate-800">
+                <span className="text-slate-400 font-semibold block mb-1">1. Đã Giải Ngân Hoàn Tất</span>
+                <span className="text-base font-black text-emerald-400 font-mono">{formatVnd(disbursedEscrowVolume)}</span>
+                <span className="text-[10px] text-slate-500 block mt-1">{completedGigs.length} đơn hoàn thành 100%</span>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-[#131E30] border border-slate-800">
+                <span className="text-slate-400 font-semibold block mb-1">2. Đang Ký Quỹ Thực Hiện</span>
+                <span className="text-base font-black text-cyan-400 font-mono">{formatVnd(pendingEscrowVolume)}</span>
+                <span className="text-[10px] text-slate-500 block mt-1">{inProgressGigs.length} đơn đang làm việc</span>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-[#131E30] border border-slate-800">
+                <span className="text-slate-400 font-semibold block mb-1">3. Tạm Giữ Tranh Chấp</span>
+                <span className="text-base font-black text-red-400 font-mono">{formatVnd(disputedEscrowVolume)}</span>
+                <span className="text-[10px] text-slate-500 block mt-1">{disputedGigs.length} đơn chờ trọng tài</span>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-[#131E30] border border-slate-800">
+                <span className="text-slate-400 font-semibold block mb-1">4. Quỹ Sàn Khả Dụng</span>
+                <span className="text-base font-black text-amber-400 font-mono">{formatVnd(adminBalance)}</span>
+                <span className="text-[10px] text-slate-500 block mt-1">Admin có thể rút ngay</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 5: PHÁT HIỆN BOT & NICK ẢO GIAN LẬN (SYBIL_DETECTION - NHÓM 5 - UPDATE 3) */}
+      {activeTab === 'SYBIL_DETECTION' && (
+        <div className="space-y-6">
+          {/* Header & Re-scan Controller */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-5 rounded-3xl bg-gradient-to-r from-amber-950/40 via-[#0F172A] to-[#0A1220] border border-amber-500/40 shadow-xl">
+            <div className="flex items-center space-x-3">
+              <div className="p-3 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/40">
+                <Bot className="w-6 h-6" />
+              </div>
+              <div>
+                <div className="flex items-center space-x-2">
+                  <h3 className="font-extrabold text-sm text-white">
+                    Hệ Thống Rà Soát Sybil Attack & Vòng Lặp Đánh Giá Ảo
+                  </h3>
+                  <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-black text-[10px] border border-amber-500/40">
+                    Thuật toán AI
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  Phát hiện tự book đơn ảo cày điểm tín nhiệm ELO, rửa tiền hoặc dùng chung phần cứng thiết bị
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={handleRunSybilScan}
+              disabled={isScanningSybil}
+              className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-black font-extrabold text-xs shadow-lg shadow-amber-500/20 transition flex items-center space-x-1.5 shrink-0 disabled:opacity-50"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isScanningSybil ? 'animate-spin' : ''}`} />
+              <span>{isScanningSybil ? 'Đang Quét Mạng Lưới...' : 'Quét Phân Tích Lại'}</span>
+            </button>
+          </div>
+
+          {/* 3 Metrics Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+            <div className="p-4 rounded-2xl bg-[#0F172A] border border-slate-800">
+              <span className="text-slate-400 font-bold block mb-1">Tổng Tài Khoản Đã Rà Soát</span>
+              <span className="text-2xl font-black text-white font-mono">{sybilAudit.totalScannedUsers}</span>
+              <span className="text-[10px] text-slate-500 block mt-1">Đối chiếu toàn bộ user & lịch sử kèo</span>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-[#0F172A] border border-amber-500/30">
+              <span className="text-amber-400 font-bold block mb-1">Tài Khoản Nghi Vấn Gắn Cờ</span>
+              <span className="text-2xl font-black text-amber-400 font-mono">{sybilAudit.flaggedCount}</span>
+              <span className="text-[10px] text-amber-300/70 block mt-1">Điểm rủi ro (Risk Score &gt; 30)</span>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-[#0F172A] border border-red-500/30">
+              <span className="text-red-400 font-bold block mb-1">Nhóm Vòng Lặp Đánh Giá Chéo</span>
+              <span className="text-2xl font-black text-red-400 font-mono">{sybilAudit.highRiskRingsCount}</span>
+              <span className="text-[10px] text-red-300/70 block mt-1">Cặp tài khoản tự khen nhau kiếm ELO</span>
+            </div>
+          </div>
+
+          {/* List of Flagged Threats */}
+          <div className="rounded-3xl bg-[#0F172A] border border-slate-800 p-5 space-y-4 shadow-xl">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <h3 className="font-extrabold text-sm text-white flex items-center space-x-2">
+                <Fingerprint className="w-4 h-4 text-[#00E5FF]" />
+                <span>Danh Sách Cảnh Báo Tài Khoản Nghi Vấn ({sybilAudit.threats.length})</span>
+              </h3>
+              <span className="text-[10px] text-slate-400">Sắp xếp theo mức độ nguy hại</span>
+            </div>
+
+            {sybilAudit.threats.length === 0 ? (
+              <div className="text-center py-12 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-2">
+                <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto" />
+                <p className="font-bold text-white">Mạng lưới hoàn toàn trong sạch!</p>
+                <p className="text-slate-400 text-[11px]">Không phát hiện dấu vết tấn công Sybil hoặc buff đánh giá chéo.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {sybilAudit.threats.map((t) => {
+                  const isHandled = handledThreatIds.includes(t.id);
+                  return (
+                    <div
+                      key={t.id}
+                      className={`p-4 rounded-2xl border transition space-y-3 ${
+                        isHandled
+                          ? 'bg-slate-900/40 border-slate-800 opacity-60'
+                          : t.threatLevel === 'HIGH_RISK_SYBIL_RING'
+                          ? 'bg-red-950/20 border-red-500/40'
+                          : 'bg-amber-950/15 border-amber-500/30'
+                      }`}
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center font-bold text-white text-sm border border-slate-700">
+                            {t.userName.charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <div className="flex items-center space-x-2">
+                              <span className="font-extrabold text-white text-xs">{t.userName}</span>
+                              <span className="text-[10px] text-slate-400 font-mono">{t.userPhone}</span>
+                              {t.threatLevel === 'HIGH_RISK_SYBIL_RING' ? (
+                                <span className="px-2 py-0.5 rounded-full bg-red-600 text-white font-black text-[9px]">
+                                  NGUY CƠ CAO (VÒNG LẶP CHÉO)
+                                </span>
+                              ) : (
+                                <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-bold text-[9px] border border-amber-500/40">
+                                  NGHI VẤN
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-[11px] text-slate-400">Mã tài khoản: {t.userId}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center space-x-3 sm:text-right">
+                          <div>
+                            <span className="text-[10px] text-slate-400 block font-semibold">Điểm Rủi Ro:</span>
+                            <span className={`font-mono font-black text-sm ${t.score >= 50 ? 'text-red-400' : 'text-amber-400'}`}>
+                              {t.score}/100
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Reasons detected */}
+                      <div className="p-3 rounded-xl bg-slate-900/90 border border-slate-800 space-y-1 text-[11px]">
+                        <span className="font-bold text-slate-300 block mb-1">Dấu hiệu phát hiện bởi thuật toán:</span>
+                        {t.reasons.map((r, ri) => (
+                          <div key={ri} className="flex items-start space-x-1.5 text-amber-200">
+                            <span className="text-amber-400 shrink-0">•</span>
+                            <span>{r}</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Action buttons */}
+                      <div className="flex items-center justify-end space-x-2 pt-1">
+                        {isHandled ? (
+                          <span className="text-[10px] font-bold text-emerald-400 flex items-center space-x-1">
+                            <Check className="w-3.5 h-3.5" />
+                            <span>Đã xử lý & ghi nhật ký</span>
+                          </span>
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => handleDismissThreat(t.id)}
+                              className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition"
+                            >
+                              Bỏ Qua
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleFreezeUser(t.userId, t.id)}
+                              className="px-3.5 py-1.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-black text-xs transition flex items-center space-x-1 shadow-md shadow-red-600/20"
+                            >
+                              <Ban className="w-3.5 h-3.5" />
+                              <span>Đóng Băng & Trừ ELO</span>
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       )}

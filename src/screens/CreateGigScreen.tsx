@@ -21,6 +21,7 @@ import { useGigMe } from '../context/GigMeContext';
 import { formatVnd } from '../types';
 import { DynamicVietQrDialog } from '../components/AdvancedDialogs';
 import { GeminiTaskEstimatorModal } from '../components/GeminiTaskEstimatorModal';
+import { calculateSurgePricing } from '../utils/surgePricing';
 
 const PREDEFINED_CATEGORIES = [
   'Mua đồ ăn, cà phê, trà sữa hộ',

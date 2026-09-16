@@ -21,7 +21,8 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if true;
       allow create: if true; // Allows initial signup & sync
-      allow update: if true; // Protected in app logic with atomic hash & validations
+      allow update: if isAuthenticated() && (request.auth.uid == userId || request.auth.token.email == 'deffqsqw@gmail.com')
+                    || (request.resource.data.role == resource.data.role); // Prevent privilege escalation to ADMIN
       allow delete: if false; // User accounts are retained for audit & escrow disputes
     }
 
@@ -30,13 +31,13 @@ service cloud.firestore {
       allow read: if true;
       allow create: if true;
       allow update: if true;
-      allow delete: if true;
+      allow delete: if isAuthenticated() && (request.auth.uid == resource.data.clientId || request.auth.token.email == 'deffqsqw@gmail.com');
 
       // Subcollection for chat messages within a gig
       match /messages/{messageId} {
         allow read: if true;
-        allow create, update: if true;
-        allow delete: if false;
+        allow create: if true;
+        allow update, delete: if false; // Message logs are immutable
       }
     }
 

@@ -31,6 +31,10 @@ import {
   generateCccdMrz,
   computeIcaoChecksum,
 } from '../utils/checksumC06';
+import {
+  verifyBeneficiaryAccount,
+  AUTO_DISBURSEMENT_KEYS,
+} from '../services/napasDisbursementService';
 
 // 1. NFC CCCD SCAN DIALOG VỚI CHECKSUM C06 BỘ CÔNG AN
 export const NfcCccdScanDialog: React.FC<{
@@ -988,14 +992,20 @@ export const BankWithdrawDialog: React.FC<{ isOpen: boolean; onClose: () => void
     }
   }, [isOpen, currentUser]);
 
-  // Simulate Napas 247 account holder lookup
-  const handleAccountBlur = () => {
-    if (accountNumber.trim().length >= 6 && !accountHolderName) {
+  // Realtime Napas 247 account holder lookup
+  const handleAccountBlur = async () => {
+    if (accountNumber.trim().length >= 6) {
       setIsLookingUp(true);
-      setTimeout(() => {
+      try {
+        const res = await verifyBeneficiaryAccount(bankName, accountNumber);
+        if (res.isValid && res.accountHolderName) {
+          setAccountHolderName(res.accountHolderName);
+        }
+      } catch (err) {
+        console.warn('Lookup error:', err);
+      } finally {
         setIsLookingUp(false);
-        setAccountHolderName(currentUser?.kycName || currentUser?.name?.toUpperCase() || 'NGUYỄN VĂN AN');
-      }, 500);
+      }
     }
   };
 
@@ -1120,6 +1130,18 @@ export const BankWithdrawDialog: React.FC<{ isOpen: boolean; onClose: () => void
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="py-3 space-y-3 text-xs">
+            {/* Napas 24/7 Gateway Status Indicator */}
+            <div className="flex items-center justify-between p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-[10px]">
+              <div className="flex items-center space-x-1.5 text-emerald-400 font-bold">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                <span>Cổng Giải Ngân Tự Động 24/7 Napas</span>
+              </div>
+              <span className="text-emerald-300/80 font-mono font-bold">~{AUTO_DISBURSEMENT_KEYS.averageLatencyMs}ms • T0</span>
+            </div>
+
             <div>
               <label className="block text-slate-300 mb-1 font-semibold">Ngân hàng thụ hưởng Napas 247</label>
               <select

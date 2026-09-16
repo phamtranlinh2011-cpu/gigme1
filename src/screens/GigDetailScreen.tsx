@@ -26,6 +26,7 @@ import {
   Image as ImageIcon,
   Wifi,
   Download,
+  Camera,
 } from 'lucide-react';
 import { useGigMe } from '../context/GigMeContext';
 import { formatVnd, USER_TIERS } from '../types';
@@ -33,6 +34,7 @@ import { LiveReverseBiddingModal } from '../components/LiveReverseBiddingModal';
 import { MultiWorkerCheckInModal } from '../components/MultiWorkerCheckInModal';
 import { DoubleBlindReviewModal } from '../components/DoubleBlindReviewModal';
 import { LateCancellationModal } from '../components/LateCancellationModal';
+import { BlockchainProofModal } from '../components/BlockchainProofModal';
 import { offlineCacheManager } from '../utils/offlineCache';
 
 interface GigDetailScreenProps {
@@ -80,6 +82,7 @@ export const GigDetailScreen: React.FC<GigDetailScreenProps> = ({
   const [isMultiWorkerOpen, setIsMultiWorkerOpen] = useState(false);
   const [isDoubleBlindModalOpen, setIsDoubleBlindModalOpen] = useState(false);
   const [isLateCancelOpen, setIsLateCancelOpen] = useState(false);
+  const [isProofModalOpen, setIsProofModalOpen] = useState(false);
 
   if (!gig) {
     return (
@@ -354,6 +357,18 @@ export const GigDetailScreen: React.FC<GigDetailScreenProps> = ({
                 <span>Vào Khung Chat & Nghiệm Thu &rarr;</span>
               </button>
 
+              {/* Nút gửi ảnh bằng chứng đóng dấu GPS & Timestamp (Chống quỵt tiền) */}
+              {gig.status === 'IN_PROGRESS' && currentUser?.id === gig.freelancerId && (
+                <button
+                  type="button"
+                  onClick={() => setIsProofModalOpen(true)}
+                  className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-black font-extrabold text-xs hover:brightness-110 shadow-md transition flex items-center space-x-1.5"
+                >
+                  <Camera className="w-4 h-4" />
+                  <span>Chụp Ảnh Nghiệm Thu (Dấu GPS & Giờ)</span>
+                </button>
+              )}
+
               {/* Nút hủy nhận việc của Freelancer (Có cảnh báo & phạt trễ hạn nếu > 10p) */}
               {gig.status === 'IN_PROGRESS' && currentUser?.id === gig.freelancerId && (
                 <button
@@ -420,7 +435,7 @@ export const GigDetailScreen: React.FC<GigDetailScreenProps> = ({
 
           <div className="relative rounded-2xl overflow-hidden border border-slate-800 bg-black max-h-64 flex items-center justify-center">
             <img
-              src={gig.proofWatermarkUrl || gig.proofImageUrl}
+              src={(gig.proofWatermarkUrl || gig.proofImageUrl) || ''}
               alt="Bằng chứng công việc"
               className="w-full h-full object-cover"
             />
@@ -791,6 +806,13 @@ export const GigDetailScreen: React.FC<GigDetailScreenProps> = ({
         isOpen={isLateCancelOpen}
         gig={gig}
         onClose={() => setIsLateCancelOpen(false)}
+      />
+
+      {/* Blockchain Proof with Watermark GPS & Timestamp Modal */}
+      <BlockchainProofModal
+        isOpen={isProofModalOpen}
+        onClose={() => setIsProofModalOpen(false)}
+        gigId={gig.id}
       />
     </div>
   );

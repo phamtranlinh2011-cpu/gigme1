@@ -23,10 +23,12 @@ import {
   Flame,
   Bell,
   ShieldAlert,
+  WifiOff,
 } from 'lucide-react';
 import { useGigMe } from '../context/GigMeContext';
 import { InteractiveRadar } from '../components/InteractiveRadar';
 import { VoiceSearchDialog } from '../components/AdvancedDialogs';
+import { OfflineGigsModal } from '../components/OfflineGigsModal';
 import { formatVnd, GigEntity } from '../types';
 import { VIETNAM_HUBS } from '../utils/geo';
 
@@ -96,6 +98,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
   const [isVoiceOpen, setIsVoiceOpen] = useState(false);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [isOfflineModalOpen, setIsOfflineModalOpen] = useState(false);
   const isClient = roleMode === 'CLIENT';
 
   return (
@@ -271,6 +274,20 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               <p className="text-[10px] text-slate-400 truncate">Huy hiệu & rank</p>
             </button>
           )}
+
+          <button
+            onClick={() => setIsOfflineModalOpen(true)}
+            className="min-w-[130px] sm:min-w-0 p-2.5 rounded-2xl bg-gradient-to-b from-[#131E30] to-[#0A1220] border border-cyan-500/30 hover:border-cyan-400 text-left transition group shadow-sm shrink-0 snap-start"
+          >
+            <div className="flex items-center justify-between mb-1">
+              <WifiOff className="w-4 h-4 text-cyan-400 group-hover:scale-110 transition" />
+              <span className="text-[9px] px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 font-extrabold">
+                PWA Sync
+              </span>
+            </div>
+            <h5 className="font-extrabold text-white text-xs truncate">Kho Việc Offline</h5>
+            <p className="text-[10px] text-slate-400 truncate">Xem trong thang máy</p>
+          </button>
         </div>
       </div>
 
@@ -607,6 +624,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         isOpen={isVoiceOpen}
         onClose={() => setIsVoiceOpen(false)}
         onSelectQuery={(q) => setSearchQuery(q)}
+      />
+
+      {/* Offline Gigs Cache Modal */}
+      <OfflineGigsModal
+        isOpen={isOfflineModalOpen}
+        onClose={() => setIsOfflineModalOpen(false)}
+        onSelectGig={(id) => onSelectGigDetail(id)}
       />
     </div>
   );

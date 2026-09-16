@@ -120,10 +120,13 @@ export interface GigEntity {
   lowestBidPrice: number;
   distanceMeters: number;
   locationName: string;
+  location?: string;
+  deadline?: string;
   latitude: number;
   longitude: number;
   clientId: string;
   clientName: string;
+  clientPhone?: string;
   clientTier: UserTierKey;
   freelancerId?: string | null;
   freelancerName?: string | null;
@@ -171,6 +174,15 @@ export interface GigEntity {
   proofGpsCoords?: { lat: number; lng: number };
   proofTimestamp?: number;
   proofHash?: string;
+  // Cơ chế giá linh hoạt theo cung - cầu (Dynamic Surge Pricing 1.02x - 1.25x)
+  surgeMultiplier?: number;
+  originalBasePrice?: number;
+  surgeReason?: string;
+  isSurging?: boolean;
+  // Nhận diện & Chống gian lận vị trí (Anti-Fake GPS / Mock Location)
+  gpsAuthenticityStatus?: 'GENUINE_SENSOR' | 'SUSPICIOUS_MOCK' | 'BLOCKED_SPOOF';
+  gpsAccuracyMeters?: number;
+  gpsCheckDistanceMeters?: number;
   // Tiếp nhận & Phạt hủy đơn trễ hẹn (Late Cancellation Penalty)
   acceptedAt?: number;
   cancelledAt?: number;

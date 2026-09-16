@@ -11,6 +11,9 @@ import {
   Sparkles,
   AlertCircle,
   CheckCircle2,
+  Eye,
+  EyeOff,
+  ShieldCheck,
 } from 'lucide-react';
 import { useGigMe } from '../context/GigMeContext';
 
@@ -29,6 +32,12 @@ export const AuthScreen: React.FC = () => {
   } = useGigMe();
 
   const [activeTab, setActiveTab] = useState<'LOGIN' | 'REGISTER' | 'PHONE_OTP' | 'FORGOT'>('LOGIN');
+
+  // Password visibility toggles
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [showRegPassword, setShowRegPassword] = useState(false);
+  const [showRegConfirm, setShowRegConfirm] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
 
   // Login form
   const [loginContact, setLoginContact] = useState('');
@@ -75,6 +84,21 @@ export const AuthScreen: React.FC = () => {
     return () => clearInterval(timer);
   }, [forgotCountdown]);
 
+  const handleQuickLogin = async (contact: string, pass: string) => {
+    setAuthError(null);
+    setLoginContact(contact);
+    setLoginPassword(pass);
+    setIsLoggingIn(true);
+    try {
+      const ok = await login(contact, pass);
+      if (!ok) {
+        setAuthError('Không thể đăng nhập bằng tài khoản mẫu. Vui lòng thử lại!');
+      }
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError(null);
@@ -90,7 +114,7 @@ export const AuthScreen: React.FC = () => {
     try {
       const success = await login(loginContact, loginPassword);
       if (!success) {
-        setAuthError('Tài khoản hoặc mật khẩu không chính xác. Vui lòng thử lại!');
+        setAuthError('Tài khoản hoặc mật khẩu không chính xác. Bạn có thể nhấn Tài Khoản Mẫu bên trên để vào ngay!');
       }
     } finally {
       setIsLoggingIn(false);
@@ -285,57 +309,120 @@ export const AuthScreen: React.FC = () => {
 
           {/* 1. LOGIN */}
           {activeTab === 'LOGIN' && (
-            <form onSubmit={handleLogin} className="space-y-4 text-xs">
-              <div>
-                <label className="block text-slate-400 mb-1 font-semibold">Gmail hoặc Số điện thoại</label>
-                <div className="relative">
-                  <Mail className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
-                  <input
-                    type="text"
-                    id="login-contact-input"
-                    required
-                    value={loginContact}
-                    onChange={(e) => setLoginContact(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 rounded-xl bg-[#131E30] border border-slate-700 text-white"
-                    placeholder="vietanh.dhbk@gmail.com hoặc 0912..."
-                  />
+            <div className="space-y-4">
+              {/* Quick 1-Click Demo Accounts Bar */}
+              <div className="p-3 rounded-2xl bg-cyan-950/40 border border-cyan-500/30 text-xs">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] font-bold text-cyan-300 flex items-center">
+                    <Sparkles className="w-3.5 h-3.5 mr-1 text-cyan-400" /> Tài Khoản Thử Nghiệm 1-Chạm:
+                  </span>
+                  <span className="text-[10px] text-cyan-400/80 font-mono">Bấm là vào</span>
                 </div>
-              </div>
-
-              <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label className="text-slate-400 font-semibold">Mật khẩu</label>
+                <div className="grid grid-cols-3 gap-1.5">
                   <button
                     type="button"
-                    onClick={() => setActiveTab('FORGOT')}
-                    className="text-[11px] text-[#00E5FF] hover:underline"
+                    onClick={() => handleQuickLogin('0912345678', '123456')}
+                    disabled={isLoggingIn}
+                    className="p-2 rounded-xl bg-[#131E30] hover:bg-cyan-900/40 border border-slate-700 hover:border-cyan-500/50 text-left transition active:scale-95"
                   >
-                    Quên mật khẩu?
+                    <div className="text-[11px] font-bold text-emerald-400 flex items-center">
+                      <span>👨‍💻 Sinh Viên</span>
+                    </div>
+                    <div className="text-[10px] text-slate-300 font-semibold truncate">Huy (Bách Khoa)</div>
+                    <div className="text-[9px] text-slate-500 font-mono">0912345678</div>
                   </button>
-                </div>
-                <div className="relative">
-                  <Lock className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
-                  <input
-                    type="password"
-                    id="login-password-input"
-                    required
-                    value={loginPassword}
-                    onChange={(e) => setLoginPassword(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 rounded-xl bg-[#131E30] border border-slate-700 text-white"
-                    placeholder="••••••••"
-                  />
+
+                  <button
+                    type="button"
+                    onClick={() => handleQuickLogin('0987654321', '123456')}
+                    disabled={isLoggingIn}
+                    className="p-2 rounded-xl bg-[#131E30] hover:bg-cyan-900/40 border border-slate-700 hover:border-cyan-500/50 text-left transition active:scale-95"
+                  >
+                    <div className="text-[11px] font-bold text-amber-400 flex items-center">
+                      <span>🛒 Khách Thuê</span>
+                    </div>
+                    <div className="text-[10px] text-slate-300 font-semibold truncate">Hà (Kinh Tế)</div>
+                    <div className="text-[9px] text-slate-500 font-mono">0987654321</div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleQuickLogin('admin@admin.vn', 'admin1507')}
+                    disabled={isLoggingIn}
+                    className="p-2 rounded-xl bg-[#131E30] hover:bg-cyan-900/40 border border-slate-700 hover:border-cyan-500/50 text-left transition active:scale-95"
+                  >
+                    <div className="text-[11px] font-bold text-purple-400 flex items-center">
+                      <span>🛡️ Admin Sàn</span>
+                    </div>
+                    <div className="text-[10px] text-slate-300 font-semibold truncate">Ban Quản Trị</div>
+                    <div className="text-[9px] text-slate-500 font-mono">admin1507</div>
+                  </button>
                 </div>
               </div>
 
-              <button
-                type="submit"
-                id="submit-login-btn"
-                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#00E5FF] to-cyan-500 text-black font-extrabold text-sm hover:brightness-110 shadow-lg shadow-cyan-500/20 transition flex items-center justify-center space-x-1.5"
-              >
-                <span>Đăng Nhập Vào GigMe</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            </form>
+              <form onSubmit={handleLogin} className="space-y-4 text-xs">
+                <div>
+                  <label className="block text-slate-400 mb-1 font-semibold">Gmail hoặc Số điện thoại</label>
+                  <div className="relative">
+                    <Mail className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
+                    <input
+                      type="text"
+                      id="login-contact-input"
+                      required
+                      value={loginContact}
+                      onChange={(e) => setLoginContact(e.target.value)}
+                      className="w-full pl-9 pr-3 py-2 rounded-xl bg-[#131E30] border border-slate-700 text-white focus:border-cyan-500 focus:outline-none"
+                      placeholder="0912345678 hoặc sinhvien@gmail.com"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                    <label className="text-slate-400 font-semibold">Mật khẩu</label>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('FORGOT')}
+                      className="text-[11px] text-[#00E5FF] hover:underline"
+                    >
+                      Quên mật khẩu?
+                    </button>
+                  </div>
+                  <div className="relative">
+                    <Lock className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
+                    <input
+                      type={showLoginPassword ? 'text' : 'password'}
+                      id="login-password-input"
+                      required
+                      value={loginPassword}
+                      onChange={(e) => setLoginPassword(e.target.value)}
+                      className="w-full pl-9 pr-10 py-2 rounded-xl bg-[#131E30] border border-slate-700 text-white focus:border-cyan-500 focus:outline-none"
+                      placeholder="••••••••"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowLoginPassword(!showLoginPassword)}
+                      className="absolute right-3 top-2.5 text-slate-500 hover:text-slate-300"
+                    >
+                      {showLoginPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  id="submit-login-btn"
+                  disabled={isLoggingIn}
+                  className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#00E5FF] to-cyan-500 text-black font-extrabold text-sm hover:brightness-110 shadow-lg shadow-cyan-500/20 transition flex items-center justify-center space-x-1.5 disabled:opacity-50"
+                >
+                  {isLoggingIn ? (
+                    <span className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin mr-2" />
+                  ) : null}
+                  <span>Đăng Nhập Vào GigMe</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </form>
+            </div>
           )}
 
           {/* 2. REGISTER */}
@@ -350,7 +437,7 @@ export const AuthScreen: React.FC = () => {
                     required
                     value={regName}
                     onChange={(e) => setRegName(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 rounded-xl bg-[#131E30] border border-slate-700 text-white"
+                    className="w-full pl-9 pr-3 py-2 rounded-xl bg-[#131E30] border border-slate-700 text-white focus:border-orange-500 focus:outline-none"
                     placeholder="Nguyễn Văn A"
                   />
                 </div>
@@ -365,8 +452,8 @@ export const AuthScreen: React.FC = () => {
                     required
                     value={regContact}
                     onChange={(e) => setRegContact(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 rounded-xl bg-[#131E30] border border-slate-700 text-white"
-                    placeholder="sinhvien@gmail.com"
+                    className="w-full pl-9 pr-3 py-2 rounded-xl bg-[#131E30] border border-slate-700 text-white focus:border-orange-500 focus:outline-none"
+                    placeholder="0912345678 hoặc sinhvien@gmail.com"
                   />
                 </div>
               </div>
@@ -402,26 +489,55 @@ export const AuthScreen: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-slate-400 mb-1 font-semibold">Mật khẩu</label>
-                  <input
-                    type="password"
-                    required
-                    value={regPassword}
-                    onChange={(e) => setRegPassword(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-[#131E30] border border-slate-700 text-white"
-                    placeholder="••••••••"
-                  />
+                  <label className="block text-slate-400 mb-1 font-semibold">Mật khẩu (≥6 ký tự)</label>
+                  <div className="relative">
+                    <input
+                      type={showRegPassword ? 'text' : 'password'}
+                      required
+                      value={regPassword}
+                      onChange={(e) => setRegPassword(e.target.value)}
+                      className="w-full px-3 pr-8 py-2 rounded-xl bg-[#131E30] border border-slate-700 text-white focus:border-orange-500 focus:outline-none"
+                      placeholder="••••••••"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowRegPassword(!showRegPassword)}
+                      className="absolute right-2.5 top-2.5 text-slate-500 hover:text-slate-300"
+                    >
+                      {showRegPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
                 </div>
                 <div>
-                  <label className="block text-slate-400 mb-1 font-semibold">Xác nhận</label>
-                  <input
-                    type="password"
-                    required
-                    value={regConfirmPassword}
-                    onChange={(e) => setRegConfirmPassword(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-[#131E30] border border-slate-700 text-white"
-                    placeholder="••••••••"
-                  />
+                  <div className="flex justify-between items-center mb-1">
+                    <label className="text-slate-400 font-semibold">Xác nhận</label>
+                    {regConfirmPassword && (
+                      <span className={`text-[10px] font-bold ${regPassword === regConfirmPassword ? 'text-emerald-400' : 'text-rose-400'}`}>
+                        {regPassword === regConfirmPassword ? '✓ Khớp' : '✗ Chưa khớp'}
+                      </span>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <input
+                      type={showRegConfirm ? 'text' : 'password'}
+                      required
+                      value={regConfirmPassword}
+                      onChange={(e) => setRegConfirmPassword(e.target.value)}
+                      className={`w-full px-3 pr-8 py-2 rounded-xl bg-[#131E30] border ${
+                        regConfirmPassword && regPassword !== regConfirmPassword
+                          ? 'border-rose-500/80'
+                          : 'border-slate-700'
+                      } text-white focus:border-orange-500 focus:outline-none`}
+                      placeholder="••••••••"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowRegConfirm(!showRegConfirm)}
+                      className="absolute right-2.5 top-2.5 text-slate-500 hover:text-slate-300"
+                    >
+                      {showRegConfirm ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -597,14 +713,23 @@ export const AuthScreen: React.FC = () => {
 
               <div>
                 <label className="block text-slate-400 mb-1 font-semibold">Mật khẩu mới</label>
-                <input
-                  type="password"
-                  required
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-[#131E30] border border-slate-700 text-white"
-                  placeholder="Mật khẩu tối thiểu 6 ký tự"
-                />
+                <div className="relative">
+                  <input
+                    type={showNewPassword ? 'text' : 'password'}
+                    required
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="w-full px-3 pr-10 py-2 rounded-xl bg-[#131E30] border border-slate-700 text-white focus:border-cyan-500 focus:outline-none"
+                    placeholder="Mật khẩu tối thiểu 6 ký tự"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    className="absolute right-3 top-2.5 text-slate-500 hover:text-slate-300"
+                  >
+                    {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
               </div>
 
               <button
