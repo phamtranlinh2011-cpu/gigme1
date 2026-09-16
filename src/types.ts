@@ -1,4 +1,4 @@
-export type UserTierKey = 'NEWBIE' | 'VERIFIED' | 'PRO';
+export type UserTierKey = 'NEWBIE' | 'STUDENT' | 'VERIFIED' | 'CCCD_VERIFIED' | 'PRO';
 
 export interface UserTierConfig {
   key: UserTierKey;
@@ -16,12 +16,26 @@ export const USER_TIERS: Record<UserTierKey, UserTierConfig> = {
     maxDeposit: 500_000,
     commissionRate: 0.10,
   },
+  STUDENT: {
+    key: 'STUDENT',
+    title: 'Cấp 2: Sinh viên',
+    badgeText: 'Sinh Viên',
+    maxDeposit: 10_000_000,
+    commissionRate: 0.08,
+  },
   VERIFIED: {
     key: 'VERIFIED',
     title: 'Cấp 2: Verified',
     badgeText: 'Đã KYC',
     maxDeposit: 20_000_000,
     commissionRate: 0.10,
+  },
+  CCCD_VERIFIED: {
+    key: 'CCCD_VERIFIED',
+    title: 'Cấp 2: CCCD Chip',
+    badgeText: 'CCCD Chip',
+    maxDeposit: 30_000_000,
+    commissionRate: 0.08,
   },
   PRO: {
     key: 'PRO',
@@ -108,6 +122,16 @@ export interface UserEntity {
     createdAt: string;
     gigTitle?: string;
   }>;
+  disciplineRecords?: Array<{
+    id: string;
+    type: 'LATE_CANCELLATION' | 'NO_SHOW' | 'FAKE_GPS' | 'DISPUTE_FAULT';
+    title: string;
+    penaltyPoints: number;
+    fineAmount: number;
+    reason: string;
+    createdAt: number;
+    gigTitle?: string;
+  }>;
 }
 
 export interface GigEntity {
@@ -130,7 +154,7 @@ export interface GigEntity {
   clientTier: UserTierKey;
   freelancerId?: string | null;
   freelancerName?: string | null;
-  status: 'OPEN' | 'IN_PROGRESS' | 'SUBMITTED' | 'COMPLETED' | 'DISPUTED' | 'CLIENT_REFUNDED';
+  status: 'OPEN' | 'IN_PROGRESS' | 'SUBMITTED' | 'COMPLETED' | 'DISPUTED' | 'CLIENT_REFUNDED' | 'CANCELLED';
   isPinned: boolean;
   isFlash: boolean;
   isRecurringWeekly: boolean; // Kèo định kỳ / Thuê theo tuần
@@ -189,6 +213,10 @@ export interface GigEntity {
   cancellationReason?: string;
   cancellationPenaltyAmount?: number;
   cancelledByWorker?: boolean;
+  cancelledByClient?: boolean;
+  isNoShowReported?: boolean;
+  noShowReportedBy?: 'CLIENT' | 'WORKER';
+  noShowPenaltyAmount?: number;
   // Đánh giá hai chiều mù (Double-Blind Review)
   clientRating?: number;
   clientReview?: string;
@@ -367,4 +395,15 @@ export const VIETNAMESE_BANKS = [
 
 export function formatVnd(amount: number): string {
   return `${amount.toLocaleString('vi-VN')}đ`;
+}
+
+export interface SystemMaintenanceConfig {
+  isActive: boolean;
+  title: string;
+  message: string;
+  startTime: number;
+  endTime: number;
+  activatedBy: string;
+  updatedAt: number;
+  allowedTabs: string[];
 }

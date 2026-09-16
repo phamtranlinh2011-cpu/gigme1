@@ -25,7 +25,8 @@ import {
   WalletTransactionEntity,
   BidEntity,
   MarketplaceItemEntity,
-  SafeWalkSessionEntity
+  SafeWalkSessionEntity,
+  SystemMaintenanceConfig
 } from '../types';
 
 // Initialize Firebase SDK
@@ -530,4 +531,40 @@ export async function executeAtomicEscrowPayout(params: {
     return { success: false, error: err?.message || 'Giao dịch ký quỹ thất bại' };
   }
 }
+
+// System Settings & Maintenance Mode Synchronization
+export async function updateMaintenanceInCloud(config: SystemMaintenanceConfig): Promise<void> {
+  try {
+    const docRef = doc(db, 'system_settings', 'maintenance');
+    await setDoc(docRef, config, { merge: true });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, 'system_settings/maintenance');
+    throw error;
+  }
+}
+
+export function subscribeToMaintenance(
+  onUpdate: (config: SystemMaintenanceConfig) => void,
+  onError?: (err: Error) => void
+): () => void {
+  try {
+    const docRef = doc(db, 'system_settings', 'maintenance');
+    return onSnapshot(
+      docRef,
+      (snapshot) => {
+        if (snapshot.exists()) {
+          onUpdate(snapshot.data() as SystemMaintenanceConfig);
+        }
+      },
+      (error) => {
+        handleFirestoreError(error, OperationType.GET, 'system_settings/maintenance');
+        if (onError) onError(error);
+      }
+    );
+  } catch (err: any) {
+    if (onError) onError(err);
+    return () => {};
+  }
+}
+
 

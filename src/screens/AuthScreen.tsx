@@ -310,54 +310,19 @@ export const AuthScreen: React.FC = () => {
           {/* 1. LOGIN */}
           {activeTab === 'LOGIN' && (
             <div className="space-y-4">
-              {/* Quick 1-Click Demo Accounts Bar */}
-              <div className="p-3 rounded-2xl bg-cyan-950/40 border border-cyan-500/30 text-xs">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[11px] font-bold text-cyan-300 flex items-center">
-                    <Sparkles className="w-3.5 h-3.5 mr-1 text-cyan-400" /> Tài Khoản Thử Nghiệm 1-Chạm:
-                  </span>
-                  <span className="text-[10px] text-cyan-400/80 font-mono">Bấm là vào</span>
-                </div>
-                <div className="grid grid-cols-3 gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => handleQuickLogin('0912345678', '123456')}
-                    disabled={isLoggingIn}
-                    className="p-2 rounded-xl bg-[#131E30] hover:bg-cyan-900/40 border border-slate-700 hover:border-cyan-500/50 text-left transition active:scale-95"
-                  >
-                    <div className="text-[11px] font-bold text-emerald-400 flex items-center">
-                      <span>👨‍💻 Sinh Viên</span>
-                    </div>
-                    <div className="text-[10px] text-slate-300 font-semibold truncate">Huy (Bách Khoa)</div>
-                    <div className="text-[9px] text-slate-500 font-mono">0912345678</div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleQuickLogin('0987654321', '123456')}
-                    disabled={isLoggingIn}
-                    className="p-2 rounded-xl bg-[#131E30] hover:bg-cyan-900/40 border border-slate-700 hover:border-cyan-500/50 text-left transition active:scale-95"
-                  >
-                    <div className="text-[11px] font-bold text-amber-400 flex items-center">
-                      <span>🛒 Khách Thuê</span>
-                    </div>
-                    <div className="text-[10px] text-slate-300 font-semibold truncate">Hà (Kinh Tế)</div>
-                    <div className="text-[9px] text-slate-500 font-mono">0987654321</div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleQuickLogin('admin@admin.vn', 'admin1507')}
-                    disabled={isLoggingIn}
-                    className="p-2 rounded-xl bg-[#131E30] hover:bg-cyan-900/40 border border-slate-700 hover:border-cyan-500/50 text-left transition active:scale-95"
-                  >
-                    <div className="text-[11px] font-bold text-purple-400 flex items-center">
-                      <span>🛡️ Admin Sàn</span>
-                    </div>
-                    <div className="text-[10px] text-slate-300 font-semibold truncate">Ban Quản Trị</div>
-                    <div className="text-[9px] text-slate-500 font-mono">admin1507</div>
-                  </button>
-                </div>
+              {/* Cổng Quản Trị Viên Hệ Thống */}
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-purple-950/30 border border-purple-500/30 text-xs">
+                <span className="text-[11px] text-purple-300 font-semibold flex items-center">
+                  <Sparkles className="w-3.5 h-3.5 mr-1 text-purple-400" /> Cổng Quản Trị Hệ Thống (Admin)
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleQuickLogin('admin@admin.vn', 'admin1507')}
+                  disabled={isLoggingIn}
+                  className="px-2.5 py-1 rounded-lg bg-purple-600/40 hover:bg-purple-600/60 border border-purple-500/50 text-purple-200 text-[11px] font-bold transition"
+                >
+                  Đăng Nhập Admin
+                </button>
               </div>
 
               <form onSubmit={handleLogin} className="space-y-4 text-xs">
@@ -372,7 +337,7 @@ export const AuthScreen: React.FC = () => {
                       value={loginContact}
                       onChange={(e) => setLoginContact(e.target.value)}
                       className="w-full pl-9 pr-3 py-2 rounded-xl bg-[#131E30] border border-slate-700 text-white focus:border-cyan-500 focus:outline-none"
-                      placeholder="0912345678 hoặc sinhvien@gmail.com"
+                      placeholder="09xxxxxxxx hoặc email@sinhvien.edu.vn"
                     />
                   </div>
                 </div>
@@ -453,7 +418,7 @@ export const AuthScreen: React.FC = () => {
                     value={regContact}
                     onChange={(e) => setRegContact(e.target.value)}
                     className="w-full pl-9 pr-3 py-2 rounded-xl bg-[#131E30] border border-slate-700 text-white focus:border-orange-500 focus:outline-none"
-                    placeholder="0912345678 hoặc sinhvien@gmail.com"
+                    placeholder="09xxxxxxxx hoặc email@sinhvien.edu.vn"
                   />
                 </div>
               </div>
@@ -565,7 +530,7 @@ export const AuthScreen: React.FC = () => {
                       value={phoneInput}
                       onChange={(e) => setPhoneInput(e.target.value)}
                       className="w-full pl-9 pr-3 py-2 rounded-xl bg-[#131E30] border border-slate-700 text-white font-mono"
-                      placeholder="0912345678"
+                      placeholder="09xxxxxxxx"
                     />
                   </div>
                   <button

@@ -36,6 +36,7 @@ export function calculateSurgePricing(
     availableWorkersCount?: number;
     isRainyWeather?: boolean;
     customHour?: number;
+    isFlashRequested?: boolean;
   }
 ): SurgeCalculationResult {
   const now = new Date();
@@ -44,6 +45,19 @@ export function calculateSurgePricing(
 
   // Baseline minimum surge: 1.02x (bù trượt giá điều phối cơ bản 2%)
   let totalMultiplier = 1.02;
+
+  // 0. Đơn hỏa tốc / Cần gấp
+  if (options?.isFlashRequested) {
+    factors.push({
+      id: 'flash_priority',
+      label: 'Đơn hỏa tốc / Cần gấp (Ưu tiên đẩy đơn)',
+      detail: 'Tăng tốc kết nối với các thợ đang trực tuyến gần nhất',
+      multiplierBoost: 0.05,
+      icon: '⚡',
+      active: true,
+    });
+    totalMultiplier += 0.05;
+  }
 
   // 1. Khung giờ sinh viên cao điểm
   // - Trưa đói KTX (11:15 - 13:30): sinh viên ùa về ký túc xá ăn trưa, nhu cầu mua cơm ship hộ tăng vọt

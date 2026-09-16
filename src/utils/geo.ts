@@ -54,20 +54,38 @@ export const DEFAULT_USER_LOCATION: GeoLocation = VIETNAM_HUBS.TDTU_Q7;
 
 /**
  * Calculates great-circle distance between two points in meters using Haversine formula
+ * Supports both (lat1, lon1, lat2, lon2) and ({ latitude, longitude }, { latitude, longitude })
  */
 export function calculateDistanceMeters(
-  lat1: number,
-  lon1: number,
-  lat2: number,
-  lon2: number
+  lat1OrPoint1: number | { latitude: number; longitude: number },
+  lon1OrPoint2: number | { latitude: number; longitude: number },
+  lat2?: number,
+  lon2?: number
 ): number {
+  let lat1: number;
+  let lon1: number;
+  let targetLat: number;
+  let targetLon: number;
+
+  if (typeof lat1OrPoint1 === 'object' && typeof lon1OrPoint2 === 'object') {
+    lat1 = lat1OrPoint1.latitude;
+    lon1 = lat1OrPoint1.longitude;
+    targetLat = lon1OrPoint2.latitude;
+    targetLon = lon1OrPoint2.longitude;
+  } else {
+    lat1 = Number(lat1OrPoint1);
+    lon1 = Number(lon1OrPoint2);
+    targetLat = Number(lat2);
+    targetLon = Number(lon2);
+  }
+
   const R = 6371000; // Radius of Earth in meters
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const dLat = ((targetLat - lat1) * Math.PI) / 180;
+  const dLon = ((targetLon - lon1) * Math.PI) / 180;
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
+      Math.cos((targetLat * Math.PI) / 180) *
       Math.sin(dLon / 2) *
       Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));

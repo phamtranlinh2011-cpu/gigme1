@@ -27,12 +27,17 @@ import { MoMoZaloPayGatewayModal } from './components/MoMoZaloPayGatewayModal';
 import { GeminiVisionStudentIdModal } from './components/GeminiVisionStudentIdModal';
 import { VoipCallOverlay } from './components/VoipCallOverlay';
 import { BlockchainProofModal } from './components/BlockchainProofModal';
+import { SystemMaintenanceOverlay } from './components/SystemMaintenanceOverlay';
+import { Wrench } from 'lucide-react';
 
 const MainLayout: React.FC = () => {
   const {
     currentUser,
     currentSelectedGig,
     selectGig,
+    isMaintenanceActive,
+    maintenanceConfig,
+    setMaintenanceMode,
   } = useGigMe();
 
   const [currentTab, setCurrentTab] = useState<TabScreen>('HOME');
@@ -64,6 +69,32 @@ const MainLayout: React.FC = () => {
   };
 
   const renderContent = () => {
+    // 🛠️ SYSTEM MAINTENANCE GUARD:
+    // If maintenance mode is active in Cloud Firestore, regular users can ONLY view their profile!
+    if (isMaintenanceActive && currentUser?.role !== 'ADMIN') {
+      if (currentTab === 'PROFILE') {
+        return (
+          <ProfileScreen
+            onOpenNfcDialog={() => setShowNfcModal(true)}
+            onOpenSsoDialog={() => setShowSsoModal(true)}
+            onOpenAdminDashboard={() => setCurrentTab('ADMIN')}
+          />
+        );
+      }
+      return (
+        <SystemMaintenanceOverlay
+          onGoToProfile={() => {
+            selectGig(null);
+            setCurrentTab('PROFILE');
+          }}
+          onGoToAdmin={() => {
+            selectGig(null);
+            setCurrentTab('ADMIN');
+          }}
+        />
+      );
+    }
+
     if (currentSelectedGig) {
       return (
         <GigDetailScreen
@@ -179,6 +210,39 @@ const MainLayout: React.FC = () => {
         onOpenEloModal={() => setShowEloModal(true)}
         onOpenSafeWalk={() => setShowSafeWalk(true)}
       />
+
+      {/* Global Realtime Maintenance Status Bar for Admin */}
+      {isMaintenanceActive && currentUser?.role === 'ADMIN' && (
+        <div className="bg-gradient-to-r from-amber-950/90 via-slate-900 to-amber-950/90 border-b border-amber-500/40 px-4 py-2 text-xs flex flex-wrap items-center justify-between gap-2 text-amber-300 sticky top-0 z-30 shadow-md">
+          <div className="flex items-center space-x-2">
+            <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
+            <Wrench className="w-4 h-4 text-amber-400" />
+            <span className="font-extrabold">
+              ROOT ADMIN: Chế độ bảo trì đang BẬT trên toàn sàn (Người dùng thường chỉ xem được trang Hồ sơ).
+            </span>
+            <span className="text-[11px] text-slate-400">
+              Dự kiến kết thúc: {new Date(maintenanceConfig.endTime).toLocaleTimeString('vi-VN')}
+            </span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => {
+                selectGig(null);
+                setCurrentTab('ADMIN');
+              }}
+              className="px-2.5 py-1 rounded-lg bg-amber-500 text-black font-extrabold text-[11px] hover:brightness-110 transition shadow"
+            >
+              Vào Bảng Admin
+            </button>
+            <button
+              onClick={() => setMaintenanceMode({ isActive: false })}
+              className="px-2.5 py-1 rounded-lg bg-red-950/80 border border-red-500/40 text-red-300 font-bold text-[11px] hover:bg-red-900 transition"
+            >
+              Tắt Bảo Trì Nhanh
+            </button>
+          </div>
+        </div>
+      )}
 
       <main className="flex-1 w-full max-w-7xl mx-auto pb-20">
         {renderContent()}

@@ -6,6 +6,7 @@ import {
   MarketplaceItemEntity,
   WalletTransactionEntity,
   SafeWalkSessionEntity,
+  SystemMaintenanceConfig,
 } from '../types';
 import {
   testFirestoreConnection,
@@ -27,6 +28,8 @@ import {
   subscribeToMarketplace,
   syncSafeWalkToCloud,
   subscribeToSafeWalk,
+  updateMaintenanceInCloud,
+  subscribeToMaintenance,
 } from '../lib/firebase';
 
 export interface CloudConnectionStatus {
@@ -870,5 +873,55 @@ export const cloudService = {
       }
     }
     return { success: true };
+  },
+
+  async saveMaintenance(config: SystemMaintenanceConfig): Promise<void> {
+    // 1. Try Firebase Cloud Firestore
+    try {
+      await updateMaintenanceInCloud(config);
+    } catch (e) {
+      console.warn('Firebase saveMaintenance note:', e);
+    }
+    // 2. Also send to Express backend
+    if (this.isExpressAvailable()) {
+      try {
+        await fetch('/api/system/maintenance', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(config),
+        });
+      } catch (err) {
+        console.warn('Express saveMaintenance note:', err);
+      }
+    }
+  },
+
+  subscribeMaintenance(callback: (config: SystemMaintenanceConfig) => void): Unsubscribe {
+    // 1. Listen to Firebase Firestore
+    const unsubFirebase = subscribeToMaintenance((cfg) => {
+      if (cfg) callback(cfg);
+    });
+
+    // 2. Listen to SSE realtime events
+    const unsubSse = realtimeManager.on('system_maintenance', (cfg) => {
+      if (cfg) callback(cfg);
+    });
+
+    // 3. Fallback initial fetch if Express is available
+    if (this.isExpressAvailable()) {
+      fetch('/api/system/maintenance')
+        .then((res) => res.json())
+        .then((data) => {
+          if (data && data.maintenance) {
+            callback(data.maintenance);
+          }
+        })
+        .catch(() => {});
+    }
+
+    return () => {
+      unsubFirebase();
+      unsubSse();
+    };
   },
 };

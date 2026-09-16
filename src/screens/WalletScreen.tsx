@@ -28,7 +28,6 @@ import {
   EWalletDialog,
   BankWithdrawDialog,
 } from '../components/AdvancedDialogs';
-import { VietQrOpenApiAutoScanner } from '../components/VietQrOpenApiAutoScanner';
 import { MoMoZaloPayGatewayModal } from '../components/MoMoZaloPayGatewayModal';
 
 interface WalletScreenProps {
@@ -44,7 +43,6 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onOpenVerify }) => {
   } = useGigMe();
 
   const [isQrOpen, setIsQrOpen] = useState(false);
-  const [isOpenApiScanOpen, setIsOpenApiScanOpen] = useState(false);
   const [isGatewayOpen, setIsGatewayOpen] = useState(false);
   const [isEWalletOpen, setIsEWalletOpen] = useState(false);
   const [isStatementOpen, setIsStatementOpen] = useState(false);
@@ -261,7 +259,7 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onOpenVerify }) => {
 
           {/* Card 2: Open API Auto Scanner */}
           <button
-            onClick={() => setIsOpenApiScanOpen(true)}
+            onClick={() => setIsQrOpen(true)}
             className="p-3.5 rounded-2xl bg-[#0F172A] hover:bg-[#152238] border border-cyan-500/30 text-left transition flex items-center justify-between group shadow-sm"
           >
             <div className="flex items-center space-x-2.5 min-w-0">
@@ -616,12 +614,6 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onOpenVerify }) => {
           </div>
         </div>
       )}
-
-      {/* Open API VietQR Auto Scanner */}
-      <VietQrOpenApiAutoScanner
-        isOpen={isOpenApiScanOpen}
-        onClose={() => setIsOpenApiScanOpen(false)}
-      />
 
       {/* MoMo App-to-App & ZaloPay SDK Gateway Modal */}
       <MoMoZaloPayGatewayModal

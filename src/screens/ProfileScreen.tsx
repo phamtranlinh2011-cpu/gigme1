@@ -26,9 +26,10 @@ import {
   TrendingUp,
   Check,
   Camera,
+  Wrench,
 } from 'lucide-react';
 import { useGigMe } from '../context/GigMeContext';
-import { USER_TIERS } from '../types';
+import { USER_TIERS, formatVnd } from '../types';
 import { playNotificationSound } from '../utils/audio';
 import { SoundSettingsDialog, BusinessUpgradeDialog } from '../components/AdvancedDialogs';
 import { AvatarPickerModal } from '../components/AvatarPickerModal';
@@ -54,6 +55,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
     toggleBiometrics,
     isDarkMode,
     toggleDarkMode,
+    isMaintenanceActive,
+    maintenanceConfig,
   } = useGigMe();
 
   const [skills, setSkills] = useState<string[]>([
@@ -116,6 +119,26 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
 
   return (
     <div className="max-w-3xl mx-auto px-3 sm:px-4 py-4 sm:py-6 pb-28 text-white space-y-4 sm:space-y-6 text-xs">
+      {/* Maintenance Mode Notice for Profile */}
+      {isMaintenanceActive && (
+        <div className="rounded-2xl bg-gradient-to-r from-amber-950/70 via-slate-900 to-amber-950/70 border border-amber-500/40 p-4 shadow-lg flex items-start space-x-3">
+          <Wrench className="w-5 h-5 text-amber-400 shrink-0 mt-0.5 animate-pulse" />
+          <div className="space-y-1 flex-1">
+            <div className="font-extrabold text-amber-300 text-xs flex items-center space-x-2">
+              <span>HỆ THỐNG ĐANG BẢO TRÌ NÂNG CẤP</span>
+              <span className="text-[10px] px-2 py-0.5 bg-amber-500/20 text-amber-300 rounded font-mono">
+                Chế độ xem hồ sơ được phép
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-300 leading-relaxed">
+              Bạn đang xem thông tin cá nhân của mình. Theo quy định bảo trì toàn sàn, các tính năng tạo việc, nhận việc, nạp rút tiền và nhắn tin tạm thời khóa cho đến{' '}
+              <span className="text-white font-bold">{new Date(maintenanceConfig.endTime).toLocaleTimeString('vi-VN')}</span> (
+              {new Date(maintenanceConfig.endTime).toLocaleDateString('vi-VN')}).
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Profile Header Card */}
       <div className="rounded-3xl bg-gradient-to-br from-[#0F1D30] to-[#0A1322] border border-[#1E293B] p-4 sm:p-6 shadow-2xl relative">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -321,11 +344,15 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
           </div>
 
           <div className="p-3 rounded-2xl bg-[#131E30] border border-slate-800">
-            <span className="text-slate-400 block text-[10px] mb-1">Tranh chấp / Bùng tiền:</span>
-            <span className="font-extrabold text-emerald-400 text-sm flex items-center">
-              <ShieldCheck className="w-4 h-4 mr-1" /> 0 vi phạm
+            <span className="text-slate-400 block text-[10px] mb-1">Kỷ luật / Phạt vi phạm:</span>
+            <span className={`font-extrabold text-sm flex items-center ${
+              (currentUser.disciplineRecords?.length || 0) > 0 ? 'text-amber-400' : 'text-emerald-400'
+            }`}>
+              <ShieldCheck className="w-4 h-4 mr-1" /> {currentUser.disciplineRecords?.length || 0} vi phạm
             </span>
-            <span className="text-[10px] text-slate-500">Lịch sử sạch 100%</span>
+            <span className="text-[10px] text-slate-500">
+              {(currentUser.disciplineRecords?.length || 0) > 0 ? 'Có ghi nhận kỷ luật' : 'Lịch sử sạch 100%'}
+            </span>
           </div>
 
           <div className="p-3 rounded-2xl bg-[#131E30] border border-slate-800">
@@ -334,6 +361,55 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
             <span className="text-[10px] text-slate-400">Ưu tiên nhận việc tốt</span>
           </div>
         </div>
+
+        {/* Lịch Sử Kỷ Luật & Khấu Trừ Phạt (Nếu có) */}
+        {currentUser.disciplineRecords && currentUser.disciplineRecords.length > 0 && (
+          <div className="pt-3 border-t border-slate-800/80 space-y-2">
+            <div className="flex items-center space-x-1.5 text-xs font-black text-rose-400">
+              <ShieldAlert className="w-4 h-4" />
+              <span>Sổ Kỷ Luật Nền Tảng ({currentUser.disciplineRecords.length} vi phạm)</span>
+            </div>
+            <div className="space-y-1.5">
+              {currentUser.disciplineRecords.map((rec) => (
+                <div
+                  key={rec.id}
+                  className="p-2.5 rounded-xl bg-red-950/30 border border-red-500/25 flex items-start justify-between gap-2 text-xs"
+                >
+                  <div className="min-w-0">
+                    <span className="font-bold text-slate-200 block truncate">
+                      {rec.title ||
+                        (rec.type === 'LATE_CANCELLATION'
+                          ? 'Hủy Đơn Trễ Hạn (> 10 phút)'
+                          : rec.type === 'NO_SHOW'
+                          ? 'Bỏ Bom Đơn Hàng (No-Show)'
+                          : 'Vi Phạm Quy Định Nền Tảng')}
+                    </span>
+                    <span className="text-[11px] text-slate-400 line-clamp-1">
+                      Lý do: {rec.reason}
+                    </span>
+                    <span className="text-[10px] text-slate-500">
+                      {new Date(rec.createdAt).toLocaleDateString('vi-VN')}{' '}
+                      {new Date(rec.createdAt).toLocaleTimeString('vi-VN', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </span>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <span className="font-mono font-bold text-rose-400 block text-xs">
+                      -{rec.penaltyPoints} Trust
+                    </span>
+                    {rec.fineAmount > 0 && (
+                      <span className="font-mono text-[10px] text-yellow-300 block">
+                        Phạt: {formatVnd(rec.fineAmount)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ĐÁNH GIÁ & UY TÍN CỘNG ĐỒNG SINH VIÊN (COMMUNITY REVIEWS & REPUTATION) */}

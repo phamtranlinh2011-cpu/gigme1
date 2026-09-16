@@ -27,13 +27,15 @@ import {
   Wifi,
   Download,
   Camera,
+  UserX,
+  XCircle,
 } from 'lucide-react';
 import { useGigMe } from '../context/GigMeContext';
 import { formatVnd, USER_TIERS } from '../types';
 import { LiveReverseBiddingModal } from '../components/LiveReverseBiddingModal';
 import { MultiWorkerCheckInModal } from '../components/MultiWorkerCheckInModal';
 import { DoubleBlindReviewModal } from '../components/DoubleBlindReviewModal';
-import { LateCancellationModal } from '../components/LateCancellationModal';
+import { LateCancellationModal, CancellationModalMode } from '../components/LateCancellationModal';
 import { BlockchainProofModal } from '../components/BlockchainProofModal';
 import { offlineCacheManager } from '../utils/offlineCache';
 
@@ -82,6 +84,7 @@ export const GigDetailScreen: React.FC<GigDetailScreenProps> = ({
   const [isMultiWorkerOpen, setIsMultiWorkerOpen] = useState(false);
   const [isDoubleBlindModalOpen, setIsDoubleBlindModalOpen] = useState(false);
   const [isLateCancelOpen, setIsLateCancelOpen] = useState(false);
+  const [cancelModalMode, setCancelModalMode] = useState<CancellationModalMode>('WORKER_CANCEL');
   const [isProofModalOpen, setIsProofModalOpen] = useState(false);
 
   if (!gig) {
@@ -347,7 +350,7 @@ export const GigDetailScreen: React.FC<GigDetailScreenProps> = ({
             </div>
           )}
 
-          {gig.status !== 'OPEN' && (
+          {gig.status !== 'OPEN' && gig.status !== 'CANCELLED' && (
             <div className="flex flex-wrap items-center gap-2">
               <button
                 onClick={onOpenChat}
@@ -369,30 +372,113 @@ export const GigDetailScreen: React.FC<GigDetailScreenProps> = ({
                 </button>
               )}
 
-              {/* Nút hủy nhận việc của Freelancer (Có cảnh báo & phạt trễ hạn nếu > 10p) */}
+              {/* Freelancer actions when IN_PROGRESS */}
               {gig.status === 'IN_PROGRESS' && currentUser?.id === gig.freelancerId && (
-                <button
-                  type="button"
-                  onClick={() => setIsLateCancelOpen(true)}
-                  className="px-4 py-2.5 rounded-xl bg-red-500/15 border border-red-500/40 text-red-400 font-bold text-xs hover:bg-red-500/25 transition flex items-center space-x-1.5"
-                >
-                  <AlertTriangle className="w-4 h-4" />
-                  <span>Hủy Nhận Việc (Kiểm tra phạt)</span>
-                </button>
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCancelModalMode('WORKER_CANCEL');
+                      setIsLateCancelOpen(true);
+                    }}
+                    className="px-4 py-2.5 rounded-xl bg-red-500/15 border border-red-500/40 text-red-400 font-bold text-xs hover:bg-red-500/25 transition flex items-center space-x-1.5"
+                  >
+                    <AlertTriangle className="w-4 h-4" />
+                    <span>Hủy Nhận Việc (Kiểm tra phạt)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCancelModalMode('WORKER_NO_SHOW_REPORT');
+                      setIsLateCancelOpen(true);
+                    }}
+                    className="px-4 py-2.5 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-300 font-bold text-xs hover:bg-amber-500/25 transition flex items-center space-x-1.5"
+                  >
+                    <UserX className="w-4 h-4" />
+                    <span>Báo Khách Boom Kèo</span>
+                  </button>
+                </>
               )}
+
+              {/* Owner actions when IN_PROGRESS */}
+              {gig.status === 'IN_PROGRESS' && isOwner && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCancelModalMode('CLIENT_CANCEL');
+                      setIsLateCancelOpen(true);
+                    }}
+                    className="px-4 py-2.5 rounded-xl bg-red-500/15 border border-red-500/40 text-red-400 font-bold text-xs hover:bg-red-500/25 transition flex items-center space-x-1.5"
+                  >
+                    <AlertTriangle className="w-4 h-4" />
+                    <span>Hủy Đơn (Phạt nếu &gt;10p)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCancelModalMode('NO_SHOW_REPORT');
+                      setIsLateCancelOpen(true);
+                    }}
+                    className="px-4 py-2.5 rounded-xl bg-purple-500/15 border border-purple-500/40 text-purple-300 font-bold text-xs hover:bg-purple-500/25 transition flex items-center space-x-1.5"
+                  >
+                    <UserX className="w-4 h-4" />
+                    <span>Báo Thợ Bỏ Bom (No-Show)</span>
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Trạng thái đơn đã hủy */}
+          {gig.status === 'CANCELLED' && (
+            <div className="p-4 rounded-2xl bg-red-950/40 border border-red-500/40 space-y-2">
+              <div className="flex items-center space-x-2 text-red-300 font-black text-xs">
+                <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />
+                <span>ĐƠN VIỆC ĐÃ BỊ HỦY BỎ</span>
+                {gig.isNoShowReported && (
+                  <span className="px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 text-[10px] font-bold border border-purple-500/30">
+                    Xử Phạt No-Show
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-300">
+                {gig.cancellationReason || 'Đơn việc đã bị hủy theo yêu cầu.'}
+              </p>
+              {gig.cancellationPenaltyAmount ? (
+                <p className="text-[11px] text-amber-300 font-semibold">
+                  Mức phí bồi thường vi phạm đã khấu trừ: {formatVnd(gig.cancellationPenaltyAmount)}
+                </p>
+              ) : null}
             </div>
           )}
         </div>
 
-        {/* Nút Boost dành cho chủ đơn nếu bài chưa được ghim */}
-        {isOwner && !isCurrentlyBoosted && gig.status === 'OPEN' && (
-          <div className="pt-2 border-t border-slate-800">
+        {/* Nút Hủy Đăng Kèo & Nút Boost dành cho chủ đơn khi OPEN */}
+        {isOwner && gig.status === 'OPEN' && (
+          <div className="pt-2 border-t border-slate-800 space-y-2">
+            {!isCurrentlyBoosted && (
+              <button
+                onClick={() => boostGig(gig.id)}
+                className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-red-600 via-orange-600 to-amber-600 hover:from-red-500 hover:to-amber-500 text-white font-extrabold text-xs shadow-lg shadow-red-500/20 flex items-center justify-center space-x-2 transition-all active:scale-98"
+              >
+                <Rocket className="w-4 h-4 text-yellow-300" />
+                <span>🚀 Đẩy Bài & Ghim Top 1 Hỏa Tốc Trang Chủ (+10.000đ trong 2h)</span>
+              </button>
+            )}
+
             <button
-              onClick={() => boostGig(gig.id)}
-              className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-red-600 via-orange-600 to-amber-600 hover:from-red-500 hover:to-amber-500 text-white font-extrabold text-xs shadow-lg shadow-red-500/20 flex items-center justify-center space-x-2 transition-all active:scale-98"
+              type="button"
+              onClick={() => {
+                setCancelModalMode('CLIENT_CANCEL');
+                setIsLateCancelOpen(true);
+              }}
+              className="w-full py-2.5 px-4 rounded-2xl bg-slate-800 hover:bg-red-500/20 text-slate-300 hover:text-red-300 border border-slate-700 hover:border-red-500/30 font-bold text-xs transition flex items-center justify-center space-x-1.5"
             >
-              <Rocket className="w-4 h-4 text-yellow-300" />
-              <span>🚀 Đẩy Bài & Ghim Top 1 Hỏa Tốc Trang Chủ (+10.000đ trong 2h)</span>
+              <XCircle className="w-4 h-4 text-red-400" />
+              <span>Hủy Đăng Bài (Hoàn Trả 100% Tiền Cọc Escrow)</span>
             </button>
           </div>
         )}
@@ -801,10 +887,11 @@ export const GigDetailScreen: React.FC<GigDetailScreenProps> = ({
         onClose={() => setIsDoubleBlindModalOpen(false)}
       />
 
-      {/* Late Cancellation Modal */}
+      {/* Late Cancellation & Penalty Modal */}
       <LateCancellationModal
         isOpen={isLateCancelOpen}
         gig={gig}
+        mode={cancelModalMode}
         onClose={() => setIsLateCancelOpen(false)}
       />
 

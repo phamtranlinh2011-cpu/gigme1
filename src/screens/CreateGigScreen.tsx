@@ -456,6 +456,59 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
             </span>
           </div>
 
+          {/* Dynamic Surge Pricing Card (Hệ thống giá linh hoạt Grab/Gojek) */}
+          {(() => {
+            const surgeResult = calculateSurgePricing(price > 0 ? price : 50000, {
+              isFlashRequested: isFlash || isBoosted,
+              openGigsCount: 14,
+              availableWorkersCount: 9,
+            });
+            return (
+              <div className="p-3.5 rounded-2xl bg-gradient-to-r from-cyan-950/40 via-[#101A2C] to-slate-900 border border-cyan-500/40 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <div className="p-1.5 rounded-lg bg-cyan-500/20 text-[#00E5FF]">
+                      <Zap className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="flex items-center space-x-2">
+                        <span className="font-bold text-white text-xs">Giá Linh Hoạt Theo Cung - Cầu</span>
+                        <span className="px-1.5 py-0.5 rounded bg-[#00E5FF]/20 text-[#00E5FF] font-mono font-bold text-[10px] border border-cyan-500/30">
+                          {surgeResult.multiplier.toFixed(2)}x
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-slate-400 mt-0.5">
+                        {surgeResult.primaryReason}
+                      </p>
+                    </div>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase ${
+                    surgeResult.campusDemandLevel === 'PEAK'
+                      ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                      : 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
+                  }`}>
+                    {surgeResult.campusDemandLevel === 'PEAK' ? 'Cao Điểm KTX' : 'Nhu Cầu Cao'}
+                  </span>
+                </div>
+
+                {price < surgeResult.surgePrice && (
+                  <div className="flex items-center justify-between pt-1 border-t border-slate-800">
+                    <span className="text-[11px] text-slate-300">
+                      Gợi ý thù lao đẩy nhanh: <strong className="text-amber-400 font-mono">{formatVnd(surgeResult.surgePrice)}</strong>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setPrice(surgeResult.surgePrice)}
+                      className="px-2.5 py-1 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-black font-extrabold text-[10px] hover:brightness-110 shadow-sm transition"
+                    >
+                      Áp Dụng (+{formatVnd(surgeResult.bonusAmount)})
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
           {/* Reverse auction toggle */}
           <div className="p-3.5 rounded-2xl bg-[#131E30] border border-slate-700 flex items-start justify-between gap-3">
             <div>

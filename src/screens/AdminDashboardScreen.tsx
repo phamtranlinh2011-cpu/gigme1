@@ -26,10 +26,12 @@ import {
   PieChart,
   Eye,
   Check,
+  Wrench,
 } from 'lucide-react';
 import { useGigMe } from '../context/GigMeContext';
 import { formatVnd, USER_TIERS, UserEntity } from '../types';
 import { auditSybilAndReviewRings, SybilAuditSummary } from '../utils/sybilDetector';
+import { AdminMaintenanceModal } from '../components/AdminMaintenanceModal';
 
 interface AdminDashboardScreenProps {
   onBack: () => void;
@@ -44,7 +46,11 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onBa
     withdrawEWallet,
     withdrawToBank,
     showNotification,
+    maintenanceConfig,
+    isMaintenanceActive,
   } = useGigMe();
+
+  const [showMaintenanceModal, setShowMaintenanceModal] = useState(false);
 
   const allUsers: UserEntity[] = adminAllUsers || [];
   const adminUser = allUsers.find((u) => u.role === 'ADMIN' || u.id === 'admin_root') || currentUser;
@@ -212,19 +218,64 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onBa
           </div>
         </div>
 
-        {/* Emergency Freeze Switch */}
-        <button
-          onClick={toggleEmergencyFreeze}
-          className={`flex items-center space-x-2 px-4 py-2 rounded-xl font-extrabold text-xs transition border ${
-            emergencyFreeze
-              ? 'bg-red-600 border-red-400 text-white shadow-[0_0_20px_rgba(239,68,68,0.5)] animate-pulse'
-              : 'bg-slate-900 border-slate-700 text-slate-300 hover:text-white'
-          }`}
-        >
-          <Power className="w-4 h-4" />
-          <span>{emergencyFreeze ? 'ĐANG ĐÓNG BĂNG HỆ THỐNG' : 'Công Tắc Khẩn Cấp'}</span>
-        </button>
+        <div className="flex items-center space-x-2">
+          {/* System Maintenance Button */}
+          <button
+            type="button"
+            onClick={() => setShowMaintenanceModal(true)}
+            className={`flex items-center space-x-2 px-3.5 py-2 rounded-xl font-extrabold text-xs transition border ${
+              isMaintenanceActive
+                ? 'bg-amber-500/20 border-amber-500 text-amber-300 shadow-[0_0_20px_rgba(245,158,11,0.4)] animate-pulse'
+                : 'bg-slate-900 border-slate-700 text-slate-300 hover:text-white hover:border-amber-500/50'
+            }`}
+          >
+            <Wrench className="w-4 h-4 text-amber-400" />
+            <span>{isMaintenanceActive ? 'ĐANG BẢO TRÌ' : 'Cài Đặt Bảo Trì'}</span>
+            {isMaintenanceActive && <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />}
+          </button>
+
+          {/* Emergency Freeze Switch */}
+          <button
+            onClick={toggleEmergencyFreeze}
+            className={`flex items-center space-x-2 px-4 py-2 rounded-xl font-extrabold text-xs transition border ${
+              emergencyFreeze
+                ? 'bg-red-600 border-red-400 text-white shadow-[0_0_20px_rgba(239,68,68,0.5)] animate-pulse'
+                : 'bg-slate-900 border-slate-700 text-slate-300 hover:text-white'
+            }`}
+          >
+            <Power className="w-4 h-4" />
+            <span>{emergencyFreeze ? 'ĐANG ĐÓNG BĂNG HỆ THỐNG' : 'Công Tắc Khẩn Cấp'}</span>
+          </button>
+        </div>
       </div>
+
+      {/* Global Maintenance Alert Banner for Admin */}
+      {isMaintenanceActive && (
+        <div className="bg-gradient-to-r from-amber-950/70 via-slate-900 to-amber-950/70 border border-amber-500/50 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-[0_0_30px_rgba(245,158,11,0.15)]">
+          <div className="flex items-center space-x-3">
+            <div className="p-2.5 rounded-xl bg-amber-500/20 border border-amber-500/40 flex-shrink-0">
+              <Wrench className="w-5 h-5 text-amber-400 animate-spin" />
+            </div>
+            <div>
+              <div className="font-extrabold text-amber-300 flex items-center space-x-2">
+                <span>CHẾ ĐỘ BẢO TRÌ ĐANG KÍCH HOẠT TRÊN TOÀN SÀN</span>
+                <span className="text-[10px] bg-amber-500/20 border border-amber-500/40 px-2 py-0.5 rounded text-amber-300 font-mono">
+                  CLOUD SYNC ACTIVE
+                </span>
+              </div>
+              <div className="text-[11px] text-slate-300 mt-0.5">
+                Dự kiến kết thúc: <span className="text-white font-bold">{new Date(maintenanceConfig.endTime).toLocaleString('vi-VN')}</span>. Người dùng thông thường chỉ có quyền xem thông tin cá nhân.
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={() => setShowMaintenanceModal(true)}
+            className="px-3.5 py-1.5 rounded-xl bg-amber-500 text-black font-extrabold text-xs hover:brightness-110 transition whitespace-nowrap shadow"
+          >
+            Quản Lý Thời Gian & Nội Dung
+          </button>
+        </div>
+      )}
 
       {/* Metrics Banner */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -931,6 +982,12 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onBa
           </div>
         </div>
       )}
+
+      {/* Admin Maintenance Modal */}
+      <AdminMaintenanceModal
+        isOpen={showMaintenanceModal}
+        onClose={() => setShowMaintenanceModal(false)}
+      />
     </div>
   );
 };

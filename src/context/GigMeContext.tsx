@@ -21,6 +21,7 @@ import {
   USER_TIERS,
   formatVnd,
   SafeWalkSessionEntity,
+  SystemMaintenanceConfig,
 } from '../types';
 import { playNotificationSound, startSosSiren, stopSosSiren } from '../utils/audio';
 import {
@@ -99,90 +100,8 @@ const DEFAULT_ADMIN: UserEntity = {
   isLocked: false,
 };
 
-const DEMO_STUDENT: UserEntity = {
-  id: 'user_student_huy',
-  name: 'Trần Quang Huy',
-  email: 'tranquanghuy@hcmut.edu.vn',
-  phone: '0912345678',
-  password: '123456',
-  gender: 'Nam',
-  birthDate: '15/09/2003',
-  role: 'USER',
-  tier: 'STUDENT',
-  kycName: 'TRẦN QUANG HUY',
-  isKycApproved: true,
-  isNfcVerified: true,
-  isFaceLivenessPassed: true,
-  isStudentVerified: true,
-  studentSchool: 'ĐH Bách Khoa TP.HCM (HCMUT)',
-  studentId: '2113890',
-  isBiometricsEnabled: true,
-  isBusinessAccount: false,
-  trustScore: 780,
-  eloRating: 1420,
-  eloTier: 'GOLD',
-  winStreak: 6,
-  notificationSound: 'BANK_TING',
-  connectedMoMo: '0912345678',
-  lastDeviceName: 'iPhone 15 Pro Max',
-  lastLoginLocation: 'Khu Đô Thị ĐHQG, TP. Thủ Đức',
-  rating: 4.95,
-  reviewCount: 38,
-  completedGigs: 42,
-  onTimeRate: 98,
-  postedGigsCount: 2,
-  totalSpent: 120000,
-  walletBalance: 350000,
-  escrowLockedBalance: 0,
-  securityPin: '123456',
-  badges: 'Sinh Viên Tiêu Biểu Bách Khoa • Top 1 Giao Việc Nhanh',
-  isLocked: false,
-};
-
-const DEMO_CLIENT: UserEntity = {
-  id: 'user_client_ha',
-  name: 'Lê Thanh Hà',
-  email: 'lethanhha@ueh.edu.vn',
-  phone: '0987654321',
-  password: '123456',
-  gender: 'Nữ',
-  birthDate: '22/04/2002',
-  role: 'USER',
-  tier: 'CCCD_VERIFIED',
-  kycName: 'LÊ THANH HÀ',
-  isKycApproved: true,
-  isNfcVerified: true,
-  isFaceLivenessPassed: true,
-  isStudentVerified: true,
-  studentSchool: 'ĐH Kinh Tế TP.HCM (UEH)',
-  studentId: 'UEH-2022-098',
-  isBiometricsEnabled: false,
-  isBusinessAccount: false,
-  trustScore: 820,
-  eloRating: 1350,
-  eloTier: 'SILVER',
-  winStreak: 3,
-  notificationSound: 'DING_DEFAULT',
-  connectedMoMo: '0987654321',
-  lastDeviceName: 'Samsung Galaxy S24 Ultra',
-  lastLoginLocation: 'Quận 3, TP.HCM',
-  rating: 5.0,
-  reviewCount: 19,
-  completedGigs: 15,
-  onTimeRate: 100,
-  postedGigsCount: 24,
-  totalSpent: 4200000,
-  walletBalance: 650000,
-  escrowLockedBalance: 0,
-  securityPin: '123456',
-  badges: 'Chủ Thuê Uy Tín • Thanh Toán Tức Thì',
-  isLocked: false,
-};
-
 const INITIAL_USERS: UserEntity[] = [
   DEFAULT_ADMIN,
-  DEMO_STUDENT,
-  DEMO_CLIENT,
 ];
 
 // Dữ liệu việc làm thực tế: Bắt đầu trống 100%, không dùng dữ liệu ảo
@@ -291,6 +210,8 @@ interface GigMeContextType {
   placeBid: (gigId: string, offeredPrice: number, minutes: number, note: string) => boolean;
   acceptGigDirectly: (gig: GigEntity) => boolean;
   cancelGigByWorker: (gigId: string, reason: string) => boolean;
+  cancelGigByClient: (gigId: string, reason: string) => boolean;
+  reportNoShow: (gigId: string, reporterRole: 'CLIENT' | 'WORKER', reason: string) => boolean;
   submitProofOfWork: (
     gigId: string,
     note: string,
@@ -331,6 +252,9 @@ interface GigMeContextType {
   changeSecurityPin: (oldPin: string, newPin: string) => boolean;
 
   // Admin Actions
+  maintenanceConfig: SystemMaintenanceConfig;
+  isMaintenanceActive: boolean;
+  setMaintenanceMode: (config: Partial<SystemMaintenanceConfig>) => Promise<void>;
   adminResolveDispute: (gigId: string, resolution: string, refundToClient: boolean, note: string) => void;
   adminApproveKyc: (userId: string) => void;
   adminToggleLockUser: (userId: string) => void;
@@ -403,7 +327,9 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         cur === 'user_526h0044' ||
         cur === 'user_freelancer_lan' ||
         cur === 'user_cafe_passio' ||
-        cur === 'user_student_tdtu'
+        cur === 'user_student_tdtu' ||
+        cur === 'user_student_huy' ||
+        cur === 'user_client_ha'
       ) {
         localStorage.removeItem(STORAGE_KEYS.CURRENT_USER_ID);
         setCurrentUserId(null);
@@ -424,7 +350,9 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             u.id !== 'user_526h0044' &&
             u.id !== 'user_freelancer_lan' &&
             u.id !== 'user_cafe_passio' &&
-            u.id !== 'user_student_tdtu'
+            u.id !== 'user_student_tdtu' &&
+            u.id !== 'user_student_huy' &&
+            u.id !== 'user_client_ha'
         );
         return filtered.length > 0 ? filtered : INITIAL_USERS;
       } catch {
@@ -440,7 +368,9 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       saved === 'user_526h0044' ||
       saved === 'user_freelancer_lan' ||
       saved === 'user_cafe_passio' ||
-      saved === 'user_student_tdtu'
+      saved === 'user_student_tdtu' ||
+      saved === 'user_student_huy' ||
+      saved === 'user_client_ha'
     ) {
       localStorage.removeItem(STORAGE_KEYS.CURRENT_USER_ID);
       return null;
@@ -535,6 +465,31 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     message: 'Đang kiểm tra kết nối Firestore Cloud...',
   });
 
+  const [maintenanceConfig, setMaintenanceConfig] = useState<SystemMaintenanceConfig>(() => {
+    try {
+      const saved = localStorage.getItem('gigme_maintenance_config_cache');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return {
+      isActive: false,
+      title: 'Hệ Thống Đang Nâng Cấp & Bảo Trì Kỹ Thuật',
+      message: 'GigMe đang nâng cấp cơ sở dữ liệu và tối ưu hóa hệ thống. Vui lòng quay lại sau.',
+      startTime: Date.now(),
+      endTime: Date.now() + 30 * 60 * 1000,
+      activatedBy: 'admin_root',
+      updatedAt: Date.now(),
+      allowedTabs: ['PROFILE'],
+    };
+  });
+
+  const isMaintenanceActive = useMemo(() => {
+    if (!maintenanceConfig.isActive) return false;
+    if (maintenanceConfig.endTime && Date.now() > maintenanceConfig.endTime) {
+      return false; // Hết hạn bảo trì tự động
+    }
+    return true;
+  }, [maintenanceConfig]);
+
   // Tự động định vị GPS chính xác của người dùng trên thực tế ngay khi mở App (nếu chưa chọn hub thủ công)
   useEffect(() => {
     if (typeof window !== 'undefined' && 'geolocation' in navigator) {
@@ -616,12 +571,23 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setTransactions(cloudTxs);
     });
 
+    // 7. Lắng nghe chế độ bảo trì toàn hệ thống thời gian thực (Realtime Maintenance Mode)
+    const unsubMaintenance = cloudService.subscribeMaintenance((cloudMaintenance) => {
+      if (cloudMaintenance) {
+        setMaintenanceConfig(cloudMaintenance);
+        try {
+          localStorage.setItem('gigme_maintenance_config_cache', JSON.stringify(cloudMaintenance));
+        } catch {}
+      }
+    });
+
     return () => {
       unsubGigs();
       unsubBids();
       unsubChats();
       unsubUsers();
       unsubTransactions();
+      unsubMaintenance();
     };
   }, []);
 
@@ -1796,10 +1762,24 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setUsers((prev) =>
         prev.map((u) => {
           if (u.id === currentUser.id) {
+            const updatedDiscipline = [
+              ...(u.disciplineRecords || []),
+              {
+                id: `disc_worker_cancel_${Date.now()}`,
+                type: 'LATE_CANCELLATION' as const,
+                title: 'Hủy nhận việc trễ hạn (>10 phút)',
+                penaltyPoints: trustScoreDeduction,
+                fineAmount: penaltyFee,
+                reason: reason || 'Hủy sau 10 phút nhận kèo',
+                createdAt: Date.now(),
+                gigTitle: gig.title,
+              },
+            ];
             return {
               ...u,
               walletBalance: Math.max(0, u.walletBalance - penaltyFee),
               trustScore: Math.max(0, u.trustScore - trustScoreDeduction),
+              disciplineRecords: updatedDiscipline,
             };
           }
           if (u.id === gig.clientId) {
@@ -1868,6 +1848,367 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         true
       );
     }
+    return true;
+  };
+
+  // CANCEL GIG BY CLIENT (HOÀN 100% ESCROW KHI OPEN; MIỄN PHÍ < 10 PHÚT, PHẠT BỒI THƯỜNG THỢ > 10 PHÚT KHI IN_PROGRESS)
+  const cancelGigByClient = (gigId: string, reason: string): boolean => {
+    if (!currentUser) return false;
+    const gig = gigs.find((g) => g.id === gigId);
+    if (!gig) return false;
+    if (gig.clientId !== currentUser.id && currentUser.role !== 'ADMIN') {
+      showNotification('Không có quyền', 'Chỉ người đăng bài mới có quyền hủy đơn này!');
+      return false;
+    }
+
+    if (gig.status === 'COMPLETED' || gig.status === 'CLIENT_REFUNDED' || gig.status === 'CANCELLED') {
+      showNotification('Không thể hủy', 'Đơn việc này đã kết thúc hoặc đã được xử lý trước đó!');
+      return false;
+    }
+
+    // Trường hợp 1: Đơn còn đang OPEN (chưa có thợ nhận)
+    if (gig.status === 'OPEN') {
+      setUsers((prev) =>
+        prev.map((u) => {
+          if (u.id === gig.clientId) {
+            return {
+              ...u,
+              walletBalance: u.walletBalance + gig.price,
+              escrowLockedBalance: Math.max(0, u.escrowLockedBalance - gig.price),
+            };
+          }
+          return u;
+        })
+      );
+
+      const refundTx: WalletTransactionEntity = {
+        id: `tx_cancel_refund_${Date.now()}`,
+        userId: gig.clientId,
+        type: 'ADMIN_REFUND',
+        amount: gig.price,
+        title: 'Hoàn Tiền Escrow (Hủy Bài Đăng)',
+        subtitle: `Hoàn 100% tiền cọc (${gig.price.toLocaleString('vi-VN')}đ) đơn "${gig.title}" do chủ việc hủy khi chưa có thợ`,
+        bankInfo: 'Ví GigMe Escrow',
+        timestamp: Date.now(),
+        isSuccess: true,
+      };
+
+      setTransactions((prev) => [refundTx, ...prev]);
+      cloudService.saveTransaction(refundTx);
+
+      const updatedGig: GigEntity = {
+        ...gig,
+        status: 'CANCELLED',
+        cancelledAt: Date.now(),
+        cancelledByClient: true,
+        cancellationReason: reason || 'Chủ việc hủy bài đăng khi chưa có thợ',
+      };
+
+      setGigs((prev) => prev.map((g) => (g.id === gigId ? updatedGig : g)));
+      cloudService.saveGig(updatedGig);
+
+      showNotification(
+        '✅ Hủy Đăng Bài Thành Công',
+        `Đã hoàn trả 100% tiền cọc Escrow (${gig.price.toLocaleString('vi-VN')}đ) về ví tài khoản của bạn ngay lập tức!`,
+        true,
+        true
+      );
+      return true;
+    }
+
+    // Trường hợp 2: Đơn đang IN_PROGRESS (Thợ đã nhận việc và có thể đang trên đường đến)
+    const acceptedTime = gig.acceptedAt || gig.createdAt || Date.now();
+    const elapsedMinutes = (Date.now() - acceptedTime) / (1000 * 60);
+    const isLate = elapsedMinutes > 10;
+    const penaltyFee = isLate
+      ? Math.min(Math.max(20000, Math.round(gig.price * 0.1)), 50000)
+      : 0;
+    const trustDeduction = isLate ? 5 : 0;
+    const refundToClient = Math.max(0, gig.price - penaltyFee);
+
+    setUsers((prev) =>
+      prev.map((u) => {
+        if (u.id === gig.clientId) {
+          const updatedDiscipline = isLate
+            ? [
+                ...(u.disciplineRecords || []),
+                {
+                  id: `disc_client_cancel_${Date.now()}`,
+                  type: 'LATE_CANCELLATION' as const,
+                  title: 'Phạt hủy đơn trễ hạn sau 10 phút',
+                  penaltyPoints: trustDeduction,
+                  fineAmount: penaltyFee,
+                  reason: reason || 'Hủy đơn sau 10 phút khi thợ đang chuẩn bị/di chuyển',
+                  createdAt: Date.now(),
+                  gigTitle: gig.title,
+                },
+              ]
+            : u.disciplineRecords;
+
+          return {
+            ...u,
+            walletBalance: u.walletBalance + refundToClient,
+            escrowLockedBalance: Math.max(0, u.escrowLockedBalance - gig.price),
+            trustScore: Math.max(0, u.trustScore - trustDeduction),
+            disciplineRecords: updatedDiscipline,
+          };
+        }
+
+        if (gig.freelancerId && u.id === gig.freelancerId && isLate) {
+          return {
+            ...u,
+            walletBalance: u.walletBalance + penaltyFee,
+          };
+        }
+        return u;
+      })
+    );
+
+    const clientRefundTx: WalletTransactionEntity = {
+      id: `tx_client_refund_${Date.now()}`,
+      userId: gig.clientId,
+      type: 'ADMIN_REFUND',
+      amount: refundToClient,
+      title: isLate ? 'Hoàn Escrow (Đã trừ phí bồi thường thợ)' : 'Hoàn Tiền Ký Quỹ Escrow (Trong 10 phút)',
+      subtitle: isLate
+        ? `Hoàn lại ${refundToClient.toLocaleString('vi-VN')}đ (đã bồi thường ${penaltyFee.toLocaleString('vi-VN')}đ cho thợ) từ đơn "${gig.title}"`
+        : `Hoàn đủ 100% (${gig.price.toLocaleString('vi-VN')}đ) do hủy trong 10 phút đầu`,
+      bankInfo: 'GigMe Escrow Protection',
+      timestamp: Date.now(),
+      isSuccess: true,
+    };
+
+    const newTxs: WalletTransactionEntity[] = [clientRefundTx];
+
+    if (isLate && gig.freelancerId) {
+      const workerCompTx: WalletTransactionEntity = {
+        id: `tx_worker_comp_${Date.now()}`,
+        userId: gig.freelancerId,
+        type: 'REWARD_EARNED',
+        amount: penaltyFee,
+        title: '💰 Bồi Thường Do Khách Hủy Kèo Trễ',
+        subtitle: `Khách hủy sau 10 phút đơn "${gig.title}" • Bồi thường công di chuyển ${penaltyFee.toLocaleString('vi-VN')}đ`,
+        bankInfo: 'Bảo Hiểm Hủy Kèo GigMe',
+        timestamp: Date.now(),
+        isSuccess: true,
+      };
+      newTxs.push(workerCompTx);
+      cloudService.saveTransaction(workerCompTx);
+    }
+
+    setTransactions((prev) => [...newTxs, ...prev]);
+    cloudService.saveTransaction(clientRefundTx);
+
+    const updatedGig: GigEntity = {
+      ...gig,
+      status: 'CANCELLED',
+      cancelledAt: Date.now(),
+      cancelledByClient: true,
+      cancellationReason: reason || 'Chủ việc hủy đơn',
+      cancellationPenaltyAmount: penaltyFee,
+    };
+
+    setGigs((prev) => prev.map((g) => (g.id === gigId ? updatedGig : g)));
+    cloudService.saveGig(updatedGig);
+
+    if (isLate) {
+      showNotification(
+        '⚠️ Hủy Trễ Hạn & Trừ Phí Bồi Thường (-5 Điểm Uy Tín)',
+        `Bạn đã hủy đơn sau ${Math.round(elapsedMinutes)} phút nhận việc. Hệ thống đã trích ${penaltyFee.toLocaleString('vi-VN')}đ bồi thường cho thợ, trừ 5 điểm Trust Score và hoàn lại ${refundToClient.toLocaleString('vi-VN')}đ về ví của bạn.`,
+        false
+      );
+    } else {
+      showNotification(
+        '✅ Đã Hủy Đơn & Hoàn 100% Tiền Escrow',
+        `Đã hủy việc trong 10 phút đầu miễn phí. Toàn bộ tiền cọc ${gig.price.toLocaleString('vi-VN')}đ đã được hoàn lại ví của bạn!`,
+        true,
+        true
+      );
+    }
+
+    return true;
+  };
+
+  // BÁO CÁO BỎ KÈO / NO-SHOW (THỢ HOẶC KHÁCH KHÔNG XUẤT HIỆN ĐIỂM HẸN)
+  const reportNoShow = (gigId: string, reporterRole: 'CLIENT' | 'WORKER', reason: string): boolean => {
+    if (!currentUser) return false;
+    const gig = gigs.find((g) => g.id === gigId);
+    if (!gig) return false;
+
+    if (reporterRole === 'CLIENT') {
+      if (gig.clientId !== currentUser.id && currentUser.role !== 'ADMIN') {
+        showNotification('Lỗi', 'Chỉ người thuê mới được báo cáo thợ bỏ bom!');
+        return false;
+      }
+      if (!gig.freelancerId) {
+        showNotification('Lỗi', 'Đơn việc này chưa có thợ nhận!');
+        return false;
+      }
+
+      const penaltyFine = Math.min(30000, Math.round(gig.price * 0.15));
+      const penaltyPoints = 15;
+
+      setUsers((prev) =>
+        prev.map((u) => {
+          if (u.id === gig.clientId) {
+            return {
+              ...u,
+              walletBalance: u.walletBalance + gig.price + (penaltyFine > 0 ? penaltyFine : 0),
+              escrowLockedBalance: Math.max(0, u.escrowLockedBalance - gig.price),
+            };
+          }
+          if (u.id === gig.freelancerId) {
+            const updatedDiscipline = [
+              ...(u.disciplineRecords || []),
+              {
+                id: `disc_noshow_${Date.now()}`,
+                type: 'NO_SHOW' as const,
+                title: 'Bị báo cáo bỏ kèo (No-Show không đến)',
+                penaltyPoints,
+                fineAmount: penaltyFine,
+                reason: reason || 'Không có mặt tại điểm hẹn, không liên lạc được',
+                createdAt: Date.now(),
+                gigTitle: gig.title,
+              },
+            ];
+            return {
+              ...u,
+              walletBalance: Math.max(0, u.walletBalance - penaltyFine),
+              trustScore: Math.max(0, u.trustScore - penaltyPoints),
+              disciplineRecords: updatedDiscipline,
+            };
+          }
+          return u;
+        })
+      );
+
+      const clientRefundTx: WalletTransactionEntity = {
+        id: `tx_noshow_refund_${Date.now()}`,
+        userId: gig.clientId,
+        type: 'ADMIN_REFUND',
+        amount: gig.price + penaltyFine,
+        title: 'Bồi Thường & Hoàn Escrow (Thợ Bỏ Kèo No-Show)',
+        subtitle: `Hoàn 100% (${gig.price.toLocaleString('vi-VN')}đ) + Bồi thường phạt ${penaltyFine.toLocaleString('vi-VN')}đ từ thợ bỏ kèo đơn "${gig.title}"`,
+        bankInfo: 'Hệ Thống Trừng Phạt Kỷ Luật GigMe',
+        timestamp: Date.now(),
+        isSuccess: true,
+      };
+
+      const workerPenTx: WalletTransactionEntity = {
+        id: `tx_worker_noshow_${Date.now()}`,
+        userId: gig.freelancerId,
+        type: 'EXPENSE',
+        amount: -penaltyFine,
+        title: '🚫 PHẠT VI PHẠM: BỎ KÈO (NO-SHOW)',
+        subtitle: `Bị trừ 15 điểm Trust Score và phạt ${penaltyFine.toLocaleString('vi-VN')}đ do không đến điểm hẹn đơn "${gig.title}"`,
+        bankInfo: 'Kỷ Luật GigMe',
+        timestamp: Date.now(),
+        isSuccess: true,
+      };
+
+      setTransactions((prev) => [clientRefundTx, workerPenTx, ...prev]);
+      cloudService.saveTransaction(clientRefundTx);
+      cloudService.saveTransaction(workerPenTx);
+
+      const updatedGig: GigEntity = {
+        ...gig,
+        status: 'CANCELLED',
+        cancelledAt: Date.now(),
+        isNoShowReported: true,
+        noShowReportedBy: 'CLIENT',
+        noShowPenaltyAmount: penaltyFine,
+        cancellationReason: `Khách báo thợ bỏ kèo: ${reason}`,
+      };
+
+      setGigs((prev) => prev.map((g) => (g.id === gigId ? updatedGig : g)));
+      cloudService.saveGig(updatedGig);
+
+      showNotification(
+        '🚫 Đã Xử Phạt Thợ Bỏ Kèo & Hoàn Tiền',
+        `Hệ thống đã trừ 15 điểm Trust Score của thợ vi phạm, thu ${penaltyFine.toLocaleString('vi-VN')}đ bồi thường và hoàn trả toàn bộ ${gig.price.toLocaleString('vi-VN')}đ cọc về ví của bạn!`,
+        true,
+        true
+      );
+      return true;
+    }
+
+    // reporterRole === 'WORKER': Thợ báo khách bỏ kèo / boom đơn
+    if (currentUser.id !== gig.freelancerId && currentUser.role !== 'ADMIN') {
+      showNotification('Lỗi', 'Chỉ thợ nhận việc mới được báo cáo khách bỏ kèo!');
+      return false;
+    }
+
+    const compensationForWorker = Math.max(30000, Math.round(gig.price * 0.5));
+    const refundToClient = Math.max(0, gig.price - compensationForWorker);
+
+    setUsers((prev) =>
+      prev.map((u) => {
+        if (u.id === gig.freelancerId) {
+          return {
+            ...u,
+            walletBalance: u.walletBalance + compensationForWorker,
+          };
+        }
+        if (u.id === gig.clientId) {
+          const updatedDiscipline = [
+            ...(u.disciplineRecords || []),
+            {
+              id: `disc_client_noshow_${Date.now()}`,
+              type: 'NO_SHOW' as const,
+              title: 'Khách bỏ bom không nhận hàng/không mở cửa',
+              penaltyPoints: 15,
+              fineAmount: compensationForWorker,
+              reason: reason || 'Thợ đã đến điểm hẹn nhưng khách không ra nhận',
+              createdAt: Date.now(),
+              gigTitle: gig.title,
+            },
+          ];
+          return {
+            ...u,
+            walletBalance: u.walletBalance + refundToClient,
+            escrowLockedBalance: Math.max(0, u.escrowLockedBalance - gig.price),
+            trustScore: Math.max(0, u.trustScore - 15),
+            disciplineRecords: updatedDiscipline,
+          };
+        }
+        return u;
+      })
+    );
+
+    const workerCompTx: WalletTransactionEntity = {
+      id: `tx_worker_noshow_comp_${Date.now()}`,
+      userId: currentUser.id,
+      type: 'REWARD_EARNED',
+      amount: compensationForWorker,
+      title: '💰 Bồi Thường Do Khách Boom Kèo',
+      subtitle: `Thù lao bồi thường công di chuyển ${compensationForWorker.toLocaleString('vi-VN')}đ từ Escrow đơn "${gig.title}"`,
+      bankInfo: 'Quỹ Bảo Hiểm Chống Boom GigMe',
+      timestamp: Date.now(),
+      isSuccess: true,
+    };
+
+    setTransactions((prev) => [workerCompTx, ...prev]);
+    cloudService.saveTransaction(workerCompTx);
+
+    const updatedGig: GigEntity = {
+      ...gig,
+      status: 'CANCELLED',
+      cancelledAt: Date.now(),
+      isNoShowReported: true,
+      noShowReportedBy: 'WORKER',
+      noShowPenaltyAmount: compensationForWorker,
+      cancellationReason: `Thợ báo khách boom đơn: ${reason}`,
+    };
+
+    setGigs((prev) => prev.map((g) => (g.id === gigId ? updatedGig : g)));
+    cloudService.saveGig(updatedGig);
+
+    showNotification(
+      '💰 Đã Giải Ngân Tiền Bồi Thường',
+      `Đã chuyển ${compensationForWorker.toLocaleString('vi-VN')}đ từ tiền cọc của khách vào ví của bạn để bồi thường công di chuyển. Khách đã bị trừ 15 điểm Trust Score!`,
+      true,
+      true
+    );
     return true;
   };
 
@@ -2992,6 +3333,26 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   // ADMIN ACTIONS
+  const setMaintenanceMode = async (updates: Partial<SystemMaintenanceConfig>) => {
+    const newConfig: SystemMaintenanceConfig = {
+      ...maintenanceConfig,
+      ...updates,
+      updatedAt: Date.now(),
+      activatedBy: currentUser?.id || 'admin_root',
+    };
+    setMaintenanceConfig(newConfig);
+    try {
+      localStorage.setItem('gigme_maintenance_config_cache', JSON.stringify(newConfig));
+    } catch {}
+    await cloudService.saveMaintenance(newConfig);
+    showNotification(
+      newConfig.isActive ? 'Đã Kích Hoạt Bảo Trì Toàn Hệ Thống! 🛠️' : 'Đã Tắt Bảo Trì - Hệ Thống Đã Mở Cửa! 🚀',
+      newConfig.isActive
+        ? `Đã đồng bộ lên Cloud. Thời gian kết thúc dự kiến: ${new Date(newConfig.endTime).toLocaleTimeString('vi-VN')} (${new Date(newConfig.endTime).toLocaleDateString('vi-VN')}). Mọi tính năng khác ngoại trừ thông tin cá nhân đã tạm khóa trên cả Web & App.`
+        : 'Toàn bộ dịch vụ nhận việc, ký quỹ Escrow và thanh toán đã hoạt động bình thường trở lại.'
+    );
+  };
+
   const adminResolveDispute = (gigId: string, resolution: string, refundToClient: boolean, note: string) => {
     const gig = gigs.find((g) => g.id === gigId);
     if (!gig) return;
@@ -3640,6 +4001,9 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         upgradeToBusinessAccount,
         exportStatement,
         changeSecurityPin,
+        maintenanceConfig,
+        isMaintenanceActive,
+        setMaintenanceMode,
         adminResolveDispute,
         adminApproveKyc,
         adminToggleLockUser,
@@ -3662,6 +4026,8 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         sendTestFcmPush,
         rateGigAndElo,
         cancelGigByWorker,
+        cancelGigByClient,
+        reportNoShow,
         submitDoubleBlindReview,
         sendWebPushNotification,
       }}

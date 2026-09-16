@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { useGigMe } from '../context/GigMeContext';
 import { formatVnd } from '../types';
+import { validateGpsAuthenticity } from '../utils/antiFakeGps';
 
 interface BlockchainProofModalProps {
   isOpen: boolean;
@@ -152,6 +153,30 @@ export const BlockchainProofModal: React.FC<BlockchainProofModalProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Anti-Fake GPS Verification
+    const currentLoc = {
+      latitude: userCoords?.latitude || 10.7327,
+      longitude: userCoords?.longitude || 106.6992,
+    };
+    const targetLoc = currentSelectedGig
+      ? {
+          latitude: currentSelectedGig.latitude,
+          longitude: currentSelectedGig.longitude,
+          locationName: currentSelectedGig.locationName,
+        }
+      : undefined;
+
+    const gpsCheck = validateGpsAuthenticity(currentLoc, targetLoc);
+    if (gpsCheck.status === 'BLOCKED') {
+      showNotification(
+        '🚫 Chặn Nộp Bằng Chứng (Anti-Fake GPS)',
+        `Phát hiện vi phạm định vị: ${gpsCheck.reasons.join(' ')}. Vui lòng tắt phần mềm giả lập Mock Location!`,
+        false
+      );
+      return;
+    }
+
     const canvas = canvasRef.current;
     let watermarkedUrl = sampleImage;
     if (canvas) {

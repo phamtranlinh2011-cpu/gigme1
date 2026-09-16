@@ -42,7 +42,7 @@ export const SosSafeWalkModal: React.FC<SosSafeWalkModalProps> = ({ isOpen, onCl
   const [destination, setDestination] = useState('Ký Túc Xá Nhà H6 - Cổng 3');
   const [durationMinutes, setDurationMinutes] = useState(15);
   const [emergencyName, setEmergencyName] = useState('Bạn cùng phòng (Bảo Anh)');
-  const [emergencyPhone, setEmergencyPhone] = useState('0912345678');
+  const [emergencyPhone, setEmergencyPhone] = useState('0909999888');
 
   // Countdown & Timer
   const [secondsRemaining, setSecondsRemaining] = useState(0);
