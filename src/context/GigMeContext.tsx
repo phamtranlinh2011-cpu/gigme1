@@ -1,6 +1,13 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import confetti from 'canvas-confetti';
 import {
+  signInWithPopup,
+  GoogleAuthProvider,
+  FacebookAuthProvider,
+  OAuthProvider,
+} from 'firebase/auth';
+import { auth, syncUserToCloud, findUserByContact } from '../lib/firebase';
+import {
   UserEntity,
   GigEntity,
   BidEntity,
@@ -28,7 +35,11 @@ import {
   generateSecureTxId,
   validateSecurityToken,
   normalizeVietnameseName,
+  hashPassword,
+  verifyPassword,
+  detectAndFilterOffPlatformLeakage,
 } from '../utils/securityTokens';
+import { executeAtomicEscrowPayout } from '../lib/firebase';
 
 const STORAGE_KEYS = {
   USERS: 'gigme_users_real_v4',
@@ -85,50 +96,8 @@ const DEFAULT_ADMIN: UserEntity = {
   isLocked: false,
 };
 
-const STUDENT_USER: UserEntity = {
-  id: 'user_student_tdtu',
-  name: 'Nguyễn Văn Hải (Sinh Viên)',
-  email: '526h0044@student.tdtu.edu.vn',
-  phone: '0912345678',
-  password: 'user123',
-  gender: 'Nam',
-  birthDate: '15/07/2003',
-  role: 'USER',
-  tier: 'PRO',
-  kycName: 'NGUYỄN VĂN HẢI',
-  isKycApproved: true,
-  isNfcVerified: true,
-  isFaceLivenessPassed: true,
-  isStudentVerified: true,
-  studentSchool: 'Đại học Tôn Đức Thắng (TDTU)',
-  isBiometricsEnabled: true,
-  isBusinessAccount: false,
-  businessName: '',
-  businessTaxId: '',
-  trustScore: 780,
-  notificationSound: 'BANK_TING',
-  connectedMoMo: '0912345678',
-  connectedZaloPay: '0912345678',
-  connectedViettelMoney: '',
-  lastDeviceName: 'iPhone 15 Pro (Safari)',
-  lastLoginLocation: 'Quận 7, TP.HCM',
-  hasUnusualDeviceAlert: false,
-  rating: 4.9,
-  reviewCount: 18,
-  completedGigs: 12,
-  onTimeRate: 100,
-  postedGigsCount: 3,
-  totalSpent: 450000,
-  walletBalance: 500000,
-  escrowLockedBalance: 0,
-  securityPin: '123456',
-  badges: 'Sinh Viên TDTU • Trợ Thủ Vàng',
-  isLocked: false,
-};
-
 const INITIAL_USERS: UserEntity[] = [
   DEFAULT_ADMIN,
-  STUDENT_USER,
 ];
 
 // Dữ liệu việc làm thực tế: Bắt đầu trống 100%, không dùng dữ liệu ảo
@@ -208,12 +177,12 @@ interface GigMeContextType {
   requestMicroLoan: (amount: number, reason: string) => boolean;
 
   // Auth
-  register: (fullName: string, contact: string, gender: string, birthDate: string, password: string, confirmPassword: string) => boolean;
-  login: (contact: string, password: string) => boolean;
+  register: (fullName: string, contact: string, gender: string, birthDate: string, password: string, confirmPassword: string) => Promise<boolean> | boolean;
+  login: (contact: string, password: string) => Promise<boolean> | boolean;
   sendOtp: (contact: string, purpose?: string) => boolean;
-  resetPasswordWithOtp: (enteredOtp: string, newPassword: string) => boolean;
+  resetPasswordWithOtp: (enteredOtp: string, newPassword: string) => Promise<boolean> | boolean;
   loginWithPhoneOtp: (phoneNumber: string, enteredOtp: string) => boolean;
-  loginSocial: (provider: string, emailOrName: string) => void;
+  loginSocial: (provider: string, emailOrName?: string) => Promise<void> | void;
   logout: () => void;
 
   // Gigs & Escrow Actions
@@ -236,8 +205,27 @@ interface GigMeContextType {
   }) => boolean;
   placeBid: (gigId: string, offeredPrice: number, minutes: number, note: string) => boolean;
   acceptGigDirectly: (gig: GigEntity) => boolean;
-  submitProofOfWork: (gigId: string, note: string, isWatermarked?: boolean) => void;
+  cancelGigByWorker: (gigId: string, reason: string) => boolean;
+  submitProofOfWork: (
+    gigId: string,
+    note: string,
+    isWatermarked?: boolean,
+    proofData?: {
+      watermarkedUrl?: string;
+      hash?: string;
+      coords?: { lat: number; lng: number };
+      timestamp?: number;
+    }
+  ) => void;
+  submitDoubleBlindReview: (
+    gigId: string,
+    rating: number,
+    reviewText: string,
+    role: 'CLIENT' | 'FREELANCER'
+  ) => boolean;
+  sendWebPushNotification: (title: string, body: string, icon?: string) => void;
   releaseEscrowPayout: (gigId: string, enteredPin?: string, tipAmount?: number, useBiometrics?: boolean) => boolean;
+  releaseMilestonePayout: (gigId: string, milestonePercent: number, enteredPin?: string, useBiometrics?: boolean) => boolean;
   fileDispute: (gigId: string, reason: string) => void;
   depositVietQr: (amount: number, bankName: string) => void;
   withdrawToBank: (bankName: string, accountNumber: string, accountHolderName: string, amount: number, pin?: string, useBiometrics?: boolean) => boolean;
@@ -326,7 +314,12 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         'gigme_current_user_id',
       ].forEach((k) => localStorage.removeItem(k));
       const cur = localStorage.getItem(STORAGE_KEYS.CURRENT_USER_ID);
-      if (cur === 'user_526h0044' || cur === 'user_freelancer_lan' || cur === 'user_cafe_passio') {
+      if (
+        cur === 'user_526h0044' ||
+        cur === 'user_freelancer_lan' ||
+        cur === 'user_cafe_passio' ||
+        cur === 'user_student_tdtu'
+      ) {
         localStorage.removeItem(STORAGE_KEYS.CURRENT_USER_ID);
         setCurrentUserId(null);
       }
@@ -345,7 +338,8 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           (u: UserEntity) =>
             u.id !== 'user_526h0044' &&
             u.id !== 'user_freelancer_lan' &&
-            u.id !== 'user_cafe_passio'
+            u.id !== 'user_cafe_passio' &&
+            u.id !== 'user_student_tdtu'
         );
         return filtered.length > 0 ? filtered : INITIAL_USERS;
       } catch {
@@ -357,7 +351,12 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const [currentUserId, setCurrentUserId] = useState<string | null>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.CURRENT_USER_ID);
-    if (saved === 'user_526h0044' || saved === 'user_freelancer_lan' || saved === 'user_cafe_passio') {
+    if (
+      saved === 'user_526h0044' ||
+      saved === 'user_freelancer_lan' ||
+      saved === 'user_cafe_passio' ||
+      saved === 'user_student_tdtu'
+    ) {
       localStorage.removeItem(STORAGE_KEYS.CURRENT_USER_ID);
       return null;
     }
@@ -427,6 +426,8 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [generatedOtp, setGeneratedOtp] = useState<string | null>(null);
   const [otpTargetContact, setOtpTargetContact] = useState<string | null>(null);
   const [otpExpiresAt, setOtpExpiresAt] = useState<number | null>(null);
+  const [otpFailedAttempts, setOtpFailedAttempts] = useState<number>(0);
+  const [lastOtpSentAt, setLastOtpSentAt] = useState<number | null>(null);
   const [userCoords, setUserCoordsState] = useState<GeoLocation>(() => {
     try {
       const saved = localStorage.getItem('gigme_user_coords');
@@ -859,15 +860,15 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setActiveVoipCall((prev) => (prev ? { ...prev, isMuted: !prev.isMuted } : null));
   };
 
-  // 1. REGISTER
-  const register = (
+  // 1. REGISTER WITH PBKDF2 PASSWORD HASHING
+  const register = async (
     fullName: string,
     contact: string,
     gender: string,
     birthDate: string,
     password: string,
     confirmPassword: string
-  ): boolean => {
+  ): Promise<boolean> => {
     const trimmedName = (fullName || '').trim();
     const trimmedContact = (contact || '').trim().toLowerCase();
     const trimmedPass = (password || '').trim();
@@ -901,6 +902,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return false;
     }
 
+    const hashedPassword = await hashPassword(trimmedPass);
     const isEmail = trimmedContact.includes('@');
     const newUserId = `user_${Date.now()}`;
     const newUser: UserEntity = {
@@ -908,7 +910,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       name: trimmedName,
       email: isEmail ? trimmedContact : '',
       phone: !isEmail ? trimmedContact : '',
-      password: trimmedPass,
+      password: hashedPassword,
       gender: gender || 'Khác',
       birthDate: cleanBirthDate,
       tier: 'NEWBIE',
@@ -971,7 +973,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   // 2. LOGIN
-  const login = (contact: string, password: string): boolean => {
+  const login = async (contact: string, password: string): Promise<boolean> => {
     const trimmedContact = contact.trim().toLowerCase();
     const trimmedPass = password.trim();
 
@@ -992,102 +994,36 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return true;
     }
 
-    // Student quick demo account check: 526h0044@student.tdtu.edu.vn | 123456
-    if (trimmedContact === '526h0044@student.tdtu.edu.vn' && trimmedPass === '123456') {
-      let student = users.find((u) => u.email === '526h0044@student.tdtu.edu.vn');
-      if (!student) {
-        student = {
-          id: 'user_student_tdtu',
-          name: 'Sinh viên TDTU (526H0044)',
-          email: '526h0044@student.tdtu.edu.vn',
-          phone: '0912345678',
-          password: '123456',
-          gender: 'Nam',
-          birthDate: '15/07/2004',
-          tier: 'NEWBIE',
-          role: 'USER',
-          kycName: 'NGUYEN VAN HAI',
-          isKycApproved: false,
-          isNfcVerified: false,
-          isFaceLivenessPassed: false,
-          isStudentVerified: false,
-          studentSchool: '',
-          isBiometricsEnabled: false,
-          isBusinessAccount: false,
-          businessName: '',
-          businessTaxId: '',
-          trustScore: 0,
-          eloRating: 0,
-          eloTier: 'BRONZE',
-          winStreak: 0,
-          notificationSound: 'DING_DEFAULT',
-          connectedMoMo: '0912345678',
-          connectedZaloPay: '',
-          connectedViettelMoney: '',
-          lastDeviceName: 'Web Client',
-          lastLoginLocation: 'TP. Hồ Chí Minh, Việt Nam',
-          hasUnusualDeviceAlert: false,
-          rating: 0,
-          reviewCount: 0,
-          completedGigs: 0,
-          onTimeRate: 0,
-          postedGigsCount: 0,
-          totalSpent: 0,
-          walletBalance: 0,
-          escrowLockedBalance: 0,
-          securityPin: '123456',
-          badges: 'Sinh Viên TDTU',
-          isLocked: false,
-        };
-        setUsers((prev) => [...prev, student!]);
-        cloudService.saveUser(student);
-      }
-      setCurrentUserId(student.id);
-      showNotification('Đăng nhập thành công!', `Chào mừng bạn trở lại, ${student.name}!`, true);
-      return true;
-    }
-
-    const user = users.find(
+    // Check if user is in local state
+    let user = users.find(
       (u) =>
         (u.email && u.email.toLowerCase() === trimmedContact) ||
         (u.phone && u.phone === trimmedContact)
     );
+
+    // If not in local state, fetch directly from Firebase Firestore
     if (!user) {
-      if (cloudService.isExpressAvailable()) {
-        fetch('/api/users/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ contact: trimmedContact, password: trimmedPass }),
-        })
-          .then((res) => (res.ok ? res.json() : null))
-          .then((data) => {
-            if (data?.success && data?.user) {
-              setUsers((prev) => [...prev.filter((u) => u.id !== data.user.id), data.user]);
-              setCurrentUserId(data.user.id);
-              showNotification('Đăng nhập thành công!', `Chào mừng trở lại, ${data.user.name}!`, true);
-            } else {
-              showNotification(
-                'Tài khoản không tồn tại',
-                `Không tìm thấy tài khoản với ${trimmedContact}. Vui lòng kiểm tra lại hoặc Đăng ký mới!`
-              );
-            }
-          })
-          .catch(() => {
-            showNotification(
-              'Tài khoản không tồn tại',
-              `Không tìm thấy tài khoản với ${trimmedContact}. Vui lòng kiểm tra lại hoặc Đăng ký mới!`
-            );
-          });
-      } else {
-        showNotification(
-          'Tài khoản không tồn tại',
-          `Không tìm thấy tài khoản với ${trimmedContact}. Vui lòng kiểm tra lại hoặc Đăng ký mới!`
-        );
+      try {
+        const cloudUser = await findUserByContact(trimmedContact);
+        if (cloudUser) {
+          user = cloudUser;
+          setUsers((prev) => [...prev.filter((u) => u.id !== cloudUser.id), cloudUser]);
+        }
+      } catch (err) {
+        console.warn('Find user in Firestore error:', err);
       }
+    }
+
+    if (!user) {
+      showNotification(
+        'Tài khoản không tồn tại',
+        `Không tìm thấy tài khoản với ${trimmedContact}. Vui lòng kiểm tra lại hoặc Đăng ký mới!`
+      );
       return false;
     }
 
-    if (user.password && user.password !== trimmedPass) {
+    const isPasswordValid = await verifyPassword(trimmedPass, user.password || '');
+    if (!isPasswordValid) {
       showNotification('Sai mật khẩu', 'Mật khẩu đăng nhập không chính xác. Vui lòng thử lại hoặc bấm Quên mật khẩu!');
       return false;
     }
@@ -1102,11 +1038,18 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return true;
   };
 
-  // 3. SEND OTP (Hiệu lực 3 phút, có đồng bộ máy chủ)
+  // 3. SEND OTP (Hiệu lực 3 phút, chống Spam với Cooldown 60s)
   const sendOtp = (contact: string, purpose = 'RESET_PASSWORD'): boolean => {
     const trimmed = (contact || '').trim();
     if (!trimmed) {
       showNotification('Yêu cầu thông tin', 'Vui lòng nhập Số điện thoại hoặc Gmail để nhận mã OTP!');
+      return false;
+    }
+
+    // Cooldown 60s chống Spam SMS / OTP Bombing
+    if (lastOtpSentAt && Date.now() - lastOtpSentAt < 60 * 1000) {
+      const waitSec = Math.ceil((60 * 1000 - (Date.now() - lastOtpSentAt)) / 1000);
+      showNotification('Vui lòng đợi', `Vui lòng đợi ${waitSec}s trước khi yêu cầu cấp lại mã OTP mới!`);
       return false;
     }
 
@@ -1115,20 +1058,22 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setGeneratedOtp(code);
     setOtpTargetContact(trimmed.toLowerCase());
     setOtpExpiresAt(expiry);
+    setOtpFailedAttempts(0);
+    setLastOtpSentAt(Date.now());
 
     // Đồng bộ phía máy chủ backend
     cloudService.requestCloudOtp(trimmed);
 
     showNotification(
       'Mã xác thực OTP GigMe',
-      `Mã OTP xác thực của bạn là: [${code}]. Mã có hiệu lực trong 3 phút. Vui lòng không chia sẻ mã này!`,
+      `Mã OTP xác thực của bạn là: [${code}]. Mã có hiệu lực trong 3 phút (Tối đa 3 lần thử). Vui lòng không chia sẻ mã này!`,
       true
     );
     return true;
   };
 
-  // 4. RESET PASSWORD WITH STRICT OTP CHECK
-  const resetPasswordWithOtp = (enteredOtp: string, newPassword: string): boolean => {
+  // 4. RESET PASSWORD WITH STRICT OTP CHECK & PASSWORD HASHING
+  const resetPasswordWithOtp = async (enteredOtp: string, newPassword: string): Promise<boolean> => {
     const cleanOtp = (enteredOtp || '').trim();
     if (!cleanOtp) {
       showNotification('Chưa nhập mã OTP', 'Bạn chưa nhập mã OTP! Vui lòng nhập đúng mã 6 số để tiếp tục.');
@@ -1143,14 +1088,27 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (otpExpiresAt && Date.now() > otpExpiresAt) {
       setGeneratedOtp(null);
       setOtpExpiresAt(null);
+      setOtpFailedAttempts(0);
       showNotification('Mã OTP đã hết hạn', 'Mã OTP đã quá thời hạn 3 phút. Vui lòng bấm nhận mã mới!');
       return false;
     }
 
     if (cleanOtp !== generatedOtp) {
+      const nextFail = otpFailedAttempts + 1;
+      setOtpFailedAttempts(nextFail);
+      if (nextFail >= 3) {
+        setGeneratedOtp(null);
+        setOtpExpiresAt(null);
+        setOtpFailedAttempts(0);
+        showNotification(
+          'Hủy mã OTP',
+          'Bạn đã nhập sai mã OTP quá 3 lần liên tiếp. Mã OTP đã bị hủy để đảm bảo an toàn!'
+        );
+        return false;
+      }
       showNotification(
         'Mã OTP không đúng',
-        'Mã OTP bạn vừa nhập không chính xác. Vui lòng kiểm tra lại tin nhắn thông báo!'
+        `Mã OTP bạn vừa nhập không chính xác (Còn ${3 - nextFail} lần thử). Vui lòng kiểm tra lại!`
       );
       return false;
     }
@@ -1161,18 +1119,23 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
 
     if (otpTargetContact) {
+      const hashedNewPass = await hashPassword(newPassword.trim());
       setUsers((prev) =>
-        prev.map((u) =>
-          (u.email && u.email.toLowerCase() === otpTargetContact) || (u.phone && u.phone === otpTargetContact)
-            ? { ...u, password: newPassword.trim() }
-            : u
-        )
+        prev.map((u) => {
+          if ((u.email && u.email.toLowerCase() === otpTargetContact) || (u.phone && u.phone === otpTargetContact)) {
+            const updated = { ...u, password: hashedNewPass };
+            cloudService.saveUser(updated);
+            return updated;
+          }
+          return u;
+        })
       );
       setGeneratedOtp(null);
       setOtpExpiresAt(null);
+      setOtpFailedAttempts(0);
       showNotification(
         'Đặt lại mật khẩu thành công!',
-        'Mật khẩu mới đã được cập nhật. Bạn có thể đăng nhập ngay bây giờ.',
+        'Mật khẩu mới đã được mã hóa an toàn và cập nhật. Bạn có thể đăng nhập ngay bây giờ.',
         true
       );
       return true;
@@ -1180,7 +1143,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return false;
   };
 
-  // 5. PHONE LOGIN WITH MANDATORY STRICT OTP CHECK
+  // 5. PHONE LOGIN WITH MANDATORY STRICT OTP CHECK & ATTEMPTS LIMIT
   const loginWithPhoneOtp = (phoneNumber: string, enteredOtp: string): boolean => {
     const trimmedPhone = (phoneNumber || '').trim();
     if (!trimmedPhone) {
@@ -1202,6 +1165,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (otpExpiresAt && Date.now() > otpExpiresAt) {
       setGeneratedOtp(null);
       setOtpExpiresAt(null);
+      setOtpFailedAttempts(0);
       showNotification('Mã OTP đã hết hạn', 'Mã OTP đã quá hạn 3 phút. Vui lòng bấm "Gửi Mã OTP" để nhận mã mới!');
       return false;
     }
@@ -1212,13 +1176,23 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
 
     if (cleanOtp !== generatedOtp) {
-      showNotification('Mã OTP không đúng', 'Mã OTP xác thực không khớp. Vui lòng kiểm tra kỹ và nhập lại chính xác 6 số!');
+      const nextFail = otpFailedAttempts + 1;
+      setOtpFailedAttempts(nextFail);
+      if (nextFail >= 3) {
+        setGeneratedOtp(null);
+        setOtpExpiresAt(null);
+        setOtpFailedAttempts(0);
+        showNotification('Hủy mã OTP', 'Đã nhập sai OTP 3 lần. Mã OTP đã bị hủy!');
+        return false;
+      }
+      showNotification('Mã OTP không đúng', `Mã OTP xác thực không khớp (Còn ${3 - nextFail} lần thử).`);
       return false;
     }
 
     // Hủy mã OTP ngay lập tức để chống dùng lại
     setGeneratedOtp(null);
     setOtpExpiresAt(null);
+    setOtpFailedAttempts(0);
 
     let user = users.find((u) => u.phone === trimmedPhone);
     if (!user) {
@@ -1274,60 +1248,143 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return true;
   };
 
-  // 6. SOCIAL LOGIN
-  const loginSocial = (provider: string, emailOrName: string) => {
-    const contact = emailOrName.trim().toLowerCase();
-    let user = users.find((u) => u.email && u.email.toLowerCase() === contact);
-    if (!user) {
-      const newUserId = `user_${Date.now()}`;
-      const namePart = emailOrName.split('@')[0].replace('.', ' ');
-      user = {
-        id: newUserId,
-        name: namePart.charAt(0).toUpperCase() + namePart.slice(1),
-        email: contact.includes('@') ? contact : '',
-        phone: !contact.includes('@') ? contact : '',
-        gender: 'Khác',
-        birthDate: '01/01/2000',
-        tier: 'NEWBIE',
-        role: 'USER',
-        kycName: namePart.toUpperCase(),
-        isKycApproved: false,
-        isNfcVerified: false,
-        isFaceLivenessPassed: false,
-        isStudentVerified: false,
-        studentSchool: '',
-        isBiometricsEnabled: false,
-        isBusinessAccount: false,
-        businessName: '',
-        businessTaxId: '',
-        trustScore: 0,
-        eloRating: 0,
-        eloTier: 'BRONZE',
-        winStreak: 0,
-        notificationSound: 'DING_DEFAULT',
-        connectedMoMo: '',
-        connectedZaloPay: '',
-        connectedViettelMoney: '',
-        lastDeviceName: `Social Web (${provider})`,
-        lastLoginLocation: 'Việt Nam',
-        hasUnusualDeviceAlert: false,
-        rating: 0,
-        reviewCount: 0,
-        completedGigs: 0,
-        onTimeRate: 0,
-        postedGigsCount: 0,
-        totalSpent: 0,
-        walletBalance: 0,
-        escrowLockedBalance: 0,
-        securityPin: '123456',
-        badges: 'Thành viên mới',
-        isLocked: false,
-      };
-      setUsers((prev) => [...prev, user!]);
-    }
+  // 6. SOCIAL LOGIN (Đăng nhập thật qua Firebase Authentication)
+  const loginSocial = async (provider: string, emailOrName?: string) => {
+    try {
+      let authUser: any = null;
+      if (provider === 'Google') {
+        const googleProvider = new GoogleAuthProvider();
+        googleProvider.setCustomParameters({ prompt: 'select_account' });
+        const cred = await signInWithPopup(auth, googleProvider);
+        authUser = cred.user;
+      } else if (provider === 'Facebook') {
+        try {
+          const fbProvider = new FacebookAuthProvider();
+          const cred = await signInWithPopup(auth, fbProvider);
+          authUser = cred.user;
+        } catch (fbErr: any) {
+          if (
+            fbErr?.code === 'auth/operation-not-allowed' ||
+            fbErr?.code === 'auth/configuration-not-found'
+          ) {
+            showNotification(
+              'Chưa bật Facebook Auth',
+              'Đăng nhập Facebook yêu cầu kích hoạt trong Firebase Console. Bạn vui lòng sử dụng Đăng nhập Google hoặc SĐT/Gmail nhé!'
+            );
+            return;
+          }
+          throw fbErr;
+        }
+      } else if (provider === 'Apple') {
+        try {
+          const appleProvider = new OAuthProvider('apple.com');
+          const cred = await signInWithPopup(auth, appleProvider);
+          authUser = cred.user;
+        } catch (appleErr: any) {
+          if (
+            appleErr?.code === 'auth/operation-not-allowed' ||
+            appleErr?.code === 'auth/configuration-not-found'
+          ) {
+            showNotification(
+              'Chưa bật Apple ID',
+              'Đăng nhập Apple yêu cầu Services ID trong Firebase Console. Bạn vui lòng sử dụng Đăng nhập Google hoặc SĐT/Gmail nhé!'
+            );
+            return;
+          }
+          throw appleErr;
+        }
+      }
 
-    setCurrentUserId(user.id);
-    showNotification(`Đăng nhập ${provider} thành công!`, `Chào mừng ${user.name} đến với GigMe qua ${provider}!`, true);
+      if (authUser) {
+        const email = authUser.email || '';
+        const name = authUser.displayName || email.split('@')[0] || 'Người Dùng';
+        const uid = authUser.uid;
+
+        // Kiểm tra tài khoản đã tồn tại chưa (local hoặc Firestore)
+        let user = users.find(
+          (u) => (u.email && u.email.toLowerCase() === email.toLowerCase()) || u.id === uid
+        );
+        if (!user && email) {
+          try {
+            user = (await findUserByContact(email)) || undefined;
+          } catch {
+            // ignore
+          }
+        }
+
+        if (!user) {
+          user = {
+            id: uid,
+            name: name,
+            email: email,
+            phone: authUser.phoneNumber || '',
+            gender: 'Khác',
+            birthDate: '01/01/2002',
+            role: 'USER',
+            tier: 'NEWBIE',
+            kycName: name.toUpperCase(),
+            isKycApproved: false,
+            isNfcVerified: false,
+            isFaceLivenessPassed: false,
+            isStudentVerified: false,
+            studentSchool: '',
+            isBiometricsEnabled: false,
+            isBusinessAccount: false,
+            businessName: '',
+            businessTaxId: '',
+            trustScore: 100,
+            eloRating: 1000,
+            eloTier: 'BRONZE',
+            winStreak: 0,
+            notificationSound: 'BANK_TING',
+            connectedMoMo: '',
+            connectedZaloPay: '',
+            connectedViettelMoney: '',
+            lastDeviceName: `${provider} Auth Verified`,
+            lastLoginLocation: 'Việt Nam',
+            hasUnusualDeviceAlert: false,
+            rating: 5.0,
+            reviewCount: 0,
+            completedGigs: 0,
+            onTimeRate: 100,
+            postedGigsCount: 0,
+            totalSpent: 0,
+            walletBalance: 0,
+            escrowLockedBalance: 0,
+            securityPin: '123456',
+            badges: `Tài khoản ${provider} chính chủ`,
+            isLocked: false,
+          };
+          setUsers((prev) => [...prev.filter((u) => u.id !== user!.id), user!]);
+          // Lưu đồng bộ thật lên Firebase Firestore
+          await syncUserToCloud(user);
+        }
+
+        setCurrentUserId(user.id);
+        showNotification(
+          `Đăng nhập ${provider} thành công! 🎉`,
+          `Chào mừng ${user.name} đến với GigMe!`,
+          true,
+          true
+        );
+      }
+    } catch (err: any) {
+      console.error('Social Login Error:', err);
+      if (err?.code === 'auth/popup-closed-by-user') {
+        return;
+      }
+      if (err?.code === 'auth/popup-blocked') {
+        showNotification(
+          'Cửa sổ Popup bị chặn',
+          'Vui lòng cho phép mở cửa sổ Popup trên trình duyệt để tiếp tục đăng nhập Google/Facebook.'
+        );
+        return;
+      }
+      showNotification(
+        `Lỗi đăng nhập ${provider}`,
+        err?.message || 'Không thể đăng nhập bằng tài khoản này. Vui lòng thử lại!'
+      );
+    }
   };
 
   const logout = () => {
@@ -1591,6 +1648,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       status: 'IN_PROGRESS',
       freelancerId: currentUser.id,
       freelancerName: currentUser.name,
+      acceptedAt: Date.now(),
       confirmedWorkersCount: (gig.confirmedWorkersCount || 0) + 1,
     };
     setGigs((prev) => prev.map((g) => (g.id === gig.id ? updatedGig : g)));
@@ -1604,20 +1662,104 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return true;
   };
 
-  // SUBMIT PROOF OF WORK WITH WATERMARK
-  const submitProofOfWork = (gigId: string, note: string, isWatermarked = true) => {
+  // CANCEL GIG BY WORKER WITH LATE CANCELLATION PENALTY (< 10m FREE, > 10m PENALTY)
+  const cancelGigByWorker = (gigId: string, reason: string): boolean => {
+    if (!currentUser) return false;
+    const gig = gigs.find((g) => g.id === gigId);
+    if (!gig) return false;
+
+    const acceptedTime = gig.acceptedAt || gig.createdAt || Date.now();
+    const elapsedMinutes = (Date.now() - acceptedTime) / (1000 * 60);
+
+    const isLateCancellation = elapsedMinutes > 10;
+    const penaltyFee = isLateCancellation
+      ? Math.min(Math.max(20000, Math.round(gig.price * 0.1)), 50000)
+      : 0;
+    const trustScoreDeduction = isLateCancellation ? 5 : 0;
+
+    // Phạt trừ ví thợ & bồi thường khách nếu hủy trễ sau 10 phút
+    if (isLateCancellation) {
+      setUsers((prev) =>
+        prev.map((u) => {
+          if (u.id === currentUser.id) {
+            return {
+              ...u,
+              walletBalance: Math.max(0, u.walletBalance - penaltyFee),
+              trustScore: Math.max(0, u.trustScore - trustScoreDeduction),
+            };
+          }
+          if (u.id === gig.clientId) {
+            return {
+              ...u,
+              walletBalance: u.walletBalance + penaltyFee,
+            };
+          }
+          return u;
+        })
+      );
+    }
+
+    const updatedGig: GigEntity = {
+      ...gig,
+      status: 'OPEN',
+      freelancerId: undefined,
+      freelancerName: undefined,
+      cancelledByWorker: true,
+      cancelledAt: Date.now(),
+      cancellationReason: reason,
+      cancellationPenaltyAmount: penaltyFee,
+    };
+
+    setGigs((prev) => prev.map((g) => (g.id === gigId ? updatedGig : g)));
+    cloudService.saveGig(updatedGig);
+
+    if (isLateCancellation) {
+      showNotification(
+        '⚠️ Phạt Hủy Đơn Trễ Hạn (-5 Điểm Uy Tín)',
+        `Bạn đã hủy đơn sau ${Math.round(elapsedMinutes)} phút nhận việc (>10 phút). Hệ thống tự trừ 5 điểm Trust Score và trừ ${penaltyFee.toLocaleString()}đ phí bồi thường chuyển cho khách hàng.`,
+        false
+      );
+    } else {
+      showNotification(
+        'Đã Hủy Nhận Việc',
+        'Đã hủy đơn trong vòng 10 phút đầu. Bạn được miễn trừ phạt và không bị trừ điểm uy tín.',
+        true
+      );
+    }
+    return true;
+  };
+
+  // SUBMIT PROOF OF WORK WITH WATERMARK GPS & TIMESTAMP
+  const submitProofOfWork = (
+    gigId: string,
+    note: string,
+    isWatermarked = true,
+    proofData?: {
+      watermarkedUrl?: string;
+      hash?: string;
+      coords?: { lat: number; lng: number };
+      timestamp?: number;
+    }
+  ) => {
     if (!currentUser) return;
 
     const target = gigs.find((g) => g.id === gigId);
+    const resolvedUrl =
+      proofData?.watermarkedUrl ||
+      target?.proofImageUrl ||
+      'https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?w=600&auto=format&fit=crop';
+
     if (target) {
       const updatedGig: GigEntity = {
         ...target,
         status: 'SUBMITTED',
         proofNote: note,
         proofIsWatermarked: isWatermarked,
-        proofImageUrl:
-          target.proofImageUrl ||
-          'https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?w=600&auto=format&fit=crop',
+        proofImageUrl: resolvedUrl,
+        proofWatermarkUrl: proofData?.watermarkedUrl,
+        proofHash: proofData?.hash,
+        proofGpsCoords: proofData?.coords,
+        proofTimestamp: proofData?.timestamp || Date.now(),
       };
       setGigs((prev) => prev.map((g) => (g.id === gigId ? updatedGig : g)));
       cloudService.saveGig(updatedGig);
@@ -1629,11 +1771,11 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       senderId: currentUser.id,
       senderName: currentUser.name,
       isFromClient: false,
-      message: `📸 [Nghiệm thu công việc] Mình đã hoàn thành: ${note}. ${
-        isWatermarked ? '(Bản preview có watermark chống bùng)' : '(Bản chính thức)'
-      }`,
+      message: `📸 [Nghiệm thu công việc GPS & Watermark] Mình đã hoàn thành: ${note}. ${
+        proofData?.hash ? `Mã băm Blockchain: ${proofData.hash}` : ''
+      } ${isWatermarked ? '(Bản nghiệm thu có Watermark GPS & Giờ giấc chống bùng)' : '(Bản chính thức)'}`,
       attachmentType: isWatermarked ? 'WATERMARK_PREVIEW' : 'PROOF_SCREENSHOT',
-      attachmentData: 'https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?w=600&auto=format&fit=crop',
+      attachmentData: resolvedUrl,
       timestamp: Date.now(),
     };
     setChats((prev) => [...prev, chatMsg]);
@@ -1641,7 +1783,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     showNotification(
       'Đã nộp bằng chứng nghiệm thu!',
-      'Khách hàng có 24h để xác nhận giải ngân. Nếu im lặng, tiền sẽ tự động chuyển vào ví của bạn!',
+      'Ảnh đã được đóng dấu Watermark GPS & Giờ giấc thời gian thực. Khách hàng có 24h để xác nhận giải ngân!',
       true
     );
   };
@@ -1679,7 +1821,10 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const feeRate = tierConfig.commissionRate;
     const gigPrice = targetGig.price;
     const platformFee = Math.round(gigPrice * feeRate);
-    const freelancerPayout = gigPrice - platformFee + tipAmount;
+    // Khấu trừ Thuế Thu Nhập Cá Nhân (TNCN vãng lai 10% nếu đơn hàng >= 2.000.000đ theo TT 111/2013/TT-BTC)
+    const taxRate = gigPrice >= 2000000 ? 0.10 : 0;
+    const taxAmount = Math.round(gigPrice * taxRate);
+    const freelancerPayout = gigPrice - platformFee - taxAmount + tipAmount;
 
     // Update Gig & sync to Cloud
     const updatedCompletedGig: GigEntity = {
@@ -1733,9 +1878,9 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       type: 'ESCROW_PAYOUT',
       amount: freelancerPayout,
       title: 'Giải ngân Smart Escrow thành công',
-      subtitle: `Đơn "${targetGig.title}" • Nhận ${freelancerPayout.toLocaleString()}đ ${
-        tipAmount > 0 ? `(+${tipAmount.toLocaleString()}đ Tip)` : ''
-      }`,
+      subtitle: `Đơn "${targetGig.title}" • Thực nhận ${freelancerPayout.toLocaleString()}đ ${
+        taxAmount > 0 ? `(Đã khấu trừ thuế TNCN 10%: ${taxAmount.toLocaleString()}đ)` : ''
+      } ${tipAmount > 0 ? `(+${tipAmount.toLocaleString()}đ Tip)` : ''}`,
       bankInfo: 'GigMe Escrow Auto-Split',
       timestamp: now,
       isSuccess: true,
@@ -1747,7 +1892,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       type: 'PLATFORM_FEE',
       amount: -platformFee,
       title: `Phí dịch vụ nền tảng ${Math.round(feeRate * 100)}%`,
-      subtitle: 'Bảo vệ thanh toán & tự động gỡ Watermark',
+      subtitle: 'Bảo vệ thanh toán, kiểm duyệt & tự động gỡ Watermark',
       bankInfo: 'GigMe Platform Fee',
       timestamp: now + 1,
       isSuccess: true,
@@ -1758,7 +1903,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       userId: 'admin_root',
       type: 'REWARD_EARNED',
       amount: platformFee,
-      title: `Doanh thu phí sàn GigMe 10%`,
+      title: `Doanh thu phí sàn GigMe ${Math.round(feeRate * 100)}%`,
       subtitle: `Thu từ đơn "${targetGig.title}" (${gigPrice.toLocaleString()}đ) - Đã ghi nhận vào ví nền tảng của Admin`,
       bankInfo: 'Ví doanh thu hệ thống GigMe',
       timestamp: now + 2,
@@ -1769,6 +1914,20 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     cloudService.saveTransaction(txPayout);
     cloudService.saveTransaction(txFee);
     cloudService.saveTransaction(txAdminFee);
+
+    // Thực thi Firestore ACID Transaction bảo vệ tiền Escrow đa phiên
+    if (targetGig.freelancerId) {
+      executeAtomicEscrowPayout({
+        gigId,
+        clientId: currentUser.id,
+        freelancerId: targetGig.freelancerId,
+        gigPrice,
+        platformFee,
+        taxAmount,
+        netPayoutToWorker: freelancerPayout,
+        tipAmount,
+      }).catch((err) => console.warn('Firestore atomic escrow error (fallback):', err));
+    }
 
     // Also trigger cloud atomic escrow endpoint for server-side idempotency
     cloudService.releaseEscrow({
@@ -1783,7 +1942,70 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       'ĐING! 🔔 Tiền đã về ví!',
       `Đã giải ngân thành công ${freelancerPayout.toLocaleString()}đ (đã trừ phí ${Math.round(
         feeRate * 100
-      )}%). Đã tự động gỡ Watermark bản gốc!`,
+      )}% ${taxAmount > 0 ? `và thuế TNCN ${taxAmount.toLocaleString()}đ` : ''}). Đã tự động gỡ Watermark bản gốc!`,
+      true,
+      true
+    );
+    return true;
+  };
+
+  // MILESTONE ESCROW PAYOUT (Thanh toán theo giai đoạn 30% - 70%)
+  const releaseMilestonePayout = (
+    gigId: string,
+    milestonePercent: number,
+    enteredPin = '',
+    useBiometrics = false
+  ): boolean => {
+    if (!currentUser) return false;
+    const targetGig = gigs.find((g) => g.id === gigId);
+    if (!targetGig) return false;
+    if (!useBiometrics && enteredPin !== currentUser.securityPin) {
+      showNotification('Mã PIN không đúng', 'Mã PIN bảo mật không chính xác!');
+      return false;
+    }
+
+    const partRatio = Math.max(0.1, Math.min(1, milestonePercent / 100));
+    const milestonePrice = Math.round(targetGig.price * partRatio);
+    const tierConfig = USER_TIERS[currentUser.tier];
+    const feeRate = tierConfig.commissionRate;
+    const platformFee = Math.round(milestonePrice * feeRate);
+    const taxAmount = milestonePrice >= 2000000 ? Math.round(milestonePrice * 0.10) : 0;
+    const payout = milestonePrice - platformFee - taxAmount;
+
+    setUsers((prev) =>
+      prev.map((u) => {
+        if (u.id === currentUser.id) {
+          return {
+            ...u,
+            escrowLockedBalance: Math.max(0, u.escrowLockedBalance - milestonePrice),
+          };
+        }
+        if (targetGig.freelancerId && u.id === targetGig.freelancerId) {
+          return {
+            ...u,
+            walletBalance: u.walletBalance + payout,
+          };
+        }
+        return u;
+      })
+    );
+
+    const tx: WalletTransactionEntity = {
+      id: `tx_${Date.now()}_milestone`,
+      userId: targetGig.freelancerId || currentUser.id,
+      type: 'ESCROW_PAYOUT',
+      amount: payout,
+      title: `Giải ngân theo Giai đoạn ${milestonePercent}%`,
+      subtitle: `Đơn "${targetGig.title}" • Tạm ứng ${payout.toLocaleString()}đ theo tiến độ nghiệm thu`,
+      bankInfo: 'GigMe Milestone Escrow',
+      timestamp: Date.now(),
+      isSuccess: true,
+    };
+    setTransactions((prev) => [tx, ...prev]);
+
+    showNotification(
+      `Giải ngân Giai đoạn ${milestonePercent}% thành công!`,
+      `Đã giải ngân ${payout.toLocaleString()}đ cho đối tác theo thỏa thuận hợp đồng giai đoạn.`,
       true,
       true
     );
@@ -2169,9 +2391,18 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return true;
   };
 
-  // DEPOSIT VIETQR DYNAMIC WITH ATOMIC CLOUD SYNC & ANTI-DUPE
+  // DEPOSIT VIETQR DYNAMIC WITH ATOMIC CLOUD SYNC & TIER LIMIT CHECK
   const depositVietQr = (amount: number, bankName: string) => {
     if (!currentUser) return;
+    const tierConfig = USER_TIERS[currentUser.tier];
+    if (amount > tierConfig.maxDeposit) {
+      showNotification(
+        'Vượt hạn mức cấp bậc',
+        `Tài khoản ${tierConfig.title} (${currentUser.tier}) chỉ được nạp tối đa ${tierConfig.maxDeposit.toLocaleString('vi-VN')}đ/lần. Vui lòng định danh CCCD hoặc Sinh viên để mở rộng hạn mức!`
+      );
+      return;
+    }
+
     const txId = generateSecureTxId('tx_dep');
     const updatedUser: UserEntity = {
       ...currentUser,
@@ -2183,7 +2414,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       type: 'VIETQR_DEPOSIT',
       amount,
       title: 'Nạp tiền VietQR Động',
-      subtitle: `${bankName} • Tự động khớp lệnh 24/7`,
+      subtitle: `${bankName} • Cổng chuyển mạch Napas 247 khớp tự động`,
       bankInfo: bankName,
       timestamp: Date.now(),
       isSuccess: true,
@@ -2211,7 +2442,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     );
   };
 
-  // BANK WITHDRAWAL WITH ANTI-FRAUD KYC MATCH & ATOMIC CLOUD SYNC
+  // BANK WITHDRAWAL WITH ANTI-FRAUD KYC MATCH, TIER LIMIT & NAPAS 247 INSTANT
   const withdrawToBank = (
     bankName: string,
     accountNumber: string,
@@ -2223,6 +2454,15 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!currentUser) return false;
     if (!useBiometrics && pin !== currentUser.securityPin) {
       showNotification('Mã PIN không đúng', 'Mã PIN bảo mật 6 số không khớp. Vui lòng kiểm tra lại!');
+      return false;
+    }
+
+    const tierConfig = USER_TIERS[currentUser.tier];
+    if (amount > tierConfig.maxDeposit) {
+      showNotification(
+        'Vượt hạn mức rút tiền',
+        `Tài khoản ${tierConfig.title} (${currentUser.tier}) chỉ được rút tối đa ${tierConfig.maxDeposit.toLocaleString('vi-VN')}đ/lần. Vui lòng nâng hạng CCCD để tăng hạn mức!`
+      );
       return false;
     }
 
@@ -2245,6 +2485,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
 
     const txId = generateSecureTxId('tx_wd');
+    const napasRef = `NAPAS_FT_${Date.now().toString().slice(-8)}`;
     const updatedUser: UserEntity = {
       ...currentUser,
       walletBalance: currentUser.walletBalance - amount,
@@ -2259,9 +2500,9 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       userId: currentUser.id,
       type: 'BANK_WITHDRAWAL',
       amount: -amount,
-      title: 'Rút tiền về tài khoản ngân hàng',
-      subtitle: `${bankName} - ${accountNumber} (${normalizedInput || accountHolderName})`,
-      bankInfo: `${bankName} - ${accountNumber}`,
+      title: 'Rút tiền Napas 247 Siêu Tốc',
+      subtitle: `${bankName} - ${accountNumber} (${normalizedInput || accountHolderName}) • Ref: ${napasRef}`,
+      bankInfo: `${bankName} • Napas 247: ${napasRef}`,
       timestamp: Date.now(),
       isSuccess: true,
     };
@@ -2640,7 +2881,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     showNotification('Admin: Đã Xóa Đơn Hàng', 'Đã gỡ bỏ công việc vi phạm tiêu chuẩn cộng đồng.', true);
   };
 
-  // CHAT & AI
+  // CHAT & AI WITH ANTI-LEAKAGE OFF-PLATFORM FILTER
   const sendChat = (
     text: string,
     attachmentType:
@@ -2658,13 +2899,27 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   ) => {
     if (!currentUser || !selectedGigId) return;
     const isClient = roleMode === 'CLIENT';
+
+    // Quét phát hiện lách giao dịch ngoài sàn (Anti-Leakage)
+    const filterResult = detectAndFilterOffPlatformLeakage(text);
+    const safeText = filterResult.maskedText;
+
+    if (filterResult.hasLeakage) {
+      showNotification(
+        'Cảnh báo an toàn Escrow (Anti-Leakage)',
+        `Hệ thống phát hiện thông tin liên hệ nhạy cảm (${filterResult.reasons.join(', ')}). Nội dung đã được tự động che để chống quỵt tiền và bảo vệ quỹ ký quỹ 100% của bạn!`,
+        false,
+        false
+      );
+    }
+
     const msg: ChatMessageEntity = {
       id: `msg_${Date.now()}`,
       gigId: selectedGigId,
       senderId: currentUser.id,
       senderName: currentUser.name,
       isFromClient: isClient,
-      message: text,
+      message: safeText,
       attachmentType,
       attachmentData,
       attachmentDuration,
@@ -2987,6 +3242,116 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return true;
   };
 
+  // DOUBLE-BLIND REVIEW SYSTEM (ĐÁNH GIÁ HAI CHIỀU MÙ - CHỐNG TRẢ THÙ ĐÁNH GIÁ XẤU)
+  const submitDoubleBlindReview = (
+    gigId: string,
+    rating: number,
+    reviewText: string,
+    role: 'CLIENT' | 'FREELANCER'
+  ): boolean => {
+    if (!currentUser) return false;
+    const gig = gigs.find((g) => g.id === gigId);
+    if (!gig) return false;
+
+    const isClient = role === 'CLIENT';
+    const now = Date.now();
+    const otherPartySubmitted = isClient ? !!gig.freelancerRatedAt : !!gig.clientRatedAt;
+
+    let updatedGig: GigEntity;
+    if (isClient) {
+      updatedGig = {
+        ...gig,
+        clientRating: rating,
+        clientReview: reviewText,
+        clientRatedAt: now,
+        isDoubleBlindRevealed: otherPartySubmitted,
+      };
+    } else {
+      updatedGig = {
+        ...gig,
+        freelancerRating: rating,
+        freelancerReview: reviewText,
+        freelancerRatedAt: now,
+        isDoubleBlindRevealed: otherPartySubmitted,
+      };
+    }
+
+    if (otherPartySubmitted) {
+      updatedGig.isDoubleBlindRevealed = true;
+      const clientScore = isClient ? rating : gig.clientRating || 5;
+      const freelancerScore = !isClient ? rating : gig.freelancerRating || 5;
+
+      setUsers((prev) =>
+        prev.map((u) => {
+          if (gig.freelancerId && u.id === gig.freelancerId) {
+            const currentElo = u.eloRating || 1200;
+            const delta =
+              clientScore === 5 ? 25 : clientScore === 4 ? 15 : clientScore === 3 ? 5 : clientScore === 2 ? -10 : -25;
+            const newElo = Math.max(1000, currentElo + delta);
+            return {
+              ...u,
+              eloRating: newElo,
+              trustScore: Math.min(850, u.trustScore + (clientScore >= 4 ? 8 : -15)),
+              rating: Number(((u.rating * u.reviewCount + clientScore) / (u.reviewCount + 1)).toFixed(1)),
+              reviewCount: u.reviewCount + 1,
+            };
+          }
+          if (u.id === gig.clientId) {
+            return {
+              ...u,
+              trustScore: Math.min(850, u.trustScore + (freelancerScore >= 4 ? 5 : -10)),
+            };
+          }
+          return u;
+        })
+      );
+
+      confetti({ particleCount: 60, spread: 70 });
+      showNotification(
+        '🎉 Đánh Giá Hai Chiều Đã Mở Khóa!',
+        'Cả khách hàng và freelancer đều đã hoàn tất đánh giá mù. Nội dung đánh giá hai chiều đã chính thức được công khai minh bạch!',
+        true,
+        true
+      );
+    } else {
+      showNotification(
+        '🔒 Đã Lưu Đánh Giá Hai Chiều Mù (Double-Blind)',
+        'Đánh giá của bạn đã được mã hóa lưu trữ an toàn. Đối phương không thể nhìn thấy đánh giá này cho tới khi họ cũng gửi đánh giá của họ (chống trả thù đánh giá xấu)!',
+        true
+      );
+    }
+
+    setGigs((prev) => prev.map((g) => (g.id === gigId ? updatedGig : g)));
+    cloudService.saveGig(updatedGig);
+    return true;
+  };
+
+  const sendWebPushNotification = (title: string, body: string, icon = '/favicon.ico') => {
+    playNotificationSound('BANK_TING');
+    showNotification(title, body, true, true);
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      if (Notification.permission === 'granted') {
+        try {
+          new Notification(title, {
+            body,
+            icon,
+            badge: icon,
+          });
+        } catch {
+          // ignore notification error in iframe sandbox
+        }
+      } else if (Notification.permission === 'default') {
+        Notification.requestPermission().then((permission) => {
+          if (permission === 'granted') {
+            try {
+              new Notification(title, { body, icon });
+            } catch {}
+          }
+        });
+      }
+    }
+  };
+
   return (
     <GigMeContext.Provider
       value={{
@@ -3066,6 +3431,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         acceptGigDirectly,
         submitProofOfWork,
         releaseEscrowPayout,
+        releaseMilestonePayout,
         fileDispute,
         depositVietQr,
         withdrawToBank,
@@ -3103,6 +3469,9 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         toggleFcm,
         sendTestFcmPush,
         rateGigAndElo,
+        cancelGigByWorker,
+        submitDoubleBlindReview,
+        sendWebPushNotification,
       }}
     >
       {children}

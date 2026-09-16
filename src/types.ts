@@ -88,6 +88,10 @@ export interface UserEntity {
   cccdChecksumValid?: boolean; // Xác thực checksum C06 Bộ Công An
   studentId?: string; // Mã số sinh viên (MSSV)
   studentEmail?: string; // Email trường cấp (*.edu.vn)
+  deviceFingerprint?: string; // Nhận diện thiết bị phát hiện Sybil
+  ipAddress?: string;
+  isFlaggedSybil?: boolean; // Cảnh báo tài khoản bot/gian lận chéo
+  sybilFlagReason?: string;
   studentSsoProvider?: string; // Cổng đào tạo đã xác thực
   defaultBank?: {
     bankName: string;
@@ -162,9 +166,25 @@ export interface GigEntity {
     rewardPerPerson: number;
   }>;
   checkInSecretCode?: string;
-  // Đánh giá & Chấm điểm tín nhiệm ELO
+  // Chấm công & Nghiệm thu Watermark GPS
+  proofWatermarkUrl?: string;
+  proofGpsCoords?: { lat: number; lng: number };
+  proofTimestamp?: number;
+  proofHash?: string;
+  // Tiếp nhận & Phạt hủy đơn trễ hẹn (Late Cancellation Penalty)
+  acceptedAt?: number;
+  cancelledAt?: number;
+  cancellationReason?: string;
+  cancellationPenaltyAmount?: number;
+  cancelledByWorker?: boolean;
+  // Đánh giá hai chiều mù (Double-Blind Review)
   clientRating?: number;
   clientReview?: string;
+  clientRatedAt?: number;
+  freelancerRating?: number;
+  freelancerReview?: string;
+  freelancerRatedAt?: number;
+  isDoubleBlindRevealed?: boolean;
   freelancerEloChange?: number;
   ratedAt?: number;
 }

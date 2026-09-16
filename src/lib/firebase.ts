@@ -14,6 +14,7 @@ import {
   where,
   orderBy,
   onSnapshot,
+  runTransaction,
   FirestoreError
 } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
@@ -162,6 +163,29 @@ export async function getUserFromCloud(userId: string): Promise<UserEntity | nul
     return null;
   } catch (err) {
     handleFirestoreError(err, OperationType.GET, path);
+    return null;
+  }
+}
+
+export async function findUserByContact(contact: string): Promise<UserEntity | null> {
+  const trimmed = contact.trim().toLowerCase();
+  try {
+    const usersRef = collection(db, 'users');
+    // Check by email
+    const qEmail = query(usersRef, where('email', '==', trimmed));
+    const snapEmail = await getDocs(qEmail);
+    if (!snapEmail.empty) {
+      return snapEmail.docs[0].data() as UserEntity;
+    }
+    // Check by phone
+    const qPhone = query(usersRef, where('phone', '==', contact.trim()));
+    const snapPhone = await getDocs(qPhone);
+    if (!snapPhone.empty) {
+      return snapPhone.docs[0].data() as UserEntity;
+    }
+    return null;
+  } catch (err) {
+    console.warn('findUserByContact error:', err);
     return null;
   }
 }
@@ -412,3 +436,98 @@ export function subscribeToSafeWalk(
     }
   );
 }
+
+// --- ACID ATOMIC ESCROW TRANSACTION (Solves Race Conditions & Double-Spending) ---
+export async function executeAtomicEscrowPayout(params: {
+  gigId: string;
+  clientId: string;
+  freelancerId: string;
+  gigPrice: number;
+  tipAmount: number;
+  platformFee: number;
+  taxAmount: number;
+  netPayoutToWorker: number;
+  proofNote?: string | null;
+}): Promise<{ success: boolean; error?: string }> {
+  try {
+    await runTransaction(db, async (transaction) => {
+      const gigRef = doc(db, 'gigs', params.gigId);
+      const gigSnap = await transaction.get(gigRef);
+
+      if (!gigSnap.exists()) {
+        throw new Error('Gig không tồn tại trên hệ thống!');
+      }
+
+      const gigData = gigSnap.data() as GigEntity;
+      if (gigData.status === 'COMPLETED') {
+        throw new Error('Đơn việc này đã được giải ngân trước đó! Không thể thanh toán lại (Double-Spending Blocked).');
+      }
+      if (gigData.status === 'CLIENT_REFUNDED') {
+        throw new Error('Đơn việc này đã hoàn tiền cho khách hàng!');
+      }
+
+      // Read client and worker documents
+      const clientRef = doc(db, 'users', params.clientId);
+      const clientSnap = await transaction.get(clientRef);
+      const clientData = clientSnap.exists() ? (clientSnap.data() as UserEntity) : null;
+
+      const workerRef = doc(db, 'users', params.freelancerId);
+      const workerSnap = await transaction.get(workerRef);
+      const workerData = workerSnap.exists() ? (workerSnap.data() as UserEntity) : null;
+
+      const now = Date.now();
+
+      // 1. Update Gig status
+      transaction.update(gigRef, {
+        status: 'COMPLETED',
+        completedAt: now,
+        tipAmount: params.tipAmount,
+        isWatermarkRemoved: true,
+      });
+
+      // 2. Update Client (Release escrow locked balance)
+      if (clientData) {
+        const newEscrowLocked = Math.max(0, (clientData.escrowLockedBalance || 0) - params.gigPrice);
+        const newTotalSpent = (clientData.totalSpent || 0) + params.gigPrice + params.tipAmount;
+        transaction.update(clientRef, {
+          escrowLockedBalance: newEscrowLocked,
+          totalSpent: newTotalSpent,
+        });
+      }
+
+      // 3. Update Worker (Credit net payout and increment stats)
+      if (workerData) {
+        const newWalletBalance = (workerData.walletBalance || 0) + params.netPayoutToWorker;
+        const newCompletedGigs = (workerData.completedGigs || 0) + 1;
+        const newTrustScore = Math.min(850, (workerData.trustScore || 650) + 10);
+        transaction.update(workerRef, {
+          walletBalance: newWalletBalance,
+          completedGigs: newCompletedGigs,
+          trustScore: newTrustScore,
+        });
+      }
+
+      // 4. Create Ledger Transaction Record for Worker Payout
+      const txWorkerId = `TX-ESCROW-${Date.now()}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
+      const txWorkerRef = doc(db, 'transactions', txWorkerId);
+      transaction.set(txWorkerRef, {
+        id: txWorkerId,
+        userId: params.freelancerId,
+        type: 'ESCROW_PAYOUT',
+        amount: params.netPayoutToWorker,
+        direction: 'INCOMING',
+        gigId: params.gigId,
+        title: `Nhận thù lao Escrow gig #${params.gigId.slice(-6)}`,
+        description: `Thù lao gốc: ${params.gigPrice.toLocaleString('vi-VN')}đ | Phí sàn & thuế: -${(params.platformFee + params.taxAmount).toLocaleString('vi-VN')}đ | Tip: +${params.tipAmount.toLocaleString('vi-VN')}đ`,
+        timestamp: now,
+        isSuccess: true,
+      });
+    });
+
+    return { success: true };
+  } catch (err: any) {
+    console.error('Atomic Escrow Payout Failed:', err);
+    return { success: false, error: err?.message || 'Giao dịch ký quỹ thất bại' };
+  }
+}
+

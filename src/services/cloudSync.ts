@@ -47,8 +47,8 @@ function isStaticEnvironment(): boolean {
   return host.endsWith('.vercel.app') || host.endsWith('.netlify.app') || host.endsWith('.github.io');
 }
 
-let expressServerAvailable: boolean = !isStaticEnvironment();
-let expressChecked = isStaticEnvironment();
+let expressServerAvailable: boolean = false;
+let expressChecked = false;
 
 // Check if Express backend is actually available
 export async function checkExpressAvailability(): Promise<boolean> {

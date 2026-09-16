@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ArrowLeft,
   MapPin,
@@ -19,11 +19,21 @@ import {
   Radio,
   Flame,
   Sparkles,
+  Lock,
+  EyeOff,
+  Star,
+  AlertTriangle,
+  Image as ImageIcon,
+  Wifi,
+  Download,
 } from 'lucide-react';
 import { useGigMe } from '../context/GigMeContext';
 import { formatVnd, USER_TIERS } from '../types';
 import { LiveReverseBiddingModal } from '../components/LiveReverseBiddingModal';
 import { MultiWorkerCheckInModal } from '../components/MultiWorkerCheckInModal';
+import { DoubleBlindReviewModal } from '../components/DoubleBlindReviewModal';
+import { LateCancellationModal } from '../components/LateCancellationModal';
+import { offlineCacheManager } from '../utils/offlineCache';
 
 interface GigDetailScreenProps {
   gigId: string;
@@ -52,6 +62,13 @@ export const GigDetailScreen: React.FC<GigDetailScreenProps> = ({
 
   const gig = rawGigs.find((g) => g.id === gigId);
 
+  // Auto cache gig into PWA offline memory when viewed
+  useEffect(() => {
+    if (gig) {
+      offlineCacheManager.cacheGig(gig, gig.clientPhone || '0909120918');
+    }
+  }, [gig]);
+
   // Reverse auction bid modal
   const [showBidModal, setShowBidModal] = useState(false);
   const [bidPrice, setBidPrice] = useState(gig ? gig.price - 5000 : 50000);
@@ -61,6 +78,8 @@ export const GigDetailScreen: React.FC<GigDetailScreenProps> = ({
   // New feature modals
   const [isLiveAuctionOpen, setIsLiveAuctionOpen] = useState(false);
   const [isMultiWorkerOpen, setIsMultiWorkerOpen] = useState(false);
+  const [isDoubleBlindModalOpen, setIsDoubleBlindModalOpen] = useState(false);
+  const [isLateCancelOpen, setIsLateCancelOpen] = useState(false);
 
   if (!gig) {
     return (
@@ -326,13 +345,27 @@ export const GigDetailScreen: React.FC<GigDetailScreenProps> = ({
           )}
 
           {gig.status !== 'OPEN' && (
-            <button
-              onClick={onOpenChat}
-              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#00E5FF] to-blue-500 text-black font-extrabold text-xs hover:brightness-110 shadow-md transition flex items-center space-x-1.5"
-            >
-              <MessageSquare className="w-4 h-4" />
-              <span>Vào Khung Chat & Nghiệm Thu &rarr;</span>
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={onOpenChat}
+                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#00E5FF] to-blue-500 text-black font-extrabold text-xs hover:brightness-110 shadow-md transition flex items-center space-x-1.5"
+              >
+                <MessageSquare className="w-4 h-4" />
+                <span>Vào Khung Chat & Nghiệm Thu &rarr;</span>
+              </button>
+
+              {/* Nút hủy nhận việc của Freelancer (Có cảnh báo & phạt trễ hạn nếu > 10p) */}
+              {gig.status === 'IN_PROGRESS' && currentUser?.id === gig.freelancerId && (
+                <button
+                  type="button"
+                  onClick={() => setIsLateCancelOpen(true)}
+                  className="px-4 py-2.5 rounded-xl bg-red-500/15 border border-red-500/40 text-red-400 font-bold text-xs hover:bg-red-500/25 transition flex items-center space-x-1.5"
+                >
+                  <AlertTriangle className="w-4 h-4" />
+                  <span>Hủy Nhận Việc (Kiểm tra phạt)</span>
+                </button>
+              )}
+            </div>
           )}
         </div>
 
@@ -349,6 +382,161 @@ export const GigDetailScreen: React.FC<GigDetailScreenProps> = ({
           </div>
         )}
       </div>
+
+      {/* PWA Offline Cache Status Badge */}
+      <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900/60 border border-slate-800 text-[11px] text-slate-400">
+        <div className="flex items-center space-x-2">
+          <Download className="w-4 h-4 text-cyan-400 shrink-0" />
+          <span>Đơn việc này đã được tự động lưu bộ nhớ đệm PWA Offline. Xem được kể cả khi vào thang máy/mất sóng 4G.</span>
+        </div>
+        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-500/30">
+          Sẵn sàng Offline
+        </span>
+      </div>
+
+      {/* BẰNG CHỨNG NGHIỆM THU WATERMARK GPS & TIMESTAMP (NHÓM 4 - UPDATE 2) */}
+      {(gig.proofImageUrl || gig.proofWatermarkUrl) && (
+        <div className="rounded-3xl bg-[#0F172A] border border-cyan-500/30 p-5 shadow-xl space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2.5">
+              <div className="p-2.5 rounded-xl bg-cyan-500/20 text-[#00E5FF] border border-cyan-500/30">
+                <ImageIcon className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-extrabold text-sm text-white flex items-center space-x-1.5">
+                  <span>Minh Chứng Nghiệm Thu (Watermark GPS & Timestamp)</span>
+                  <span className="px-2 py-0.5 rounded-full bg-cyan-500/20 text-[#00E5FF] text-[10px] font-black border border-cyan-500/30">
+                    Bảo vệ 100%
+                  </span>
+                </h3>
+                <p className="text-[11px] text-slate-400">
+                  {gig.isWatermarkRemoved
+                    ? 'Đã giải ngân Escrow thành công - Bản gốc chất lượng cao đã mở khóa'
+                    : 'Bản xem trước có Watermark chống quỵt kèm tọa độ GPS & dấu thời gian'}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="relative rounded-2xl overflow-hidden border border-slate-800 bg-black max-h-64 flex items-center justify-center">
+            <img
+              src={gig.proofWatermarkUrl || gig.proofImageUrl}
+              alt="Bằng chứng công việc"
+              className="w-full h-full object-cover"
+            />
+            {gig.proofHash && (
+              <div className="absolute bottom-2 left-2 right-2 p-2 rounded-xl bg-black/80 backdrop-blur-sm border border-cyan-500/40 text-[10px] text-cyan-300 font-mono flex items-center justify-between">
+                <span>Hash: {gig.proofHash.slice(0, 16)}...</span>
+                <span>{gig.proofTimestamp ? new Date(gig.proofTimestamp).toLocaleTimeString('vi-VN') : 'Đã ghi nhận'}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ĐÁNH GIÁ HAI CHIỀU MÙ (DOUBLE-BLIND REVIEW - NHÓM 3 - UPDATE 3) */}
+      {gig.status === 'COMPLETED' && (
+        <div className="rounded-3xl bg-[#0F172A] border border-indigo-500/40 p-5 shadow-xl space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2.5">
+              <div className="p-2.5 rounded-xl bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                <Lock className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-extrabold text-sm text-white flex items-center space-x-2">
+                  <span>Đánh Giá Hai Chiều Mù (Double-Blind Review)</span>
+                  {gig.isDoubleBlindRevealed ? (
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-black border border-emerald-500/40">
+                      Đã Công Khai
+                    </span>
+                  ) : (
+                    <span className="px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-200 text-[10px] font-black border border-indigo-500/30">
+                      Bảo Mật Hai Chiều
+                    </span>
+                  )}
+                </h3>
+                <p className="text-[11px] text-slate-400">
+                  {gig.isDoubleBlindRevealed
+                    ? 'Cả hai bên đã đánh giá - Toàn bộ nhận xét và số sao đã được công khai minh bạch!'
+                    : 'Chống trả thù đánh giá xấu: Chỉ mở khóa khi cả người thuê và người làm đều hoàn tất đánh giá.'}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Trạng thái đánh giá từng bên */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+            <div className="p-3.5 rounded-2xl bg-[#131E30] border border-slate-800 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400 font-bold">Khách hàng ({gig.clientName}):</span>
+                {gig.clientRatedAt ? (
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-black text-[10px]">
+                    ✅ Đã gửi
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-bold text-[10px]">
+                    ⏳ Chưa gửi
+                  </span>
+                )}
+              </div>
+              {gig.isDoubleBlindRevealed && gig.clientRating ? (
+                <div>
+                  <div className="flex items-center space-x-1 text-amber-400 font-bold">
+                    <span>{gig.clientRating} ★</span>
+                  </div>
+                  <p className="text-slate-300 italic text-[11px] mt-1">&quot;{gig.clientReview}&quot;</p>
+                </div>
+              ) : (
+                <p className="text-[11px] text-slate-500">
+                  {gig.clientRatedAt ? '🔒 Đã niêm phong kín' : 'Chưa gửi đánh giá'}
+                </p>
+              )}
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-[#131E30] border border-slate-800 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400 font-bold">Thợ ({gig.freelancerName || 'Người Làm'}):</span>
+                {gig.freelancerRatedAt ? (
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-black text-[10px]">
+                    ✅ Đã gửi
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-bold text-[10px]">
+                    ⏳ Chưa gửi
+                  </span>
+                )}
+              </div>
+              {gig.isDoubleBlindRevealed && gig.freelancerRating ? (
+                <div>
+                  <div className="flex items-center space-x-1 text-amber-400 font-bold">
+                    <span>{gig.freelancerRating} ★</span>
+                  </div>
+                  <p className="text-slate-300 italic text-[11px] mt-1">&quot;{gig.freelancerReview}&quot;</p>
+                </div>
+              ) : (
+                <p className="text-[11px] text-slate-500">
+                  {gig.freelancerRatedAt ? '🔒 Đã niêm phong kín' : 'Chưa gửi đánh giá'}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Action button to review */}
+          {!gig.isDoubleBlindRevealed && (
+            <button
+              onClick={() => setIsDoubleBlindModalOpen(true)}
+              className="w-full py-3 rounded-2xl bg-gradient-to-r from-indigo-600 to-cyan-500 hover:from-indigo-500 hover:to-cyan-400 text-white font-extrabold text-xs shadow-lg shadow-indigo-500/20 flex items-center justify-center space-x-2 transition"
+            >
+              <Star className="w-4 h-4 text-amber-300" />
+              <span>
+                {isOwner
+                  ? gig.clientRatedAt ? 'Chỉnh Sửa Đánh Giá Của Bạn (Đang Niêm Phong)' : 'Gửi Đánh Giá Người Làm (Bảo Mật Hai Chiều)'
+                  : gig.freelancerRatedAt ? 'Chỉnh Sửa Đánh Giá Của Bạn (Đang Niêm Phong)' : 'Gửi Đánh Giá Khách Hàng (Bảo Mật Hai Chiều)'}
+              </span>
+            </button>
+          )}
+        </div>
+      )}
 
       {/* KHỐI TÍNH NĂNG 1: ĐẤU GIÁ NGƯỢC THỜI GIAN THỰC (LIVE REVERSE BIDDING ROOM) */}
       {(gig.isReverseAuction || gig.auctionRoomOpen || isOwner) && (
@@ -588,6 +776,21 @@ export const GigDetailScreen: React.FC<GigDetailScreenProps> = ({
         isOpen={isMultiWorkerOpen}
         gig={gig}
         onClose={() => setIsMultiWorkerOpen(false)}
+      />
+
+      {/* Double-Blind Review Modal */}
+      <DoubleBlindReviewModal
+        isOpen={isDoubleBlindModalOpen}
+        gig={gig}
+        role={isOwner ? 'CLIENT' : 'FREELANCER'}
+        onClose={() => setIsDoubleBlindModalOpen(false)}
+      />
+
+      {/* Late Cancellation Modal */}
+      <LateCancellationModal
+        isOpen={isLateCancelOpen}
+        gig={gig}
+        onClose={() => setIsLateCancelOpen(false)}
       />
     </div>
   );

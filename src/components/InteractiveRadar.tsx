@@ -1,7 +1,6 @@
 import React, { useRef, useEffect, useState, useMemo } from 'react';
 import L from 'leaflet';
 import {
-  Radar as RadarIcon,
   Map as MapIcon,
   Navigation,
   Compass,
@@ -19,7 +18,6 @@ import {
   Sparkles,
   Info,
   X,
-  Flame,
   ShieldAlert,
   CheckCircle2,
 } from 'lucide-react';
@@ -57,7 +55,6 @@ const RADIUS_OPTIONS = [
   { label: '🌐 Toàn quốc (Bắc - Nam)', value: 2500000 },
 ];
 
-type ViewMode = 'MAP' | 'RADAR' | 'DUAL';
 type MapLayer = 'GOOGLE_STREETS' | 'GOOGLE_SATELLITE' | 'DARK_CYBER';
 
 const MAP_TILE_CONFIG: Record<
@@ -97,30 +94,34 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
     propUserCoords || DEFAULT_USER_LOCATION
   );
 
-  // View state
-  const [viewMode, setViewMode] = useState<ViewMode>('MAP');
+  // View state: Default to Map, automatic GPS
   const [mapLayer, setMapLayer] = useState<MapLayer>('GOOGLE_STREETS');
-  const [isHeatmapActive, setIsHeatmapActive] = useState<boolean>(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isGpsLoading, setIsGpsLoading] = useState(false);
   const [gpsError, setGpsError] = useState<string | null>(null);
   const [gpsReport, setGpsReport] = useState<GpsIntegrityReport | null>(null);
   const [showMockDetectorDialog, setShowMockDetectorDialog] = useState<boolean>(false);
 
-  // Radar Canvas states
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [beamAngle, setBeamAngle] = useState(0);
-  const [hoveredGig, setHoveredGig] = useState<GigEntity | null>(null);
-
   // Leaflet Map refs
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
   const markersLayerRef = useRef<L.LayerGroup | null>(null);
-  const heatmapLayerRef = useRef<L.LayerGroup | null>(null);
   const routeLayerRef = useRef<L.Polyline | null>(null);
+  const workerMarkerRef = useRef<L.Marker | null>(null);
   const userMarkerRef = useRef<L.Marker | null>(null);
   const radiusCircleRef = useRef<L.Circle | null>(null);
+
+  // Live Tracking & OSRM Routing states
+  const [isLiveTracking, setIsLiveTracking] = useState<boolean>(true);
+  const [trackingProgress, setTrackingProgress] = useState<number>(0.15);
+  const [osrmRoutePoints, setOsrmRoutePoints] = useState<[number, number][] | null>(null);
+  const [osrmRouteDetails, setOsrmRouteDetails] = useState<{
+    motoMinutes: number;
+    walkMinutes: number;
+    distanceMeters: number;
+    routeSource: 'OSRM_REAL_ROAD' | 'LOCAL_CAMPUS';
+  } | null>(null);
 
   // Synchronize internal coords when prop changes
   useEffect(() => {
@@ -164,6 +165,81 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
       gigLng,
     };
   }, [selectedGig, currentUserCoords]);
+
+  // Fetch authentic route from OSRM Routing Engine (Google Routes fallback)
+  useEffect(() => {
+    if (!selectedGig || !selectedGig.latitude || !selectedGig.longitude) {
+      setOsrmRoutePoints(null);
+      setOsrmRouteDetails(null);
+      return;
+    }
+
+    const fromLat = currentUserCoords.latitude;
+    const fromLng = currentUserCoords.longitude;
+    const toLat = selectedGig.latitude;
+    const toLng = selectedGig.longitude;
+
+    let isMounted = true;
+    const fetchOsrmRoute = async () => {
+      try {
+        const url = `https://router.project-osrm.org/route/v1/driving/${fromLng},${fromLat};${toLng},${toLat}?overview=full&geometries=geojson`;
+        const res = await fetch(url, { signal: AbortSignal.timeout(3000) });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.routes && data.routes[0]) {
+            const rawPoints = data.routes[0].geometry.coordinates.map(
+              ([lng, lat]: [number, number]) => [lat, lng] as [number, number]
+            );
+            const dist = data.routes[0].distance || calculateDistanceMeters(fromLat, fromLng, toLat, toLng);
+            const moto = Math.max(1, Math.ceil(dist / 450));
+            const walk = Math.max(1, Math.ceil(dist / 75));
+            if (isMounted) {
+              setOsrmRoutePoints(rawPoints);
+              setOsrmRouteDetails({
+                motoMinutes: moto,
+                walkMinutes: walk,
+                distanceMeters: Math.round(dist),
+                routeSource: 'OSRM_REAL_ROAD',
+              });
+              return;
+            }
+          }
+        }
+      } catch {
+        // Fallback gracefully to high-res campus curve waypoints
+      }
+
+      if (isMounted) {
+        const fallback = generateRoutePoints(fromLat, fromLng, toLat, toLng);
+        const dist = calculateDistanceMeters(fromLat, fromLng, toLat, toLng);
+        const times = estimateTravelTime(dist);
+        setOsrmRoutePoints(fallback);
+        setOsrmRouteDetails({
+          motoMinutes: times.motoMinutes,
+          walkMinutes: times.walkMinutes,
+          distanceMeters: dist,
+          routeSource: 'LOCAL_CAMPUS',
+        });
+      }
+    };
+
+    fetchOsrmRoute();
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedGig, currentUserCoords]);
+
+  // Live worker movement along route simulation
+  useEffect(() => {
+    if (!isLiveTracking || !selectedGig || !osrmRoutePoints || osrmRoutePoints.length < 2) return;
+    const interval = setInterval(() => {
+      setTrackingProgress((prev) => {
+        if (prev >= 0.95) return 0.08;
+        return prev + 0.04;
+      });
+    }, 1200);
+    return () => clearInterval(interval);
+  }, [isLiveTracking, selectedGig, osrmRoutePoints]);
 
   // Request actual real GPS location
   const handleGetLiveGps = () => {
@@ -228,34 +304,36 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
     };
   }, []);
 
-  // Auto request accurate GPS on mount
+  // Auto request accurate GPS on mount (Tự động nhận GPS thật và quét tính toàn vẹn)
   useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const report = inspectGpsIntegrity(pos);
-          setGpsReport(report);
+    if (!navigator.geolocation) return;
+    setIsGpsLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setIsGpsLoading(false);
+        const report = inspectGpsIntegrity(pos);
+        setGpsReport(report);
 
-          const newCoords: GeoLocation = {
-            latitude: pos.coords.latitude,
-            longitude: pos.coords.longitude,
-            label: report.isMock ? 'Cảnh báo: GPS có dấu hiệu giả lập' : 'Vị trí GPS thực tế của bạn',
-          };
-          setCurrentUserCoords(newCoords);
-          if (onUserCoordsChange) {
-            onUserCoordsChange(newCoords);
-          }
-          if (mapInstanceRef.current) {
-            mapInstanceRef.current.setView([newCoords.latitude, newCoords.longitude], 16, { animate: true });
-            mapInstanceRef.current.invalidateSize();
-          }
-        },
-        (err) => {
-          console.log('GPS init check:', err.message);
-        },
-        { enableHighAccuracy: true, timeout: 6000, maximumAge: 0 }
-      );
-    }
+        const newCoords: GeoLocation = {
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude,
+          label: report.isMock ? 'Cảnh báo: GPS có dấu hiệu giả lập' : 'Vị trí GPS thực tế của bạn',
+        };
+        setCurrentUserCoords(newCoords);
+        if (onUserCoordsChange) {
+          onUserCoordsChange(newCoords);
+        }
+        if (mapInstanceRef.current) {
+          mapInstanceRef.current.setView([newCoords.latitude, newCoords.longitude], 16, { animate: true });
+          mapInstanceRef.current.invalidateSize();
+        }
+      },
+      (err) => {
+        setIsGpsLoading(false);
+        console.log('Auto GPS init check:', err.message);
+      },
+      { enableHighAccuracy: true, timeout: 7000, maximumAge: 0 }
+    );
   }, []);
 
   // ==========================================
@@ -286,7 +364,6 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
       }).addTo(map);
 
       tileLayerRef.current = tileLayer;
-      heatmapLayerRef.current = L.layerGroup().addTo(map);
       markersLayerRef.current = L.layerGroup().addTo(map);
       mapInstanceRef.current = map;
 
@@ -296,8 +373,8 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
       }, 150);
     }
 
-    // Map container size update whenever viewMode or fullscreen toggles
-    if (viewMode === 'MAP' && mapInstanceRef.current) {
+    // Map container size update whenever fullscreen toggles
+    if (mapInstanceRef.current) {
       mapInstanceRef.current.invalidateSize();
       const t1 = setTimeout(() => mapInstanceRef.current?.invalidateSize(), 80);
       const t2 = setTimeout(() => mapInstanceRef.current?.invalidateSize(), 250);
@@ -308,7 +385,7 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
         clearTimeout(t3);
       };
     }
-  }, [viewMode, isFullscreen]);
+  }, [isFullscreen]);
 
   // Update Tile Layer when user switches style (Google Streets, Satellite, Dark)
   useEffect(() => {
@@ -329,7 +406,7 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
   // Update Markers, Route Polyline, User Location, and Geofence Circle on Leaflet Map
   useEffect(() => {
     const map = mapInstanceRef.current;
-    if (!map || viewMode === 'RADAR') return;
+    if (!map) return;
 
     // 1. Update User Marker & Radius Circle
     if (userMarkerRef.current) {
@@ -429,65 +506,30 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
       });
     }
 
-    // 2b. Update Heatmap Cluster Rings (Bản đồ nhiệt việc làm Campus)
-    if (heatmapLayerRef.current) {
-      heatmapLayerRef.current.clearLayers();
-      if (isHeatmapActive) {
-        gigs.forEach((gig) => {
-          if (!gig.latitude || !gig.longitude) return;
-          const isHighReward = gig.price >= 80000 || gig.isFlash;
-
-          // Vòng tỏa nhiệt ngoài (Outer thermal dissipation)
-          const outerCircle = L.circle([gig.latitude, gig.longitude], {
-            radius: isHighReward ? 450 : 320,
-            stroke: false,
-            fillColor: isHighReward ? '#EF4444' : '#FF6B00',
-            fillOpacity: 0.15,
-            interactive: false,
-          });
-
-          // Vòng nhiệt giữa (Mid thermal focus)
-          const midCircle = L.circle([gig.latitude, gig.longitude], {
-            radius: isHighReward ? 220 : 150,
-            stroke: false,
-            fillColor: isHighReward ? '#FF6B00' : '#F59E0B',
-            fillOpacity: 0.28,
-            interactive: false,
-          });
-
-          // Lõi nhiệt điểm nóng (Core hotspot)
-          const coreCircle = L.circle([gig.latitude, gig.longitude], {
-            radius: 65,
-            stroke: false,
-            fillColor: isHighReward ? '#F43F5E' : '#00E5FF',
-            fillOpacity: 0.45,
-            interactive: false,
-          });
-
-          heatmapLayerRef.current?.addLayer(outerCircle);
-          heatmapLayerRef.current?.addLayer(midCircle);
-          heatmapLayerRef.current?.addLayer(coreCircle);
-        });
-      }
-    }
-
-    // 3. Update Route Polyline (Đường di chuyển)
+    // 3. Update Route Polyline (Đường di chuyển thực tế OSRM / Campus)
     if (routeLayerRef.current) {
       map.removeLayer(routeLayerRef.current);
       routeLayerRef.current = null;
     }
+    if (workerMarkerRef.current) {
+      map.removeLayer(workerMarkerRef.current);
+      workerMarkerRef.current = null;
+    }
 
     if (selectedGig && selectedGig.latitude && selectedGig.longitude) {
-      const points = generateRoutePoints(
-        currentUserCoords.latitude,
-        currentUserCoords.longitude,
-        selectedGig.latitude,
-        selectedGig.longitude
-      );
+      const activePoints: [number, number][] =
+        osrmRoutePoints && osrmRoutePoints.length >= 2
+          ? osrmRoutePoints
+          : generateRoutePoints(
+              currentUserCoords.latitude,
+              currentUserCoords.longitude,
+              selectedGig.latitude,
+              selectedGig.longitude
+            );
 
-      const polyline = L.polyline(points, {
+      const polyline = L.polyline(activePoints, {
         color: '#00E5FF',
-        weight: 4,
+        weight: 4.5,
         opacity: 0.9,
         dashArray: '8, 8',
         lineCap: 'round',
@@ -495,6 +537,49 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
       }).addTo(map);
 
       routeLayerRef.current = polyline;
+
+      // 4. Live Tracking Worker Marker
+      if (isLiveTracking && activePoints.length >= 2) {
+        // Calculate interpolated point along activePoints
+        const totalSegments = activePoints.length - 1;
+        const targetIndexFloat = trackingProgress * totalSegments;
+        const segIndex = Math.min(Math.floor(targetIndexFloat), totalSegments - 1);
+        const segRatio = targetIndexFloat - segIndex;
+
+        const p1 = activePoints[segIndex];
+        const p2 = activePoints[segIndex + 1];
+        const workerLat = p1[0] + (p2[0] - p1[0]) * segRatio;
+        const workerLng = p1[1] + (p2[1] - p1[1]) * segRatio;
+
+        const isSafeWalk = selectedGig.category === 'Đưa đón & SafeWalk';
+        const isDelivery = selectedGig.category === 'Giao đồ ăn & KTX' || selectedGig.isFlash;
+        const iconEmoji = isSafeWalk ? '🚶‍♂️' : isDelivery ? '🛵' : '🚴‍♂️';
+        const roleTitle = isSafeWalk ? 'Người bảo vệ SafeWalk' : isDelivery ? 'Shipper Campus' : 'Freelancer GigMe';
+
+        const workerIconHtml = `
+          <div class="relative flex flex-col items-center">
+            <div class="px-2 py-0.5 rounded-full bg-emerald-500 text-black text-[9px] font-black shadow-lg border border-white whitespace-nowrap flex items-center space-x-1 animate-bounce">
+              <span class="w-1.5 h-1.5 rounded-full bg-white animate-ping"></span>
+              <span>${iconEmoji} ${roleTitle}</span>
+            </div>
+            <div class="w-7 h-7 rounded-full bg-gradient-to-tr from-emerald-400 to-cyan-500 border-2 border-white shadow-xl flex items-center justify-center text-sm">
+              ${iconEmoji}
+            </div>
+          </div>
+        `;
+
+        const workerDivIcon = L.divIcon({
+          html: workerIconHtml,
+          className: 'custom-live-worker-marker',
+          iconSize: [110, 48],
+          iconAnchor: [55, 46],
+        });
+
+        workerMarkerRef.current = L.marker([workerLat, workerLng], {
+          icon: workerDivIcon,
+          zIndexOffset: 990,
+        }).addTo(map);
+      }
 
       // Fit map bounds to show both user and destination gig smoothly
       const bounds = L.latLngBounds([
@@ -522,261 +607,10 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
     radiusMeters,
     isClientMode,
     selectedGig,
-    viewMode,
-    isHeatmapActive,
+    osrmRoutePoints,
+    trackingProgress,
+    isLiveTracking,
   ]);
-
-  // ==========================================
-  // RADAR CANVAS ANIMATION
-  // ==========================================
-  useEffect(() => {
-    if (viewMode === 'MAP') return;
-    let animationFrameId: number;
-    const updateSweep = () => {
-      setBeamAngle((prev) => (prev + 1.2) % 360);
-      animationFrameId = requestAnimationFrame(updateSweep);
-    };
-    animationFrameId = requestAnimationFrame(updateSweep);
-    return () => cancelAnimationFrame(animationFrameId);
-  }, [viewMode]);
-
-  // Draw Radar Canvas
-  useEffect(() => {
-    if (viewMode === 'MAP') return;
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const width = canvas.width;
-    const height = canvas.height;
-    const centerX = width / 2;
-    const centerY = height / 2;
-    const maxRadius = Math.min(centerX, centerY) - 30;
-
-    // Clear canvas
-    ctx.clearRect(0, 0, width, height);
-
-    // Background circle
-    const bgGrad = ctx.createRadialGradient(centerX, centerY, 10, centerX, centerY, maxRadius);
-    bgGrad.addColorStop(0, '#0E1726');
-    bgGrad.addColorStop(0.8, '#0A0F1A');
-    bgGrad.addColorStop(1, '#070A12');
-    ctx.fillStyle = bgGrad;
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, maxRadius, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Concentric range rings
-    const rings = [0.25, 0.5, 0.75, 1.0];
-    rings.forEach((fraction, index) => {
-      const r = maxRadius * fraction;
-      ctx.beginPath();
-      ctx.arc(centerX, centerY, r, 0, Math.PI * 2);
-      ctx.strokeStyle = index === 3 ? (isClientMode ? '#00E5FF' : '#FF6B00') : '#1E293B';
-      ctx.lineWidth = index === 3 ? 2 : 1;
-      ctx.setLineDash(index === 3 ? [] : [4, 4]);
-      ctx.stroke();
-
-      // Range text
-      ctx.setLineDash([]);
-      ctx.fillStyle = '#64748B';
-      ctx.font = '10px JetBrains Mono, monospace';
-      const rangeText = `${Math.round(radiusMeters * fraction)}m`;
-      ctx.fillText(rangeText, centerX + 5, centerY - r + 12);
-    });
-
-    // Crosshairs
-    ctx.strokeStyle = 'rgba(30, 41, 59, 0.7)';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(centerX - maxRadius, centerY);
-    ctx.lineTo(centerX + maxRadius, centerY);
-    ctx.moveTo(centerX, centerY - maxRadius);
-    ctx.lineTo(centerX, centerY + maxRadius);
-    ctx.stroke();
-
-    // Sweeping Radar Beam
-    const rad = (beamAngle * Math.PI) / 180;
-    const beamGrad = ctx.createConicGradient(rad, centerX, centerY);
-    const accentColor = isClientMode ? 'rgba(0, 229, 255, ' : 'rgba(255, 107, 0, ';
-    beamGrad.addColorStop(0, `${accentColor}0.35)`);
-    beamGrad.addColorStop(0.12, `${accentColor}0.0)`);
-    beamGrad.addColorStop(1, `${accentColor}0.0)`);
-
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, maxRadius, 0, Math.PI * 2);
-    ctx.clip();
-    ctx.fillStyle = beamGrad;
-    ctx.fill();
-    ctx.restore();
-
-    // Center marker (User location)
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, 7, 0, Math.PI * 2);
-    ctx.fillStyle = isClientMode ? '#00E5FF' : '#FF6B00';
-    ctx.fill();
-    ctx.lineWidth = 2.5;
-    ctx.strokeStyle = '#FFFFFF';
-    ctx.stroke();
-
-    // Pulse ring around user
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, 14, 0, Math.PI * 2);
-    ctx.strokeStyle = `${accentColor}0.5)`;
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-
-    // Plot Gigs on Radar using exact relative angle & distance
-    gigs.forEach((gig, i) => {
-      let angleRad = 0;
-      let distFraction = 0.5;
-
-      if (gig.latitude && gig.longitude) {
-        // Calculate bearing and distance
-        const dLat = gig.latitude - currentUserCoords.latitude;
-        const dLng = gig.longitude - currentUserCoords.longitude;
-        angleRad = Math.atan2(dLat, dLng);
-        const actualMeters = calculateDistanceMeters(
-          currentUserCoords.latitude,
-          currentUserCoords.longitude,
-          gig.latitude,
-          gig.longitude
-        );
-        distFraction = Math.min(1.0, Math.max(0.12, actualMeters / radiusMeters));
-      } else {
-        const angle = (i * 73 + 30) % 360;
-        angleRad = (angle * Math.PI) / 180;
-        distFraction = Math.min(1.0, Math.max(0.12, gig.distanceMeters / radiusMeters));
-      }
-
-      const r = distFraction * (maxRadius - 20);
-      const x = centerX + r * Math.cos(angleRad);
-      const y = centerY + r * Math.sin(angleRad);
-
-      const isSelected = gig.id === selectedGigId;
-      const isHovered = hoveredGig?.id === gig.id;
-
-      // Draw connection line if selected
-      if (isSelected) {
-        ctx.beginPath();
-        ctx.moveTo(centerX, centerY);
-        ctx.lineTo(x, y);
-        ctx.strokeStyle = 'rgba(0, 229, 255, 0.6)';
-        ctx.lineWidth = 2;
-        ctx.setLineDash([4, 4]);
-        ctx.stroke();
-        ctx.setLineDash([]);
-      }
-
-      // Heatmap thermal blooming on radar
-      if (isHeatmapActive) {
-        const isHigh = gig.price >= 80000 || gig.isFlash;
-        const heatGrad = ctx.createRadialGradient(x, y, 2, x, y, isHigh ? 36 : 24);
-        heatGrad.addColorStop(0, isHigh ? 'rgba(239, 68, 68, 0.65)' : 'rgba(255, 107, 0, 0.55)');
-        heatGrad.addColorStop(0.5, isHigh ? 'rgba(245, 158, 11, 0.3)' : 'rgba(0, 229, 255, 0.25)');
-        heatGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-        ctx.beginPath();
-        ctx.arc(x, y, isHigh ? 36 : 24, 0, Math.PI * 2);
-        ctx.fillStyle = heatGrad;
-        ctx.fill();
-      }
-
-      // Pin glow
-      ctx.beginPath();
-      ctx.arc(x, y, isSelected ? 16 : isHovered ? 12 : 8, 0, Math.PI * 2);
-      ctx.fillStyle = isSelected
-        ? 'rgba(0, 229, 255, 0.45)'
-        : gig.isFlash
-        ? 'rgba(255, 107, 0, 0.45)'
-        : 'rgba(56, 189, 248, 0.25)';
-      ctx.fill();
-
-      // Pin core
-      ctx.beginPath();
-      ctx.arc(x, y, isSelected ? 9 : 6, 0, Math.PI * 2);
-      ctx.fillStyle = isSelected
-        ? '#00E5FF'
-        : gig.isFlash
-        ? '#FF6B00'
-        : gig.status === 'COMPLETED'
-        ? '#10B981'
-        : '#38BDF8';
-      ctx.fill();
-      ctx.strokeStyle = '#FFFFFF';
-      ctx.lineWidth = 1.8;
-      ctx.stroke();
-
-      // Price Tag badge
-      ctx.fillStyle = isSelected ? '#00E5FF' : '#FFFFFF';
-      ctx.font = 'bold 11px sans-serif';
-      const label = `${formatVnd(gig.price)}`;
-      ctx.fillText(label, x + 10, y - 4);
-    });
-  }, [
-    gigs,
-    selectedGigId,
-    hoveredGig,
-    beamAngle,
-    radiusMeters,
-    isClientMode,
-    viewMode,
-    currentUserCoords,
-  ]);
-
-  // Click on radar canvas
-  const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
-    const clickX = (e.clientX - rect.left) * (canvas.width / rect.width);
-    const clickY = (e.clientY - rect.top) * (canvas.height / rect.height);
-
-    const centerX = canvas.width / 2;
-    const centerY = canvas.height / 2;
-    const maxRadius = Math.min(centerX, centerY) - 30;
-
-    let closestGig: GigEntity | null = null;
-    let minDistance = 35; // click tolerance in px
-
-    gigs.forEach((gig, i) => {
-      let angleRad = 0;
-      let distFraction = 0.5;
-
-      if (gig.latitude && gig.longitude) {
-        const dLat = gig.latitude - currentUserCoords.latitude;
-        const dLng = gig.longitude - currentUserCoords.longitude;
-        angleRad = Math.atan2(dLat, dLng);
-        const actualMeters = calculateDistanceMeters(
-          currentUserCoords.latitude,
-          currentUserCoords.longitude,
-          gig.latitude,
-          gig.longitude
-        );
-        distFraction = Math.min(1.0, Math.max(0.12, actualMeters / radiusMeters));
-      } else {
-        const angle = (i * 73 + 30) % 360;
-        angleRad = (angle * Math.PI) / 180;
-        distFraction = Math.min(1.0, Math.max(0.12, gig.distanceMeters / radiusMeters));
-      }
-
-      const r = distFraction * (maxRadius - 20);
-      const pinX = centerX + r * Math.cos(angleRad);
-      const pinY = centerY + r * Math.sin(angleRad);
-
-      const d = Math.hypot(clickX - pinX, clickY - pinY);
-      if (d < minDistance) {
-        minDistance = d;
-        closestGig = gig;
-      }
-    });
-
-    if (closestGig) {
-      onSelectGig((closestGig as GigEntity).id);
-      setHoveredGig(closestGig);
-    }
-  };
 
   // Zoom map handlers
   const handleZoomIn = () => {
@@ -811,105 +645,47 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
       {/* Top Header Bar */}
       <div className="flex items-center justify-between gap-2 mb-2 pb-2.5 border-b border-slate-800/80">
         <div className="flex items-center space-x-2 min-w-0">
-          <div
-            className={`p-1.5 sm:p-2 rounded-xl shrink-0 ${
-              viewMode === 'MAP'
-                ? 'bg-blue-500/20 text-[#00E5FF]'
-                : 'bg-orange-500/20 text-[#FF6B00]'
-            }`}
-          >
-            {viewMode === 'MAP' ? (
-              <MapIcon className="w-4 h-4 sm:w-5 sm:h-5" />
-            ) : (
-              <RadarIcon className="w-4 h-4 sm:w-5 sm:h-5 animate-spin-slow" />
-            )}
+          <div className="p-1.5 sm:p-2 rounded-xl shrink-0 bg-blue-500/20 text-[#00E5FF]">
+            <MapIcon className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
           <div className="min-w-0">
             <div className="flex items-center space-x-1.5">
               <h3 className="text-xs sm:text-sm font-black text-white tracking-wide truncate">
-                {viewMode === 'MAP' ? 'Bản Đồ Google Maps' : 'Radar Quét Geofence'}
+                Bản Đồ Google Maps
               </h3>
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping shrink-0" />
             </div>
             <p className="text-[10px] sm:text-[11px] text-slate-400 truncate">
-              {currentUserCoords.label || 'Quanh bạn'} • {gigs.length} việc
+              {currentUserCoords.label || 'Vị trí của bạn'} • {gigs.length} công việc
             </p>
           </div>
         </div>
 
-        {/* Action controls right */}
-        <div className="flex items-center space-x-1.5 shrink-0">
-          {/* Mode Switcher */}
-          <div className="bg-[#131E30] p-0.5 sm:p-1 rounded-xl border border-slate-800 flex items-center space-x-0.5 text-xs font-bold">
-            <button
-              onClick={() => setViewMode('MAP')}
-              className={`px-2 sm:px-2.5 py-1 rounded-lg transition text-[11px] sm:text-xs flex items-center space-x-1 ${
-                viewMode === 'MAP'
-                  ? 'bg-gradient-to-r from-[#00E5FF] to-blue-500 text-black font-black shadow'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <MapIcon className="w-3 h-3" />
-              <span>Map</span>
-            </button>
-
-            <button
-              onClick={() => setViewMode('RADAR')}
-              className={`px-2 sm:px-2.5 py-1 rounded-lg transition text-[11px] sm:text-xs flex items-center space-x-1 ${
-                viewMode === 'RADAR'
-                  ? 'bg-gradient-to-r from-[#FF6B00] to-amber-500 text-black font-black shadow'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <RadarIcon className="w-3 h-3" />
-              <span>Radar</span>
-            </button>
-          </div>
-
-          {/* Heatmap Toggle Button */}
-          <button
-            onClick={() => setIsHeatmapActive((prev) => !prev)}
-            className={`px-2 sm:px-2.5 py-1 rounded-xl font-bold text-[11px] sm:text-xs flex items-center space-x-1 transition shrink-0 border ${
-              isHeatmapActive
-                ? 'bg-gradient-to-r from-red-500/25 to-amber-500/25 border-amber-500/60 text-amber-300 shadow-sm'
-                : 'bg-[#131E30] hover:bg-slate-800 border-slate-800 text-slate-400'
-            }`}
-            title={isHeatmapActive ? 'Đang bật bản đồ nhiệt (Bấm để tắt)' : 'Bật bản đồ nhiệt việc làm'}
-          >
-            <Flame className={`w-3.5 h-3.5 ${isHeatmapActive ? 'text-amber-400 fill-amber-400/30' : ''}`} />
-            <span className="hidden sm:inline">Nhiệt</span>
-          </button>
-
-          {/* Anti-Mock GPS Security Button */}
-          <button
+        {/* Action controls right: Automatic Live GPS badge & Fullscreen */}
+        <div className="flex items-center space-x-2 shrink-0">
+          {/* Trạng thái GPS Tự Động (Tự động quét ngầm không cần bấm) */}
+          <div
             onClick={() => setShowMockDetectorDialog(true)}
-            className={`px-2 sm:px-2.5 py-1 rounded-xl font-bold text-[11px] sm:text-xs flex items-center space-x-1 transition shrink-0 border ${
-              gpsReport?.isMock
-                ? 'bg-red-500/25 border-red-500/60 text-red-400 animate-pulse'
-                : 'bg-emerald-500/15 hover:bg-emerald-500/25 border-emerald-500/40 text-emerald-400'
-            }`}
-            title="Kiểm tra bảo mật vị trí chống Fake GPS"
+            className="cursor-pointer px-2.5 py-1 rounded-xl bg-[#131E30] hover:bg-slate-800 border border-slate-800 text-[11px] font-bold flex items-center space-x-1.5 transition"
+            title="Định vị GPS tự động & Bảo mật vị trí"
           >
-            {gpsReport?.isMock ? (
-              <ShieldAlert className="w-3.5 h-3.5 text-red-400" />
+            {isGpsLoading ? (
+              <>
+                <Crosshair className="w-3 h-3 text-[#00E5FF] animate-spin" />
+                <span className="text-cyan-400">GPS Tự Động...</span>
+              </>
+            ) : gpsReport?.isMock ? (
+              <>
+                <ShieldAlert className="w-3.5 h-3.5 text-amber-400 animate-bounce" />
+                <span className="text-amber-400">GPS Tự Động (Cảnh báo)</span>
+              </>
             ) : (
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+              <>
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="text-emerald-400">GPS Tự Động</span>
+              </>
             )}
-            <span className="hidden md:inline">
-              {gpsReport?.isMock ? 'Fake GPS' : 'GPS Thật'}
-            </span>
-          </button>
-
-          {/* Live GPS Button */}
-          <button
-            onClick={handleGetLiveGps}
-            disabled={isGpsLoading}
-            className="px-2 sm:px-2.5 py-1 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/40 text-[#00E5FF] font-bold text-[11px] sm:text-xs flex items-center space-x-1 transition shrink-0"
-            title="Lấy vị trí GPS hiện tại"
-          >
-            <Crosshair className={`w-3.5 h-3.5 ${isGpsLoading ? 'animate-spin' : ''}`} />
-            <span className="hidden sm:inline">{isGpsLoading ? 'Đang dò...' : 'GPS'}</span>
-          </button>
+          </div>
 
           {/* Fullscreen Button */}
           <button
@@ -969,71 +745,43 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
           })}
         </div>
 
-        {/* Map Layers (if in MAP mode) */}
-        {viewMode !== 'RADAR' && (
-          <>
-            <span className="text-slate-700 shrink-0">|</span>
-            <div className="flex items-center space-x-1 shrink-0">
-              <span className="text-slate-500 text-[10px] font-bold">Lớp nền:</span>
-              <button
-                onClick={() => setMapLayer('GOOGLE_STREETS')}
-                className={`px-2 py-0.5 rounded-lg text-[10px] font-bold whitespace-nowrap transition border ${
-                  mapLayer === 'GOOGLE_STREETS'
-                    ? 'bg-blue-600 text-white border-blue-500'
-                    : 'bg-[#131E30] text-slate-400 border-slate-800 hover:text-white'
-                }`}
-              >
-                Chuẩn
-              </button>
-              <button
-                onClick={() => setMapLayer('GOOGLE_SATELLITE')}
-                className={`px-2 py-0.5 rounded-lg text-[10px] font-bold whitespace-nowrap transition border ${
-                  mapLayer === 'GOOGLE_SATELLITE'
-                    ? 'bg-blue-600 text-white border-blue-500'
-                    : 'bg-[#131E30] text-slate-400 border-slate-800 hover:text-white'
-                }`}
-              >
-                Vệ Tinh
-              </button>
-              <button
-                onClick={() => setMapLayer('DARK_CYBER')}
-                className={`px-2 py-0.5 rounded-lg text-[10px] font-bold whitespace-nowrap transition border ${
-                  mapLayer === 'DARK_CYBER'
-                    ? 'bg-blue-600 text-white border-blue-500'
-                    : 'bg-[#131E30] text-slate-400 border-slate-800 hover:text-white'
-                }`}
-              >
-                Dark Cyber
-              </button>
-            </div>
-          </>
-        )}
+        {/* Map Layers */}
+        <span className="text-slate-700 shrink-0">|</span>
+        <div className="flex items-center space-x-1 shrink-0">
+          <span className="text-slate-500 text-[10px] font-bold">Lớp nền:</span>
+          <button
+            onClick={() => setMapLayer('GOOGLE_STREETS')}
+            className={`px-2 py-0.5 rounded-lg text-[10px] font-bold whitespace-nowrap transition border ${
+              mapLayer === 'GOOGLE_STREETS'
+                ? 'bg-blue-600 text-white border-blue-500'
+                : 'bg-[#131E30] text-slate-400 border-slate-800 hover:text-white'
+            }`}
+          >
+            Chuẩn
+          </button>
+          <button
+            onClick={() => setMapLayer('GOOGLE_SATELLITE')}
+            className={`px-2 py-0.5 rounded-lg text-[10px] font-bold whitespace-nowrap transition border ${
+              mapLayer === 'GOOGLE_SATELLITE'
+                ? 'bg-blue-600 text-white border-blue-500'
+                : 'bg-[#131E30] text-slate-400 border-slate-800 hover:text-white'
+            }`}
+          >
+            Vệ Tinh
+          </button>
+          <button
+            onClick={() => setMapLayer('DARK_CYBER')}
+            className={`px-2 py-0.5 rounded-lg text-[10px] font-bold whitespace-nowrap transition border ${
+              mapLayer === 'DARK_CYBER'
+                ? 'bg-blue-600 text-white border-blue-500'
+                : 'bg-[#131E30] text-slate-400 border-slate-800 hover:text-white'
+            }`}
+          >
+            Dark Cyber
+          </button>
+        </div>
       </div>
 
-      {/* Thermal Heatmap Indicator Legend */}
-      {isHeatmapActive && (
-        <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-1.5 rounded-xl bg-gradient-to-r from-slate-900/95 via-[#111A2B] to-slate-900/95 border border-amber-500/30 text-[10px] text-slate-300 mb-2 shadow-lg animate-fade-in">
-          <div className="flex items-center space-x-2">
-            <Flame className="w-3.5 h-3.5 text-amber-400 fill-amber-400/30" />
-            <span className="font-extrabold text-white">Bản Đồ Radar Nhiệt Campus:</span>
-            <span className="text-slate-400 hidden sm:inline">Mật độ thù lao & việc làm thời gian thực</span>
-          </div>
-          <div className="flex items-center space-x-3 text-[9px] font-bold">
-            <div className="flex items-center space-x-1">
-              <span className="w-2 h-2 rounded-full bg-[#00E5FF]"></span>
-              <span>1-2 việc</span>
-            </div>
-            <div className="flex items-center space-x-1">
-              <span className="w-2 h-2 rounded-full bg-[#F59E0B]"></span>
-              <span>3-5 việc (Sôi động)</span>
-            </div>
-            <div className="flex items-center space-x-1">
-              <span className="w-2 h-2 rounded-full bg-[#EF4444] animate-pulse"></span>
-              <span className="text-red-400">Điểm nóng hỏa tốc</span>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Fake GPS / Mock Location Alert Banner */}
       {gpsReport?.isMock && (
@@ -1063,58 +811,39 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
       )}
 
       {/* ==========================================
-          INTERACTIVE DISPLAY AREA (MAP OR RADAR)
+          INTERACTIVE DISPLAY AREA (GOOGLE MAPS)
          ========================================== */}
       <div className={`relative w-full ${mapAreaHeight} rounded-2xl overflow-hidden border border-[#1E293B] shadow-inner bg-[#0A0F1A]`}>
         {/* LEAFLET GOOGLE MAP CONTAINER */}
         <div
           ref={mapContainerRef}
-          className={`w-full h-full absolute inset-0 ${
-            viewMode === 'RADAR' ? 'invisible pointer-events-none' : 'visible z-10'
-          }`}
+          className="w-full h-full absolute inset-0 visible z-10"
         />
 
-        {/* RADAR CANVAS CONTAINER */}
-        <div
-          className={`w-full h-full absolute inset-0 flex items-center justify-center p-2 ${
-            viewMode === 'RADAR' ? 'visible z-10' : 'invisible pointer-events-none'
-          }`}
-        >
-          <canvas
-            ref={canvasRef}
-            width={isFullscreen ? 650 : 480}
-            height={isFullscreen ? 500 : 400}
-            onClick={handleCanvasClick}
-            className="max-w-full max-h-full cursor-crosshair rounded-2xl shadow-2xl"
-          />
-        </div>
-
         {/* Floating Zoom & Pan Controls on Map */}
-        {viewMode !== 'RADAR' && (
-          <div className="absolute top-4 right-4 z-20 flex flex-col space-y-1.5">
-            <button
-              onClick={handleZoomIn}
-              className="p-2.5 rounded-xl bg-[#0F172A]/90 hover:bg-[#1E293B] text-white border border-slate-700 shadow-xl transition backdrop-blur-sm"
-              title="Phóng to"
-            >
-              <ZoomIn className="w-4 h-4" />
-            </button>
-            <button
-              onClick={handleZoomOut}
-              className="p-2.5 rounded-xl bg-[#0F172A]/90 hover:bg-[#1E293B] text-white border border-slate-700 shadow-xl transition backdrop-blur-sm"
-              title="Thu nhỏ"
-            >
-              <ZoomOut className="w-4 h-4" />
-            </button>
-            <button
-              onClick={handleRecenter}
-              className="p-2.5 rounded-xl bg-[#0F172A]/90 hover:bg-[#1E293B] text-[#00E5FF] border border-slate-700 shadow-xl transition backdrop-blur-sm"
-              title="Tâm vị trí của tôi"
-            >
-              <Crosshair className="w-4 h-4" />
-            </button>
-          </div>
-        )}
+        <div className="absolute top-4 right-4 z-20 flex flex-col space-y-1.5">
+          <button
+            onClick={handleZoomIn}
+            className="p-2.5 rounded-xl bg-[#0F172A]/90 hover:bg-[#1E293B] text-white border border-slate-700 shadow-xl transition backdrop-blur-sm"
+            title="Phóng to"
+          >
+            <ZoomIn className="w-4 h-4" />
+          </button>
+          <button
+            onClick={handleZoomOut}
+            className="p-2.5 rounded-xl bg-[#0F172A]/90 hover:bg-[#1E293B] text-white border border-slate-700 shadow-xl transition backdrop-blur-sm"
+            title="Thu nhỏ"
+          >
+            <ZoomOut className="w-4 h-4" />
+          </button>
+          <button
+            onClick={handleRecenter}
+            className="p-2.5 rounded-xl bg-[#0F172A]/90 hover:bg-[#1E293B] text-[#00E5FF] border border-slate-700 shadow-xl transition backdrop-blur-sm"
+            title="Tâm vị trí của tôi"
+          >
+            <Crosshair className="w-4 h-4" />
+          </button>
+        </div>
 
         {/* Compass Badge in Corner */}
         <div className="absolute top-4 left-4 z-20 pointer-events-none flex items-center space-x-1.5 bg-black/60 backdrop-blur-md px-3 py-1 rounded-xl text-[10px] text-slate-300 border border-slate-700/80 shadow-lg">
@@ -1170,33 +899,55 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
 
           {/* Route details banner */}
           <div className="p-2.5 rounded-xl bg-[#09101C] border border-cyan-500/20 flex flex-wrap items-center justify-between gap-3 text-[11px]">
-            <div className="flex items-center space-x-4">
+            <div className="flex flex-wrap items-center gap-3 sm:gap-4">
               <div className="flex items-center space-x-1.5 text-cyan-300 font-bold">
                 <Navigation className="w-4 h-4 text-[#00E5FF]" />
-                <span>Cách bạn: <strong>{routeStats.formattedDistance}</strong></span>
+                <span>
+                  Cách bạn: <strong>{osrmRouteDetails ? (osrmRouteDetails.distanceMeters >= 1000 ? `${(osrmRouteDetails.distanceMeters / 1000).toFixed(1)} km` : `${osrmRouteDetails.distanceMeters}m`) : routeStats.formattedDistance}</strong>
+                </span>
               </div>
 
               <div className="flex items-center space-x-1 text-slate-300 font-medium">
                 <Footprints className="w-3.5 h-3.5 text-emerald-400" />
-                <span>~{routeStats.walkMinutes} phút đi bộ</span>
+                <span>~{osrmRouteDetails?.walkMinutes ?? routeStats.walkMinutes}p đi bộ</span>
               </div>
 
               <div className="flex items-center space-x-1 text-slate-300 font-medium">
                 <Bike className="w-3.5 h-3.5 text-amber-400" />
-                <span>~{routeStats.motoMinutes} phút xe máy</span>
+                <span>~{osrmRouteDetails?.motoMinutes ?? routeStats.motoMinutes}p xe máy</span>
               </div>
+
+              <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-cyan-950 text-cyan-300 border border-cyan-700">
+                {osrmRouteDetails?.routeSource === 'OSRM_REAL_ROAD' ? '🗺️ Google/OSRM Lộ trình thực' : '🧭 Lộ trình nội khu'}
+              </span>
             </div>
 
-            {/* Direct Google Maps Direction CTA */}
-            <a
-              href={routeStats.googleDirUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-[#00E5FF] text-black font-extrabold text-xs hover:brightness-110 shadow-md shadow-cyan-500/20 transition flex items-center space-x-1.5"
-            >
-              <ExternalLink className="w-3.5 h-3.5" />
-              <span>Chỉ Đường Bằng Google Maps &rarr;</span>
-            </a>
+            <div className="flex items-center space-x-2">
+              {/* Toggle Live Tracking */}
+              <button
+                type="button"
+                onClick={() => setIsLiveTracking((p) => !p)}
+                className={`px-3 py-1.5 rounded-xl font-extrabold text-xs transition flex items-center space-x-1.5 ${
+                  isLiveTracking
+                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                    : 'bg-slate-800 text-slate-400 border border-slate-700 hover:text-white'
+                }`}
+              >
+                <span className={`w-2 h-2 rounded-full ${isLiveTracking ? 'bg-emerald-400 animate-ping' : 'bg-slate-500'}`} />
+                <span>{isLiveTracking ? 'Live Tracking 🛵' : 'Bật Theo Dõi'}</span>
+              </button>
+
+              {/* Direct Google Maps Direction CTA */}
+              <a
+                href={routeStats.googleDirUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-[#00E5FF] text-black font-extrabold text-xs hover:brightness-110 shadow-md shadow-cyan-500/20 transition flex items-center space-x-1.5"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                <span>Google Maps &rarr;</span>
+              </a>
+            </div>
           </div>
         </div>
       )}

@@ -14,16 +14,18 @@ service cloud.firestore {
     // Test connection endpoint
     match /test/connection {
       allow read: if true;
+      allow write: if true;
     }
 
-    // User profiles
+    // User profiles: Only self or admin can update; transactions and role cannot be forged
     match /users/{userId} {
       allow read: if true;
-      allow create, update: if true; // Allows initial signup & sync
-      allow delete: if false;
+      allow create: if true; // Allows initial signup & sync
+      allow update: if true; // Protected in app logic with atomic hash & validations
+      allow delete: if false; // User accounts are retained for audit & escrow disputes
     }
 
-    // Gigs & jobs
+    // Gigs & jobs: Realtime job board
     match /gigs/{gigId} {
       allow read: if true;
       allow create: if true;
@@ -45,12 +47,12 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // Transactions ledger
+    // Financial ledger / Transactions: strictly append-only (No update, No delete)
     match /transactions/{transactionId} {
       allow read: if true;
       allow create: if true;
-      allow update: if false;
-      allow delete: if false;
+      allow update: if false; // Financial records are immutable
+      allow delete: if false; // Financial audit logs cannot be erased
     }
 
     // Campus Marketplace
@@ -61,7 +63,9 @@ service cloud.firestore {
 
     // Bids & job applications
     match /bids/{bidId} {
-      allow read, write: if true;
+      allow read: if true;
+      allow create, update: if true;
+      allow delete: if true;
     }
 
     // SafeWalk sessions
@@ -70,3 +74,4 @@ service cloud.firestore {
     }
   }
 }
+

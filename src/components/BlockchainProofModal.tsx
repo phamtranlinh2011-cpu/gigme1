@@ -152,10 +152,31 @@ export const BlockchainProofModal: React.FC<BlockchainProofModalProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    submitProofOfWork(gigId, proofNote, true);
+    const canvas = canvasRef.current;
+    let watermarkedUrl = sampleImage;
+    if (canvas) {
+      try {
+        watermarkedUrl = canvas.toDataURL('image/jpeg', 0.85);
+      } catch (err) {
+        console.warn('Canvas toDataURL fallback:', err);
+      }
+    }
+
+    const coords = {
+      lat: userCoords?.latitude || 10.7327,
+      lng: userCoords?.longitude || 106.6992,
+    };
+
+    submitProofOfWork(gigId, proofNote, true, {
+      watermarkedUrl,
+      hash: blockchainHash,
+      coords,
+      timestamp: Date.now(),
+    });
+
     showNotification(
-      '🚀 Đã gửi bài nghiệm thu Watermark',
-      'Minh chứng đã được đóng dấu bản quyền Blockchain. Khi người thuê giải ngân, bản gốc chất lượng cao sẽ tự động mở khóa!',
+      '🚀 Đã Gửi Bằng Chứng Watermark GPS & Timestamp',
+      `Đã đóng dấu định vị (${coords.lat.toFixed(4)}°N, ${coords.lng.toFixed(4)}°E) và thời gian thực. Khi khách hàng giải ngân, bản gốc sẽ tự động bàn giao!`,
       true,
       true
     );
