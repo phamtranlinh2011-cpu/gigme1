@@ -629,6 +629,34 @@ async function startServer() {
     broadcastSse('ping', { time: Date.now() });
   }, 25000);
 
+  // System Maintenance Configuration State
+  let currentMaintenanceConfig = {
+    isActive: false,
+    title: 'Hệ Thống Đang Nâng Cấp & Bảo Trì Kỹ Thuật',
+    message: 'GigMe đang nâng cấp cơ sở dữ liệu và tối ưu thuật toán radar định vị campus. Vui lòng quay lại sau.',
+    startTime: Date.now(),
+    endTime: Date.now() + 30 * 60 * 1000,
+    activatedBy: 'admin_root',
+    updatedAt: Date.now(),
+    allowedTabs: ['PROFILE'],
+  };
+
+  app.get('/api/system/maintenance', (_req: Request, res: Response) => {
+    res.json({ success: true, maintenance: currentMaintenanceConfig });
+  });
+
+  app.post('/api/system/maintenance', (req: Request, res: Response) => {
+    const body = req.body || {};
+    currentMaintenanceConfig = {
+      ...currentMaintenanceConfig,
+      ...body,
+      updatedAt: Date.now(),
+    };
+    broadcastSse('system_maintenance', currentMaintenanceConfig);
+    console.log('[System Maintenance] Mode updated:', currentMaintenanceConfig.isActive, 'Duration ends at:', new Date(currentMaintenanceConfig.endTime).toLocaleTimeString());
+    res.json({ success: true, maintenance: currentMaintenanceConfig });
+  });
+
   // OTP In-Memory Storage
   const otpStore = new Map<string, { code: string; expiresAt: number }>();
 

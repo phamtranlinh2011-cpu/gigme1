@@ -73,6 +73,12 @@ service cloud.firestore {
     match /safewalk/{sessionId} {
       allow read, write: if true;
     }
+
+    // Global System Settings & Maintenance Mode
+    match /system_settings/{settingId} {
+      allow read: if true;
+      allow write: if true;
+    }
   }
 }
 
