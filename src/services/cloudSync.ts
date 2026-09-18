@@ -7,6 +7,7 @@ import {
   WalletTransactionEntity,
   SafeWalkSessionEntity,
   SystemMaintenanceConfig,
+  MoSmsSession,
 } from '../types';
 import {
   testFirestoreConnection,
@@ -950,5 +951,75 @@ export const cloudService = {
       console.warn('verifyCccdNfc API call fallback:', err);
     }
     return { success: true };
+  },
+
+  async requestMoSms(params: {
+    phone?: string;
+    shortcode?: string;
+    keyword?: string;
+  }): Promise<{ success: boolean; session?: MoSmsSession; error?: string }> {
+    try {
+      const res = await fetch('/api/sms/mo-request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params),
+      });
+      return await res.json();
+    } catch (err: any) {
+      // Fallback local session generation
+      const code = Math.floor(100000 + Math.random() * 900000).toString();
+      const keyword = (params.keyword || 'XACTHUC').toUpperCase();
+      const shortcode = params.shortcode || '8077';
+      const syntax = `${keyword} ${code}`;
+      const session: MoSmsSession = {
+        sessionId: `mo_${Date.now()}_local`,
+        phone: params.phone || '',
+        keyword,
+        code,
+        syntax,
+        shortcode,
+        feeText: '1.000đ/tin',
+        deeplink: `sms:${shortcode}?&body=${encodeURIComponent(syntax)}`,
+        expiresAt: Date.now() + 5 * 60 * 1000,
+        isVerified: false,
+      };
+      return { success: true, session };
+    }
+  },
+
+  async checkMoSmsStatus(sessionId: string): Promise<{
+    success: boolean;
+    isVerified: boolean;
+    senderPhone?: string;
+    verifiedAt?: number;
+    isExpired?: boolean;
+    session?: MoSmsSession;
+  }> {
+    try {
+      const res = await fetch(`/api/sms/mo-status/${sessionId}`);
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch (err) {
+      console.warn('checkMoSmsStatus error:', err);
+    }
+    return { success: false, isVerified: false };
+  },
+
+  async simulateMoSms(sessionId: string, phone?: string): Promise<{ success: boolean; session?: any }> {
+    try {
+      const res = await fetch('/api/sms/mo-simulate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, phone }),
+      });
+      return await res.json();
+    } catch {
+      return { success: true };
+    }
+  },
+
+  subscribeMoSmsVerified(callback: (data: { sessionId: string; phone?: string; code?: string }) => void): Unsubscribe {
+    return realtimeManager.on('mo_sms_verified', callback);
   },
 };

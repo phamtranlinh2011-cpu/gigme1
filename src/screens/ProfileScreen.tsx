@@ -831,20 +831,22 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
           <ChevronRight className="w-4 h-4 text-slate-500" />
         </button>
 
-        {/* THEME TOGGLE (LIGHT / DARK) */}
+        {/* THEME TOGGLE (OCEANIC BLUE / DEEP OBSIDIAN DARK) */}
         <div className="w-full p-3 rounded-2xl bg-[#131E30] border border-slate-800 flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            {isDarkMode ? <Moon className="w-4 h-4 text-indigo-400" /> : <Sun className="w-4 h-4 text-yellow-400" />}
+            {isDarkMode ? <Moon className="w-4 h-4 text-cyan-400" /> : <Sun className="w-4 h-4 text-sky-300" />}
             <div>
-              <h4 className="font-bold text-white text-xs">Giao Diện Dynamic Light / Dark Mode</h4>
-              <p className="text-[10px] text-slate-400">{isDarkMode ? 'Đang bật Cyber Neon Dark' : 'Đang bật Light Mode'}</p>
+              <h4 className="font-bold text-white text-xs">Giao Diện Xanh Dạ Quang / Siêu Tối</h4>
+              <p className="text-[10px] text-slate-400">
+                {isDarkMode ? 'Đang bật Siêu Tối (Obsidian Black 100%)' : 'Đang bật Xanh Dạ Quang (Oceanic Navy Blue)'}
+              </p>
             </div>
           </div>
           <button
             onClick={toggleDarkMode}
-            className="px-3 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 border border-slate-700"
+            className="px-3 py-1 rounded-xl bg-[#0e2246] hover:bg-[#152e5a] text-xs font-bold text-cyan-300 border border-cyan-500/30 transition active:scale-95"
           >
-            {isDarkMode ? '🌙 Dark' : '☀️ Light'}
+            {isDarkMode ? '🌑 Siêu Tối' : '🌌 Xanh Đêm'}
           </button>
         </div>
 

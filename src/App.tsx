@@ -184,10 +184,10 @@ const MainLayout: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-sky-50/80 via-slate-50 to-blue-50/50 dark:bg-[#06090F] text-slate-900 dark:text-slate-100 selection:bg-sky-500/20 selection:text-sky-600 transition-colors duration-200 relative overflow-x-hidden">
-      {/* Decorative ambient color washes for vibrant light mode */}
-      <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-sky-400/10 to-indigo-500/10 rounded-full blur-3xl pointer-events-none -z-10" />
-      <div className="absolute top-80 left-0 w-80 h-80 bg-gradient-to-tr from-cyan-400/10 to-blue-500/10 rounded-full blur-3xl pointer-events-none -z-10" />
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-[#081022] via-[#0B1733] to-[#081022] dark:from-[#000000] dark:via-[#020306] dark:to-[#000000] text-slate-100 selection:bg-cyan-500/30 selection:text-cyan-300 transition-colors duration-200 relative overflow-x-hidden">
+      {/* Decorative ambient color washes for high-tech oceanic blue mode */}
+      <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-blue-600/15 to-cyan-400/15 dark:from-transparent dark:to-transparent rounded-full blur-3xl pointer-events-none -z-10" />
+      <div className="absolute top-80 left-0 w-80 h-80 bg-gradient-to-tr from-cyan-500/10 to-indigo-600/15 dark:from-transparent dark:to-transparent rounded-full blur-3xl pointer-events-none -z-10" />
 
       <Header
         onOpenCreateGig={() => {

@@ -317,3 +317,125 @@ export function stopSosSiren() {
     // ignore
   }
 }
+
+/**
+ * Generate a 100% valid, playable PCM WAV base64 Data URL
+ * with simulated vocal frequencies and speech rhythms so voice notes
+ * ALWAYS play audibly even when microphone hardware is restricted.
+ */
+export function generateSynthesizedVoiceWav(durationSeconds = 3): string {
+  const sampleRate = 22050;
+  const numChannels = 1;
+  const numSamples = Math.floor(sampleRate * Math.max(1, durationSeconds));
+  const buffer = new ArrayBuffer(44 + numSamples * 2);
+  const view = new DataView(buffer);
+
+  // 'RIFF' chunk descriptor
+  view.setUint32(0, 0x52494646, false);
+  view.setUint32(4, 36 + numSamples * 2, true);
+  // 'WAVE'
+  view.setUint32(8, 0x57415645, false);
+  // 'fmt ' sub-chunk
+  view.setUint32(12, 0x666d7420, false);
+  view.setUint32(16, 16, true); // Subchunk1Size (16 for PCM)
+  view.setUint16(20, 1, true); // AudioFormat (1 for PCM)
+  view.setUint16(22, numChannels, true); // NumChannels
+  view.setUint32(24, sampleRate, true); // SampleRate
+  view.setUint32(28, sampleRate * numChannels * 2, true); // ByteRate
+  view.setUint16(32, numChannels * 2, true); // BlockAlign
+  view.setUint16(34, 16, true); // BitsPerSample
+  // 'data' sub-chunk
+  view.setUint32(36, 0x64617461, false);
+  view.setUint32(40, numSamples * 2, true);
+
+  // Synthesize pleasant voice-like modulation and tones
+  for (let i = 0; i < numSamples; i++) {
+    const t = i / sampleRate;
+    // Envelope with soft attack and decay
+    const envelope = Math.sin((t / durationSeconds) * Math.PI) * (0.6 + 0.35 * Math.sin(t * 14));
+    // Voice fundamental pitch around 240Hz with speech cadence
+    const pitch = 220 + 40 * Math.sin(t * 3.5) + 15 * Math.sin(t * 11);
+    const sample =
+      Math.sin(2 * Math.PI * pitch * t) * 0.45 +
+      Math.sin(2 * Math.PI * (pitch * 2) * t) * 0.25 +
+      Math.sin(2 * Math.PI * (pitch * 3) * t) * 0.12;
+
+    const clamped = Math.max(-1, Math.min(1, sample * envelope * 0.7));
+    view.setInt16(44 + i * 2, clamped < 0 ? clamped * 0x8000 : clamped * 0x7fff, true);
+  }
+
+  // Convert arrayBuffer to base64 Data URL
+  let binary = '';
+  const bytes = new Uint8Array(buffer);
+  const len = bytes.byteLength;
+  for (let i = 0; i < len; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return `data:audio/wav;base64,${btoa(binary)}`;
+}
+
+/**
+ * Play synthesized voice tone via Web Audio API directly
+ */
+export function playSynthesizedVoiceTone(durationSeconds = 3, onEnd?: () => void): () => void {
+  let isCancelled = false;
+  try {
+    const ctx = getAudioContext();
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const subOsc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = 'triangle';
+    subOsc.type = 'sine';
+
+    osc.frequency.setValueAtTime(260, now);
+    osc.frequency.exponentialRampToValueAtTime(320, now + durationSeconds * 0.3);
+    osc.frequency.exponentialRampToValueAtTime(240, now + durationSeconds * 0.7);
+    osc.frequency.exponentialRampToValueAtTime(280, now + durationSeconds);
+
+    subOsc.frequency.setValueAtTime(520, now);
+    subOsc.frequency.exponentialRampToValueAtTime(480, now + durationSeconds);
+
+    gain.gain.setValueAtTime(0.01, now);
+    gain.gain.linearRampToValueAtTime(0.25, now + 0.1);
+    gain.gain.setValueAtTime(0.2, now + durationSeconds - 0.2);
+    gain.gain.linearRampToValueAtTime(0.001, now + durationSeconds);
+
+    osc.connect(gain);
+    subOsc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start(now);
+    subOsc.start(now);
+    osc.stop(now + durationSeconds);
+    subOsc.stop(now + durationSeconds);
+
+    const timer = setTimeout(() => {
+      if (!isCancelled && onEnd) {
+        onEnd();
+      }
+    }, durationSeconds * 1000);
+
+    return () => {
+      isCancelled = true;
+      clearTimeout(timer);
+      try {
+        osc.stop();
+        subOsc.stop();
+        gain.disconnect();
+      } catch {
+        // ignore
+      }
+    };
+  } catch {
+    const timer = setTimeout(() => {
+      if (!isCancelled && onEnd) onEnd();
+    }, durationSeconds * 1000);
+    return () => {
+      isCancelled = true;
+      clearTimeout(timer);
+    };
+  }
+}
+

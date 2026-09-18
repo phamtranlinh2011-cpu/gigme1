@@ -22,6 +22,7 @@ import {
   formatVnd,
   SafeWalkSessionEntity,
   SystemMaintenanceConfig,
+  MoSmsSession,
 } from '../types';
 import { playNotificationSound, startSosSiren, stopSosSiren } from '../utils/audio';
 import {
@@ -147,6 +148,7 @@ interface GigMeContextType {
   currentSelectedGig: GigEntity | null;
   currentGigBids: BidEntity[];
   currentChatMessages: ChatMessageEntity[];
+  allChats: ChatMessageEntity[];
   walletTransactions: WalletTransactionEntity[];
   userTransactions: WalletTransactionEntity[];
   notification: UiNotification | null;
@@ -188,6 +190,10 @@ interface GigMeContextType {
   sendOtp: (contact: string, purpose?: string) => boolean;
   resetPasswordWithOtp: (enteredOtp: string, newPassword: string) => Promise<boolean> | boolean;
   loginWithPhoneOtp: (phoneNumber: string, enteredOtp: string) => boolean;
+  requestMoSms: (params?: { phone?: string; shortcode?: string; keyword?: string }) => Promise<{ success: boolean; session?: MoSmsSession; error?: string }>;
+  checkMoSmsStatus: (sessionId: string) => Promise<any>;
+  simulateMoSms: (sessionId: string, phone?: string) => Promise<any>;
+  loginWithMoSms: (phone: string) => Promise<boolean>;
   loginSocial: (provider: string, emailOrName?: string) => Promise<void> | void;
   logout: () => void;
 
@@ -277,7 +283,10 @@ interface GigMeContextType {
       | 'VIDEO',
     attachmentData?: string | null,
     attachmentDuration?: number,
-    mediaFileName?: string
+    mediaFileName?: string,
+    targetThreadId?: string,
+    targetPartnerId?: string,
+    targetPartnerName?: string
   ) => void;
   analyzePhotoWithAi: (presetType: string) => void;
   clearAiResult: () => void;
@@ -1456,6 +1465,96 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     setCurrentUserId(user.id);
     showNotification('Đăng nhập SĐT thành công!', `Đã xác thực OTP thành công với số ${trimmedPhone}.`, true);
+    return true;
+  };
+
+  // 5b. MO (Mobile Originated) SMS AUTHENTICATION
+  // Người dùng tự soạn tin nhắn gửi tới đầu số tổng đài (8077/8177...)
+  const requestMoSms = async (params?: {
+    phone?: string;
+    shortcode?: string;
+    keyword?: string;
+  }): Promise<{ success: boolean; session?: MoSmsSession; error?: string }> => {
+    try {
+      const res = await cloudService.requestMoSms(params || {});
+      return res;
+    } catch (err: any) {
+      return { success: false, error: err?.message || 'Không thể tạo phiên xác thực MO SMS' };
+    }
+  };
+
+  const checkMoSmsStatus = async (sessionId: string) => {
+    return await cloudService.checkMoSmsStatus(sessionId);
+  };
+
+  const simulateMoSms = async (sessionId: string, phone?: string) => {
+    return await cloudService.simulateMoSms(sessionId, phone);
+  };
+
+  const loginWithMoSms = async (phone: string): Promise<boolean> => {
+    const trimmedPhone = (phone || '').trim();
+    if (!trimmedPhone) {
+      showNotification('Lỗi xác thực', 'Không tìm thấy số điện thoại của tin nhắn MO!');
+      return false;
+    }
+
+    let user = users.find((u) => u.phone === trimmedPhone);
+    if (!user) {
+      const newUserId = `user_${Date.now()}`;
+      user = {
+        id: newUserId,
+        name: `Người dùng ${trimmedPhone}`,
+        email: '',
+        phone: trimmedPhone,
+        gender: 'Khác',
+        birthDate: '01/01/2000',
+        tier: 'NEWBIE',
+        role: 'USER',
+        kycName: `NGƯỜI DÙNG ${trimmedPhone}`,
+        isKycApproved: false,
+        isNfcVerified: false,
+        isFaceLivenessPassed: false,
+        isStudentVerified: false,
+        studentSchool: '',
+        isBiometricsEnabled: false,
+        isBusinessAccount: false,
+        businessName: '',
+        businessTaxId: '',
+        trustScore: 100,
+        eloRating: 1000,
+        eloTier: 'BRONZE',
+        winStreak: 0,
+        notificationSound: 'BANK_TING',
+        connectedMoMo: '',
+        connectedZaloPay: '',
+        connectedViettelMoney: '',
+        lastDeviceName: 'SMS MO Verified',
+        lastLoginLocation: 'Việt Nam',
+        hasUnusualDeviceAlert: false,
+        rating: 5.0,
+        reviewCount: 0,
+        completedGigs: 0,
+        onTimeRate: 100,
+        postedGigsCount: 0,
+        totalSpent: 0,
+        walletBalance: 0,
+        escrowLockedBalance: 0,
+        securityPin: '123456',
+        badges: 'Xác thực SMS MO chính chủ',
+        isLocked: false,
+      };
+      setUsers((prev) => [...prev, user!]);
+      await cloudService.registerUser(user);
+    }
+
+    setCurrentUserId(user.id);
+    triggerHaptic('success');
+    showNotification(
+      'Xác thực SMS MO Thành Công! 📱🎉',
+      `Đã nhận diện số điện thoại ${trimmedPhone} từ tin nhắn chủ động tới tổng đài. Chào mừng bạn!`,
+      true,
+      true
+    );
     return true;
   };
 
@@ -3670,10 +3769,14 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       | 'VIDEO' = 'NONE',
     attachmentData: string | null = null,
     attachmentDuration?: number,
-    mediaFileName?: string
+    mediaFileName?: string,
+    targetThreadId?: string,
+    targetPartnerId?: string,
+    targetPartnerName?: string
   ) => {
-    if (!currentUser || !selectedGigId) return;
+    if (!currentUser) return;
     const isClient = roleMode === 'CLIENT';
+    const effectiveThreadId = targetThreadId || selectedGigId || (targetPartnerId ? `direct_${targetPartnerId}` : 'direct_general');
 
     // Quét phát hiện lách giao dịch ngoài sàn (Anti-Leakage)
     const filterResult = detectAndFilterOffPlatformLeakage(text);
@@ -3690,7 +3793,10 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     const msg: ChatMessageEntity = {
       id: `msg_${Date.now()}`,
-      gigId: selectedGigId,
+      gigId: effectiveThreadId,
+      threadId: effectiveThreadId,
+      partnerId: targetPartnerId,
+      partnerName: targetPartnerName,
       senderId: currentUser.id,
       senderName: currentUser.name,
       isFromClient: isClient,
@@ -3700,6 +3806,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       attachmentDuration,
       mediaFileName,
       timestamp: Date.now(),
+      isRead: false,
     };
     setChats((prev) => [...prev, msg]);
     cloudService.saveChatMessage(msg);
@@ -4165,6 +4272,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         currentSelectedGig,
         currentGigBids,
         currentChatMessages,
+        allChats: chats,
         walletTransactions,
         userTransactions: walletTransactions,
         withdrawFunds: withdrawToBank,
@@ -4198,6 +4306,10 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         sendOtp,
         resetPasswordWithOtp,
         loginWithPhoneOtp,
+        requestMoSms,
+        checkMoSmsStatus,
+        simulateMoSms,
+        loginWithMoSms,
         loginSocial,
         logout,
         upgradeTier,

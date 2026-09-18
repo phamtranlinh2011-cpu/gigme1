@@ -302,6 +302,11 @@ export interface ChatMessageEntity {
   attachmentDuration?: number; // Thời lượng audio giây cho Voice Note
   mediaFileName?: string;
   timestamp: number;
+  threadId?: string;
+  partnerId?: string;
+  partnerName?: string;
+  reactions?: Record<string, number>;
+  isRead?: boolean;
 }
 
 export interface WalletTransactionEntity {
@@ -407,4 +412,19 @@ export interface SystemMaintenanceConfig {
   activatedBy: string;
   updatedAt: number;
   allowedTabs: string[];
+}
+
+export interface MoSmsSession {
+  sessionId: string;
+  phone?: string;
+  keyword: string; // ví dụ: "XACTHUC"
+  code: string;    // mã 6 số ví dụ: "849201"
+  syntax: string;  // cú pháp đầy đủ ví dụ: "XACTHUC 849201"
+  shortcode: string; // đầu số tổng đài ví dụ: "8077"
+  feeText: string; // chi phí ví dụ: "1.000đ/tin"
+  deeplink: string; // sms:8077?&body=XACTHUC%20849201
+  expiresAt: number;
+  isVerified: boolean;
+  senderPhone?: string;
+  verifiedAt?: number;
 }

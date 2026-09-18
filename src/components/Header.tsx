@@ -74,9 +74,9 @@ export const Header: React.FC<HeaderProps> = ({
   }, []);
 
   return (
-    <header className="sticky top-0 z-40 w-full backdrop-blur-md bg-gradient-to-r from-sky-100/85 via-white/95 to-indigo-50/85 dark:bg-[#0A0E17]/95 border-b border-sky-200/80 shadow-[0_4px_20px_-4px_rgba(2,132,199,0.08)] transition-colors duration-200">
+    <header className="sticky top-0 z-40 w-full backdrop-blur-md bg-[#0A162D]/95 dark:bg-[#000000]/98 border-b border-cyan-500/25 dark:border-[#121824] shadow-[0_4px_20px_-4px_rgba(0,180,255,0.12)] dark:shadow-none transition-colors duration-200">
       {/* Top Accent Gradient Stripe */}
-      <div className="h-0.5 w-full bg-gradient-to-r from-blue-600 via-sky-400 to-indigo-600" />
+      <div className="h-0.5 w-full bg-gradient-to-r from-blue-600 via-cyan-400 to-indigo-500" />
 
       {/* Admin Master Alert Bar */}
       {isAdminRole && (
@@ -101,17 +101,17 @@ export const Header: React.FC<HeaderProps> = ({
           <img
             src="/logo.png"
             alt="GigMe Logo"
-            className="w-9 h-9 sm:w-11 sm:h-11 rounded-full object-cover shadow-md shadow-sky-500/20 border-2 border-sky-400"
+            className="w-9 h-9 sm:w-11 sm:h-11 rounded-full object-cover shadow-md shadow-sky-500/20 border-2 border-cyan-400"
           />
           <div>
             <div className="flex items-center space-x-1">
-              <span className="text-lg sm:text-xl font-black tracking-tight text-slate-900">Gig</span>
-              <span className="text-lg sm:text-xl font-black text-[#0284C7]">Me</span>
-              <span className="text-[9px] sm:text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-gradient-to-r from-sky-500 to-blue-600 text-white shadow-xs">
+              <span className="text-lg sm:text-xl font-black tracking-tight text-white">Gig</span>
+              <span className="text-lg sm:text-xl font-black text-[#00E5FF]">Me</span>
+              <span className="text-[9px] sm:text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-xs">
                 Sinh Viên
               </span>
             </div>
-            <p className="text-[10px] text-slate-500 font-medium hidden sm:block">
+            <p className="text-[10px] text-cyan-200/80 dark:text-slate-400 font-medium hidden sm:block">
               Nền tảng việc làm sinh viên & Smart Escrow
             </p>
           </div>
@@ -122,7 +122,7 @@ export const Header: React.FC<HeaderProps> = ({
           {onOpenLeaderboard && (
             <button
               onClick={onOpenLeaderboard}
-              className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-50 to-orange-50 hover:from-amber-100 hover:to-orange-100 text-amber-800 border border-amber-200 font-extrabold transition flex items-center space-x-1.5 shadow-xs active:scale-95"
+              className="px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 font-extrabold transition flex items-center space-x-1.5 shadow-xs active:scale-95"
             >
               <span>🏆 BXH Top</span>
             </button>
@@ -130,7 +130,7 @@ export const Header: React.FC<HeaderProps> = ({
           {onOpenMarketplace && (
             <button
               onClick={onOpenMarketplace}
-              className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50 hover:from-emerald-100 hover:to-teal-100 text-emerald-800 border border-emerald-200 font-extrabold transition flex items-center space-x-1.5 shadow-xs active:scale-95"
+              className="px-3 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 font-extrabold transition flex items-center space-x-1.5 shadow-xs active:scale-95"
             >
               <span>📚 Chợ KTX</span>
             </button>
@@ -139,18 +139,18 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Right Section: Compact on mobile, rich on desktop */}
         <div className="flex items-center space-x-1.5 sm:space-x-2.5">
-          {/* Wallet Balance Chip with lively soft-blue gradient */}
+          {/* Wallet Balance Chip with high-tech blue styling */}
           <button
             id="header-wallet-btn"
             onClick={onOpenWallet}
-            className="flex items-center space-x-2 px-2.5 sm:px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-sky-100 via-blue-50 to-indigo-100/70 hover:from-sky-200 hover:to-blue-100 border border-sky-300 transition group shadow-xs active:scale-95"
+            className="flex items-center space-x-2 px-2.5 sm:px-3.5 py-1.5 rounded-xl bg-[#0e2246] dark:bg-[#080B12] hover:bg-[#142e5c] dark:hover:bg-[#101524] border border-cyan-500/40 dark:border-slate-800 transition group shadow-xs active:scale-95"
           >
-            <div className="p-1 rounded-lg bg-sky-500 text-white shadow-xs">
+            <div className="p-1 rounded-lg bg-cyan-500 dark:bg-cyan-600 text-white shadow-xs">
               <Wallet className="w-3.5 h-3.5 group-hover:scale-110 transition" />
             </div>
             <div className="text-left leading-none">
-              <span className="text-[9px] text-sky-700 hidden sm:block font-extrabold">Số dư Ví</span>
-              <span className="text-xs sm:text-sm font-black text-slate-900 font-mono">
+              <span className="text-[9px] text-cyan-300 dark:text-slate-400 hidden sm:block font-extrabold">Số dư Ví</span>
+              <span className="text-xs sm:text-sm font-black text-white font-mono">
                 {currentUser ? formatVnd(currentUser.walletBalance) : '0đ'}
               </span>
             </div>
@@ -163,24 +163,11 @@ export const Header: React.FC<HeaderProps> = ({
               <button
                 id="header-download-app-btn"
                 onClick={onOpenDownloadApp}
-                className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-sky-500 text-white font-extrabold text-xs hover:brightness-105 shadow-sm shadow-blue-500/25 transition cursor-pointer active:scale-95"
+                className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 text-white font-extrabold text-xs hover:brightness-110 shadow-sm shadow-blue-500/25 transition cursor-pointer active:scale-95"
                 title="Tải File APK cho điện thoại Android"
               >
                 <Download className="w-3.5 h-3.5 stroke-[2.5]" />
                 <span>Tải APK</span>
-              </button>
-            )}
-
-            {/* FCM Push */}
-            {onOpenFcmPush && (
-              <button
-                id="header-fcm-btn"
-                onClick={onOpenFcmPush}
-                className="p-2 rounded-xl bg-slate-50 hover:bg-orange-50 text-orange-600 border border-slate-200 hover:border-orange-200 transition relative active:scale-95 shadow-sm"
-                title="Thông báo đẩy hỏa tốc (Firebase Cloud Messaging)"
-              >
-                <Bell className="w-4 h-4" />
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-orange-500 animate-ping" />
               </button>
             )}
 
@@ -189,7 +176,7 @@ export const Header: React.FC<HeaderProps> = ({
               <button
                 id="header-safewalk-btn"
                 onClick={onOpenSafeWalk}
-                className="p-2 rounded-xl bg-slate-50 hover:bg-rose-50 text-rose-600 border border-slate-200 hover:border-rose-200 transition active:scale-95 shadow-sm"
+                className="p-2 rounded-xl bg-[#0e2246] dark:bg-[#080B12] hover:bg-[#152e5a] dark:hover:bg-[#121826] text-rose-400 border border-rose-500/30 dark:border-slate-800 transition active:scale-95 shadow-sm"
                 title="Chế độ bảo vệ an toàn đêm (SOS SafeWalk)"
               >
                 <ShieldAlert className="w-4 h-4" />
@@ -201,7 +188,7 @@ export const Header: React.FC<HeaderProps> = ({
               <button
                 id="header-elo-btn"
                 onClick={onOpenEloModal}
-                className="flex items-center space-x-1 p-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 transition text-xs font-bold active:scale-95 shadow-sm"
+                className="flex items-center space-x-1 p-2 rounded-xl bg-[#0e2246] dark:bg-[#080B12] hover:bg-[#152e5a] dark:hover:bg-[#121826] text-amber-300 border border-amber-500/30 dark:border-slate-800 transition text-xs font-bold active:scale-95 shadow-sm"
                 title="Hệ thống chấm điểm tín nhiệm & Huy hiệu ELO sinh viên"
               >
                 <Award className="w-4 h-4" />
@@ -213,19 +200,19 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               id="theme-toggle-btn"
               onClick={toggleDarkMode}
-              className="p-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 transition active:scale-95 shadow-sm"
-              title="Đổi giao diện sáng/tối"
+              className="p-2 rounded-xl bg-[#0e2246] dark:bg-[#080B12] hover:bg-[#152e5a] dark:hover:bg-[#121826] border border-cyan-500/40 dark:border-slate-800 text-cyan-300 dark:text-slate-400 transition active:scale-95 shadow-sm"
+              title={isDarkMode ? 'Đang ở Chế độ Siêu Tối (Bấm để chuyển sang Xanh Dạ Quang)' : 'Đang ở Chế độ Xanh Dạ Quang (Bấm để chuyển sang Siêu Tối)'}
             >
-              {isDarkMode ? <Sun className="w-4 h-4 text-amber-500" /> : <Moon className="w-4 h-4 text-sky-600" />}
+              {isDarkMode ? <Moon className="w-4 h-4 text-cyan-400" /> : <Sun className="w-4 h-4 text-sky-300" />}
             </button>
 
             {/* Profile */}
             <button
               id="header-profile-btn"
               onClick={onOpenProfile}
-              className="flex items-center space-x-2 p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 transition active:scale-95 shadow-sm"
+              className="flex items-center space-x-2 p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl bg-[#0e2246] dark:bg-[#080B12] hover:bg-[#152e5a] dark:hover:bg-[#121826] border border-cyan-500/40 dark:border-slate-800 transition active:scale-95 shadow-sm"
             >
-              <div className="w-7 h-7 rounded-lg overflow-hidden bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center font-bold text-xs text-white shadow shrink-0">
+              <div className="w-7 h-7 rounded-lg overflow-hidden bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center font-bold text-xs text-white shadow shrink-0">
                 {currentUser?.avatarUrl ? (
                   <img src={currentUser.avatarUrl} alt={currentUser.name} className="w-full h-full object-cover" />
                 ) : currentUser ? (
@@ -234,7 +221,7 @@ export const Header: React.FC<HeaderProps> = ({
                   <User className="w-4 h-4" />
                 )}
               </div>
-              <span className="text-xs font-semibold text-slate-800 hidden lg:block">
+              <span className="text-xs font-semibold text-white hidden lg:block">
                 {currentUser?.name || 'Tài khoản'}
               </span>
             </button>
@@ -309,22 +296,6 @@ export const Header: React.FC<HeaderProps> = ({
                 <div>
                   <p className="font-bold text-rose-800">SOS SafeWalk</p>
                   <p className="text-[10px] text-rose-600">Bảo vệ đêm</p>
-                </div>
-              </button>
-            )}
-
-            {onOpenFcmPush && (
-              <button
-                onClick={() => {
-                  setIsMobileMenuOpen(false);
-                  onOpenFcmPush();
-                }}
-                className="p-3 rounded-xl bg-orange-50 border border-orange-200 text-left hover:bg-orange-100 transition flex items-center space-x-2.5"
-              >
-                <Bell className="w-4 h-4 text-orange-600 shrink-0" />
-                <div>
-                  <p className="font-bold text-orange-800">FCM Push</p>
-                  <p className="text-[10px] text-orange-600">Báo hỏa tốc</p>
                 </div>
               </button>
             )}

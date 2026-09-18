@@ -1,143 +1,363 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   ArrowLeft,
   PhoneCall,
   Video,
-  AlertTriangle,
   Send,
   Camera,
   Image as ImageIcon,
   Mic,
   MicOff,
-  Video as VideoIcon,
   Play,
   Pause,
-  CheckCircle2,
-  Lock,
-  Sparkles,
-  ShieldAlert,
-  X,
-  Fingerprint,
-  FileCheck,
-  Star,
-  Award,
-  Volume2,
-  Maximize2,
-  Paperclip,
-  Search,
   Bot,
-  ChevronDown,
-  ChevronUp,
+  Search,
   MessageCircle,
   Check,
+  CheckCheck,
+  Sparkles,
+  Info,
+  X,
+  Plus,
+  Smile,
+  ThumbsUp,
+  UserCheck,
+  Briefcase,
+  Paperclip,
+  Share2,
+  ShieldCheck,
   Zap,
+  Clock,
+  ChevronRight,
+  Filter,
+  Trash2,
+  User,
 } from 'lucide-react';
 import { useGigMe } from '../context/GigMeContext';
-import { formatVnd } from '../types';
-import { BlockchainProofModal } from '../components/BlockchainProofModal';
-import { StudentEloModal } from '../components/StudentEloModal';
+import { formatVnd, ChatMessageEntity, UserEntity } from '../types';
+import { generateSynthesizedVoiceWav, playSynthesizedVoiceTone } from '../utils/audio';
 
 interface ChatSupportScreenProps {
   onBack: () => void;
 }
 
+interface MessengerContact {
+  id: string;
+  name: string;
+  role: 'CLIENT' | 'WORKER';
+  roleLabel: string;
+  school: string;
+  avatarBg: string;
+  isOnline: boolean;
+  lastActiveText: string;
+  specialtyOrNeed: string;
+  associatedGig?: {
+    id: string;
+    title: string;
+    price: number;
+    status: string;
+  };
+}
+
 export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) => {
   const {
-    currentSelectedGig,
-    currentChatMessages,
     currentUser,
     roleMode,
-    selectGig,
-    filteredGigs,
+    allChats,
     rawGigs,
     sendChat,
-    submitProofOfWork,
-    releaseEscrowPayout,
-    fileDispute,
     startVoipCall,
+    selectGig,
+    showNotification,
   } = useGigMe();
 
+  // Search & Filters
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeFilterTab, setActiveFilterTab] = useState<'ALL' | 'CLIENTS' | 'WORKERS' | 'ONLINE' | 'AI'>('ALL');
+  
+  // Selected conversation: contact ID or 'AI_ASSISTANT'
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
+
+  // Message input state
   const [messageInput, setMessageInput] = useState('');
-  const [showProofModal, setShowProofModal] = useState(false);
-  const [showBlockchainModal, setShowBlockchainModal] = useState(false);
-  const [showEloModal, setShowEloModal] = useState(false);
-  const [proofNote, setProofNote] = useState('Đã hoàn thành đầy đủ yêu cầu bài tập và video preview.');
-  const [isWatermarked, setIsWatermarked] = useState(true);
-
-  // Escrow Release PIN & Tip Modal
-  const [showReleaseModal, setShowReleaseModal] = useState(false);
-  const [pinInput, setPinInput] = useState('123456');
-  const [selectedTip, setSelectedTip] = useState(10000);
-  const [useBiometrics, setUseBiometrics] = useState(false);
-
-  // Dispute Modal
-  const [showDisputeModal, setShowDisputeModal] = useState(false);
-  const [disputeReason, setDisputeReason] = useState(
-    'Người làm không phản hồi hoặc chất lượng không đúng thỏa thuận.'
-  );
-
-  // Multimedia Attachment State
   const [pendingImage, setPendingImage] = useState<string | null>(null);
   const [pendingVideo, setPendingVideo] = useState<{ url: string; name: string } | null>(null);
   const [previewZoomImage, setPreviewZoomImage] = useState<string | null>(null);
+  const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
+  const [showContactInfoModal, setShowContactInfoModal] = useState(false);
+  const [showNewChatModal, setShowNewChatModal] = useState(false);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
 
-  // Voice Note Recording State
+  // Voice recording state
   const [isRecordingVoice, setIsRecordingVoice] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingTimerRef = useRef<any>(null);
+  const recordingDurationRef = useRef<number>(0);
 
-  // Audio Playback Tracking State (Playing audio ID)
+  // Audio Playback
   const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
   const activeAudioRef = useRef<HTMLAudioElement | null>(null);
+  const synthesizedAudioStopRef = useRef<(() => void) | null>(null);
 
+  // File input refs
   const fileInputImageRef = useRef<HTMLInputElement | null>(null);
   const fileInputCameraRef = useRef<HTMLInputElement | null>(null);
-  const fileInputVideoRef = useRef<HTMLInputElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
-  // Inbox & 24/7 AI Assistant state
-  const [inboxSearch, setInboxSearch] = useState('');
-  const [inboxTab, setInboxTab] = useState<'ALL' | 'ACTIVE' | 'AI_SUPPORT'>('ALL');
-  const [isGigCardExpanded, setIsGigCardExpanded] = useState(true);
-  const [isAiChatActive, setIsAiChatActive] = useState(false);
-  const [aiInput, setAiInput] = useState('');
+  // AI Assistant Chat Messages & Loading
+  const [isAiTyping, setIsAiTyping] = useState(false);
   const [aiChatMessages, setAiChatMessages] = useState<Array<{ id: string; sender: 'USER' | 'AI'; text: string; time: string }>>([
     {
       id: 'ai_welcome',
       sender: 'AI',
-      text: 'Xin chào! Mình là Trợ lý AI GigMe 24/7. Mình luôn sẵn sàng hỗ trợ giải đáp về tiền cọc bảo chứng Smart Escrow, quy trình rút tiền Napas 247, và giải quyết tranh chấp. Bạn cần hỗ trợ gì nè?',
+      text: 'Xin chào bạn! Mình là Trợ lý AI GigMe 24/7 (powered by Gemini). Mình luôn sẵn sàng giải đáp về ký quỹ Smart Escrow, rút tiền Napas 247 tức thì, và hỗ trợ liên hệ giữa người thuê & người làm.',
       time: 'Trực tuyến',
     },
   ]);
 
-  const gig = currentSelectedGig;
-  const isClient = roleMode === 'CLIENT';
+  // Build Campus Contacts Directory (Hirers & Freelancers from Gigs and Campus Network)
+  const campusContacts: MessengerContact[] = useMemo(() => {
+    const list: MessengerContact[] = [
+      {
+        id: 'contact_client_hoangminh',
+        name: 'Hoàng Minh',
+        role: 'CLIENT',
+        roleLabel: 'Người thuê',
+        school: 'ĐH Bách Khoa Hà Nội',
+        avatarBg: 'from-blue-600 to-cyan-500',
+        isOnline: true,
+        lastActiveText: 'Đang hoạt động',
+        specialtyOrNeed: 'Cần hỗ trợ debug bài tập Python & thuật toán',
+      },
+      {
+        id: 'contact_worker_thanhtruc',
+        name: 'Thanh Trúc',
+        role: 'WORKER',
+        roleLabel: 'Người làm',
+        school: 'ĐHQG TP.HCM (KTX Khu B)',
+        avatarBg: 'from-emerald-600 to-teal-500',
+        isOnline: true,
+        lastActiveText: 'Đang hoạt động',
+        specialtyOrNeed: 'Chuyên chạy vặt KTX, giao nhận đồ giặt & mua cơm',
+      },
+      {
+        id: 'contact_worker_leduy',
+        name: 'Lê Duy',
+        role: 'WORKER',
+        roleLabel: 'Người làm IT',
+        school: 'ĐH Bách Khoa Đà Nẵng',
+        avatarBg: 'from-purple-600 to-indigo-500',
+        isOnline: false,
+        lastActiveText: 'Hoạt động 15 phút trước',
+        specialtyOrNeed: 'Thiết kế Slide Canva, Figma, lập trình React & Node',
+      },
+      {
+        id: 'contact_client_myuyen',
+        name: 'Vũ Hoàng My',
+        role: 'CLIENT',
+        roleLabel: 'Người thuê',
+        school: 'ĐH Kinh Tế TP.HCM (UEH)',
+        avatarBg: 'from-amber-600 to-orange-500',
+        isOnline: true,
+        lastActiveText: 'Đang hoạt động',
+        specialtyOrNeed: 'Tìm bạn hỗ trợ khảo sát thị trường & thu thập dữ liệu',
+      },
+      {
+        id: 'contact_worker_giahuy',
+        name: 'Phạm Gia Huy',
+        role: 'WORKER',
+        roleLabel: 'Người làm',
+        school: 'ĐH Công Nghệ Thông Tin (UIT)',
+        avatarBg: 'from-cyan-600 to-blue-500',
+        isOnline: true,
+        lastActiveText: 'Đang hoạt động',
+        specialtyOrNeed: 'Gia sư Lập trình C++, Cấu trúc dữ liệu & Giải thuật',
+      },
+      {
+        id: 'contact_client_quocbao',
+        name: 'Đặng Quốc Bảo',
+        role: 'CLIENT',
+        roleLabel: 'Người thuê',
+        school: 'ĐH Quốc Tế (IU)',
+        avatarBg: 'from-rose-600 to-pink-500',
+        isOnline: false,
+        lastActiveText: 'Hoạt động 1 giờ trước',
+        specialtyOrNeed: 'Cần tìm gia sư luyện thi IELTS Speaking 6.5+',
+      },
+    ];
 
-  // Scroll to bottom on new messages
+    // Merge in contacts from real gigs in context
+    if (rawGigs && rawGigs.length > 0) {
+      rawGigs.forEach((gig) => {
+        // Hirer contact from gig
+        if (gig.clientId && gig.clientId !== currentUser?.id) {
+          const existing = list.find((c) => c.id === gig.clientId);
+          if (!existing) {
+            list.unshift({
+              id: gig.clientId,
+              name: gig.clientName || 'Người thuê việc',
+              role: 'CLIENT',
+              roleLabel: 'Người thuê',
+              school: gig.locationName?.includes('Hà Nội') ? 'ĐH Bách Khoa HN' : 'ĐHQG TP.HCM',
+              avatarBg: 'from-blue-600 to-indigo-600',
+              isOnline: true,
+              lastActiveText: 'Đang online',
+              specialtyOrNeed: `Đơn: ${gig.title}`,
+              associatedGig: {
+                id: gig.id,
+                title: gig.title,
+                price: gig.price,
+                status: gig.status,
+              },
+            });
+          } else if (!existing.associatedGig) {
+            existing.associatedGig = {
+              id: gig.id,
+              title: gig.title,
+              price: gig.price,
+              status: gig.status,
+            };
+          }
+        }
+
+        // Freelancer contact from gig
+        if (gig.freelancerId && gig.freelancerId !== currentUser?.id) {
+          const existing = list.find((c) => c.id === gig.freelancerId);
+          if (!existing) {
+            list.unshift({
+              id: gig.freelancerId,
+              name: gig.freelancerName || 'Người làm việc',
+              role: 'WORKER',
+              roleLabel: 'Người làm',
+              school: 'Sinh viên Campus',
+              avatarBg: 'from-emerald-600 to-cyan-600',
+              isOnline: true,
+              lastActiveText: 'Đang online',
+              specialtyOrNeed: `Đang làm: ${gig.title}`,
+              associatedGig: {
+                id: gig.id,
+                title: gig.title,
+                price: gig.price,
+                status: gig.status,
+              },
+            });
+          } else if (!existing.associatedGig) {
+            existing.associatedGig = {
+              id: gig.id,
+              title: gig.title,
+              price: gig.price,
+              status: gig.status,
+            };
+          }
+        }
+      });
+    }
+
+    return list;
+  }, [rawGigs, currentUser]);
+
+  // Active contact details
+  const activeContact = useMemo(() => {
+    if (!activeConversationId) return null;
+    return campusContacts.find((c) => c.id === activeConversationId) || null;
+  }, [activeConversationId, campusContacts]);
+
+  // Messages for active conversation
+  const currentConversationMessages = useMemo(() => {
+    if (!activeConversationId) return [];
+    // Filter messages for this contact (either gigId matching contact or partnerId matching)
+    return (allChats || []).filter((msg) => {
+      const gigIdMatch = activeContact?.associatedGig && msg.gigId === activeContact.associatedGig.id;
+      const threadMatch = msg.threadId === activeConversationId || msg.gigId === activeConversationId;
+      const partnerMatch = msg.partnerId === activeConversationId || (msg.senderId === activeConversationId);
+      return gigIdMatch || threadMatch || partnerMatch;
+    });
+  }, [allChats, activeConversationId, activeContact]);
+
+  // Auto-scroll on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [currentChatMessages]);
+  }, [currentConversationMessages, aiChatMessages, isAiTyping]);
 
-  // Clean up audio on unmount
+  // Clean audio on unmount
   useEffect(() => {
     return () => {
       if (activeAudioRef.current) {
         activeAudioRef.current.pause();
         activeAudioRef.current = null;
       }
+      if (synthesizedAudioStopRef.current) {
+        synthesizedAudioStopRef.current();
+        synthesizedAudioStopRef.current = null;
+      }
       if (recordingTimerRef.current) {
         clearInterval(recordingTimerRef.current);
+      }
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+        try {
+          mediaRecorderRef.current.stop();
+        } catch {
+          // ignore
+        }
       }
     };
   }, []);
 
+  // Filtered contacts list
+  const filteredContacts = useMemo(() => {
+    return campusContacts.filter((contact) => {
+      // Search filter
+      const matchesSearch =
+        !searchQuery.trim() ||
+        contact.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        contact.school.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        contact.specialtyOrNeed.toLowerCase().includes(searchQuery.toLowerCase());
+
+      if (!matchesSearch) return false;
+
+      // Tab filter
+      if (activeFilterTab === 'CLIENTS') return contact.role === 'CLIENT';
+      if (activeFilterTab === 'WORKERS') return contact.role === 'WORKER';
+      if (activeFilterTab === 'ONLINE') return contact.isOnline;
+      if (activeFilterTab === 'AI') return false; // AI has its own card
+
+      return true;
+    });
+  }, [campusContacts, searchQuery, activeFilterTab]);
+
+  // Latest message preview for a contact
+  const getLastMessageForContact = (contactId: string, associatedGigId?: string) => {
+    const relevant = (allChats || []).filter(
+      (m) =>
+        m.threadId === contactId ||
+        m.gigId === contactId ||
+        m.partnerId === contactId ||
+        (associatedGigId && m.gigId === associatedGigId)
+    );
+    if (relevant.length === 0) return null;
+    return relevant[relevant.length - 1];
+  };
+
+  // SEND MESSAGE (MESSENGER 1-1)
   const handleSendMessage = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+    if (!activeContact) return;
+
+    const targetThread = activeContact.associatedGig?.id || activeContact.id;
 
     if (pendingImage) {
-      sendChat(messageInput.trim() || 'Đã gửi một hình ảnh', 'IMAGE', pendingImage, 0, 'image.jpg');
+      sendChat(
+        messageInput.trim() || 'Đã gửi một hình ảnh',
+        'IMAGE',
+        pendingImage,
+        0,
+        'image.jpg',
+        targetThread,
+        activeContact.id,
+        activeContact.name
+      );
       setPendingImage(null);
       setMessageInput('');
       return;
@@ -145,11 +365,14 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
 
     if (pendingVideo) {
       sendChat(
-        messageInput.trim() || `Đã gửi video clip: ${pendingVideo.name}`,
+        messageInput.trim() || `Đã gửi video: ${pendingVideo.name}`,
         'VIDEO',
         pendingVideo.url,
         0,
-        pendingVideo.name
+        pendingVideo.name,
+        targetThread,
+        activeContact.id,
+        activeContact.name
       );
       setPendingVideo(null);
       setMessageInput('');
@@ -157,16 +380,102 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
     }
 
     if (!messageInput.trim()) return;
-    sendChat(messageInput.trim());
+
+    sendChat(
+      messageInput.trim(),
+      'NONE',
+      null,
+      0,
+      undefined,
+      targetThread,
+      activeContact.id,
+      activeContact.name
+    );
     setMessageInput('');
   };
 
-  // Quick Preset Messages
-  const handleSendQuickChip = (text: string) => {
-    sendChat(text);
+  // Quick Thumbs-up (Messenger classic 👍)
+  const handleSendThumbsUp = () => {
+    if (!activeContact) return;
+    const targetThread = activeContact.associatedGig?.id || activeContact.id;
+    sendChat(
+      '👍',
+      'NONE',
+      null,
+      0,
+      undefined,
+      targetThread,
+      activeContact.id,
+      activeContact.name
+    );
   };
 
-  // Image File Picker Handler
+  // Preset Quick Replies
+  const handleSendQuickReply = (text: string) => {
+    if (!activeContact) return;
+    const targetThread = activeContact.associatedGig?.id || activeContact.id;
+    sendChat(
+      text,
+      'NONE',
+      null,
+      0,
+      undefined,
+      targetThread,
+      activeContact.id,
+      activeContact.name
+    );
+  };
+
+  // Send AI Message via Gemini API
+  const handleSendAiMessage = async (textToSend?: string) => {
+    const query = (textToSend || messageInput).trim();
+    if (!query) return;
+
+    const userMsg = {
+      id: `ai_u_${Date.now()}`,
+      sender: 'USER' as const,
+      text: query,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    };
+
+    setAiChatMessages((prev) => [...prev, userMsg]);
+    setMessageInput('');
+    setIsAiTyping(true);
+
+    try {
+      const response = await fetch('/api/gemini/chat-assistant', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: query }),
+      });
+      const data = await response.json();
+      const reply = data.reply || 'Hệ thống Smart Escrow của GigMe luôn bảo vệ 100% quyền lợi của bạn!';
+
+      setAiChatMessages((prev) => [
+        ...prev,
+        {
+          id: `ai_r_${Date.now()}`,
+          sender: 'AI' as const,
+          text: reply,
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        },
+      ]);
+    } catch {
+      setAiChatMessages((prev) => [
+        ...prev,
+        {
+          id: `ai_r_${Date.now()}`,
+          sender: 'AI' as const,
+          text: '🛡️ Smart Escrow GigMe: Tiền của người thuê được khóa an toàn. Người làm hoàn tất công việc thì người thuê mới bấm giải ngân. Rút tiền Napas 247 tức thì 0đ phí!',
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        },
+      ]);
+    } finally {
+      setIsAiTyping(false);
+    }
+  };
+
+  // Image File Picker
   const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -175,87 +484,125 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
     reader.onload = () => {
       if (typeof reader.result === 'string') {
         setPendingImage(reader.result);
+        setShowAttachmentMenu(false);
       }
     };
     reader.readAsDataURL(file);
     e.target.value = '';
   };
 
-  // Video File Picker Handler
-  const handleVideoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        setPendingVideo({
-          url: reader.result,
-          name: file.name,
-        });
-      }
-    };
-    reader.readAsDataURL(file);
-    e.target.value = '';
-  };
-
-  // Voice Note Recording (Microphone)
+  // Voice Note Recording (Support both hardware microphone & guaranteed playable synthesized WAV)
   const startVoiceRecording = async () => {
+    if (isRecordingVoice) return;
+    if (!activeContact) {
+      showNotification('Nhắc nhở', 'Vui lòng chọn một cuộc trò chuyện để gửi tin nhắn thoại!');
+      return;
+    }
+
+    audioChunksRef.current = [];
+    recordingDurationRef.current = 0;
+    setRecordingDuration(0);
+
+    // Try hardware microphone
     try {
-      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      if (navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function') {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        const mediaRecorder = new MediaRecorder(stream);
+
+        let mimeType = '';
+        if (typeof MediaRecorder !== 'undefined') {
+          if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+            mimeType = 'audio/webm;codecs=opus';
+          } else if (MediaRecorder.isTypeSupported('audio/webm')) {
+            mimeType = 'audio/webm';
+          } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+            mimeType = 'audio/mp4';
+          } else if (MediaRecorder.isTypeSupported('audio/aac')) {
+            mimeType = 'audio/aac';
+          }
+        }
+
+        const mediaRecorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
         mediaRecorderRef.current = mediaRecorder;
-        audioChunksRef.current = [];
 
         mediaRecorder.ondataavailable = (event) => {
-          if (event.data.size > 0) {
+          if (event.data && event.data.size > 0) {
             audioChunksRef.current.push(event.data);
           }
         };
 
         mediaRecorder.onstop = () => {
-          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-          const reader = new FileReader();
-          reader.onload = () => {
-            if (typeof reader.result === 'string') {
-              sendChat(
-                '🎙️ Tin nhắn thoại (Voice Note)',
-                'VOICE',
-                reader.result,
-                recordingDuration || 5,
-                'voice_note.webm'
-              );
-            }
-          };
-          reader.readAsDataURL(audioBlob);
+          const actualDuration = Math.max(1, recordingDurationRef.current || 2);
+          const chosenMime = mediaRecorder.mimeType || mimeType || 'audio/webm';
+          const audioBlob = new Blob(audioChunksRef.current, { type: chosenMime });
+
+          if (audioBlob.size > 100) {
+            const reader = new FileReader();
+            reader.onload = () => {
+              if (typeof reader.result === 'string' && activeContact) {
+                const targetThread = activeContact.associatedGig?.id || activeContact.id;
+                sendChat(
+                  `🎙️ Tin nhắn thoại (${actualDuration}s)`,
+                  'VOICE',
+                  reader.result,
+                  actualDuration,
+                  chosenMime.includes('mp4') ? 'voice_note.m4a' : 'voice_note.webm',
+                  targetThread,
+                  activeContact.id,
+                  activeContact.name
+                );
+                showNotification('Tin nhắn thoại 🎙️', `Đã gửi bản ghi âm (${actualDuration} giây)!`);
+              }
+            };
+            reader.readAsDataURL(audioBlob);
+          } else {
+            fallbackSendSynthesizedVoice(actualDuration);
+          }
+
           stream.getTracks().forEach((track) => track.stop());
+          mediaRecorderRef.current = null;
         };
 
-        mediaRecorder.start();
-      } else {
-        // Fallback for browsers without direct getUserMedia in iframe
-        simulateVoiceRecording();
+        mediaRecorder.start(250);
+        setIsRecordingVoice(true);
+
+        recordingTimerRef.current = setInterval(() => {
+          recordingDurationRef.current += 1;
+          setRecordingDuration(recordingDurationRef.current);
+        }, 1000);
         return;
       }
-
-      setIsRecordingVoice(true);
-      setRecordingDuration(0);
-      recordingTimerRef.current = setInterval(() => {
-        setRecordingDuration((prev) => prev + 1);
-      }, 1000);
-    } catch {
-      // Permission denied or iframe restrictions fallback
-      simulateVoiceRecording();
+    } catch (micErr) {
+      console.warn('Microphone access unavailable or denied, falling back to simulated voice recording:', micErr);
     }
+
+    // Fallback: Start voice recording timer
+    setIsRecordingVoice(true);
+    recordingTimerRef.current = setInterval(() => {
+      recordingDurationRef.current += 1;
+      setRecordingDuration(recordingDurationRef.current);
+    }, 1000);
   };
 
-  const simulateVoiceRecording = () => {
-    setIsRecordingVoice(true);
+  const cancelVoiceRecording = () => {
+    if (mediaRecorderRef.current) {
+      try {
+        if (mediaRecorderRef.current.state === 'recording') {
+          mediaRecorderRef.current.onstop = null;
+          mediaRecorderRef.current.stop();
+        }
+      } catch {
+        // ignore
+      }
+      mediaRecorderRef.current = null;
+    }
+    if (recordingTimerRef.current) {
+      clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
+    setIsRecordingVoice(false);
     setRecordingDuration(0);
-    recordingTimerRef.current = setInterval(() => {
-      setRecordingDuration((prev) => prev + 1);
-    }, 1000);
+    recordingDurationRef.current = 0;
+    showNotification('Đã hủy', 'Đã hủy đoạn ghi âm.');
   };
 
   const stopVoiceRecording = () => {
@@ -263,42 +610,54 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
       clearInterval(recordingTimerRef.current);
       recordingTimerRef.current = null;
     }
+    const finalDuration = Math.max(1, recordingDurationRef.current);
+    setIsRecordingVoice(false);
 
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-      mediaRecorderRef.current.stop();
-    } else {
-      // Fallback simulated voice note with real audible sine audio wave
-      const duration = Math.max(3, recordingDuration);
-      sendChat(
-        '🎙️ Tin nhắn thoại (Voice Note)',
-        'VOICE',
-        'https://actions.google.com/sounds/v1/conversations/human_vocal_response.ogg',
-        duration,
-        `voice_${duration}s.mp3`
-      );
+      try {
+        if (typeof mediaRecorderRef.current.requestData === 'function') {
+          mediaRecorderRef.current.requestData();
+        }
+        mediaRecorderRef.current.stop();
+      } catch (err) {
+        console.warn('Error stopping MediaRecorder, using synthesized fallback:', err);
+        fallbackSendSynthesizedVoice(finalDuration);
+      }
+      return;
     }
 
-    setIsRecordingVoice(false);
-    setRecordingDuration(0);
+    fallbackSendSynthesizedVoice(finalDuration);
   };
 
-  const cancelVoiceRecording = () => {
-    if (recordingTimerRef.current) {
-      clearInterval(recordingTimerRef.current);
-      recordingTimerRef.current = null;
-    }
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-      mediaRecorderRef.current.stop();
-    }
-    setIsRecordingVoice(false);
-    setRecordingDuration(0);
+  const fallbackSendSynthesizedVoice = (duration: number) => {
+    if (!activeContact) return;
+    const actualDuration = Math.max(1, duration || 3);
+    const audioDataUrl = generateSynthesizedVoiceWav(actualDuration);
+    const targetThread = activeContact.associatedGig?.id || activeContact.id;
+
+    sendChat(
+      `🎙️ Tin nhắn thoại (${actualDuration}s)`,
+      'VOICE',
+      audioDataUrl,
+      actualDuration,
+      'voice_note.wav',
+      targetThread,
+      activeContact.id,
+      activeContact.name
+    );
+    showNotification('Tin nhắn thoại 🎙️', `Đã gửi bản ghi âm (${actualDuration} giây)!`);
   };
 
-  // Play / Pause Voice Audio
-  const togglePlayAudio = (msgId: string, audioSrc?: string | null) => {
+  // Play / Pause Voice Note
+  const handleTogglePlayAudio = (msgId: string, audioDataUrl?: string | null, duration = 3) => {
     if (playingAudioId === msgId) {
       if (activeAudioRef.current) {
         activeAudioRef.current.pause();
+        activeAudioRef.current = null;
+      }
+      if (synthesizedAudioStopRef.current) {
+        synthesizedAudioStopRef.current();
+        synthesizedAudioStopRef.current = null;
       }
       setPlayingAudioId(null);
       return;
@@ -308,146 +667,118 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
       activeAudioRef.current.pause();
       activeAudioRef.current = null;
     }
+    if (synthesizedAudioStopRef.current) {
+      synthesizedAudioStopRef.current();
+      synthesizedAudioStopRef.current = null;
+    }
 
-    const src =
-      audioSrc || 'https://actions.google.com/sounds/v1/conversations/human_vocal_response.ogg';
-    const audio = new Audio(src);
-    activeAudioRef.current = audio;
     setPlayingAudioId(msgId);
 
-    audio.onended = () => {
-      setPlayingAudioId(null);
-    };
-    audio.onerror = () => {
-      setPlayingAudioId(null);
-    };
-    audio.play().catch(() => {
-      setPlayingAudioId(null);
-    });
-  };
+    const isStubOrInvalid =
+      !audioDataUrl ||
+      audioDataUrl.length < 100 ||
+      audioDataUrl.includes('UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=');
 
-  const handleSubmitProof = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!gig) return;
-    submitProofOfWork(gig.id, proofNote, isWatermarked);
-    setShowProofModal(false);
-  };
+    if (isStubOrInvalid) {
+      synthesizedAudioStopRef.current = playSynthesizedVoiceTone(duration || 3, () => {
+        setPlayingAudioId(null);
+        synthesizedAudioStopRef.current = null;
+      });
+      return;
+    }
 
-  const handleReleaseEscrow = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!gig) return;
-    const ok = releaseEscrowPayout(gig.id, pinInput, selectedTip, useBiometrics);
-    if (ok) {
-      setShowReleaseModal(false);
-      setShowEloModal(true); // Open ELO rating modal on successful payout
+    try {
+      const audio = new Audio(audioDataUrl);
+      activeAudioRef.current = audio;
+
+      audio.onended = () => {
+        setPlayingAudioId(null);
+        activeAudioRef.current = null;
+      };
+
+      audio.onerror = () => {
+        synthesizedAudioStopRef.current = playSynthesizedVoiceTone(duration || 3, () => {
+          setPlayingAudioId(null);
+          synthesizedAudioStopRef.current = null;
+        });
+      };
+
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(() => {
+          synthesizedAudioStopRef.current = playSynthesizedVoiceTone(duration || 3, () => {
+            setPlayingAudioId(null);
+            synthesizedAudioStopRef.current = null;
+          });
+        });
+      }
+    } catch {
+      synthesizedAudioStopRef.current = playSynthesizedVoiceTone(duration || 3, () => {
+        setPlayingAudioId(null);
+        synthesizedAudioStopRef.current = null;
+      });
     }
   };
 
-  const handleDisputeSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!gig) return;
-    fileDispute(gig.id, disputeReason);
-    setShowDisputeModal(false);
-  };
-
-  const handleStartVoip = (isVideo = false) => {
-    if (!gig) return;
-    const partnerName = isClient ? gig.freelancerName || 'Freelancer Nhận Kèo' : gig.clientName;
-    startVoipCall(partnerName, isClient ? 'Người Làm' : 'Người Thuê', gig.id);
-  };
-
-  const handleSendAiMessage = (questionText?: string) => {
-    const query = (questionText || aiInput).trim();
-    if (!query) return;
-    const userMsg = {
-      id: `ai_u_${Date.now()}`,
-      sender: 'USER' as const,
-      text: query,
-      time: 'Vừa xong',
-    };
-    setAiChatMessages((prev) => [...prev, userMsg]);
-    setAiInput('');
-
-    setTimeout(() => {
-      let reply =
-        'Cảm ơn câu hỏi của bạn! Hệ thống bảo vệ Smart Escrow của GigMe luôn hoạt động 24/7 để đảm bảo quyền lợi đôi bên.';
-      const q = query.toLowerCase();
-      if (q.includes('escrow') || q.includes('cọc') || q.includes('tiền')) {
-        reply =
-          '🛡️ Smart Escrow bảo vệ tiền 100%: Khi nhận việc, tiền của Người thuê được khóa an toàn. Freelancer hoàn tất bàn giao bằng chứng nghiệm thu thì Người thuê mới giải ngân. Hoàn toàn không sợ bùng cọc hay bùng tiền!';
-      } else if (q.includes('rút') || q.includes('nạp') || q.includes('napas') || q.includes('ngân hàng')) {
-        reply =
-          '⚡ Rút tiền về ngân hàng qua Napas 247 được thực hiện tự động và hoàn toàn miễn phí (0đ). Tiền sẽ về tài khoản của bạn sau 1-3 giây!';
-      } else if (q.includes('elo') || q.includes('sao') || q.includes('uy tín') || q.includes('đánh giá')) {
-        reply =
-          '🌟 Mỗi đơn việc hoàn thành đánh giá 5 sao sẽ cộng ngay +25 ELO. Đạt chuỗi 3 đơn liên tiếp sẽ mở khóa huy hiệu Chuỗi Thắng Vàng và ưu tiên hiển thị kèo VIP!';
-      } else if (q.includes('khiếu nại') || q.includes('tranh chấp') || q.includes('bùng')) {
-        reply =
-          '⚠️ Nếu gặp sự cố, bạn chỉ cần bấm vào nút "Khiếu nại" (biểu tượng cảnh báo đỏ) ở góc trên khung chat. Trọng tài GigMe Campus sẽ vào xử lý và đối soát bằng chứng trong vòng 15 phút.';
-      } else if (q.includes('chào') || q.includes('hi') || q.includes('hello')) {
-        reply =
-          'Chào bạn nha! Mình là Trợ lý AI Sinh Viên. Chúc bạn có một ngày làm việc và học tập tràn đầy năng lượng tại Campus!';
-      }
-      setAiChatMessages((prev) => [
-        ...prev,
-        {
-          id: `ai_r_${Date.now()}`,
-          sender: 'AI' as const,
-          text: reply,
-          time: 'Vừa xong',
-        },
-      ]);
-    }, 400);
-  };
-
-  // 1. VIEW 24/7 AI CAMPUS ASSISTANT
-  if (isAiChatActive) {
+  // ==========================================
+  // VIEW 1: 24/7 AI CAMPUS ASSISTANT CHAT ROOM
+  // ==========================================
+  if (activeConversationId === 'AI_ASSISTANT') {
     return (
       <div className="max-w-2xl mx-auto px-2 sm:px-4 py-3 flex flex-col h-[calc(100vh-4.5rem)] pb-20">
-        {/* Header */}
+        {/* Messenger Header for AI */}
         <div className="flex items-center justify-between pb-3 border-b border-slate-800 shrink-0">
-          <div className="flex items-center space-x-2.5">
+          <div className="flex items-center space-x-3">
             <button
-              onClick={() => setIsAiChatActive(false)}
+              onClick={() => setActiveConversationId(null)}
               className="p-2 rounded-xl bg-[#131E30] hover:bg-[#1A2840] text-slate-300 transition"
+              title="Quay lại danh sách chat"
             >
-              <ArrowLeft className="w-4 h-4" />
+              <ArrowLeft className="w-5 h-5 text-[#00E5FF]" />
             </button>
-            <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white shadow-md">
-              <Bot className="w-5 h-5" />
+            <div className="relative">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#00E5FF] to-blue-600 flex items-center justify-center text-black font-extrabold shadow-md">
+                <Bot className="w-5 h-5" />
+              </div>
+              <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-400 border-2 border-[#081022] animate-pulse" />
             </div>
             <div>
               <div className="flex items-center space-x-1.5">
                 <h3 className="font-extrabold text-sm text-white">Trợ Lý AI GigMe 24/7</h3>
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="px-1.5 py-0.5 rounded bg-cyan-500/20 text-[#00E5FF] text-[9px] font-bold">
+                  Gemini 2.5
+                </span>
               </div>
-              <p className="text-[11px] text-slate-400">Hỗ trợ quy chế Campus, Escrow & Kèo việc</p>
+              <p className="text-[11px] text-emerald-400 font-medium">Đang trực tuyến • Sẵn sàng hỗ trợ 24/7</p>
             </div>
           </div>
-          <span className="px-2.5 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-[10px] font-bold text-[#00E5FF]">
-            Trực Tuyến
-          </span>
+          <button
+            onClick={() => setActiveConversationId(null)}
+            className="text-xs text-slate-400 hover:text-white px-2.5 py-1 rounded-lg bg-slate-800/80 transition"
+          >
+            Đóng
+          </button>
         </div>
 
         {/* Quick FAQ Suggestion Chips */}
         <div className="flex items-center gap-1.5 overflow-x-auto py-2.5 no-scrollbar shrink-0 text-[11px]">
           {[
             '🛡️ Smart Escrow hoạt động ra sao?',
-            '⚡ Rút tiền Napas 247 bao lâu có?',
-            '⭐ Làm sao để tăng điểm ELO nhanh?',
-            '⚠️ Khiếu nại đối tác bùng hẹn?',
+            '⚡ Rút tiền Napas 247 bao lâu?',
+            '⭐ Mẹo tăng điểm ELO sinh viên?',
+            '⚠️ Khiếu nại khi đối tác trễ hẹn?',
           ].map((chip, idx) => (
             <button
               key={idx}
               onClick={() => handleSendAiMessage(chip)}
-              className="px-3 py-1.5 rounded-full bg-[#131E30] hover:bg-[#1A2942] border border-cyan-500/30 text-cyan-300 whitespace-nowrap transition text-xs font-semibold"
+              className="px-3 py-1.5 rounded-full bg-[#131E30] hover:bg-[#1A2942] border border-cyan-500/30 text-cyan-300 whitespace-nowrap transition text-xs font-semibold shrink-0"
             >
               {chip}
             </button>
           ))}
         </div>
 
-        {/* Messages Log */}
+        {/* Message Log */}
         <div className="flex-1 overflow-y-auto py-3 space-y-3 pr-1">
           {aiChatMessages.map((msg) => {
             const isMe = msg.sender === 'USER';
@@ -455,15 +786,15 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
               <div key={msg.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
                 <div className="flex items-center space-x-1.5 mb-1 px-1">
                   <span className="text-[10px] text-slate-400 font-bold">
-                    {isMe ? currentUser?.name || 'Bạn' : 'GigMe Assistant AI'}
+                    {isMe ? currentUser?.name || 'Bạn' : 'Trợ lý AI GigMe'}
                   </span>
                   <span className="text-[9px] text-slate-500">{msg.time}</span>
                 </div>
                 <div
-                  className={`max-w-[85%] sm:max-w-md rounded-2xl p-3.5 text-xs leading-relaxed ${
+                  className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-xs leading-relaxed ${
                     isMe
-                      ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white rounded-br-none shadow-md'
-                      : 'bg-[#131E30] text-slate-200 border border-slate-800 rounded-bl-none shadow-sm'
+                      ? 'bg-gradient-to-r from-[#00E5FF] to-blue-600 text-black font-semibold rounded-tr-none shadow-md shadow-cyan-500/10'
+                      : 'bg-[#131E30] border border-slate-700/80 text-slate-200 rounded-tl-none shadow-sm'
                   }`}
                 >
                   {msg.text}
@@ -471,27 +802,35 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
               </div>
             );
           })}
+
+          {isAiTyping && (
+            <div className="flex items-center space-x-2 text-slate-400 text-xs py-2 px-2">
+              <Bot className="w-4 h-4 text-cyan-400 animate-spin" />
+              <span className="animate-pulse">Trợ lý AI đang phản hồi...</span>
+            </div>
+          )}
+          <div ref={messagesEndRef} />
         </div>
 
-        {/* Input Bar */}
+        {/* AI Input Footer */}
         <form
           onSubmit={(e) => {
             e.preventDefault();
             handleSendAiMessage();
           }}
-          className="pt-2 flex items-center gap-2 shrink-0"
+          className="pt-2 border-t border-slate-800 shrink-0 flex items-center space-x-2"
         >
           <input
             type="text"
-            value={aiInput}
-            onChange={(e) => setAiInput(e.target.value)}
-            placeholder="Hỏi trợ lý về quyền lợi, rút tiền, cọc Escrow..."
-            className="flex-1 px-4 py-3 rounded-2xl bg-[#0F172A] border border-slate-700 text-white text-xs placeholder:text-slate-500 focus:border-[#00E5FF] transition"
+            value={messageInput}
+            onChange={(e) => setMessageInput(e.target.value)}
+            placeholder="Hỏi về tiền cọc, rút tiền Napas, mẹo nhận việc..."
+            className="flex-1 py-2.5 px-4 rounded-2xl bg-[#0F172A] border border-slate-800 text-white text-xs placeholder:text-slate-500 focus:border-[#00E5FF] transition outline-none"
           />
           <button
             type="submit"
-            disabled={!aiInput.trim()}
-            className="p-3 rounded-2xl bg-[#00E5FF] text-black hover:brightness-110 disabled:opacity-40 shadow-md transition"
+            disabled={!messageInput.trim() || isAiTyping}
+            className="p-2.5 rounded-2xl bg-[#00E5FF] hover:brightness-110 disabled:opacity-40 text-black font-bold transition shadow-md shadow-cyan-500/20 shrink-0"
           >
             <Send className="w-4 h-4" />
           </button>
@@ -500,709 +839,394 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
     );
   }
 
-  // 2. INBOX VIEW: LIST OF CONVERSATIONS & CHAT THREADS
-  if (!gig) {
-    const allAvailableGigs = filteredGigs.length > 0 ? filteredGigs : rawGigs;
-    const conversationList = allAvailableGigs.filter((g) => {
-      if (inboxTab === 'ACTIVE' && g.status !== 'IN_PROGRESS' && g.status !== 'SUBMITTED') {
-        return false;
-      }
-      if (!inboxSearch.trim()) return true;
-      const q = inboxSearch.toLowerCase();
-      return (
-        g.title.toLowerCase().includes(q) ||
-        g.clientName.toLowerCase().includes(q) ||
-        (g.freelancerName && g.freelancerName.toLowerCase().includes(q)) ||
-        g.locationName.toLowerCase().includes(q)
-      );
-    });
+  // ==========================================
+  // VIEW 2: 1-1 MESSENGER CHAT ROOM (NGƯỜI THUÊ & NGƯỜI LÀM)
+  // ==========================================
+  if (activeContact) {
+    const isPartnerOnline = activeContact.isOnline;
+    const associatedGig = activeContact.associatedGig;
 
     return (
-      <div className="max-w-2xl mx-auto px-3 sm:px-4 py-4 flex flex-col h-[calc(100vh-4.5rem)] pb-24 text-slate-900">
-        {/* Inbox Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-slate-800 shrink-0">
-          <div>
-            <h2 className="text-lg sm:text-xl font-extrabold flex items-center space-x-2">
-              <MessageCircle className="w-5 h-5 text-[#00E5FF]" />
-              <span>Hộp Thư Tin Nhắn & Bàn Giao</span>
-            </h2>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Kênh liên lạc trực tiếp & theo dõi Smart Escrow thời gian thực
-            </p>
-          </div>
-          <button
-            onClick={onBack}
-            className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition"
-          >
-            &larr; Khám phá
-          </button>
-        </div>
+      <div className="max-w-2xl mx-auto px-2 sm:px-4 py-2 flex flex-col h-[calc(100vh-4.5rem)] pb-20">
+        {/* MESSENGER TOP APP BAR */}
+        <div className="flex items-center justify-between pb-2.5 border-b border-slate-800 shrink-0">
+          <div className="flex items-center space-x-2.5 min-w-0">
+            <button
+              onClick={() => setActiveConversationId(null)}
+              className="p-2 rounded-xl bg-[#131E30] hover:bg-[#1A2840] text-slate-300 transition shrink-0"
+              title="Quay lại danh sách"
+            >
+              <ArrowLeft className="w-5 h-5 text-[#00E5FF]" />
+            </button>
 
-        {/* Search Bar */}
-        <div className="relative my-3 shrink-0">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
-          <input
-            type="text"
-            value={inboxSearch}
-            onChange={(e) => setInboxSearch(e.target.value)}
-            placeholder="Tìm kiếm bạn sinh viên, kèo việc, trường đại học..."
-            className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-[#0F172A] border border-slate-800 text-white text-xs placeholder:text-slate-500 focus:border-[#00E5FF] transition outline-none"
-          />
-        </div>
-
-        {/* Tab Filters */}
-        <div className="flex items-center space-x-2 pb-2 shrink-0">
-          <button
-            onClick={() => setInboxTab('ALL')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
-              inboxTab === 'ALL'
-                ? 'bg-[#00E5FF] text-black shadow-md shadow-cyan-500/20'
-                : 'bg-[#131E30] text-slate-300 hover:bg-[#1A2840]'
-            }`}
-          >
-            Tất cả ({conversationList.length + 1})
-          </button>
-          <button
-            onClick={() => setInboxTab('ACTIVE')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
-              inboxTab === 'ACTIVE'
-                ? 'bg-[#00E5FF] text-black shadow-md shadow-cyan-500/20'
-                : 'bg-[#131E30] text-slate-300 hover:bg-[#1A2840]'
-            }`}
-          >
-            Đang thực hiện / Bàn giao
-          </button>
-          <button
-            onClick={() => setIsAiChatActive(true)}
-            className="px-3 py-1.5 rounded-xl text-xs font-bold bg-cyan-500/10 text-[#00E5FF] border border-cyan-500/30 hover:bg-cyan-500/20 transition flex items-center space-x-1"
-          >
-            <Bot className="w-3.5 h-3.5" />
-            <span>Trợ lý AI 24/7</span>
-          </button>
-        </div>
-
-        {/* Conversations List */}
-        <div className="flex-1 overflow-y-auto space-y-2 pr-1 pt-1">
-          {/* PINNED: 24/7 AI Campus Assistant Thread */}
-          <div
-            onClick={() => setIsAiChatActive(true)}
-            className="p-3.5 rounded-2xl bg-gradient-to-r from-[#0F1D30] to-[#12233B] border border-cyan-500/30 hover:border-cyan-400/60 cursor-pointer transition shadow-md flex items-center justify-between space-x-3 group"
-          >
-            <div className="flex items-center space-x-3 min-w-0">
-              <div className="relative shrink-0">
-                <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-[#00E5FF] to-blue-600 flex items-center justify-center text-black font-extrabold shadow-md">
-                  <Bot className="w-6 h-6 text-black" />
-                </div>
-                <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-400 border-2 border-[#0F1D30] animate-pulse" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center space-x-2">
-                  <h4 className="font-extrabold text-sm text-white truncate group-hover:text-[#00E5FF] transition">
-                    Trợ Lý AI GigMe 24/7 (Campus Support)
-                  </h4>
-                  <span className="px-2 py-0.5 rounded-full bg-cyan-500/20 text-[#00E5FF] font-bold text-[9px] shrink-0">
-                    Official AI
-                  </span>
-                </div>
-                <p className="text-[11px] text-slate-300 truncate mt-0.5">
-                  Hỏi đáp quy chế cọc Smart Escrow, rút tiền Napas 247 & mẹo tăng ELO...
-                </p>
-              </div>
-            </div>
-            <span className="text-[10px] text-cyan-400 font-bold shrink-0">Trực tuyến</span>
-          </div>
-
-          {/* GIG CONVERSATIONS */}
-          {conversationList.length === 0 ? (
-            <div className="text-center py-16 text-slate-500 text-xs">
-              <MessageCircle className="w-10 h-10 mx-auto mb-2 text-slate-600" />
-              <p className="font-bold text-slate-400">Không tìm thấy cuộc trò chuyện nào phù hợp.</p>
-              <p className="text-[11px] text-slate-500 mt-1">
-                Hãy nhận một kèo việc từ màn hình Khám phá để mở kênh chat với đối tác!
-              </p>
-              <button
-                onClick={onBack}
-                className="mt-4 px-5 py-2 rounded-xl bg-[#00E5FF] text-black font-extrabold text-xs hover:brightness-110 transition shadow-lg shadow-cyan-500/20"
+            {/* Partner Avatar */}
+            <div className="relative shrink-0">
+              <div
+                className={`w-10 h-10 rounded-full bg-gradient-to-tr ${activeContact.avatarBg} flex items-center justify-center text-white font-extrabold text-sm shadow-md`}
               >
-                &larr; Khám Phá Kèo Việc Ngay
+                {activeContact.name.charAt(0).toUpperCase()}
+              </div>
+              {isPartnerOnline && (
+                <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-400 border-2 border-[#081022]" />
+              )}
+            </div>
+
+            {/* Partner Info */}
+            <div className="min-w-0">
+              <div className="flex items-center space-x-1.5 truncate">
+                <h3 className="font-extrabold text-sm text-white truncate">{activeContact.name}</h3>
+                <span
+                  className={`px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 ${
+                    activeContact.role === 'CLIENT'
+                      ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
+                      : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                  }`}
+                >
+                  {activeContact.roleLabel}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-400 truncate">
+                {isPartnerOnline ? (
+                  <span className="text-emerald-400 font-medium">Đang hoạt động</span>
+                ) : (
+                  activeContact.lastActiveText
+                )}{' '}
+                • {activeContact.school}
+              </p>
+            </div>
+          </div>
+
+          {/* Quick Communication Actions (VoIP Call & Info) */}
+          <div className="flex items-center space-x-1 shrink-0">
+            <button
+              onClick={() => startVoipCall(activeContact.name, activeContact.roleLabel, associatedGig?.id)}
+              className="p-2 rounded-xl bg-[#131E30] hover:bg-[#1A2942] text-cyan-300 transition"
+              title="Gọi thoại VoIP miễn phí qua mạng Campus"
+            >
+              <PhoneCall className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => startVoipCall(activeContact.name, `${activeContact.roleLabel} (Video)`, associatedGig?.id)}
+              className="p-2 rounded-xl bg-[#131E30] hover:bg-[#1A2942] text-cyan-300 transition"
+              title="Gọi video trực tuyến"
+            >
+              <Video className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setShowContactInfoModal(true)}
+              className="p-2 rounded-xl bg-[#131E30] hover:bg-[#1A2942] text-slate-400 hover:text-white transition"
+              title="Xem thông tin chi tiết"
+            >
+              <Info className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* DISMISSIBLE 1-LINE COLLABORATION STATUS (SUBTLE - NOT A TASK CARD) */}
+        {associatedGig && !bannerDismissed && (
+          <div className="my-2 px-3 py-1.5 rounded-xl bg-[#101B2E] border border-cyan-500/20 flex items-center justify-between text-xs text-slate-300 shrink-0">
+            <div className="flex items-center space-x-2 truncate">
+              <Briefcase className="w-3.5 h-3.5 text-[#00E5FF] shrink-0" />
+              <span className="truncate">
+                <span className="text-[#00E5FF] font-bold">Kèo chung:</span> {associatedGig.title} (
+                {formatVnd(associatedGig.price)})
+              </span>
+            </div>
+            <div className="flex items-center space-x-2 shrink-0 ml-2">
+              <button
+                onClick={() => {
+                  selectGig(associatedGig.id);
+                  showNotification('Thông tin việc làm', `Đã chọn kèo "${associatedGig.title}"`);
+                }}
+                className="text-[11px] text-[#00E5FF] hover:underline font-bold"
+              >
+                Chi tiết
+              </button>
+              <button
+                onClick={() => setBannerDismissed(true)}
+                className="text-slate-500 hover:text-slate-300 p-0.5"
+                title="Ẩn thông báo này"
+              >
+                <X className="w-3 h-3" />
               </button>
             </div>
+          </div>
+        )}
+
+        {/* QUICK REPLIES BAR (MESSENGER CHIPS) */}
+        <div className="flex items-center gap-1.5 overflow-x-auto py-2 no-scrollbar shrink-0 text-[11px]">
+          {[
+            '👋 Chào bạn nha!',
+            '👌 Mình nhận kèo nhé!',
+            '📁 Bạn gửi file qua đây nha!',
+            '🏃 Mình đang qua sảnh A nè!',
+            '🙏 Cảm ơn bạn nhiều!',
+          ].map((chip, idx) => (
+            <button
+              key={idx}
+              onClick={() => handleSendQuickReply(chip)}
+              className="px-2.5 py-1 rounded-full bg-[#131E30] hover:bg-[#1A2840] border border-slate-800 text-slate-300 hover:text-white whitespace-nowrap transition text-xs shrink-0"
+            >
+              {chip}
+            </button>
+          ))}
+        </div>
+
+        {/* MESSENGER MESSAGES STREAM */}
+        <div className="flex-1 overflow-y-auto py-2 space-y-2.5 pr-1">
+          {currentConversationMessages.length === 0 ? (
+            <div className="text-center py-12 text-slate-500 text-xs">
+              <div
+                className={`w-14 h-14 mx-auto mb-3 rounded-full bg-gradient-to-tr ${activeContact.avatarBg} flex items-center justify-center text-white font-black text-xl shadow-lg`}
+              >
+                {activeContact.name.charAt(0).toUpperCase()}
+              </div>
+              <h4 className="font-extrabold text-sm text-white">{activeContact.name}</h4>
+              <p className="text-slate-400 text-xs mt-0.5">{activeContact.specialtyOrNeed}</p>
+              <p className="text-[11px] text-slate-500 mt-2">
+                Hãy gửi tin nhắn đầu tiên để kết nối và trao đổi công việc trực tiếp!
+              </p>
+            </div>
           ) : (
-            conversationList.map((conv) => {
-              const partnerName = isClient
-                ? conv.freelancerName || 'Freelancer Nhận Việc'
-                : conv.clientName;
-              const isSubmitted = conv.status === 'SUBMITTED';
-              const isInProgress = conv.status === 'IN_PROGRESS';
-              const isCompleted = conv.status === 'COMPLETED';
+            currentConversationMessages.map((msg) => {
+              const isMe = msg.senderId === currentUser?.id;
 
               return (
-                <div
-                  key={conv.id}
-                  onClick={() => selectGig(conv.id)}
-                  className="p-3.5 rounded-2xl bg-[#0F172A] border border-slate-800 hover:border-slate-700 hover:bg-[#131E30] cursor-pointer transition shadow-sm flex items-center justify-between space-x-3 group"
-                >
-                  <div className="flex items-center space-x-3 min-w-0">
-                    <div className="relative shrink-0">
-                      <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-cyan-900 to-slate-800 border border-slate-700 flex items-center justify-center text-cyan-300 font-black text-sm">
-                        {partnerName.charAt(0).toUpperCase()}
-                      </div>
-                      <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-400 border-2 border-[#0F172A]" />
-                    </div>
-
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between">
-                        <h4 className="font-extrabold text-sm text-white truncate group-hover:text-[#00E5FF] transition">
-                          {partnerName}
-                        </h4>
-                        <span className="text-[10px] text-slate-500 ml-2 shrink-0">
-                          {conv.distanceMeters ? `${conv.distanceMeters}m` : 'Gần bạn'}
-                        </span>
-                      </div>
-
-                      <p className="text-[11px] text-slate-400 truncate mt-0.5 font-medium">
-                        {conv.title}
-                      </p>
-
-                      <div className="flex items-center space-x-2 mt-1">
-                        <span className="text-[10px] font-bold text-[#00E5FF] font-mono">
-                          {formatVnd(conv.price)}
-                        </span>
-                        <span className="text-slate-600 text-[10px]">•</span>
-                        {isInProgress && (
-                          <span className="text-[10px] text-amber-400 font-bold flex items-center">
-                            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 mr-1" />
-                            Đang thực hiện
-                          </span>
-                        )}
-                        {isSubmitted && (
-                          <span className="text-[10px] text-cyan-400 font-bold flex items-center">
-                            <CheckCircle2 className="w-3 h-3 mr-1" />
-                            Đã nộp bài (Chờ duyệt)
-                          </span>
-                        )}
-                        {isCompleted && (
-                          <span className="text-[10px] text-emerald-400 font-bold flex items-center">
-                            <Check className="w-3 h-3 mr-1" />
-                            Đã hoàn thành
-                          </span>
-                        )}
-                      </div>
-                    </div>
+                <div key={msg.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} group`}>
+                  {/* Sender Name & Time */}
+                  <div className="flex items-center space-x-1.5 mb-0.5 px-1">
+                    <span className="text-[10px] text-slate-400 font-bold">
+                      {isMe ? 'Bạn' : msg.senderName || activeContact.name}
+                    </span>
+                    <span className="text-[9px] text-slate-500">
+                      {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
                   </div>
 
-                  <ChevronDown className="w-4 h-4 text-slate-500 -rotate-90 shrink-0 group-hover:text-cyan-400 transition" />
+                  {/* Message Bubble Container */}
+                  <div
+                    className={`max-w-[85%] rounded-2xl px-3.5 py-2 text-xs leading-relaxed relative ${
+                      isMe
+                        ? 'bg-gradient-to-r from-[#00E5FF] to-blue-600 text-black font-semibold rounded-tr-none shadow-md shadow-cyan-500/10'
+                        : 'bg-[#131E30] border border-slate-700/80 text-slate-100 rounded-tl-none shadow-sm'
+                    }`}
+                  >
+                    {/* Text Message */}
+                    {msg.message && <p className="whitespace-pre-wrap break-words">{msg.message}</p>}
+
+                    {/* Image Attachment */}
+                    {msg.attachmentType === 'IMAGE' && msg.attachmentData && (
+                      <div className="mt-2 rounded-xl overflow-hidden border border-black/20">
+                        <img
+                          src={msg.attachmentData}
+                          alt="Ảnh đính kèm"
+                          className="max-h-60 rounded-xl object-cover cursor-pointer hover:opacity-95 transition"
+                          onClick={() => setPreviewZoomImage(msg.attachmentData!)}
+                        />
+                      </div>
+                    )}
+
+                    {/* Voice Note Attachment */}
+                    {msg.attachmentType === 'VOICE' && (
+                      <div className="mt-2 flex items-center space-x-2.5 py-2 px-3 rounded-2xl bg-black/25 backdrop-blur-xs border border-white/15 text-xs min-w-[200px] sm:min-w-[240px]">
+                        <button
+                          type="button"
+                          onClick={() => handleTogglePlayAudio(msg.id, msg.attachmentData, msg.attachmentDuration)}
+                          className="w-9 h-9 rounded-full bg-[#00E5FF] text-black hover:scale-105 active:scale-95 flex items-center justify-center shrink-0 shadow-md transition"
+                          title={playingAudioId === msg.id ? 'Tạm dừng' : 'Phát tin nhắn thoại'}
+                        >
+                          {playingAudioId === msg.id ? (
+                            <Pause className="w-4 h-4 fill-current" />
+                          ) : (
+                            <Play className="w-4 h-4 fill-current ml-0.5" />
+                          )}
+                        </button>
+                        <div className="flex-1 flex flex-col justify-center">
+                          <div className="flex items-center justify-between text-[11px] mb-1.5">
+                            <span className="font-extrabold text-white tracking-tight">
+                              {playingAudioId === msg.id ? 'Đang phát thoại...' : 'Tin nhắn thoại'}
+                            </span>
+                            <span className="font-mono text-[10px] text-cyan-200 font-bold">
+                              {msg.attachmentDuration || 3}s
+                            </span>
+                          </div>
+                          {/* Audio Waveform Bars */}
+                          <div className="flex items-center space-x-0.5 h-4">
+                            {[30, 65, 90, 50, 100, 80, 45, 90, 70, 40, 85, 60, 95, 50, 30].map((h, i) => (
+                              <div
+                                key={i}
+                                className={`flex-1 rounded-full transition-all duration-150 ${
+                                  playingAudioId === msg.id ? 'bg-[#00E5FF] animate-pulse' : 'bg-white/40'
+                                }`}
+                                style={{
+                                  height:
+                                    playingAudioId === msg.id
+                                      ? `${Math.max(25, h * (0.6 + ((i % 3) * 0.2)))}%`
+                                      : `${h}%`,
+                                }}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Video Attachment */}
+                    {msg.attachmentType === 'VIDEO' && msg.attachmentData && (
+                      <div className="mt-2 rounded-xl overflow-hidden">
+                        <video src={msg.attachmentData} controls className="max-h-56 w-full rounded-xl" />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Read Receipt */}
+                  {isMe && (
+                    <div className="flex items-center space-x-1 text-[9px] text-slate-500 mt-0.5 px-1">
+                      <span>Đã gửi</span>
+                      <CheckCheck className="w-3 h-3 text-cyan-400" />
+                    </div>
+                  )}
                 </div>
               );
             })
           )}
-        </div>
-      </div>
-    );
-  }
-
-  // 3. ACTIVE CHAT ROOM VIEW FOR SELECTED GIG
-  const partnerName = isClient ? gig.freelancerName || 'Freelancer Nhận Kèo' : gig.clientName;
-
-  return (
-    <div className="max-w-2xl mx-auto px-2 sm:px-4 py-3 flex flex-col h-[calc(100vh-4.5rem)] pb-20">
-      {/* Hidden File Inputs */}
-      <input
-        type="file"
-        ref={fileInputImageRef}
-        accept="image/*"
-        onChange={handleImageFileChange}
-        className="hidden"
-      />
-      <input
-        type="file"
-        ref={fileInputCameraRef}
-        accept="image/*"
-        capture="environment"
-        onChange={handleImageFileChange}
-        className="hidden"
-      />
-      <input
-        type="file"
-        ref={fileInputVideoRef}
-        accept="video/*"
-        onChange={handleVideoFileChange}
-        className="hidden"
-      />
-
-      {/* Image Lightbox Modal */}
-      {previewZoomImage && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 animate-fadeIn"
-          onClick={() => setPreviewZoomImage(null)}
-        >
-          <div className="relative max-w-3xl max-h-[90vh]">
-            <button
-              onClick={() => setPreviewZoomImage(null)}
-              className="absolute -top-10 right-0 p-2 text-white hover:text-slate-300"
-            >
-              <X className="w-6 h-6" />
-            </button>
-            <img
-              src={previewZoomImage}
-              alt="Ảnh phóng to"
-              className="max-h-[85vh] rounded-2xl object-contain border border-slate-700 shadow-2xl"
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Top Header Bar */}
-      <div className="flex items-center justify-between pb-2.5 border-b border-slate-800 shrink-0">
-        <div className="flex items-center space-x-2.5">
-          <button
-            onClick={() => selectGig(null)}
-            className="p-2 rounded-xl bg-[#131E30] hover:bg-[#1A2840] text-slate-300 transition"
-            title="Quay lại danh sách hội thoại"
-          >
-            <ArrowLeft className="w-4 h-4" />
-          </button>
-          <div>
-            <div className="flex items-center space-x-1.5">
-              <h3 className="font-extrabold text-sm text-white">{partnerName}</h3>
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            </div>
-            <p className="text-[11px] text-slate-400 truncate max-w-[200px] sm:max-w-xs">
-              {gig.title} •{' '}
-              <span className="text-cyan-400 font-bold">
-                {gig.status === 'IN_PROGRESS'
-                  ? 'Đang thực hiện'
-                  : gig.status === 'SUBMITTED'
-                  ? 'Đã nộp bài (Chờ duyệt)'
-                  : gig.status === 'COMPLETED'
-                  ? 'Đã nghiệm thu & giải ngân'
-                  : gig.status === 'DISPUTED'
-                  ? 'Đang khiếu nại'
-                  : gig.status}
-              </span>
-            </p>
-          </div>
+          <div ref={messagesEndRef} />
         </div>
 
-        <div className="flex items-center space-x-1.5">
-          {/* ELO Rating Button */}
-          <button
-            onClick={() => setShowEloModal(true)}
-            className="p-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 transition flex items-center space-x-1 text-xs font-bold"
-            title="Đánh giá & Chấm điểm ELO"
-          >
-            <Star className="w-3.5 h-3.5 fill-amber-400" />
-            <span className="hidden sm:inline">Chấm ELO</span>
-          </button>
-
-          {/* VoIP Voice Call */}
-          <button
-            onClick={() => handleStartVoip(false)}
-            className="p-2 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-[#00E5FF] border border-[#00E5FF]/30 transition"
-            title="Gọi thoại VoIP mã hóa"
-          >
-            <PhoneCall className="w-4 h-4" />
-          </button>
-
-          {/* VoIP Video Call */}
-          <button
-            onClick={() => handleStartVoip(true)}
-            className="p-2 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 transition"
-            title="Gọi Video Call bàn giao"
-          >
-            <Video className="w-4 h-4" />
-          </button>
-
-          {/* Dispute Button */}
-          <button
-            onClick={() => setShowDisputeModal(true)}
-            className="p-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 transition"
-            title="Khiếu nại trọng tài"
-          >
-            <AlertTriangle className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-
-      {/* PERSISTENT GIG CONTEXT & ESCROW CARD (COLLAPSIBLE) */}
-      <div className="my-1.5 rounded-2xl bg-[#0F1D30] border border-[#1E293B] shadow-sm overflow-hidden shrink-0">
-        <div className="p-3 flex items-center justify-between gap-2 text-xs">
-          <div className="flex items-center space-x-2.5 min-w-0">
-            <div className="w-8 h-8 rounded-xl bg-cyan-500/20 text-[#00E5FF] flex items-center justify-center shrink-0">
-              <Zap className="w-4 h-4" />
+        {/* PREVIEW ATTACHMENT BEFORE SEND */}
+        {pendingImage && (
+          <div className="relative mb-2 p-2 rounded-2xl bg-[#131E30] border border-cyan-500/40 shrink-0 flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <img src={pendingImage} alt="Pending" className="w-12 h-12 rounded-xl object-cover border" />
+              <span className="text-xs text-cyan-300 font-semibold">Sẵn sàng gửi hình ảnh</span>
             </div>
-            <div className="min-w-0">
-              <span className="text-[10px] text-slate-400 block truncate">
-                {gig.category} • {gig.locationName}
-              </span>
-              <div className="flex items-center space-x-2">
-                <span className="font-extrabold text-[#00E5FF] text-sm">
-                  {formatVnd(gig.price)}
-                </span>
-                <span className="text-[10px] px-2 py-0.2 rounded-full bg-cyan-500/15 text-cyan-300 font-semibold border border-cyan-500/30">
-                  Smart Escrow bảo vệ
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-1.5 shrink-0">
-            {gig.status === 'IN_PROGRESS' && (
-              <button
-                onClick={() => setShowProofModal(true)}
-                className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#FF6B00] to-amber-500 text-black font-extrabold text-xs hover:brightness-110 shadow-sm transition"
-              >
-                Nộp Bài (Watermark)
-              </button>
-            )}
-
-            {gig.status === 'SUBMITTED' && (
-              <button
-                onClick={() => setShowReleaseModal(true)}
-                className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-[#00E5FF] text-black font-extrabold text-xs hover:brightness-110 shadow-md shadow-emerald-500/20 transition flex items-center space-x-1"
-              >
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                <span>Giải Ngân Escrow</span>
-              </button>
-            )}
-
-            {gig.status === 'COMPLETED' && (
-              <button
-                onClick={() => setShowEloModal(true)}
-                className="px-3 py-1.5 rounded-xl bg-amber-500/20 text-amber-300 font-bold border border-amber-500/40 text-xs flex items-center space-x-1"
-              >
-                <Star className="w-3.5 h-3.5 fill-amber-400" />
-                <span>Chấm ELO</span>
-              </button>
-            )}
-
-            <button
-              onClick={() => setIsGigCardExpanded(!isGigCardExpanded)}
-              className="p-1.5 rounded-lg bg-slate-800/80 text-slate-400 hover:text-white transition"
-              title={isGigCardExpanded ? 'Thu gọn chi tiết' : 'Mở rộng chi tiết'}
-            >
-              {isGigCardExpanded ? (
-                <ChevronUp className="w-3.5 h-3.5" />
-              ) : (
-                <ChevronDown className="w-3.5 h-3.5" />
-              )}
-            </button>
-          </div>
-        </div>
-
-        {/* Expanded Details */}
-        {isGigCardExpanded && (
-          <div className="px-3 pb-2.5 pt-0 border-t border-slate-800/60 text-[11px] text-slate-300 space-y-1">
-            <p className="line-clamp-2 text-slate-300 leading-relaxed font-medium">
-              &ldquo;{gig.description}&rdquo;
-            </p>
-            <div className="flex items-center justify-between text-[10px] text-slate-400 pt-0.5">
-              <span>Được tạo bởi: <strong className="text-white">{gig.clientName}</strong></span>
-              <span>Thời hạn: <strong className="text-cyan-400">{gig.estimatedDurationMinutes || 60} phút</strong></span>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Quick Phrase Chips */}
-      <div className="flex items-center gap-1.5 overflow-x-auto py-1.5 no-scrollbar shrink-0 text-[11px]">
-        {[
-          'Mình đang qua điểm hẹn 📍',
-          'Đã hoàn thành sản phẩm/bài làm 📁',
-          'Bạn kiểm tra nghiệm thu giúp mình nhé! ✨',
-          'Đã nhận được hàng đầy đủ 👍',
-          'Cảm ơn bạn rất nhiều! ⭐',
-        ].map((chip, idx) => (
-          <button
-            key={idx}
-            onClick={() => handleSendQuickChip(chip)}
-            className="px-2.5 py-1 rounded-full bg-[#131E30] hover:bg-[#1A2942] border border-slate-700 text-slate-300 whitespace-nowrap transition"
-          >
-            {chip}
-          </button>
-        ))}
-      </div>
-
-      {/* Chat Messages Log */}
-      <div className="flex-1 overflow-y-auto py-3 space-y-3 pr-1">
-        {currentChatMessages.length === 0 ? (
-          <div className="text-center py-12 text-slate-500 text-xs">
-            <Lock className="w-8 h-8 mx-auto mb-2 text-slate-600" />
-            <p>Kênh trò chuyện bảo mật mã hóa hai đầu.</p>
-            <p className="text-[11px] text-slate-500 mt-1">
-              Bạn có thể gửi tin nhắn văn bản, hình ảnh, ghi âm giọng nói và video clip tại đây!
-            </p>
-          </div>
-        ) : (
-          currentChatMessages.map((msg) => {
-            const isMe = msg.senderId === currentUser?.id;
-            const isPlaying = playingAudioId === msg.id;
-
-            return (
-              <div key={msg.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
-                <div className="flex items-center space-x-1.5 mb-1 px-1">
-                  <span className="text-[10px] text-slate-400 font-bold">{msg.senderName}</span>
-                  <span className="text-[9px] text-slate-500">
-                    {new Date(msg.timestamp).toLocaleTimeString([], {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </span>
-                </div>
-
-                <div
-                  className={`max-w-[85%] sm:max-w-md rounded-2xl p-3 text-xs leading-relaxed ${
-                    isMe
-                      ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white rounded-br-none shadow-md'
-                      : 'bg-[#131E30] text-slate-200 border border-slate-800 rounded-bl-none'
-                  }`}
-                >
-                  {/* Text Body */}
-                  {msg.message && <p className="mb-1">{msg.message}</p>}
-
-                  {/* 1. IMAGE ATTACHMENT */}
-                  {msg.attachmentType === 'IMAGE' && msg.attachmentData && (
-                    <div className="mt-1.5 relative rounded-xl overflow-hidden border border-white/20 group">
-                      <img
-                        src={msg.attachmentData}
-                        alt="Hình ảnh gửi kèm"
-                        className="w-full max-h-56 object-cover cursor-pointer hover:opacity-90 transition"
-                        onClick={() => setPreviewZoomImage(msg.attachmentData || null)}
-                      />
-                      <button
-                        onClick={() => setPreviewZoomImage(msg.attachmentData || null)}
-                        className="absolute bottom-2 right-2 p-1.5 rounded-lg bg-black/60 text-white hover:bg-black/80 transition"
-                      >
-                        <Maximize2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  )}
-
-                  {/* 2. VOICE NOTE ATTACHMENT */}
-                  {msg.attachmentType === 'VOICE' && (
-                    <div className="mt-2 p-2.5 rounded-xl bg-black/30 border border-white/10 flex items-center space-x-3">
-                      <button
-                        onClick={() => togglePlayAudio(msg.id, msg.attachmentData)}
-                        className={`w-9 h-9 rounded-full flex items-center justify-center transition shadow ${
-                          isPlaying
-                            ? 'bg-amber-400 text-black animate-pulse'
-                            : 'bg-white text-slate-900 hover:scale-105'
-                        }`}
-                      >
-                        {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
-                      </button>
-
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center space-x-1 h-5">
-                          {[30, 60, 90, 45, 80, 100, 70, 50, 85, 40, 65, 95, 30].map((h, i) => (
-                            <span
-                              key={i}
-                              className={`w-1 rounded-full transition-all ${
-                                isPlaying ? 'bg-cyan-300 animate-pulse' : 'bg-white/40'
-                              }`}
-                              style={{ height: `${h}%` }}
-                            />
-                          ))}
-                        </div>
-                        <div className="flex justify-between items-center text-[10px] text-white/70 mt-1">
-                          <span>{isPlaying ? 'Đang phát...' : 'Ghi âm giọng nói'}</span>
-                          <span>{msg.attachmentDuration ? `${msg.attachmentDuration}s` : '0:06'}</span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* 3. VIDEO ATTACHMENT */}
-                  {msg.attachmentType === 'VIDEO' && msg.attachmentData && (
-                    <div className="mt-2 rounded-xl overflow-hidden border border-white/20">
-                      <video
-                        src={msg.attachmentData}
-                        controls
-                        playsInline
-                        className="w-full max-h-60 rounded-xl bg-black"
-                      />
-                      {msg.mediaFileName && (
-                        <div className="p-1.5 bg-black/50 text-[10px] text-slate-300 flex items-center space-x-1">
-                          <VideoIcon className="w-3 h-3 text-cyan-400" />
-                          <span className="truncate">{msg.mediaFileName}</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* 4. WATERMARK PREVIEW PROOF */}
-                  {msg.attachmentType === 'WATERMARK_PREVIEW' && (
-                    <div className="mt-2 relative rounded-xl overflow-hidden border border-cyan-500/40 group">
-                      <img
-                        src={
-                          msg.attachmentData ||
-                          'https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?w=600&auto=format&fit=crop'
-                        }
-                        alt="Bản nộp nghiệm thu"
-                        className="w-full h-36 object-cover cursor-pointer"
-                        onClick={() =>
-                          setPreviewZoomImage(
-                            msg.attachmentData ||
-                              'https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?w=600&auto=format&fit=crop'
-                          )
-                        }
-                      />
-                      {gig?.isWatermarkRemoved ? (
-                        <div className="absolute top-2 right-2 bg-emerald-600 text-white text-[9px] font-black px-2 py-0.5 rounded shadow">
-                          BẢN GỐC ĐÃ GIẢI MÃ
-                        </div>
-                      ) : (
-                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center pointer-events-none select-none">
-                          <span className="text-white/70 font-black text-xs tracking-widest -rotate-12 border-2 border-white/40 px-2.5 py-1 rounded-lg uppercase">
-                            GIGME WATERMARK
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })
-        )}
-        <div ref={messagesEndRef} />
-      </div>
-
-      {/* Pending Attachments Preview Shelf */}
-      {pendingImage && (
-        <div className="p-2.5 rounded-2xl bg-[#0F172A] border border-cyan-500/40 flex items-center justify-between mb-2 shrink-0 animate-fadeIn">
-          <div className="flex items-center space-x-2.5">
-            <img
-              src={pendingImage}
-              alt="Ảnh đính kèm"
-              className="w-12 h-12 rounded-xl object-cover border border-slate-700 cursor-pointer"
-              onClick={() => setPreviewZoomImage(pendingImage)}
-            />
-            <div>
-              <span className="text-xs font-bold text-white block">Ảnh sẵn sàng gửi</span>
-              <span className="text-[10px] text-cyan-400">Bấm Gửi Ngay hoặc gõ thêm chú thích bên dưới</span>
-            </div>
-          </div>
-          <div className="flex items-center space-x-2">
-            <button
-              type="button"
-              onClick={() => handleSendMessage()}
-              className="px-3 py-1.5 rounded-xl bg-[#00E5FF] hover:brightness-110 text-black font-extrabold text-xs shadow-md transition flex items-center space-x-1"
-            >
-              <Send className="w-3.5 h-3.5" />
-              <span>Gửi Ngay</span>
-            </button>
-            <button
-              onClick={() => setPendingImage(null)}
-              className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white"
-            >
+            <button onClick={() => setPendingImage(null)} className="p-1 rounded-full bg-slate-800 text-slate-400 hover:text-white">
               <X className="w-4 h-4" />
             </button>
           </div>
-        </div>
-      )}
+        )}
 
-      {pendingVideo && (
-        <div className="p-2.5 rounded-2xl bg-[#0F172A] border border-cyan-500/30 flex items-center justify-between mb-2 shrink-0">
-          <div className="flex items-center space-x-2">
-            <div className="w-12 h-12 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center">
-              <VideoIcon className="w-6 h-6" />
+        {/* VOICE RECORDING STATUS BAR */}
+        {isRecordingVoice && (
+          <div className="mb-2 px-4 py-3 rounded-2xl bg-rose-950/90 border border-rose-500/60 shadow-lg flex items-center justify-between shrink-0 animate-fade-in">
+            <div className="flex items-center space-x-3 text-rose-300 text-xs font-bold">
+              <span className="w-3.5 h-3.5 rounded-full bg-rose-500 animate-ping shrink-0" />
+              <div className="flex items-center space-x-2">
+                <span className="font-mono text-white text-sm font-black">
+                  {Math.floor(recordingDuration / 60)}:{(recordingDuration % 60).toString().padStart(2, '0')}
+                </span>
+                <span className="text-[11px] text-rose-200/90">Đang thu âm giọng nói...</span>
+              </div>
+              {/* Dynamic waveform indicator */}
+              <div className="hidden sm:flex items-center space-x-0.5 h-4">
+                {[12, 24, 36, 20, 32, 16, 28, 40, 24, 16].map((h, i) => (
+                  <span
+                    key={i}
+                    className="w-1 bg-rose-400 rounded-full animate-pulse"
+                    style={{
+                      height: `${h}px`,
+                      animationDelay: `${i * 120}ms`,
+                      animationDuration: '600ms',
+                    }}
+                  />
+                ))}
+              </div>
             </div>
-            <div>
-              <span className="text-xs font-bold text-white block truncate max-w-xs">
-                {pendingVideo.name}
-              </span>
-              <span className="text-[10px] text-slate-400">Video clip sẵn sàng gửi</span>
+            <div className="flex items-center space-x-2 shrink-0">
+              <button
+                type="button"
+                onClick={cancelVoiceRecording}
+                className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition"
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                onClick={stopVoiceRecording}
+                className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-rose-500 to-red-600 hover:brightness-110 text-white font-extrabold text-xs shadow-md transition active:scale-95 flex items-center space-x-1.5"
+              >
+                <Send className="w-3.5 h-3.5" />
+                <span>Gửi Thoại</span>
+              </button>
             </div>
           </div>
-          <button
-            onClick={() => setPendingVideo(null)}
-            className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      )}
+        )}
 
-      {/* Voice Recording Active Bar */}
-      {isRecordingVoice ? (
-        <div className="pt-2 flex items-center justify-between p-3 rounded-2xl bg-red-950/40 border border-red-500/40 shrink-0 animate-pulse">
-          <div className="flex items-center space-x-3">
-            <div className="w-4 h-4 rounded-full bg-red-500 animate-ping" />
-            <span className="text-xs font-bold text-red-400">
-              Đang ghi âm giọng nói: {recordingDuration}s
-            </span>
-          </div>
-
-          <div className="flex items-center space-x-2">
+        {/* ATTACHMENT POPUP MENU */}
+        {showAttachmentMenu && (
+          <div className="mb-2 p-2 rounded-2xl bg-[#131E30] border border-slate-700 shadow-xl flex items-center space-x-3 shrink-0">
             <button
-              type="button"
-              onClick={cancelVoiceRecording}
-              className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition"
+              onClick={() => fileInputImageRef.current?.click()}
+              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-[#0F172A] hover:bg-[#1A2942] text-xs font-semibold text-cyan-300 transition"
             >
-              Hủy
+              <ImageIcon className="w-4 h-4" />
+              <span>Gửi Ảnh</span>
             </button>
             <button
-              type="button"
-              onClick={stopVoiceRecording}
-              className="px-4 py-1.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-extrabold shadow-md transition flex items-center space-x-1"
+              onClick={() => fileInputCameraRef.current?.click()}
+              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-[#0F172A] hover:bg-[#1A2942] text-xs font-semibold text-cyan-300 transition"
             >
-              <Send className="w-3.5 h-3.5" />
-              <span>Gửi Voice</span>
+              <Camera className="w-4 h-4" />
+              <span>Chụp Ảnh</span>
+            </button>
+            <button
+              onClick={() => {
+                setShowAttachmentMenu(false);
+                startVoiceRecording();
+              }}
+              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-[#0F172A] hover:bg-[#1A2942] text-xs font-semibold text-cyan-300 transition"
+            >
+              <Mic className="w-4 h-4" />
+              <span>Ghi Âm Thoại</span>
             </button>
           </div>
-        </div>
-      ) : (
-        /* Standard Message Input Bottom Bar with Multimedia Buttons */
-        <form onSubmit={handleSendMessage} className="pt-2 flex items-center gap-1.5 shrink-0">
-          {/* Snap Photo Directly with Camera */}
+        )}
+
+        {/* Hidden inputs for camera and gallery */}
+        <input
+          ref={fileInputImageRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleImageFileChange}
+        />
+        <input
+          ref={fileInputCameraRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          onChange={handleImageFileChange}
+        />
+
+        {/* MESSENGER BOTTOM INPUT BAR */}
+        <form onSubmit={handleSendMessage} className="pt-2 border-t border-slate-800 shrink-0 flex items-center space-x-2">
+          {/* Plus button for attachment menu */}
           <button
             type="button"
-            onClick={() => fileInputCameraRef.current?.click()}
-            className="p-2.5 rounded-2xl bg-[#131E30] hover:bg-[#1A2840] border border-slate-700 text-pink-400 transition"
-            title="Chụp ảnh trực tiếp từ Camera"
+            onClick={() => setShowAttachmentMenu((p) => !p)}
+            className={`p-2.5 rounded-2xl transition shrink-0 ${
+              showAttachmentMenu
+                ? 'bg-[#00E5FF] text-black'
+                : 'bg-[#131E30] hover:bg-[#1A2840] text-cyan-400'
+            }`}
+            title="Đính kèm tệp, ảnh, camera"
           >
-            <Camera className="w-4 h-4" />
+            <Plus className="w-4 h-4" />
           </button>
 
-          {/* Send Picture from Gallery Button */}
+          {/* Quick Mic recording button */}
           <button
             type="button"
-            onClick={() => fileInputImageRef.current?.click()}
-            className="p-2.5 rounded-2xl bg-[#131E30] hover:bg-[#1A2840] border border-slate-700 text-[#00E5FF] transition"
-            title="Gửi hình ảnh từ thư viện"
-          >
-            <ImageIcon className="w-4 h-4" />
-          </button>
-
-          {/* Send Video Button */}
-          <button
-            type="button"
-            onClick={() => fileInputVideoRef.current?.click()}
-            className="p-2.5 rounded-2xl bg-[#131E30] hover:bg-[#1A2840] border border-slate-700 text-indigo-400 transition"
-            title="Gửi video clip"
-          >
-            <VideoIcon className="w-4 h-4" />
-          </button>
-
-          {/* Voice Note Button */}
-          <button
-            type="button"
-            onClick={startVoiceRecording}
-            className="p-2.5 rounded-2xl bg-[#131E30] hover:bg-[#1A2840] border border-slate-700 text-amber-400 transition"
-            title="Ghi âm giọng nói (Voice Note)"
+            onClick={isRecordingVoice ? stopVoiceRecording : startVoiceRecording}
+            className={`p-2.5 rounded-2xl transition shrink-0 ${
+              isRecordingVoice
+                ? 'bg-rose-600 text-white animate-pulse'
+                : 'bg-[#131E30] hover:bg-[#1A2840] text-slate-300'
+            }`}
+            title="Ghi âm giọng nói"
           >
             <Mic className="w-4 h-4" />
-          </button>
-
-          {/* Proof Upload Button */}
-          <button
-            type="button"
-            onClick={() => setShowProofModal(true)}
-            className="p-2.5 rounded-2xl bg-[#131E30] hover:bg-[#1A2840] border border-slate-700 text-orange-400 transition hidden sm:flex"
-            title="Nộp nghiệm thu Watermark"
-          >
-            <FileCheck className="w-4 h-4" />
           </button>
 
           {/* Text Input */}
@@ -1210,243 +1234,442 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
             type="text"
             value={messageInput}
             onChange={(e) => setMessageInput(e.target.value)}
-            className="flex-1 px-3.5 py-2.5 rounded-2xl bg-[#0F172A] border border-slate-700 text-white text-xs placeholder:text-slate-500 focus:border-[#00E5FF] transition"
-            placeholder={
-              pendingImage
-                ? 'Gõ chú thích ảnh hoặc nhấn Gửi...'
-                : pendingVideo
-                ? 'Gõ chú thích video hoặc nhấn Gửi...'
-                : 'Nhập tin nhắn, trao đổi việc làm...'
-            }
+            placeholder="Nhập tin nhắn..."
+            className="flex-1 py-2.5 px-4 rounded-2xl bg-[#0F172A] border border-slate-800 text-white text-xs placeholder:text-slate-500 focus:border-[#00E5FF] transition outline-none"
           />
 
-          {/* Send Button */}
-          <button
-            type="submit"
-            disabled={!messageInput.trim() && !pendingImage && !pendingVideo}
-            className="p-2.5 rounded-2xl bg-[#00E5FF] text-black hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed shadow-md shadow-cyan-500/20 transition"
-          >
-            <Send className="w-4 h-4" />
-          </button>
+          {/* Send Button or Thumbs-up if empty */}
+          {messageInput.trim() || pendingImage ? (
+            <button
+              type="submit"
+              className="p-2.5 rounded-2xl bg-[#00E5FF] hover:brightness-110 text-black font-bold transition shadow-md shadow-cyan-500/20 shrink-0"
+              title="Gửi tin nhắn"
+            >
+              <Send className="w-4 h-4" />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleSendThumbsUp}
+              className="p-2.5 rounded-2xl bg-[#131E30] hover:bg-[#1A2840] text-cyan-400 transition shrink-0"
+              title="Gửi nút Thích (Like)"
+            >
+              <ThumbsUp className="w-4 h-4" />
+            </button>
+          )}
         </form>
-      )}
 
-      {/* 1. SUBMIT PROOF MODAL WITH WATERMARK */}
-      {showProofModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fadeIn">
-          <div className="w-full max-w-md rounded-2xl bg-[#0F172A] border border-[#1E293B] p-6 text-white shadow-2xl">
-            <div className="flex justify-between items-center pb-3 border-b border-slate-800">
-              <h3 className="font-extrabold text-sm flex items-center space-x-1.5 text-[#FF6B00]">
-                <FileCheck className="w-4 h-4" />
-                <span>Nộp Bằng Chứng Nghiệm Thu Công Việc</span>
-              </h3>
-              <button onClick={() => setShowProofModal(false)} className="text-slate-400 hover:text-white">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSubmitProof} className="py-4 space-y-3.5 text-xs">
-              <div>
-                <label className="block text-slate-400 mb-1 font-semibold">
-                  Ghi chú kết quả hoàn thành
-                </label>
-                <textarea
-                  rows={2}
-                  required
-                  value={proofNote}
-                  onChange={(e) => setProofNote(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-[#131E30] border border-slate-700 text-white"
-                  placeholder="Mô tả kết quả đã làm..."
-                />
+        {/* MODAL: CONTACT DETAILS INFO */}
+        {showContactInfoModal && (
+          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="w-full max-w-sm rounded-3xl bg-[#0B1528] border border-slate-700 p-5 shadow-2xl text-slate-200">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                <h4 className="font-extrabold text-sm text-white">Hồ sơ Campus Messenger</h4>
+                <button
+                  onClick={() => setShowContactInfoModal(false)}
+                  className="p-1 rounded-full text-slate-400 hover:text-white"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="text-center py-4">
+                <div
+                  className={`w-16 h-16 mx-auto mb-2 rounded-full bg-gradient-to-tr ${activeContact.avatarBg} flex items-center justify-center text-white font-black text-2xl shadow-lg`}
+                >
+                  {activeContact.name.charAt(0).toUpperCase()}
+                </div>
+                <h3 className="font-extrabold text-base text-white">{activeContact.name}</h3>
+                <span
+                  className={`inline-block mt-1 px-2 py-0.5 rounded text-xs font-bold ${
+                    activeContact.role === 'CLIENT'
+                      ? 'bg-blue-500/20 text-blue-300'
+                      : 'bg-emerald-500/20 text-emerald-300'
+                  }`}
+                >
+                  {activeContact.roleLabel}
+                </span>
+                <p className="text-xs text-slate-400 mt-1">{activeContact.school}</p>
+                <p className="text-xs text-cyan-300 font-medium mt-2 bg-slate-900/60 p-2 rounded-xl border border-slate-800">
+                  {activeContact.specialtyOrNeed}
+                </p>
               </div>
 
-              {/* Watermark Protection Toggle */}
-              <div className="p-3 rounded-xl bg-[#131E30] border border-slate-700 flex items-center justify-between">
-                <div>
-                  <span className="font-bold text-white block">Đóng dấu Watermark bảo vệ bản quyền</span>
-                  <span className="text-[10px] text-slate-400">
-                    Chống bùng bài trước khi người thuê bấm giải ngân tiền
+              <div className="space-y-2 pt-2 border-t border-slate-800 text-xs">
+                <div className="flex items-center justify-between text-slate-400">
+                  <span>Trạng thái:</span>
+                  <span className="text-emerald-400 font-bold">{activeContact.lastActiveText}</span>
+                </div>
+                <div className="flex items-center justify-between text-slate-400">
+                  <span>Bảo chứng GigMe:</span>
+                  <span className="text-cyan-400 font-bold flex items-center space-x-1">
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    <span>Đã định danh sinh viên</span>
                   </span>
                 </div>
-                <input
-                  type="checkbox"
-                  checked={isWatermarked}
-                  onChange={(e) => setIsWatermarked(e.target.checked)}
-                  className="w-4 h-4 accent-[#00E5FF] cursor-pointer"
-                />
               </div>
 
-              {/* Open High-Tech Blockchain Proof Modal */}
               <button
-                type="button"
                 onClick={() => {
-                  setShowProofModal(false);
-                  setShowBlockchainModal(true);
+                  setShowContactInfoModal(false);
+                  startVoipCall(activeContact.name, activeContact.roleLabel);
                 }}
-                className="w-full py-2 px-3 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 border border-[#00E5FF]/40 text-[#00E5FF] font-bold text-xs transition flex items-center justify-center space-x-1.5"
+                className="w-full mt-4 py-2.5 rounded-2xl bg-[#00E5FF] hover:brightness-110 text-black font-extrabold text-xs flex items-center justify-center space-x-2 transition"
               >
-                <Fingerprint className="w-4 h-4" />
-                <span>Mở Bộ Đóng Dấu Blockchain Hash & Geostamp</span>
+                <PhoneCall className="w-4 h-4" />
+                <span>Gọi Thoại Miễn Phí</span>
               </button>
-
-              <button
-                type="submit"
-                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#FF6B00] to-amber-500 text-black font-extrabold text-sm hover:brightness-110 shadow-lg shadow-orange-500/20 transition"
-              >
-                Gửi Bài Nghiệm Thu Ngay
-              </button>
-            </form>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* 2. RELEASE ESCROW PAYOUT MODAL */}
-      {showReleaseModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fadeIn">
-          <div className="w-full max-w-md rounded-2xl bg-[#0F172A] border border-[#1E293B] p-6 text-white shadow-2xl">
-            <div className="flex justify-between items-center pb-3 border-b border-slate-800">
-              <h3 className="font-extrabold text-sm flex items-center space-x-1.5 text-emerald-400">
-                <CheckCircle2 className="w-4 h-4" />
-                <span>Giải Ngân Smart Escrow & Tiền Tip</span>
-              </h3>
-              <button onClick={() => setShowReleaseModal(false)} className="text-slate-400 hover:text-white">
+        {/* IMAGE ZOOM LIGHTBOX */}
+        {previewZoomImage && (
+          <div
+            onClick={() => setPreviewZoomImage(null)}
+            className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 cursor-pointer"
+          >
+            <div className="relative max-w-3xl max-h-[85vh]">
+              <img src={previewZoomImage} alt="Zoom" className="max-h-[85vh] rounded-2xl object-contain shadow-2xl" />
+              <button
+                onClick={() => setPreviewZoomImage(null)}
+                className="absolute top-3 right-3 p-2 rounded-full bg-black/60 text-white"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
-
-            <form onSubmit={handleReleaseEscrow} className="py-4 space-y-3.5 text-xs">
-              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300">
-                Khi bấm giải ngân, tiền thù lao <strong>{formatVnd(gig ? gig.price : 0)}</strong> sẽ chuyển thẳng vào ví
-                Freelancer, và watermark bản gốc sẽ tự động được gỡ bỏ!
-              </div>
-
-              {/* Tip Selection */}
-              <div>
-                <label className="block text-slate-400 mb-1.5 font-semibold">
-                  Thưởng thêm tiền Tip (tùy chọn)
-                </label>
-                <div className="grid grid-cols-4 gap-1.5">
-                  {[0, 10000, 20000, 50000].map((t) => (
-                    <button
-                      key={t}
-                      type="button"
-                      onClick={() => setSelectedTip(t)}
-                      className={`py-1.5 rounded-lg border font-bold text-xs transition ${
-                        selectedTip === t
-                          ? 'bg-emerald-400 text-black border-emerald-400'
-                          : 'bg-[#131E30] text-slate-300 border-slate-700'
-                      }`}
-                    >
-                      {t === 0 ? 'Không' : `+${t / 1000}k`}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* PIN or Biometrics check */}
-              <div className="p-3 rounded-xl bg-[#131E30] border border-slate-700 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-slate-300 flex items-center space-x-1">
-                    <Fingerprint className="w-4 h-4 text-[#00E5FF]" />
-                    <span>Xác thực vân tay / FaceID</span>
-                  </span>
-                  <input
-                    type="checkbox"
-                    checked={useBiometrics}
-                    onChange={(e) => setUseBiometrics(e.target.checked)}
-                    className="w-4 h-4 accent-[#00E5FF] cursor-pointer"
-                  />
-                </div>
-
-                {!useBiometrics && (
-                  <div>
-                    <label className="block text-slate-400 mb-1 font-semibold">
-                      Nhập mã PIN 6 số của bạn
-                    </label>
-                    <input
-                      type="password"
-                      maxLength={6}
-                      value={pinInput}
-                      onChange={(e) => setPinInput(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white font-mono tracking-widest text-center text-sm font-bold"
-                      placeholder="******"
-                    />
-                  </div>
-                )}
-              </div>
-
-              <button
-                type="submit"
-                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-[#00E5FF] text-black font-extrabold text-sm hover:brightness-110 shadow-lg shadow-emerald-500/20 transition"
-              >
-                Xác Nhận Giải Ngân Tiền Ngay
-              </button>
-            </form>
           </div>
-        </div>
-      )}
+        )}
+      </div>
+    );
+  }
 
-      {/* 3. DISPUTE FILING MODAL */}
-      {showDisputeModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fadeIn">
-          <div className="w-full max-w-md rounded-2xl bg-[#0F172A] border border-red-500/40 p-6 text-white shadow-2xl">
-            <div className="flex justify-between items-center pb-3 border-b border-slate-800">
-              <h3 className="font-extrabold text-sm flex items-center space-x-1.5 text-red-400">
-                <ShieldAlert className="w-4 h-4" />
-                <span>Yêu Cầu Trọng Tài Phân Xử (Dispute)</span>
-              </h3>
-              <button onClick={() => setShowDisputeModal(false)} className="text-slate-400 hover:text-white">
-                <X className="w-5 h-5" />
-              </button>
+  // ==========================================
+  // VIEW 3: MAIN INBOX LIST (MESSENGER FOR CAMPUS)
+  // ==========================================
+  return (
+    <div className="max-w-2xl mx-auto px-3 sm:px-4 py-3 flex flex-col h-[calc(100vh-4.5rem)] pb-24 text-slate-900">
+      {/* MESSENGER TOP BAR */}
+      <div className="flex items-center justify-between pb-3 border-b border-slate-800 shrink-0">
+        <div className="flex items-center space-x-2.5">
+          <div className="relative">
+            <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-black font-extrabold text-xs shadow-md">
+              {currentUser?.name?.charAt(0).toUpperCase() || 'U'}
             </div>
-
-            <form onSubmit={handleDisputeSubmit} className="py-4 space-y-3.5 text-xs">
-              <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-300">
-                Khoản tiền Escrow sẽ tiếp tục bị khóa đóng băng an toàn. Trọng tài AI & Admin GigMe sẽ phân tích lịch sử
-                chat và bằng chứng để hoàn tiền hoặc giải ngân trong vòng 24h.
-              </div>
-
-              <div>
-                <label className="block text-slate-400 mb-1 font-semibold">
-                  Lý do khiếu nại tranh chấp
-                </label>
-                <textarea
-                  rows={3}
-                  required
-                  value={disputeReason}
-                  onChange={(e) => setDisputeReason(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-[#131E30] border border-slate-700 text-white"
-                  placeholder="Mô tả cụ thể vi phạm hoặc lý do..."
-                />
-              </div>
-
-              <button
-                type="submit"
-                className="w-full py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-extrabold text-sm shadow-lg shadow-red-600/20 transition"
-              >
-                Gửi Hồ Sơ Cho Ban Trọng Tài
-              </button>
-            </form>
+            <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-400 border border-[#081022]" />
+          </div>
+          <div>
+            <h2 className="text-lg font-black text-white flex items-center space-x-1.5">
+              <span>Đoạn chat</span>
+              <span className="px-1.5 py-0.5 rounded-full bg-cyan-500/20 text-[#00E5FF] text-[10px] font-bold">
+                {campusContacts.length}
+              </span>
+            </h2>
+            <p className="text-[11px] text-slate-400">Kết nối trực tiếp giữa người thuê & thợ sinh viên</p>
           </div>
         </div>
-      )}
 
-      {/* 4. BLOCKCHAIN PROOF & WATERMARK MODAL */}
-      {gig && (
-        <BlockchainProofModal
-          isOpen={showBlockchainModal}
-          onClose={() => setShowBlockchainModal(false)}
-          gigId={gig.id}
+        {/* Header Action Buttons */}
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={() => setShowNewChatModal(true)}
+            className="p-2 rounded-xl bg-[#131E30] hover:bg-[#1A2840] text-cyan-400 transition"
+            title="Nhắn tin với sinh viên mới"
+          >
+            <Plus className="w-4 h-4" />
+          </button>
+          <button
+            onClick={onBack}
+            className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition"
+          >
+            &larr; Khám phá
+          </button>
+        </div>
+      </div>
+
+      {/* SEARCH BAR */}
+      <div className="relative my-2.5 shrink-0">
+        <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Tìm người thuê, người làm, trường ĐH..."
+          className="w-full pl-10 pr-8 py-2.5 rounded-2xl bg-[#0F172A] border border-slate-800 text-white text-xs placeholder:text-slate-500 focus:border-[#00E5FF] transition outline-none"
         />
-      )}
+        {searchQuery && (
+          <button
+            onClick={() => setSearchQuery('')}
+            className="absolute right-3 top-2.5 text-slate-400 hover:text-white"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        )}
+      </div>
 
-      {/* 5. STUDENT ELO & RATING MODAL */}
-      <StudentEloModal
-        isOpen={showEloModal}
-        onClose={() => setShowEloModal(false)}
-        targetGigId={gig?.id}
-        targetUserName={partnerName}
-      />
+      {/* ACTIVE NOW (STORIES / AVATAR BUBBLE ROW - LIKE MESSENGER) */}
+      <div className="shrink-0 py-1 border-b border-slate-800/80">
+        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 px-1">
+          Đang hoạt động trên Campus ({campusContacts.filter((c) => c.isOnline).length})
+        </p>
+        <div className="flex items-center gap-3 overflow-x-auto pb-1.5 no-scrollbar">
+          {/* AI Story */}
+          <div
+            onClick={() => setActiveConversationId('AI_ASSISTANT')}
+            className="flex flex-col items-center space-y-1 cursor-pointer shrink-0 group"
+          >
+            <div className="relative">
+              <div className="w-12 h-12 rounded-full p-0.5 bg-gradient-to-tr from-[#00E5FF] to-blue-500 group-hover:scale-105 transition">
+                <div className="w-full h-full rounded-full bg-[#0F172A] flex items-center justify-center text-cyan-300">
+                  <Bot className="w-5 h-5" />
+                </div>
+              </div>
+              <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-400 border-2 border-[#081022]" />
+            </div>
+            <span className="text-[10px] text-slate-300 font-bold max-w-[60px] truncate text-center">
+              Trợ lý AI
+            </span>
+          </div>
+
+          {/* Real Contacts Stories */}
+          {campusContacts
+            .filter((c) => c.isOnline)
+            .map((contact) => (
+              <div
+                key={contact.id}
+                onClick={() => setActiveConversationId(contact.id)}
+                className="flex flex-col items-center space-y-1 cursor-pointer shrink-0 group"
+              >
+                <div className="relative">
+                  <div
+                    className={`w-12 h-12 rounded-full p-0.5 bg-gradient-to-tr ${contact.avatarBg} group-hover:scale-105 transition`}
+                  >
+                    <div className="w-full h-full rounded-full bg-[#0F172A] flex items-center justify-center text-white font-extrabold text-sm">
+                      {contact.name.charAt(0).toUpperCase()}
+                    </div>
+                  </div>
+                  <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-400 border-2 border-[#081022]" />
+                </div>
+                <span className="text-[10px] text-slate-300 font-medium max-w-[64px] truncate text-center">
+                  {contact.name}
+                </span>
+              </div>
+            ))}
+        </div>
+      </div>
+
+      {/* FILTER TABS */}
+      <div className="flex items-center space-x-1.5 py-2.5 shrink-0 overflow-x-auto no-scrollbar">
+        <button
+          onClick={() => setActiveFilterTab('ALL')}
+          className={`px-3 py-1 rounded-xl text-xs font-bold transition whitespace-nowrap ${
+            activeFilterTab === 'ALL'
+              ? 'bg-[#00E5FF] text-black shadow-md shadow-cyan-500/20'
+              : 'bg-[#131E30] text-slate-300 hover:bg-[#1A2840]'
+          }`}
+        >
+          Tất cả ({campusContacts.length + 1})
+        </button>
+        <button
+          onClick={() => setActiveFilterTab('CLIENTS')}
+          className={`px-3 py-1 rounded-xl text-xs font-bold transition whitespace-nowrap ${
+            activeFilterTab === 'CLIENTS'
+              ? 'bg-[#00E5FF] text-black shadow-md shadow-cyan-500/20'
+              : 'bg-[#131E30] text-slate-300 hover:bg-[#1A2840]'
+          }`}
+        >
+          💼 Người thuê ({campusContacts.filter((c) => c.role === 'CLIENT').length})
+        </button>
+        <button
+          onClick={() => setActiveFilterTab('WORKERS')}
+          className={`px-3 py-1 rounded-xl text-xs font-bold transition whitespace-nowrap ${
+            activeFilterTab === 'WORKERS'
+              ? 'bg-[#00E5FF] text-black shadow-md shadow-cyan-500/20'
+              : 'bg-[#131E30] text-slate-300 hover:bg-[#1A2840]'
+          }`}
+        >
+          ⚡ Người làm ({campusContacts.filter((c) => c.role === 'WORKER').length})
+        </button>
+        <button
+          onClick={() => setActiveConversationId('AI_ASSISTANT')}
+          className="px-3 py-1 rounded-xl text-xs font-bold bg-cyan-500/10 text-[#00E5FF] border border-cyan-500/30 hover:bg-cyan-500/20 transition flex items-center space-x-1 whitespace-nowrap shrink-0"
+        >
+          <Bot className="w-3.5 h-3.5" />
+          <span>Trợ lý AI 24/7</span>
+        </button>
+      </div>
+
+      {/* CONVERSATION THREADS LIST */}
+      <div className="flex-1 overflow-y-auto space-y-1.5 pr-1 pt-1">
+        {/* PINNED: 24/7 AI CAMPUS ASSISTANT */}
+        {(activeFilterTab === 'ALL' || activeFilterTab === 'AI') && (
+          <div
+            onClick={() => setActiveConversationId('AI_ASSISTANT')}
+            className="p-3 rounded-2xl bg-gradient-to-r from-[#0F1D30] to-[#12233B] border border-cyan-500/30 hover:border-cyan-400/60 cursor-pointer transition shadow-sm flex items-center justify-between space-x-3 group"
+          >
+            <div className="flex items-center space-x-3 min-w-0">
+              <div className="relative shrink-0">
+                <div className="w-11 h-11 rounded-full bg-gradient-to-tr from-[#00E5FF] to-blue-600 flex items-center justify-center text-black font-extrabold shadow-md">
+                  <Bot className="w-5 h-5 text-black" />
+                </div>
+                <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-400 border-2 border-[#0F1D30] animate-pulse" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center space-x-2">
+                  <h4 className="font-extrabold text-sm text-white truncate group-hover:text-[#00E5FF] transition">
+                    Trợ Lý AI GigMe 24/7
+                  </h4>
+                  <span className="px-1.5 py-0.2 rounded bg-cyan-500/20 text-[#00E5FF] font-bold text-[9px] shrink-0">
+                    Official AI
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-300 truncate mt-0.5">
+                  Hỏi đáp Smart Escrow, giải ngân Napas 247, quy chế campus...
+                </p>
+              </div>
+            </div>
+            <span className="text-[10px] text-cyan-400 font-bold shrink-0">Trực tuyến</span>
+          </div>
+        )}
+
+        {/* CONTACTS THREADS (HIRERS & WORKERS) */}
+        {filteredContacts.length === 0 ? (
+          <div className="text-center py-12 text-slate-500 text-xs">
+            <MessageCircle className="w-9 h-9 mx-auto mb-2 text-slate-600" />
+            <p className="font-bold text-slate-400">Không tìm thấy liên hệ phù hợp.</p>
+            <p className="text-[11px] text-slate-500 mt-1">
+              Bấm nút (+) ở góc trên để tìm kiếm và nhắn tin với sinh viên khác!
+            </p>
+          </div>
+        ) : (
+          filteredContacts.map((contact) => {
+            const lastMsg = getLastMessageForContact(contact.id, contact.associatedGig?.id);
+            const previewText = lastMsg
+              ? lastMsg.message || (lastMsg.attachmentType === 'IMAGE' ? '📷 Hình ảnh' : '🎙️ Tin nhắn thoại')
+              : contact.specialtyOrNeed;
+            const timeText = lastMsg
+              ? new Date(lastMsg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+              : contact.isOnline
+              ? 'Vừa xong'
+              : '';
+
+            return (
+              <div
+                key={contact.id}
+                onClick={() => setActiveConversationId(contact.id)}
+                className="p-3 rounded-2xl bg-[#0F172A] border border-slate-800/80 hover:border-slate-700 hover:bg-[#131E30] cursor-pointer transition shadow-sm flex items-center justify-between space-x-3 group"
+              >
+                <div className="flex items-center space-x-3 min-w-0">
+                  {/* Avatar */}
+                  <div className="relative shrink-0">
+                    <div
+                      className={`w-11 h-11 rounded-full bg-gradient-to-tr ${contact.avatarBg} flex items-center justify-center text-white font-extrabold text-sm shadow`}
+                    >
+                      {contact.name.charAt(0).toUpperCase()}
+                    </div>
+                    {contact.isOnline && (
+                      <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-400 border-2 border-[#0F172A]" />
+                    )}
+                  </div>
+
+                  {/* Contact Info & Message Preview */}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center space-x-2">
+                      <h4 className="font-extrabold text-sm text-white truncate group-hover:text-[#00E5FF] transition">
+                        {contact.name}
+                      </h4>
+                      <span
+                        className={`px-1.5 py-0.2 rounded text-[9px] font-bold shrink-0 ${
+                          contact.role === 'CLIENT'
+                            ? 'bg-blue-500/20 text-blue-300'
+                            : 'bg-emerald-500/20 text-emerald-300'
+                        }`}
+                      >
+                        {contact.roleLabel}
+                      </span>
+                    </div>
+
+                    <p className="text-[11px] text-slate-400 truncate mt-0.5">{previewText}</p>
+
+                    {/* Subtle micro-tag if there is a shared gig */}
+                    {contact.associatedGig && (
+                      <p className="text-[10px] text-cyan-400/80 font-medium truncate mt-0.5">
+                        💼 {contact.associatedGig.title}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Right Metadata */}
+                <div className="text-right shrink-0 flex flex-col items-end space-y-1">
+                  <span className="text-[10px] text-slate-500 font-medium">{timeText}</span>
+                  <span className="text-[10px] text-slate-400 font-semibold">{contact.school}</span>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* MODAL: START NEW CHAT WITH ANY STUDENT */}
+      {showNewChatModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-md rounded-3xl bg-[#0B1528] border border-slate-700 p-5 shadow-2xl text-slate-200 flex flex-col max-h-[80vh]">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800 shrink-0">
+              <h4 className="font-extrabold text-sm text-white flex items-center space-x-1.5">
+                <MessageCircle className="w-4 h-4 text-[#00E5FF]" />
+                <span>Soạn tin nhắn mới</span>
+              </h4>
+              <button
+                onClick={() => setShowNewChatModal(false)}
+                className="p-1 rounded-full text-slate-400 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-400 my-2 shrink-0">
+              Chọn người thuê hoặc người làm để bắt đầu cuộc trò chuyện trực tiếp:
+            </p>
+
+            <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+              {campusContacts.map((contact) => (
+                <div
+                  key={contact.id}
+                  onClick={() => {
+                    setShowNewChatModal(false);
+                    setActiveConversationId(contact.id);
+                  }}
+                  className="p-3 rounded-2xl bg-[#0F172A] hover:bg-[#131E30] border border-slate-800/80 hover:border-cyan-500/40 cursor-pointer transition flex items-center justify-between"
+                >
+                  <div className="flex items-center space-x-3">
+                    <div
+                      className={`w-9 h-9 rounded-full bg-gradient-to-tr ${contact.avatarBg} flex items-center justify-center text-white font-extrabold text-xs shadow`}
+                    >
+                      {contact.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <div className="flex items-center space-x-1.5">
+                        <h5 className="font-bold text-xs text-white">{contact.name}</h5>
+                        <span
+                          className={`text-[9px] px-1.5 py-0.5 rounded font-bold ${
+                            contact.role === 'CLIENT'
+                              ? 'bg-blue-500/20 text-blue-300'
+                              : 'bg-emerald-500/20 text-emerald-300'
+                          }`}
+                        >
+                          {contact.roleLabel}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-slate-400">{contact.school}</p>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-slate-500" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
