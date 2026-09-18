@@ -76,3 +76,16 @@ self.addEventListener('notificationclick', (event) => {
     })
   );
 });
+
+// Background Sync Handler for Offline Applications
+self.addEventListener('sync', (event) => {
+  if (event.tag === 'gigme-sync-applications') {
+    event.waitUntil(
+      clients.matchAll({ includeUncontrolled: true, type: 'window' }).then((clientList) => {
+        clientList.forEach((client) => {
+          client.postMessage({ type: 'GIGME_TRIGGER_BACKGROUND_SYNC' });
+        });
+      })
+    );
+  }
+});

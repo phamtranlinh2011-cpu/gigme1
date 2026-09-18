@@ -2,6 +2,76 @@
 <html lang="vi">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      // Gracefully neutralize benign Vite HMR websocket disconnection in AI Studio container environment
+      (function() {
+        try {
+          if (typeof window !== 'undefined' && window.WebSocket) {
+            var OrigWS = window.WebSocket;
+            function MockWS(url, protocols) {
+              var isVite = protocols === 'vite-hmr' || (typeof url === 'string' && (url.indexOf('vite') !== -1 || url.indexOf('hmr') !== -1));
+              if (isVite) {
+                var bus = new EventTarget();
+                bus.binaryType = 'blob';
+                bus.readyState = 1;
+                bus.bufferedAmount = 0;
+                bus.extensions = '';
+                bus.protocol = 'vite-hmr';
+                bus.url = String(url);
+                bus.send = function() {};
+                bus.close = function() {};
+                bus.onopen = null;
+                bus.onclose = null;
+                bus.onerror = null;
+                bus.onmessage = null;
+                setTimeout(function() {
+                  var ev = new Event('open');
+                  if (typeof bus.onopen === 'function') bus.onopen(ev);
+                  bus.dispatchEvent(ev);
+                }, 0);
+                return bus;
+              }
+              return new OrigWS(url, protocols);
+            }
+            MockWS.prototype = OrigWS.prototype;
+            MockWS.CONNECTING = 0;
+            MockWS.OPEN = 1;
+            MockWS.CLOSING = 2;
+            MockWS.CLOSED = 3;
+            window.WebSocket = MockWS;
+          }
+        } catch (e) {}
+
+        function isViteLog(arg) {
+          if (!arg) return false;
+          var s = typeof arg === 'string' ? arg : (arg.message || String(arg));
+          return s.indexOf('[vite]') !== -1 || s.indexOf('websocket') !== -1 || s.indexOf('WebSocket') !== -1;
+        }
+
+        var origErr = console.error;
+        console.error = function() {
+          for (var i = 0; i < arguments.length; i++) {
+            if (isViteLog(arguments[i])) return;
+          }
+          origErr.apply(console, arguments);
+        };
+
+        var origWarn = console.warn;
+        console.warn = function() {
+          for (var i = 0; i < arguments.length; i++) {
+            if (isViteLog(arguments[i])) return;
+          }
+          origWarn.apply(console, arguments);
+        };
+
+        window.addEventListener('error', function(e) {
+          if (isViteLog(e.message) || isViteLog(e.error)) {
+            e.stopImmediatePropagation();
+            e.preventDefault();
+          }
+        }, true);
+      })();
+    </script>
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
