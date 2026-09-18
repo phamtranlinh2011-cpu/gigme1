@@ -141,6 +141,7 @@ const MainLayout: React.FC = () => {
         return (
           <ProfileScreen
             onOpenNfcDialog={() => setShowNfcModal(true)}
+            onOpenFaceDialog={() => setShowFaceModal(true)}
             onOpenSsoDialog={() => setShowSsoModal(true)}
             onOpenAdminDashboard={() => setCurrentTab('ADMIN')}
           />
@@ -169,13 +170,25 @@ const MainLayout: React.FC = () => {
             onSelectGigDetail={handleOpenGigDetail}
             onOpenCreateGig={() => setCurrentTab('CREATE_GIG')}
             onOpenVerify={() => setShowNfcModal(true)}
+            onOpenLeaderboard={() => setCurrentTab('LEADERBOARD')}
+            onOpenMarketplace={() => setCurrentTab('MARKETPLACE')}
+            onOpenVietQrScanner={() => setShowVietQrScanner(true)}
+            onOpenPaymentGateway={() => setShowPaymentGateway(true)}
+            onOpenGeminiVision={() => setShowNfcModal(true)}
+            onOpenFcmPush={() => setShowFcmPush(true)}
+            onOpenEloModal={() => setShowEloModal(true)}
+            onOpenSafeWalk={() => setShowSafeWalk(true)}
           />
         );
     }
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#06090F] text-slate-100 selection:bg-[#00E5FF]/30 selection:text-[#00E5FF]">
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-sky-50/80 via-slate-50 to-blue-50/50 dark:bg-[#06090F] text-slate-900 dark:text-slate-100 selection:bg-sky-500/20 selection:text-sky-600 transition-colors duration-200 relative overflow-x-hidden">
+      {/* Decorative ambient color washes for vibrant light mode */}
+      <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-sky-400/10 to-indigo-500/10 rounded-full blur-3xl pointer-events-none -z-10" />
+      <div className="absolute top-80 left-0 w-80 h-80 bg-gradient-to-tr from-cyan-400/10 to-blue-500/10 rounded-full blur-3xl pointer-events-none -z-10" />
+
       <Header
         onOpenCreateGig={() => {
           selectGig(null);

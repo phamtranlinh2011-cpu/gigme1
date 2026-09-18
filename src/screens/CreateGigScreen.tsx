@@ -151,70 +151,51 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
   const isInsufficient = walletBalance < totalRequired;
 
   return (
-    <div className="max-w-2xl mx-auto px-3 sm:px-4 py-4 sm:py-6 pb-28 text-white">
+    <div className="max-w-2xl mx-auto px-3 sm:px-4 py-4 sm:py-6 pb-28 text-slate-900 dark:text-white">
       {/* Top Header */}
       <div className="flex items-center justify-between mb-4 sm:mb-6">
         <button
           onClick={handleBack}
-          className="flex items-center space-x-1.5 text-xs text-slate-400 hover:text-white transition"
+          className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-50 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold transition shadow-xs active:scale-95"
         >
           <ArrowLeft className="w-4 h-4" />
           <span>Quay lại</span>
         </button>
 
-        <h2 className="text-sm sm:text-base font-extrabold text-white">Đăng Việc Làm 3 Bước</h2>
+        <h2 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white">Đăng Việc Làm 3 Bước</h2>
 
-        <span className="text-xs font-mono font-bold text-[#00E5FF]">Bước {step}/3</span>
+        <span className="text-xs font-mono font-bold text-[#0284C7] bg-sky-50 dark:bg-sky-950/40 px-2.5 py-1 rounded-lg border border-sky-200 dark:border-sky-800">
+          Bước {step}/3
+        </span>
       </div>
-
-      {/* Role Enforcement Warning if in FREELANCER mode */}
-      {roleMode === 'FREELANCER' && (
-        <div className="mb-4 p-4 rounded-2xl bg-gradient-to-r from-orange-950/60 to-amber-950/40 border border-[#FF6B00]/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
-          <div>
-            <span className="font-extrabold text-white block">
-              ⚡ Bạn đang ở chế độ Người Làm (Freelancer)
-            </span>
-            <p className="text-slate-300 text-[11px] mt-0.5">
-              Để đăng việc mới và bảo lãnh thù lao Smart Escrow, bạn cần chuyển sang chế độ <strong>Người Thuê</strong>.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={toggleRoleMode}
-            className="px-3.5 py-1.5 rounded-xl bg-[#00E5FF] text-black font-extrabold text-xs hover:brightness-110 shrink-0 shadow-md transition"
-          >
-            Chuyển sang Người Thuê &rarr;
-          </button>
-        </div>
-      )}
 
       {/* Step Indicator Bar */}
       <div className="grid grid-cols-3 gap-2 mb-5">
         <div
           className={`h-1.5 rounded-full transition-all ${
-            step >= 1 ? 'bg-[#00E5FF]' : 'bg-slate-800'
+            step >= 1 ? 'bg-[#0284C7]' : 'bg-slate-200 dark:bg-slate-800'
           }`}
         />
         <div
           className={`h-1.5 rounded-full transition-all ${
-            step >= 2 ? 'bg-[#00E5FF]' : 'bg-slate-800'
+            step >= 2 ? 'bg-[#0284C7]' : 'bg-slate-200 dark:bg-slate-800'
           }`}
         />
         <div
           className={`h-1.5 rounded-full transition-all ${
-            step >= 3 ? 'bg-[#00E5FF]' : 'bg-slate-800'
+            step >= 3 ? 'bg-[#0284C7]' : 'bg-slate-200 dark:bg-slate-800'
           }`}
         />
       </div>
 
       {/* STEP 1: Content & AI Recognition */}
       {step === 1 && (
-        <div className="rounded-3xl bg-[#0F172A] border border-[#1E293B] p-4 sm:p-6 shadow-2xl space-y-4 sm:space-y-5 animate-fade-in text-xs">
+        <div className="rounded-3xl bg-white border border-slate-200 p-4 sm:p-6 shadow-xs space-y-4 sm:space-y-5 animate-fade-in text-xs">
           {/* Nút mở Gemini Task Estimator Pro */}
           <button
             type="button"
             onClick={() => setIsEstimatorModalOpen(true)}
-            className="w-full p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xl shadow-blue-500/20 transition-all active:scale-98 border border-white/25 group text-left"
+            className="w-full p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md shadow-blue-500/15 transition-all active:scale-98 border border-white/25 group text-left"
           >
             <div className="flex items-center space-x-3">
               <div className="p-2.5 bg-white/20 rounded-2xl backdrop-blur-md group-hover:scale-110 transition-transform shrink-0">
@@ -238,17 +219,17 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
           </button>
 
           {/* AI Scanner Header */}
-          <div className="p-4 rounded-2xl bg-gradient-to-r from-purple-900/40 via-indigo-900/30 to-[#0F172A] border border-purple-500/30">
+          <div className="p-4 rounded-2xl bg-purple-50/70 border border-purple-200">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center space-x-2">
-                <Sparkles className="w-4 h-4 text-yellow-300 animate-spin-slow" />
-                <h4 className="font-extrabold text-white text-xs">Trợ Lý Nhận Diện AI Thông Minh</h4>
+                <Sparkles className="w-4 h-4 text-purple-600 animate-spin-slow" />
+                <h4 className="font-extrabold text-purple-900 text-xs">Trợ Lý Nhận Diện AI Thông Minh</h4>
               </div>
-              <span className="text-[10px] text-purple-300 font-bold bg-purple-950/80 px-2 py-0.5 rounded border border-purple-700">
+              <span className="text-[10px] text-purple-700 font-bold bg-purple-100 px-2 py-0.5 rounded border border-purple-300">
                 Auto Fill
               </span>
             </div>
-            <p className="text-[11px] text-slate-300 mb-3">
+            <p className="text-[11px] text-slate-600 mb-3">
               Chụp ảnh bài tập, màn hình game, hoặc kịch bản video để AI tự điền tiêu đề & định giá tự động:
             </p>
 
@@ -264,9 +245,9 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
                   key={preset}
                   type="button"
                   onClick={() => analyzePhotoWithAi(preset)}
-                  className="p-2 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-700 text-left font-semibold text-[11px] text-slate-200 transition flex items-center space-x-1.5"
+                  className="p-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-left font-semibold text-[11px] text-slate-700 transition flex items-center space-x-1.5 shadow-xs active:scale-95"
                 >
-                  <Camera className="w-3.5 h-3.5 text-[#00E5FF] shrink-0" />
+                  <Camera className="w-3.5 h-3.5 text-[#0284C7] shrink-0" />
                   <span className="truncate">{preset}</span>
                 </button>
               ))}
@@ -274,21 +255,21 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
 
             {/* AI Detected Result Box */}
             {aiDetectedResult && (
-              <div className="mt-3 p-3 rounded-xl bg-purple-950/60 border border-purple-500/50 space-y-1.5 animate-fade-in">
+              <div className="mt-3 p-3 rounded-xl bg-white border border-purple-300 space-y-1.5 animate-fade-in shadow-xs">
                 <div className="flex justify-between items-center">
-                  <span className="text-[10px] text-emerald-400 font-bold">
+                  <span className="text-[10px] text-emerald-700 font-bold">
                     ✓ Độ tin cậy: {aiDetectedResult.confidence}
                   </span>
                   <button
                     onClick={handleApplyAiResult}
-                    className="px-2.5 py-1 rounded-lg bg-[#00E5FF] text-black font-extrabold text-[10px] hover:brightness-110"
+                    className="px-2.5 py-1 rounded-lg bg-[#0284C7] text-white font-extrabold text-[10px] hover:brightness-105"
                   >
                     Áp dụng ngay
                   </button>
                 </div>
-                <p className="font-bold text-white text-xs">{aiDetectedResult.suggestedTitle}</p>
-                <p className="text-[11px] text-slate-300">{aiDetectedResult.suggestedDescription}</p>
-                <p className="text-[11px] text-amber-300 font-semibold">
+                <p className="font-bold text-slate-900 text-xs">{aiDetectedResult.suggestedTitle}</p>
+                <p className="text-[11px] text-slate-600">{aiDetectedResult.suggestedDescription}</p>
+                <p className="text-[11px] text-amber-700 font-semibold">
                   Giá gợi ý: {formatVnd(aiDetectedResult.suggestedPrice)} • Danh mục:{' '}
                   {aiDetectedResult.suggestedCategory}
                 </p>
@@ -299,10 +280,10 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
           {/* Category Selection with Search & Custom "Khác" input */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <label className="block text-slate-300 font-bold text-xs">
+              <label className="block text-slate-700 font-bold text-xs">
                 Danh mục công việc ({PREDEFINED_CATEGORIES.length} nhóm ngành)
               </label>
-              <span className="text-[10px] text-cyan-400 font-semibold truncate max-w-[200px]">
+              <span className="text-[10px] text-[#0284C7] font-semibold truncate max-w-[200px]">
                 Đã chọn: {category.startsWith('Khác') ? (customCategory ? `Khác: ${customCategory}` : 'Khác') : category}
               </span>
             </div>
@@ -315,13 +296,13 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
                 value={categorySearch}
                 onChange={(e) => setCategorySearch(e.target.value)}
                 placeholder="Tìm danh mục (ship đồ, gia sư, cày rank, dọn phòng, thiết kế...)"
-                className="w-full pl-9 pr-8 py-2.5 rounded-xl bg-[#131E30] border border-slate-700 text-white text-xs placeholder:text-slate-500 focus:border-[#00E5FF] focus:outline-none"
+                className="w-full pl-9 pr-8 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 text-xs placeholder:text-slate-400 focus:border-[#0284C7] focus:outline-none shadow-xs"
               />
               {categorySearch && (
                 <button
                   type="button"
                   onClick={() => setCategorySearch('')}
-                  className="absolute right-3 top-3 text-slate-400 hover:text-white text-xs font-bold"
+                  className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 text-xs font-bold"
                 >
                   ✕
                 </button>
@@ -329,7 +310,7 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
             </div>
 
             {/* Category Options List */}
-            <div className="max-h-48 overflow-y-auto p-1.5 rounded-2xl bg-[#111927] border border-slate-800 space-y-1">
+            <div className="max-h-48 overflow-y-auto p-1.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
               {PREDEFINED_CATEGORIES.filter((c) =>
                 c.toLowerCase().includes(categorySearch.toLowerCase())
               ).map((c) => {
@@ -345,21 +326,21 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
                     }}
                     className={`w-full p-2.5 rounded-xl text-left text-xs font-semibold transition flex items-center justify-between ${
                       isSelected
-                        ? 'bg-cyan-500/20 text-[#00E5FF] border border-cyan-500/40 font-bold shadow-sm'
+                        ? 'bg-sky-50 text-[#0284C7] border border-sky-300 font-bold shadow-xs'
                         : isOther
-                        ? 'bg-amber-500/10 text-amber-300 border border-amber-500/30 hover:bg-amber-500/20'
-                        : 'text-slate-300 hover:bg-slate-800/80 border border-transparent'
+                        ? 'bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100/60'
+                        : 'text-slate-700 hover:bg-white border border-transparent'
                     }`}
                   >
                     <span className="truncate">{c}</span>
-                    {isSelected && <Check className="w-4 h-4 text-[#00E5FF] shrink-0 ml-2" />}
+                    {isSelected && <Check className="w-4 h-4 text-[#0284C7] shrink-0 ml-2" />}
                   </button>
                 );
               })}
               {PREDEFINED_CATEGORIES.filter((c) =>
                 c.toLowerCase().includes(categorySearch.toLowerCase())
               ).length === 0 && (
-                <div className="p-3 text-center text-xs text-slate-400">
+                <div className="p-3 text-center text-xs text-slate-500">
                   <p>Không tìm thấy danh mục khớp với &quot;{categorySearch}&quot;</p>
                   <button
                     type="button"
@@ -368,7 +349,7 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
                       setCustomCategory(categorySearch);
                       setCategorySearch('');
                     }}
-                    className="mt-1.5 text-amber-400 font-bold underline hover:text-amber-300 block mx-auto"
+                    className="mt-1.5 text-amber-700 font-bold underline hover:text-amber-800 block mx-auto"
                   >
                     Chọn &quot;Khác&quot; và đặt tên: &quot;{categorySearch}&quot;
                   </button>
@@ -378,9 +359,9 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
 
             {/* Custom Input Field when "Khác" is selected */}
             {category.startsWith('Khác') && (
-              <div className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/15 to-orange-500/15 border border-amber-500/50 space-y-2 animate-fade-in">
-                <label className="block text-amber-300 font-bold text-xs flex items-center space-x-1.5">
-                  <Sparkles className="w-4 h-4 text-amber-400" />
+              <div className="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200 space-y-2 animate-fade-in">
+                <label className="block text-amber-900 font-bold text-xs flex items-center space-x-1.5">
+                  <Sparkles className="w-4 h-4 text-amber-600" />
                   <span>Vui lòng nhập cụ thể đó là việc gì:</span>
                 </label>
                 <input
@@ -392,35 +373,35 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
                     setCategoryError('');
                   }}
                   placeholder="VD: Cầm hộ đồ bưu điện về phòng, hỗ trợ bưng bê chuyển phòng KTX..."
-                  className="w-full px-3 py-2.5 rounded-xl bg-[#0F172A] border border-amber-500/60 text-white font-medium text-xs focus:border-amber-400 focus:outline-none placeholder:text-slate-500"
+                  className="w-full px-3 py-2.5 rounded-xl bg-white border border-amber-300 text-slate-900 font-medium text-xs focus:border-amber-500 focus:outline-none placeholder:text-slate-400"
                 />
                 {categoryError && (
-                  <p className="text-[11px] text-rose-400 font-bold">{categoryError}</p>
+                  <p className="text-[11px] text-rose-600 font-bold">{categoryError}</p>
                 )}
               </div>
             )}
           </div>
 
           <div>
-            <label className="block text-slate-400 mb-1 font-bold">Tiêu đề công việc ngắn gọn</label>
+            <label className="block text-slate-700 mb-1 font-bold">Tiêu đề công việc ngắn gọn</label>
             <input
               type="text"
               required
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="w-full px-3 py-2.5 rounded-xl bg-[#131E30] border border-slate-700 text-white font-semibold"
+              className="w-full px-3 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-900 font-semibold focus:border-[#0284C7] focus:outline-none"
               placeholder="VD: Kéo rank Liên Quân từ KC1 lên Tinh Anh..."
             />
           </div>
 
           <div>
-            <label className="block text-slate-400 mb-1 font-bold">Mô tả chi tiết yêu cầu & sản phẩm bàn giao</label>
+            <label className="block text-slate-700 mb-1 font-bold">Mô tả chi tiết yêu cầu & sản phẩm bàn giao</label>
             <textarea
               rows={3}
               required
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl bg-[#131E30] border border-slate-700 text-white"
+              className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-900 focus:border-[#0284C7] focus:outline-none"
               placeholder="Nêu rõ khung giờ, yêu cầu trình độ, link tài liệu hoặc yêu cầu chụp màn hình nghiệm thu..."
             />
           </div>
@@ -429,7 +410,7 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
             type="button"
             onClick={handleNext}
             disabled={!title.trim() || !description.trim()}
-            className="w-full py-3 rounded-xl bg-gradient-to-r from-[#00E5FF] to-cyan-500 text-black font-extrabold text-sm hover:brightness-110 shadow-lg shadow-cyan-500/20 disabled:opacity-40 disabled:cursor-not-allowed transition"
+            className="w-full py-3 rounded-xl bg-gradient-to-r from-sky-600 to-blue-600 text-white font-extrabold text-sm hover:brightness-105 shadow-sm shadow-sky-500/20 disabled:opacity-40 disabled:cursor-not-allowed transition active:scale-95"
           >
             Tiếp Tục: Thiết Lập Thù Lao & Đấu Giá &rarr;
           </button>
@@ -438,19 +419,19 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
 
       {/* STEP 2: Pricing & Reverse Auction */}
       {step === 2 && (
-        <div className="rounded-3xl bg-[#0F172A] border border-[#1E293B] p-6 shadow-2xl space-y-5 animate-fade-in text-xs">
+        <div className="rounded-3xl bg-white border border-slate-200 p-6 shadow-xs space-y-5 animate-fade-in text-xs">
           <div>
-            <label className="block text-slate-400 mb-1 font-bold">Thù lao thanh toán (VND)</label>
+            <label className="block text-slate-700 mb-1 font-bold">Thù lao thanh toán (VND)</label>
             <input
               type="number"
               step="5000"
               required
               value={price}
               onChange={(e) => setPrice(Number(e.target.value))}
-              className="w-full px-3 py-2.5 rounded-xl bg-[#131E30] border border-slate-700 text-[#00E5FF] font-mono text-lg font-black"
+              className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-[#0284C7] font-mono text-xl font-black focus:border-[#0284C7] focus:bg-white focus:outline-none"
               placeholder="50000"
             />
-            <span className="text-[11px] text-slate-400 mt-1 block">
+            <span className="text-[11px] text-slate-500 mt-1 block">
               Khoản tiền này sẽ được khóa an toàn trong <strong>Smart Escrow Vault</strong> và chỉ giải ngân khi bạn bấm
               nghiệm thu hài lòng.
             </span>
@@ -464,42 +445,42 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
               availableWorkersCount: 9,
             });
             return (
-              <div className="p-3.5 rounded-2xl bg-gradient-to-r from-cyan-950/40 via-[#101A2C] to-slate-900 border border-cyan-500/40 space-y-2">
+              <div className="p-3.5 rounded-2xl bg-sky-50/60 border border-sky-200 space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
-                    <div className="p-1.5 rounded-lg bg-cyan-500/20 text-[#00E5FF]">
+                    <div className="p-1.5 rounded-lg bg-sky-100 text-[#0284C7]">
                       <Zap className="w-4 h-4" />
                     </div>
                     <div>
                       <div className="flex items-center space-x-2">
-                        <span className="font-bold text-white text-xs">Giá Linh Hoạt Theo Cung - Cầu</span>
-                        <span className="px-1.5 py-0.5 rounded bg-[#00E5FF]/20 text-[#00E5FF] font-mono font-bold text-[10px] border border-cyan-500/30">
+                        <span className="font-bold text-slate-900 text-xs">Giá Linh Hoạt Theo Cung - Cầu</span>
+                        <span className="px-1.5 py-0.5 rounded bg-sky-100 text-[#0284C7] font-mono font-bold text-[10px] border border-sky-300">
                           {surgeResult.multiplier.toFixed(2)}x
                         </span>
                       </div>
-                      <p className="text-[10px] text-slate-400 mt-0.5">
+                      <p className="text-[10px] text-slate-500 mt-0.5">
                         {surgeResult.primaryReason}
                       </p>
                     </div>
                   </div>
                   <span className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase ${
                     surgeResult.campusDemandLevel === 'PEAK'
-                      ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
-                      : 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
+                      ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                      : 'bg-sky-100 text-sky-800 border border-sky-300'
                   }`}>
                     {surgeResult.campusDemandLevel === 'PEAK' ? 'Cao Điểm KTX' : 'Nhu Cầu Cao'}
                   </span>
                 </div>
 
                 {price < surgeResult.surgePrice && (
-                  <div className="flex items-center justify-between pt-1 border-t border-slate-800">
-                    <span className="text-[11px] text-slate-300">
-                      Gợi ý thù lao đẩy nhanh: <strong className="text-amber-400 font-mono">{formatVnd(surgeResult.surgePrice)}</strong>
+                  <div className="flex items-center justify-between pt-2 border-t border-sky-200/80">
+                    <span className="text-[11px] text-slate-700">
+                      Gợi ý thù lao đẩy nhanh: <strong className="text-amber-700 font-mono">{formatVnd(surgeResult.surgePrice)}</strong>
                     </span>
                     <button
                       type="button"
                       onClick={() => setPrice(surgeResult.surgePrice)}
-                      className="px-2.5 py-1 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-black font-extrabold text-[10px] hover:brightness-110 shadow-sm transition"
+                      className="px-2.5 py-1 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white font-extrabold text-[10px] hover:brightness-105 shadow-xs transition"
                     >
                       Áp Dụng (+{formatVnd(surgeResult.bonusAmount)})
                     </button>
@@ -510,15 +491,15 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
           })()}
 
           {/* Reverse auction toggle */}
-          <div className="p-3.5 rounded-2xl bg-[#131E30] border border-slate-700 flex items-start justify-between gap-3">
+          <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex items-start justify-between gap-3">
             <div>
-              <h4 className="font-bold text-white flex items-center space-x-1.5">
+              <h4 className="font-bold text-slate-900 flex items-center space-x-1.5">
                 <span>Bật Đấu Giá Ngược (Reverse Auction)</span>
-                <span className="text-[10px] px-1.5 py-0.2 rounded bg-cyan-950 text-cyan-300 font-bold border border-cyan-800">
+                <span className="text-[10px] px-1.5 py-0.2 rounded bg-sky-100 text-sky-800 font-bold border border-sky-300">
                   Tiết kiệm
                 </span>
               </h4>
-              <p className="text-slate-400 mt-0.5 text-[11px] leading-relaxed">
+              <p className="text-slate-500 mt-0.5 text-[11px] leading-relaxed">
                 Cho phép Freelancer trả giá giảm dần. <strong>Chỉ bạn (chủ việc)</strong> mới có quyền tạo và mở phòng đấu giá trực tiếp sau khi đăng đơn.
               </p>
             </div>
@@ -526,7 +507,7 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
               type="checkbox"
               checked={isReverseAuction}
               onChange={(e) => setIsReverseAuction(e.target.checked)}
-              className="w-5 h-5 accent-[#00E5FF] rounded cursor-pointer mt-1"
+              className="w-5 h-5 accent-[#0284C7] rounded cursor-pointer mt-1"
             />
           </div>
 
@@ -534,30 +515,30 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
           <div
             className={`p-4 rounded-2xl border transition-all ${
               isBoosted
-                ? 'bg-gradient-to-r from-red-950/50 via-orange-950/40 to-slate-900 border-red-500/80 ring-2 ring-red-500/30 shadow-lg shadow-red-500/10'
-                : 'bg-[#131E30] border-slate-700'
+                ? 'bg-rose-50/70 border-rose-300 ring-2 ring-rose-400/20 shadow-xs'
+                : 'bg-slate-50 border-slate-200'
             }`}
           >
             <div className="flex items-center justify-between">
               <div className="flex items-start space-x-3">
                 <div
                   className={`p-2.5 rounded-2xl ${
-                    isBoosted ? 'bg-red-500 text-white animate-pulse' : 'bg-slate-800 text-slate-400'
+                    isBoosted ? 'bg-rose-500 text-white animate-pulse' : 'bg-slate-200 text-slate-600'
                   }`}
                 >
                   <Rocket className="w-5 h-5" />
                 </div>
                 <div>
                   <div className="flex items-center space-x-2">
-                    <span className="font-extrabold text-white text-xs">
+                    <span className="font-extrabold text-slate-900 text-xs">
                       🚀 Đẩy Bài & Ghim Top 1 Hỏa Tốc (Flash Boost)
                     </span>
-                    <span className="px-2 py-0.5 bg-red-500/20 border border-red-500/40 text-red-300 font-extrabold text-[10px] rounded-full">
+                    <span className="px-2 py-0.5 bg-rose-100 border border-rose-300 text-rose-700 font-extrabold text-[10px] rounded-full">
                       +10.000đ
                     </span>
                   </div>
-                  <p className="text-[11px] text-slate-300 mt-1 leading-relaxed">
-                    Ghim bài viết lên vị trí đầu tiên trang chủ với khung viền Neon phát sáng nhấp nháy trong 2 giờ. Thu hút hàng trăm sinh viên xung quanh nhận việc ngay!
+                  <p className="text-[11px] text-slate-600 mt-1 leading-relaxed">
+                    Ghim bài viết lên vị trí đầu tiên trang chủ với khung viền nổi bật trong 2 giờ. Thu hút hàng trăm sinh viên xung quanh nhận việc ngay!
                   </p>
                 </div>
               </div>
@@ -568,42 +549,42 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
                   setIsBoosted(e.target.checked);
                   if (e.target.checked) setIsFlash(true);
                 }}
-                className="w-5 h-5 accent-red-500 rounded cursor-pointer shrink-0 ml-3"
+                className="w-5 h-5 accent-rose-500 rounded cursor-pointer shrink-0 ml-3"
               />
             </div>
           </div>
 
           {/* Flash Gig & Recurring Toggles */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            <div className="p-3 rounded-2xl bg-[#131E30] border border-slate-700 flex items-center justify-between">
+            <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between">
               <div>
-                <span className="font-bold text-white flex items-center space-x-1">
-                  <Zap className="w-3.5 h-3.5 text-[#FF6B00]" />
+                <span className="font-bold text-slate-900 flex items-center space-x-1">
+                  <Zap className="w-3.5 h-3.5 text-amber-500" />
                   <span>Kèo Hỏa Tốc (Flash)</span>
                 </span>
-                <span className="text-[10px] text-slate-400">Ưu tiên quét radar beam</span>
+                <span className="text-[10px] text-slate-500">Ưu tiên quét radar beam</span>
               </div>
               <input
                 type="checkbox"
                 checked={isFlash}
                 onChange={(e) => setIsFlash(e.target.checked)}
-                className="w-4 h-4 accent-[#FF6B00] rounded cursor-pointer"
+                className="w-4 h-4 accent-amber-500 rounded cursor-pointer"
               />
             </div>
 
-            <div className="p-3 rounded-2xl bg-[#131E30] border border-slate-700 flex items-center justify-between">
+            <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between">
               <div>
-                <span className="font-bold text-white flex items-center space-x-1">
-                  <Repeat className="w-3.5 h-3.5 text-cyan-400" />
+                <span className="font-bold text-slate-900 flex items-center space-x-1">
+                  <Repeat className="w-3.5 h-3.5 text-sky-600" />
                   <span>Kèo Định Kỳ Tuần</span>
                 </span>
-                <span className="text-[10px] text-slate-400">Thuê định kỳ nhiều tuần</span>
+                <span className="text-[10px] text-slate-500">Thuê định kỳ nhiều tuần</span>
               </div>
               <input
                 type="checkbox"
                 checked={isRecurringWeekly}
                 onChange={(e) => setIsRecurringWeekly(e.target.checked)}
-                className="w-4 h-4 accent-[#00E5FF] rounded cursor-pointer"
+                className="w-4 h-4 accent-[#0284C7] rounded cursor-pointer"
               />
             </div>
           </div>
@@ -611,11 +592,11 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
           {/* Workers needed & Estimated Duration */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-slate-400 mb-1 font-bold">Số lượng người cần (Ghép nhóm)</label>
+              <label className="block text-slate-700 mb-1 font-bold">Số lượng người cần (Ghép nhóm)</label>
               <select
                 value={totalWorkersNeeded}
                 onChange={(e) => setTotalWorkersNeeded(Number(e.target.value))}
-                className="w-full px-3 py-2 rounded-xl bg-[#131E30] border border-slate-700 text-white font-medium"
+                className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-medium focus:border-[#0284C7] focus:outline-none"
               >
                 <option value={1}>1 người (Đơn lẻ)</option>
                 <option value={2}>2 người</option>
@@ -626,11 +607,11 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
             </div>
 
             <div>
-              <label className="block text-slate-400 mb-1 font-bold">Thời gian ước tính</label>
+              <label className="block text-slate-700 mb-1 font-bold">Thời gian ước tính</label>
               <select
                 value={estimatedDurationMinutes}
                 onChange={(e) => setEstimatedDurationMinutes(Number(e.target.value))}
-                className="w-full px-3 py-2 rounded-xl bg-[#131E30] border border-slate-700 text-white font-medium"
+                className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-medium focus:border-[#0284C7] focus:outline-none"
               >
                 <option value={15}>15 phút (Siêu tốc)</option>
                 <option value={30}>30 phút</option>
@@ -645,14 +626,14 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
             <button
               type="button"
               onClick={() => setStep(1)}
-              className="w-1/3 py-2.5 rounded-xl bg-slate-800 text-slate-300 font-bold hover:bg-slate-700 transition"
+              className="w-1/3 py-2.5 rounded-xl bg-slate-100 text-slate-700 font-bold hover:bg-slate-200 transition active:scale-95"
             >
               Quay lại
             </button>
             <button
               type="button"
               onClick={handleNext}
-              className="w-2/3 py-2.5 rounded-xl bg-gradient-to-r from-[#00E5FF] to-cyan-500 text-black font-extrabold text-sm hover:brightness-110 shadow-lg shadow-cyan-500/20 transition"
+              className="w-2/3 py-2.5 rounded-xl bg-gradient-to-r from-sky-600 to-blue-600 text-white font-extrabold text-sm hover:brightness-105 shadow-sm shadow-sky-500/20 transition active:scale-95"
             >
               Tiếp: Địa Điểm & Khóa Escrow &rarr;
             </button>
@@ -662,18 +643,18 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
 
       {/* STEP 3: Location & Smart Escrow Vault Lock */}
       {step === 3 && (
-        <div className="rounded-3xl bg-[#0F172A] border border-[#1E293B] p-6 shadow-2xl space-y-5 animate-fade-in text-xs">
+        <div className="rounded-3xl bg-white border border-slate-200 p-6 shadow-xs space-y-5 animate-fade-in text-xs">
           {/* Location field */}
           <div>
-            <label className="block text-slate-400 mb-1 font-bold">Địa điểm & Khu vực làm việc</label>
+            <label className="block text-slate-700 mb-1 font-bold">Địa điểm & Khu vực làm việc</label>
             <div className="relative">
-              <MapPin className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
+              <MapPin className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
               <input
                 type="text"
                 required
                 value={locationName}
                 onChange={(e) => setLocationName(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 rounded-xl bg-[#131E30] border border-slate-700 text-white"
+                className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:border-[#0284C7] focus:outline-none"
                 placeholder="Ký túc xá Bách Khoa B7, Hai Bà Trưng..."
               />
             </div>
@@ -682,35 +663,35 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
               <button
                 type="button"
                 onClick={() => setLocationName('KTX Bách Khoa B7, Hai Bà Trưng, Hà Nội')}
-                className="px-2 py-0.5 rounded-lg bg-[#131E30] hover:bg-slate-800 border border-slate-700 text-[10px] text-slate-300 font-bold transition"
+                className="px-2 py-0.5 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-200 text-[10px] text-slate-700 font-bold transition"
               >
                 🏢 KTX Bách Khoa (Hà Nội)
               </button>
               <button
                 type="button"
                 onClick={() => setLocationName('ĐH Tôn Đức Thắng, Quận 7, TP.HCM')}
-                className="px-2 py-0.5 rounded-lg bg-[#131E30] hover:bg-slate-800 border border-slate-700 text-[10px] text-slate-300 font-bold transition"
+                className="px-2 py-0.5 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-200 text-[10px] text-slate-700 font-bold transition"
               >
                 🏫 ĐH Tôn Đức Thắng (TP.HCM)
               </button>
               <button
                 type="button"
                 onClick={() => setLocationName('KTX ĐHQG Khu B, Dĩ An / TP.Thủ Đức')}
-                className="px-2 py-0.5 rounded-lg bg-[#131E30] hover:bg-slate-800 border border-slate-700 text-[10px] text-slate-300 font-bold transition"
+                className="px-2 py-0.5 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-200 text-[10px] text-slate-700 font-bold transition"
               >
                 🏛️ KTX ĐHQG Khu B (TP.HCM)
               </button>
               <button
                 type="button"
                 onClick={() => setLocationName('ĐH Bách Khoa, Liên Chiểu, Đà Nẵng')}
-                className="px-2 py-0.5 rounded-lg bg-[#131E30] hover:bg-slate-800 border border-slate-700 text-[10px] text-slate-300 font-bold transition"
+                className="px-2 py-0.5 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-200 text-[10px] text-slate-700 font-bold transition"
               >
                 🌊 ĐH Bách Khoa (Đà Nẵng)
               </button>
               <button
                 type="button"
                 onClick={() => setLocationName('🌐 Online / Làm việc từ xa (Toàn quốc)')}
-                className="px-2 py-0.5 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/40 text-[10px] text-[#00E5FF] font-extrabold transition"
+                className="px-2 py-0.5 rounded-lg bg-sky-50 hover:bg-sky-100 border border-sky-200 text-[10px] text-[#0284C7] font-extrabold transition"
               >
                 🌐 Online / Remote (Toàn quốc)
               </button>
@@ -718,15 +699,15 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
           </div>
 
           {/* Smart Escrow Vault Explanation Card */}
-          <div className="p-4 rounded-2xl bg-gradient-to-br from-[#0F1F33] to-[#0A1424] border border-[#00E5FF]/40 space-y-3">
-            <div className="flex items-center space-x-2 text-[#00E5FF]">
+          <div className="p-4 rounded-2xl bg-sky-50/70 border border-sky-200 space-y-3">
+            <div className="flex items-center space-x-2 text-[#0284C7]">
               <Lock className="w-5 h-5" />
-              <h4 className="font-extrabold text-sm">Cơ Chế Khóa Tiền Smart Escrow Vault</h4>
+              <h4 className="font-extrabold text-sm text-slate-900">Cơ Chế Khóa Tiền Smart Escrow Vault</h4>
             </div>
-            <p className="text-[11px] text-slate-300 leading-relaxed">
+            <p className="text-[11px] text-slate-600 leading-relaxed">
               Để bảo vệ uy tín và đảm bảo Freelancer hoàn thành đúng hạn:
             </p>
-            <ul className="text-[11px] text-slate-300 space-y-1 list-disc pl-4">
+            <ul className="text-[11px] text-slate-600 space-y-1 list-disc pl-4">
               <li>
                 Số tiền <strong>{formatVnd(price)}</strong> sẽ tạm giữ trong quỹ Smart Escrow.
               </li>
@@ -735,41 +716,41 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
             </ul>
 
             {/* Wallet check */}
-            <div className="pt-2 border-t border-slate-700/60 space-y-2">
+            <div className="pt-2 border-t border-sky-200/80 space-y-2">
               <div className="flex items-center justify-between text-[11px]">
-                <span className="text-slate-400">Thù lao công việc:</span>
-                <span className="font-bold text-white">{formatVnd(price)}</span>
+                <span className="text-slate-500">Thù lao công việc:</span>
+                <span className="font-bold text-slate-900">{formatVnd(price)}</span>
               </div>
               {isBoosted && (
                 <div className="flex items-center justify-between text-[11px]">
-                  <span className="text-red-400 font-bold flex items-center space-x-1">
+                  <span className="text-rose-600 font-bold flex items-center space-x-1">
                     <Rocket className="w-3.5 h-3.5" />
                     <span>Phí Đẩy Bài & Ghim Top 1:</span>
                   </span>
-                  <span className="font-bold text-red-400">+10.000đ</span>
+                  <span className="font-bold text-rose-600">+10.000đ</span>
                 </div>
               )}
-              <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-700/40">
-                <span className="text-slate-300 font-bold">Tổng thanh toán:</span>
-                <span className="font-black text-[#00E5FF] text-sm">{formatVnd(totalRequired)}</span>
+              <div className="flex items-center justify-between text-xs pt-1 border-t border-sky-200/80">
+                <span className="text-slate-700 font-bold">Tổng thanh toán:</span>
+                <span className="font-black text-[#0284C7] text-sm">{formatVnd(totalRequired)}</span>
               </div>
 
               <div className="pt-1 flex items-center justify-between">
                 <div>
-                  <span className="text-slate-400 block text-[10px]">Số dư ví hiện tại:</span>
-                  <span className="text-xs font-bold text-white">{formatVnd(walletBalance)}</span>
+                  <span className="text-slate-500 block text-[10px]">Số dư ví hiện tại:</span>
+                  <span className="text-xs font-bold text-slate-900">{formatVnd(walletBalance)}</span>
                 </div>
 
                 {isInsufficient ? (
                   <button
                     type="button"
                     onClick={() => setIsVietQrOpen(true)}
-                    className="px-3 py-1.5 rounded-xl bg-amber-400 text-black font-extrabold text-xs hover:brightness-110 shadow-sm transition"
+                    className="px-3 py-1.5 rounded-xl bg-amber-500 text-white font-extrabold text-xs hover:brightness-105 shadow-xs transition active:scale-95"
                   >
                     Nạp thêm qua VietQR &rarr;
                   </button>
                 ) : (
-                  <span className="text-emerald-400 font-bold flex items-center text-xs">
+                  <span className="text-emerald-700 font-bold flex items-center text-xs">
                     <CheckCircle2 className="w-4 h-4 mr-1" /> Đủ số dư
                   </span>
                 )}
@@ -781,7 +762,7 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
             <button
               type="button"
               onClick={() => setStep(2)}
-              className="w-1/3 py-2.5 rounded-xl bg-slate-800 text-slate-300 font-bold hover:bg-slate-700 transition"
+              className="w-1/3 py-2.5 rounded-xl bg-slate-100 text-slate-700 font-bold hover:bg-slate-200 transition active:scale-95"
             >
               Quay lại
             </button>
@@ -791,7 +772,7 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
               id="confirm-post-gig-btn"
               onClick={handleSubmit}
               disabled={isInsufficient}
-              className="w-2/3 py-3 rounded-xl bg-gradient-to-r from-emerald-500 via-[#00E5FF] to-cyan-500 text-black font-extrabold text-sm hover:brightness-110 shadow-lg shadow-cyan-500/30 disabled:opacity-40 disabled:cursor-not-allowed transition flex items-center justify-center space-x-1.5"
+              className="w-2/3 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-extrabold text-sm hover:brightness-105 shadow-md shadow-emerald-600/20 disabled:opacity-40 disabled:cursor-not-allowed transition flex items-center justify-center space-x-1.5 active:scale-95"
             >
               <CheckCircle2 className="w-4 h-4" />
               <span>Khóa Escrow & Đăng Việc Ngay</span>

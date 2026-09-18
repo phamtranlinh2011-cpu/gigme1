@@ -22,6 +22,10 @@ import {
   Clock,
   Zap,
   Play,
+  Smile,
+  Eye,
+  RefreshCw,
+  Sparkles,
 } from 'lucide-react';
 import { useGigMe } from '../context/GigMeContext';
 import { VIETNAMESE_BANKS, formatVnd } from '../types';
@@ -37,6 +41,7 @@ import {
 } from '../services/napasDisbursementService';
 import { VietQrOpenApiAutoScanner } from './VietQrOpenApiAutoScanner';
 import { FcmPushNotificationModal } from './FcmPushNotificationModal';
+import { triggerHaptic } from '../utils/haptics';
 
 // 1. NFC CCCD SCAN DIALOG VỚI CHECKSUM C06 BỘ CÔNG AN
 export const NfcCccdScanDialog: React.FC<{
@@ -86,21 +91,35 @@ export const NfcCccdScanDialog: React.FC<{
     setIsScanning(true);
     setScanProgress(15);
     setActiveSide('BACK'); // flip to back to scan chip
+    triggerHaptic('light');
+
+    let completed = false;
+    const finishScan = () => {
+      if (completed) return;
+      completed = true;
+      triggerHaptic('nfc');
+      playNotificationSound('BANK_TING');
+      (verifyNfcCccd as any)(cleanId, fullName.toUpperCase(), birthDate, `${mrzData.line1}\n${mrzData.line2}\n${mrzData.line3}`, true);
+      setIsScanning(false);
+      onClose();
+      if (onContinueToFaceLiveness) {
+        setTimeout(() => {
+          onContinueToFaceLiveness();
+        }, 300);
+      }
+    };
 
     // If device supports Web NFC (Android Chrome)
     if (typeof window !== 'undefined' && 'NDEFReader' in window) {
       try {
         const ndef = new (window as any).NDEFReader();
-        await ndef.scan();
-        ndef.addEventListener('reading', () => {
-          setScanProgress(100);
-          playNotificationSound('BANK_TING');
-          setTimeout(() => {
-            (verifyNfcCccd as any)(cleanId, fullName.toUpperCase(), birthDate, `${mrzData.line1}\n${mrzData.line2}\n${mrzData.line3}`, true);
-            setIsScanning(false);
-            onClose();
-            if (onContinueToFaceLiveness) onContinueToFaceLiveness();
-          }, 400);
+        ndef.scan().then(() => {
+          ndef.addEventListener('reading', () => {
+            setScanProgress(100);
+            finishScan();
+          });
+        }).catch((err: any) => {
+          console.warn('Web NFC notice:', err);
         });
       } catch (err) {
         console.warn('Web NFC notice:', err);
@@ -111,18 +130,12 @@ export const NfcCccdScanDialog: React.FC<{
       setScanProgress((prev) => {
         if (prev >= 100) {
           clearInterval(interval);
-          playNotificationSound('BANK_TING');
-          setTimeout(() => {
-            (verifyNfcCccd as any)(cleanId, fullName.toUpperCase(), birthDate, `${mrzData.line1}\n${mrzData.line2}\n${mrzData.line3}`, true);
-            setIsScanning(false);
-            onClose();
-            if (onContinueToFaceLiveness) onContinueToFaceLiveness();
-          }, 350);
+          finishScan();
           return 100;
         }
         return prev + 25;
       });
-    }, 450);
+    }, 380);
   };
 
   return (
@@ -340,8 +353,8 @@ export const NfcCccdScanDialog: React.FC<{
             {/* Action button */}
             <button
               onClick={handleStartScan}
-              disabled={!validation.isValid}
-              className="w-full mt-2 py-3 rounded-xl bg-gradient-to-r from-[#00E5FF] to-cyan-500 text-black font-extrabold text-xs sm:text-sm hover:brightness-110 shadow-lg shadow-cyan-500/25 disabled:opacity-50 transition"
+              disabled={idNumber.replace(/\D/g, '').length !== 12 || !fullName.trim()}
+              className="w-full mt-2 py-3 rounded-xl bg-gradient-to-r from-sky-500 to-emerald-500 text-white font-extrabold text-xs sm:text-sm hover:opacity-95 shadow-lg shadow-sky-500/25 disabled:opacity-40 transition active:scale-[0.98]"
             >
               Chạm Thẻ Vào Máy Để Đọc Chíp NFC
             </button>
@@ -352,22 +365,25 @@ export const NfcCccdScanDialog: React.FC<{
   );
 };
 
-// 2. FACE LIVENESS DIALOG
+// 2. FACE LIVENESS DIALOG - AI SINH TRẮC HỌC CHỐNG GIẢ MẠO
 export const FaceLivenessDialog: React.FC<{ isOpen: boolean; onClose: () => void }> = ({
   isOpen,
   onClose,
 }) => {
-  const { verifyFaceLiveness } = useGigMe();
+  const { verifyFaceLiveness, showNotification } = useGigMe();
   const [step, setStep] = useState(0);
+  const [progress, setProgress] = useState(0);
+  const [isScanning, setIsScanning] = useState(false);
   const [hasCamera, setHasCamera] = useState(false);
+  const [isCompleted, setIsCompleted] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
-  const steps = [
-    'Đặt khuôn mặt vào giữa khung tròn',
-    'Nhìn thẳng & Chớp mắt 2 lần...',
-    'Quay nhẹ mặt sang trái rồi sang phải...',
-    'Mỉm cười nhẹ để AI đối chiếu...',
+  const stepsData = [
+    { title: 'Sẵn sàng quét khuôn mặt AI', desc: 'Đặt khuôn mặt vừa vặn vào giữa khung tròn', icon: Camera },
+    { title: 'Nhìn thẳng & Chớp mắt 2 lần...', desc: 'AI đang phân tích phản xạ đồng tử', icon: Eye },
+    { title: 'Quay nhẹ mặt sang trái rồi sang phải...', desc: 'AI đang dựng mô hình 3D góc cạnh khuôn mặt', icon: RefreshCw },
+    { title: 'Mỉm cười nhẹ để đối chiếu...', desc: 'AI đang kiểm tra vi biểu cảm sống động', icon: Smile },
   ];
 
   useEffect(() => {
@@ -376,12 +392,16 @@ export const FaceLivenessDialog: React.FC<{ isOpen: boolean; onClose: () => void
         streamRef.current.getTracks().forEach((t) => t.stop());
         streamRef.current = null;
       }
+      setIsScanning(false);
+      setStep(0);
+      setProgress(0);
+      setIsCompleted(false);
       return;
     }
 
     if (typeof navigator !== 'undefined' && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
       navigator.mediaDevices
-        .getUserMedia({ video: { facingMode: 'user' } })
+        .getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } } })
         .then((stream) => {
           streamRef.current = stream;
           setHasCamera(true);
@@ -390,7 +410,7 @@ export const FaceLivenessDialog: React.FC<{ isOpen: boolean; onClose: () => void
           }
         })
         .catch((err) => {
-          console.warn('Camera preview not permitted:', err);
+          console.warn('Camera preview not permitted/unavailable:', err);
           setHasCamera(false);
         });
     }
@@ -406,32 +426,64 @@ export const FaceLivenessDialog: React.FC<{ isOpen: boolean; onClose: () => void
   if (!isOpen) return null;
 
   const handleStartCheck = () => {
+    setIsScanning(true);
     setStep(1);
+    setProgress(25);
+    playNotificationSound('DING_DEFAULT');
+
     setTimeout(() => {
       setStep(2);
+      setProgress(60);
+      playNotificationSound('DING_DEFAULT');
+
       setTimeout(() => {
         setStep(3);
+        setProgress(85);
+        playNotificationSound('DING_DEFAULT');
+
         setTimeout(() => {
+          setProgress(100);
+          setIsCompleted(true);
+          playNotificationSound('BANK_TING');
           verifyFaceLiveness();
-          if (streamRef.current) {
-            streamRef.current.getTracks().forEach((t) => t.stop());
-            streamRef.current = null;
-          }
-          onClose();
-          setStep(0);
-        }, 1200);
+
+          showNotification(
+            '👤 Face Liveness Thành Công!',
+            'Đã hoàn tất đối chiếu sinh trắc học khuôn mặt AI chuẩn Quốc gia.',
+            true,
+            true
+          );
+
+          setTimeout(() => {
+            if (streamRef.current) {
+              streamRef.current.getTracks().forEach((t) => t.stop());
+              streamRef.current = null;
+            }
+            onClose();
+          }, 900);
+        }, 1100);
       }, 1200);
     }, 1200);
   };
 
+  const CurrentIcon = stepsData[step]?.icon || Camera;
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm p-4 animate-fade-in">
-      <div className="w-full max-w-sm rounded-2xl bg-[#0F172A] border border-[#1E293B] p-6 text-center text-white">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="font-extrabold text-sm flex items-center space-x-1.5 text-cyan-400">
-            <Camera className="w-4 h-4" />
-            <span>AI Face Liveness Verification</span>
-          </h3>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-4 animate-fade-in">
+      <div className="w-full max-w-sm rounded-3xl bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 p-6 text-center text-slate-900 dark:text-white shadow-2xl relative overflow-hidden">
+        {/* Glow ambient background accent */}
+        <div className="absolute -top-20 -right-20 w-40 h-40 bg-sky-400/15 rounded-full blur-2xl pointer-events-none" />
+        <div className="absolute -bottom-20 -left-20 w-40 h-40 bg-emerald-400/15 rounded-full blur-2xl pointer-events-none" />
+
+        <div className="flex justify-between items-center mb-4 relative z-10">
+          <div className="flex items-center space-x-2">
+            <div className="p-1.5 rounded-xl bg-sky-50 dark:bg-sky-500/10 text-sky-600 dark:text-sky-400">
+              <Sparkles className="w-4 h-4" />
+            </div>
+            <h3 className="font-extrabold text-sm text-slate-900 dark:text-white">
+              AI Face Liveness Verification
+            </h3>
+          </div>
           <button
             onClick={() => {
               if (streamRef.current) {
@@ -440,14 +492,22 @@ export const FaceLivenessDialog: React.FC<{ isOpen: boolean; onClose: () => void
               }
               onClose();
             }}
-            className="text-slate-400 hover:text-white"
+            className="text-slate-400 hover:text-slate-600 dark:hover:text-white p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Camera live / frame */}
-        <div className="relative mx-auto w-48 h-48 rounded-full border-4 border-dashed border-[#00E5FF] p-1 flex items-center justify-center overflow-hidden bg-slate-900 shadow-[0_0_30px_rgba(0,229,255,0.3)]">
+        {/* Progress Bar */}
+        <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 mb-4 overflow-hidden border border-slate-200 dark:border-slate-700">
+          <div
+            className="bg-gradient-to-r from-sky-500 to-emerald-500 h-full transition-all duration-300"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+
+        {/* Camera live / frame circular viewport */}
+        <div className="relative mx-auto w-48 h-48 rounded-full border-4 border-dashed border-sky-400 p-1 flex items-center justify-center overflow-hidden bg-slate-900 shadow-[0_0_25px_rgba(2,132,199,0.25)]">
           {hasCamera ? (
             <video
               ref={videoRef}
@@ -458,26 +518,58 @@ export const FaceLivenessDialog: React.FC<{ isOpen: boolean; onClose: () => void
             />
           ) : (
             <div className="w-full h-full rounded-full bg-gradient-to-b from-slate-800 to-slate-950 flex flex-col items-center justify-center relative">
-              <div className="w-20 h-24 border-2 border-cyan-400/60 rounded-3xl" />
-              <div className="absolute top-2 w-full flex justify-center">
-                <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
+              {/* Simulated Biometric Facial Mesh */}
+              <div className="w-20 h-28 border-2 border-dashed border-sky-400/60 rounded-[40px] flex items-center justify-center relative">
+                <div className="w-12 h-6 border-b-2 border-emerald-400/80 rounded-full" />
+                <div className="absolute top-6 left-3 w-2.5 h-2.5 rounded-full bg-sky-400 animate-pulse" />
+                <div className="absolute top-6 right-3 w-2.5 h-2.5 rounded-full bg-sky-400 animate-pulse" />
               </div>
+              <span className="text-[10px] text-sky-300 mt-2 font-mono font-bold">SIMULATED AI MESH</span>
+            </div>
+          )}
+
+          {/* Radar Scanning Line Animation during scan */}
+          {isScanning && !isCompleted && (
+            <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center">
+              <div className="w-full h-1 bg-gradient-to-r from-transparent via-emerald-400 to-transparent animate-pulse shadow-[0_0_8px_#10b981]" />
+              <div className="absolute inset-0 rounded-full border-2 border-emerald-400/60 animate-ping" />
+            </div>
+          )}
+
+          {/* Success Check Overlay */}
+          {isCompleted && (
+            <div className="absolute inset-0 bg-emerald-500/85 backdrop-blur-sm flex flex-col items-center justify-center text-white animate-fade-in">
+              <CheckCircle2 className="w-14 h-14 animate-bounce text-white" />
+              <span className="text-xs font-black mt-1">ĐẠT CHUẨN SINH TRẮC HỌC</span>
             </div>
           )}
         </div>
 
-        <p className="mt-4 text-sm font-bold text-emerald-400">{steps[step]}</p>
-        <p className="text-xs text-slate-400 mt-1">
-          Hệ thống AI đối chiếu sinh trắc học thời gian thực, chống deepfake & ảnh chụp tĩnh.
-        </p>
+        {/* Step Indicator & Text */}
+        <div className="mt-4 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
+          <div className="flex items-center justify-center space-x-2 text-sky-600 dark:text-sky-400 font-bold text-xs sm:text-sm">
+            <CurrentIcon className="w-4 h-4 animate-spin-slow" />
+            <span>{stepsData[step]?.title}</span>
+          </div>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+            {stepsData[step]?.desc}
+          </p>
+        </div>
 
         {step === 0 && (
           <button
             onClick={handleStartCheck}
-            className="w-full mt-6 py-2.5 rounded-xl bg-[#00E5FF] text-black font-extrabold text-sm hover:brightness-110 shadow-lg shadow-cyan-500/25 transition"
+            className="w-full mt-4 py-3 rounded-xl bg-gradient-to-r from-sky-500 to-emerald-500 text-white font-extrabold text-sm hover:opacity-95 shadow-md shadow-sky-500/20 active:scale-[0.98] transition"
           >
-            Bắt Đầu Quét Khuôn Mặt
+            Bắt Đầu Quét Khuôn Mặt Ngay
           </button>
+        )}
+
+        {isScanning && !isCompleted && (
+          <div className="mt-4 flex items-center justify-center space-x-2 text-xs text-slate-500 font-medium">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+            <span>AI đang đối chiếu sinh trắc học thời gian thực ({progress}%)...</span>
+          </div>
         )}
       </div>
     </div>

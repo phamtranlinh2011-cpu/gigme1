@@ -104,6 +104,7 @@ export interface UserEntity {
   studentEmail?: string; // Email trường cấp (*.edu.vn)
   deviceFingerprint?: string; // Nhận diện thiết bị phát hiện Sybil
   ipAddress?: string;
+  registrationIp?: string;
   isFlaggedSybil?: boolean; // Cảnh báo tài khoản bot/gian lận chéo
   sybilFlagReason?: string;
   studentSsoProvider?: string; // Cổng đào tạo đã xác thực

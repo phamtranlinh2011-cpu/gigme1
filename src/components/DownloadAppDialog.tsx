@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   X,
   Smartphone,
@@ -7,17 +7,14 @@ import {
   Share2,
   ExternalLink,
   QrCode,
-  Sparkles,
+  ShieldCheck,
+  FileCheck,
+  Cpu,
+  HardDrive,
+  Info,
   Layers,
   ArrowRight,
-  ShieldCheck,
-  Zap,
 } from 'lucide-react';
-
-interface BeforeInstallPromptEvent extends Event {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
-}
 
 interface DownloadAppDialogProps {
   isOpen: boolean;
@@ -25,246 +22,197 @@ interface DownloadAppDialogProps {
 }
 
 export const DownloadAppDialog: React.FC<DownloadAppDialogProps> = ({ isOpen, onClose }) => {
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  const [isInstalled, setIsInstalled] = useState(false);
-  const [activeTab, setActiveTab] = useState<'ANDROID' | 'IOS' | 'PC'>('ANDROID');
+  const [downloading, setDownloading] = useState(false);
+  const [downloadSuccess, setDownloadSuccess] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
-
-  useEffect(() => {
-    const handleBeforeInstallPrompt = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e as BeforeInstallPromptEvent);
-    };
-
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-
-    if (window.matchMedia('(display-mode: standalone)').matches) {
-      setIsInstalled(true);
-    }
-
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    };
-  }, []);
 
   if (!isOpen) return null;
 
-  const handleInstallClick = async () => {
-    if (deferredPrompt) {
-      await deferredPrompt.prompt();
-      const choiceResult = await deferredPrompt.userChoice;
-      if (choiceResult.outcome === 'accepted') {
-        setIsInstalled(true);
-        setDeferredPrompt(null);
-      }
-    } else {
-      // Fallback instruction
-      alert('Để cài đặt: Bấm vào biểu tượng 3 chấm (⋮) trên Chrome và chọn "Cài đặt ứng dụng" hoặc "Thêm vào màn hình chính"');
-    }
+  const apkDownloadUrl = `${window.location.origin}/api/download/gigme.apk`;
+
+  const handleDownloadApk = () => {
+    setDownloading(true);
+    // Trigger download
+    const link = document.createElement('a');
+    link.href = '/api/download/gigme.apk';
+    link.download = 'Gigme.apk';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    setTimeout(() => {
+      setDownloading(false);
+      setDownloadSuccess(true);
+      setTimeout(() => setDownloadSuccess(false), 5000);
+    }, 1200);
   };
 
   const handleCopyUrl = () => {
-    navigator.clipboard.writeText(window.location.href);
+    navigator.clipboard.writeText(apkDownloadUrl);
     setCopiedLink(true);
     setTimeout(() => setCopiedLink(false), 2500);
   };
 
-  const appUrl = window.location.href;
-  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(appUrl)}&bgcolor=0F172A&color=00E5FF&margin=1`;
+  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(
+    apkDownloadUrl
+  )}&bgcolor=FFFFFF&color=0284C7&margin=1`;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-fade-in">
-      <div className="w-full max-w-lg rounded-3xl bg-[#0F172A] border border-[#00E5FF]/40 p-6 text-white shadow-2xl relative max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+      <div className="w-full max-w-lg rounded-3xl bg-white border border-slate-200 p-6 text-slate-800 shadow-2xl relative max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-slate-800">
+        <div className="flex items-center justify-between pb-4 border-b border-slate-100">
           <div className="flex items-center space-x-3">
-            <img
-              src="/logo.png"
-              alt="GigMe Logo"
-              className="w-10 h-10 rounded-full object-cover border border-cyan-400/40 shadow-lg shadow-cyan-500/20"
-            />
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-sky-500 to-emerald-400 p-0.5 shadow-md shadow-sky-500/20">
+              <img
+                src="/logo.png"
+                alt="GigMe Logo"
+                className="w-full h-full rounded-[14px] object-cover bg-white"
+              />
+            </div>
             <div>
-              <h3 className="font-extrabold text-base flex items-center space-x-1.5">
-                <span>Tải & Cài Đặt GigMe App</span>
-                <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                  PWA Mobile
+              <div className="flex items-center space-x-2">
+                <h3 className="font-extrabold text-base text-slate-900">Tải App Gigme (File APK)</h3>
+                <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  Android APK
                 </span>
-              </h3>
-              <p className="text-xs text-slate-400">Ứng dụng hoạt động mượt mà toàn màn hình trên điện thoại</p>
+              </div>
+              <p className="text-xs text-slate-500">Cài đặt trực tiếp file Gigme.apk cho điện thoại Android</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-xl hover:bg-slate-800 text-slate-400 hover:text-white transition"
+            className="p-2 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Quick 1-Click Install Button if supported */}
-        <div className="mt-5 p-4 rounded-2xl bg-gradient-to-r from-cyan-950/60 via-slate-900 to-slate-900 border border-[#00E5FF]/30 space-y-3">
+        {/* Big APK Download Card */}
+        <div className="mt-5 p-5 rounded-2xl bg-gradient-to-br from-sky-50/80 via-white to-emerald-50/50 border border-sky-100 shadow-sm space-y-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <Zap className="w-4 h-4 text-[#00E5FF] animate-pulse" />
-              <span className="text-xs font-bold text-white">Cài đặt trực tiếp vào màn hình chính</span>
+            <div className="flex items-center space-x-2 text-xs font-bold text-sky-900">
+              <Smartphone className="w-4 h-4 text-sky-600" />
+              <span>Gói cài đặt Android Package Kit (APK)</span>
             </div>
-            {isInstalled && (
-              <span className="text-[11px] text-emerald-400 font-bold flex items-center">
-                <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Đã cài đặt
-              </span>
-            )}
+            <span className="text-[11px] text-emerald-600 font-bold bg-emerald-100/60 px-2 py-0.5 rounded-md flex items-center">
+              <ShieldCheck className="w-3.5 h-3.5 mr-1" /> Đã quét sạch & bảo mật
+            </span>
           </div>
 
+          {/* APK Specs Grid */}
+          <div className="grid grid-cols-3 gap-2 text-[11px] py-1">
+            <div className="p-2.5 rounded-xl bg-white/90 border border-slate-100 text-center shadow-2xs">
+              <div className="flex justify-center mb-1 text-sky-600">
+                <HardDrive className="w-4 h-4" />
+              </div>
+              <span className="block text-slate-400 text-[10px]">Tệp tin</span>
+              <span className="font-bold text-slate-800 truncate">Gigme.apk</span>
+            </div>
+            <div className="p-2.5 rounded-xl bg-white/90 border border-slate-100 text-center shadow-2xs">
+              <div className="flex justify-center mb-1 text-emerald-600">
+                <Cpu className="w-4 h-4" />
+              </div>
+              <span className="block text-slate-400 text-[10px]">Hệ điều hành</span>
+              <span className="font-bold text-slate-800">Android 7.0+</span>
+            </div>
+            <div className="p-2.5 rounded-xl bg-white/90 border border-slate-100 text-center shadow-2xs">
+              <div className="flex justify-center mb-1 text-amber-600">
+                <FileCheck className="w-4 h-4" />
+              </div>
+              <span className="block text-slate-400 text-[10px]">Phiên bản</span>
+              <span className="font-bold text-slate-800">Bản chuẩn (Release)</span>
+            </div>
+          </div>
+
+          {/* Download Action Button */}
           <button
-            onClick={handleInstallClick}
-            className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-[#00E5FF] to-cyan-500 text-black font-extrabold text-xs sm:text-sm hover:brightness-110 shadow-lg shadow-cyan-500/25 transition flex items-center justify-center space-x-2"
+            onClick={handleDownloadApk}
+            disabled={downloading}
+            className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-sky-500 via-sky-600 to-emerald-500 text-white font-extrabold text-sm hover:brightness-105 active:scale-[0.99] shadow-md shadow-sky-500/25 transition flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-75"
           >
-            <Download className="w-4 h-4 stroke-[2.5]" />
-            <span>{deferredPrompt ? 'Cài Đặt App GigMe Lên Máy Ngay' : 'Thêm Vào Màn Hình Chính Điện Thoại'}</span>
+            {downloading ? (
+              <>
+                <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin mr-2" />
+                <span>Đang tải xuống tệp Gigme.apk...</span>
+              </>
+            ) : downloadSuccess ? (
+              <>
+                <CheckCircle2 className="w-4 h-4 text-emerald-200" />
+                <span>Đã bắt đầu tải Gigme.apk!</span>
+              </>
+            ) : (
+              <>
+                <Download className="w-4 h-4 stroke-[2.5]" />
+                <span>Tải File Gigme.apk Cho Điện Thoại</span>
+              </>
+            )}
           </button>
         </div>
 
-        {/* Device Switcher Tabs */}
-        <div className="flex items-center gap-2 mt-5 p-1 rounded-xl bg-[#131E30] border border-slate-800 text-xs">
-          <button
-            onClick={() => setActiveTab('ANDROID')}
-            className={`flex-1 py-2 rounded-lg font-bold transition ${
-              activeTab === 'ANDROID'
-                ? 'bg-[#00E5FF] text-black shadow'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            Android (Samsung, Xiaomi, Oppo...)
-          </button>
-          <button
-            onClick={() => setActiveTab('IOS')}
-            className={`flex-1 py-2 rounded-lg font-bold transition ${
-              activeTab === 'IOS'
-                ? 'bg-[#00E5FF] text-black shadow'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            iPhone (iOS)
-          </button>
-          <button
-            onClick={() => setActiveTab('PC')}
-            className={`flex-1 py-2 rounded-lg font-bold transition ${
-              activeTab === 'PC'
-                ? 'bg-[#00E5FF] text-black shadow'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            Máy Tính (PC / Laptop)
-          </button>
-        </div>
-
-        {/* Tab Content */}
-        <div className="mt-4 p-4 rounded-2xl bg-[#131E30]/70 border border-slate-800/80 text-xs space-y-3">
-          {activeTab === 'ANDROID' && (
-            <div className="space-y-3">
-              <h4 className="font-bold text-white flex items-center space-x-1.5 text-cyan-300">
-                <span>Cách cài đặt trên thiết bị Android:</span>
-              </h4>
-              <ol className="space-y-2.5 text-slate-300 list-decimal list-inside leading-relaxed">
-                <li>
-                  Mở link ứng dụng này trên trình duyệt <strong>Google Chrome</strong> hoặc <strong>Cốc Cốc</strong>.
-                </li>
-                <li>
-                  Nhấn vào biểu tượng <strong>Menu 3 chấm (⋮)</strong> ở góc trên bên phải màn hình.
-                </li>
-                <li>
-                  Chọn dòng <strong>"Cài đặt ứng dụng"</strong> (Install App) hoặc <strong>"Thêm vào màn hình chính"</strong> (Add to Home screen).
-                </li>
-                <li>
-                  Xác nhận <strong>"Cài đặt"</strong>. Biểu tượng GigMe sẽ xuất hiện ngay trên màn hình như app tải từ CH Play!
-                </li>
-              </ol>
-            </div>
-          )}
-
-          {activeTab === 'IOS' && (
-            <div className="space-y-3">
-              <h4 className="font-bold text-white flex items-center space-x-1.5 text-cyan-300">
-                <span>Cách cài đặt trên iPhone / iPad (iOS):</span>
-              </h4>
-              <ol className="space-y-2.5 text-slate-300 list-decimal list-inside leading-relaxed">
-                <li>
-                  Mở ứng dụng bằng trình duyệt <strong>Safari</strong> trên iPhone.
-                </li>
-                <li>
-                  Nhấn nút <strong>Chia sẻ (Share <Share2 className="w-3.5 h-3.5 inline mx-0.5 text-cyan-400" />)</strong> ở thanh dưới cùng của Safari.
-                </li>
-                <li>
-                  Cuộn xuống và chọn <strong>"Thêm vào MH chính"</strong> (Add to Home Screen).
-                </li>
-                <li>
-                  Nhấn <strong>"Thêm"</strong> ở góc trên bên phải. Icon GigMe sẽ nằm ngoài màn hình chính iPhone để bạn mở nhanh toàn màn hình.
-                </li>
-              </ol>
-            </div>
-          )}
-
-          {activeTab === 'PC' && (
-            <div className="space-y-3">
-              <h4 className="font-bold text-white flex items-center space-x-1.5 text-cyan-300">
-                <span>Cách cài đặt trên Google Chrome máy tính:</span>
-              </h4>
-              <ol className="space-y-2.5 text-slate-300 list-decimal list-inside leading-relaxed">
-                <li>
-                  Nhìn vào thanh địa chỉ URL (Omnibox) góc bên phải trên Google Chrome hoặc Edge.
-                </li>
-                <li>
-                  Nhấn vào biểu tượng <strong>Cài đặt GigMe (Install icon)</strong>.
-                </li>
-                <li>
-                  Nhấn <strong>"Cài đặt"</strong> để mở GigMe dưới dạng cửa sổ Desktop App độc lập.
-                </li>
-              </ol>
-            </div>
-          )}
+        {/* Step-by-step Installation Instructions */}
+        <div className="mt-4 p-4 rounded-2xl bg-slate-50 border border-slate-100 text-xs space-y-2.5">
+          <h4 className="font-extrabold text-slate-800 flex items-center space-x-1.5 text-sky-700">
+            <Info className="w-4 h-4" />
+            <span>3 bước cài đặt file APK trên điện thoại:</span>
+          </h4>
+          <ol className="space-y-2 text-slate-600 list-decimal list-inside leading-relaxed text-[11px]">
+            <li>
+              Bấm nút <strong>"Tải File Gigme.apk"</strong> ở trên để tải tệp về máy.
+            </li>
+            <li>
+              Mở thanh thông báo điện thoại hoặc vào ứng dụng <strong>Quản lý tệp (Files / Tải về)</strong> rồi bấm vào tệp <strong>Gigme.apk</strong>.
+            </li>
+            <li>
+              Nếu máy hỏi <em>"Cho phép cài đặt ứng dụng từ nguồn này"</em>, hãy bật <strong>Cho phép</strong> rồi bấm <strong>Cài đặt</strong> là xong.
+            </li>
+          </ol>
         </div>
 
         {/* QR Code Scan section */}
-        <div className="mt-4 p-4 rounded-2xl bg-[#0B111E] border border-slate-800 flex flex-col sm:flex-row items-center gap-4">
-          <div className="p-2 rounded-xl bg-[#0F172A] border border-[#00E5FF]/30 shrink-0">
+        <div className="mt-4 p-4 rounded-2xl bg-sky-50/40 border border-sky-100 flex flex-col sm:flex-row items-center gap-4">
+          <div className="p-2 rounded-xl bg-white border border-sky-200 shadow-sm shrink-0">
             <img
               src={qrCodeUrl}
-              alt="Mã QR mở GigMe trên điện thoại"
-              className="w-28 h-28 rounded-lg object-contain"
+              alt="Mã QR tải APK trực tiếp"
+              className="w-24 h-24 rounded-lg object-contain"
             />
           </div>
-          <div className="space-y-2 text-center sm:text-left">
-            <div className="flex items-center justify-center sm:justify-start space-x-1.5 text-xs font-bold text-white">
-              <QrCode className="w-4 h-4 text-[#00E5FF]" />
-              <span>Quét mã QR bằng camera điện thoại</span>
+          <div className="space-y-2 text-center sm:text-left flex-1">
+            <div className="flex items-center justify-center sm:justify-start space-x-1.5 text-xs font-extrabold text-slate-800">
+              <QrCode className="w-4 h-4 text-sky-600" />
+              <span>Quét mã QR để tải trực tiếp lên điện thoại</span>
             </div>
-            <p className="text-[11px] text-slate-400 leading-snug">
-              Bật camera điện thoại hoặc Zalo quét mã QR này để mở trực tiếp GigMe trên máy của bạn và cài đặt ngay.
+            <p className="text-[11px] text-slate-500 leading-snug">
+              Dùng máy ảnh điện thoại hoặc Zalo quét mã để tải file APK về máy ngay lập tức mà không cần gõ link.
             </p>
-            <button
-              onClick={handleCopyUrl}
-              className="px-3 py-1.5 rounded-xl bg-[#1E293B] hover:bg-[#2A3A52] text-white text-[11px] font-bold transition flex items-center space-x-1 mx-auto sm:mx-0"
-            >
-              {copiedLink ? (
-                <>
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Đã sao chép link app!</span>
-                </>
-              ) : (
-                <>
-                  <ExternalLink className="w-3.5 h-3.5 text-[#00E5FF]" />
-                  <span>Sao chép link chia sẻ</span>
-                </>
-              )}
-            </button>
+            <div className="flex flex-wrap items-center gap-2 pt-1 justify-center sm:justify-start">
+              <button
+                onClick={handleCopyUrl}
+                className="px-3 py-1.5 rounded-lg bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 text-[11px] font-bold transition flex items-center space-x-1 shadow-2xs"
+              >
+                {copiedLink ? (
+                  <>
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                    <span className="text-emerald-700">Đã chép link APK!</span>
+                  </>
+                ) : (
+                  <>
+                    <ExternalLink className="w-3.5 h-3.5 text-sky-600" />
+                    <span>Sao chép link tải APK</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Close footer */}
-        <div className="mt-5 pt-3 border-t border-slate-800 flex justify-end">
+        {/* Footer */}
+        <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between">
+          <span className="text-[11px] text-slate-400 font-medium">Bản build Release chính thức cho Android</span>
           <button
             onClick={onClose}
-            className="px-5 py-2 rounded-xl bg-[#1E293B] hover:bg-slate-700 text-xs font-bold text-slate-300 transition"
+            className="px-5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-xs font-bold text-slate-700 transition cursor-pointer"
           >
             Đóng
           </button>

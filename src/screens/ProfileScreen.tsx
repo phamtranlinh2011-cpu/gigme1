@@ -37,12 +37,14 @@ import { StudentEloModal } from '../components/StudentEloModal';
 
 interface ProfileScreenProps {
   onOpenNfcDialog: () => void;
+  onOpenFaceDialog?: () => void;
   onOpenSsoDialog: () => void;
   onOpenAdminDashboard: () => void;
 }
 
 export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   onOpenNfcDialog,
+  onOpenFaceDialog,
   onOpenSsoDialog,
   onOpenAdminDashboard,
 }) => {
@@ -642,13 +644,26 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
               </p>
             </div>
 
-            <button
-              id="verify-nfc-btn"
-              onClick={onOpenNfcDialog}
-              className="mt-3 w-full py-2 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 border border-[#00E5FF]/40 text-[#00E5FF] font-bold text-xs transition"
-            >
-              {currentUser.isNfcVerified ? 'Xem Lại Thẻ NFC & FaceID' : 'Bắt Đầu Quét NFC &rarr;'}
-            </button>
+            <div className="grid grid-cols-2 gap-2 mt-3">
+              <button
+                id="verify-nfc-btn"
+                onClick={onOpenNfcDialog}
+                className="py-2 px-2.5 rounded-xl bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/30 text-sky-600 dark:text-sky-400 font-bold text-xs transition active:scale-[0.98] truncate"
+              >
+                {currentUser.isNfcVerified ? 'Xem Thẻ NFC' : 'Quét NFC CCCD'}
+              </button>
+              <button
+                id="verify-face-btn"
+                onClick={onOpenFaceDialog || onOpenNfcDialog}
+                className={`py-2 px-2.5 rounded-xl font-bold text-xs transition active:scale-[0.98] truncate border ${
+                  currentUser.isFaceLivenessPassed
+                    ? 'bg-emerald-500/10 hover:bg-emerald-500/20 border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
+                    : 'bg-gradient-to-r from-sky-500 to-emerald-500 text-white shadow-sm border-transparent'
+                }`}
+              >
+                {currentUser.isFaceLivenessPassed ? 'FaceID Đã Đạt' : 'Quét Khuôn Mặt'}
+              </button>
+            </div>
           </div>
 
           {/* Card 2: Student University SSO */}

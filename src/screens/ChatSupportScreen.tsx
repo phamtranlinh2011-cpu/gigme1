@@ -518,7 +518,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
     });
 
     return (
-      <div className="max-w-2xl mx-auto px-3 sm:px-4 py-4 flex flex-col h-[calc(100vh-4.5rem)] pb-24 text-white">
+      <div className="max-w-2xl mx-auto px-3 sm:px-4 py-4 flex flex-col h-[calc(100vh-4.5rem)] pb-24 text-slate-900">
         {/* Inbox Header */}
         <div className="flex items-center justify-between pb-3 border-b border-slate-800 shrink-0">
           <div>

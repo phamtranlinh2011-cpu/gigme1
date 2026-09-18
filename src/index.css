@@ -1,12 +1,16 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @layer base {
   :root {
-    --electric-cyan: #00e5ff;
-    --neon-orange: #ff6b00;
+    --electric-cyan: #0284c7;
+    --neon-orange: #ea580c;
   }
 
   body {
+    background-color: #f8fafc;
+    color: #0f172a;
     font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
   }
 }
@@ -17,7 +21,7 @@ html.dark body {
   color: #f8fafc;
 }
 
-/* Deep AMOLED Pure Black Mode (#000000 for zero-power OLED screens) */
+/* Deep AMOLED Pure Black Mode */
 html.theme-amoled body,
 html.theme-amoled {
   background-color: #000000 !important;
@@ -51,36 +55,56 @@ html.theme-amoled nav {
   border-color: #181818 !important;
 }
 
-/* Dynamic Light Mode overrides */
+/* Dynamic Light Mode overrides - Premium White & Royal Blue (Trắng - Xanh) Theme */
 html:not(.dark) body {
-  background-color: #f8fafc;
+  background-color: #f1f5f9;
   color: #0f172a;
 }
 
-/* Background containers and cards */
+/* Background canvas and containers */
 html:not(.dark) .bg-\[\#0A0E17\],
-html:not(.dark) [class*="bg-[#0A0E17]"] {
-  background-color: #f8fafc !important;
+html:not(.dark) [class*="bg-[#0A0E17]"],
+html:not(.dark) .bg-\[\#06090F\],
+html:not(.dark) [class*="bg-[#06090F]"] {
+  background-color: #f1f5f9 !important;
   color: #0f172a;
 }
 
+/* Primary cards & elevated surfaces */
 html:not(.dark) .bg-\[\#0F172A\],
 html:not(.dark) [class*="bg-[#0F172A]"],
 html:not(.dark) .bg-\[\#0A1322\],
-html:not(.dark) [class*="bg-[#0A1322]"] {
+html:not(.dark) [class*="bg-[#0A1322]"],
+html:not(.dark) .bg-\[\#0B1322\],
+html:not(.dark) [class*="bg-[#0B1322]"],
+html:not(.dark) .bg-\[\#0A0F1A\],
+html:not(.dark) [class*="bg-[#0A0F1A]"],
+html:not(.dark) .bg-\[\#111927\],
+html:not(.dark) [class*="bg-[#111927]"],
+html:not(.dark) .bg-\[\#111F33\],
+html:not(.dark) [class*="bg-[#111F33]"],
+html:not(.dark) .bg-\[\#0E1A2C\],
+html:not(.dark) [class*="bg-[#0E1A2C]"],
+html:not(.dark) .bg-\[\#09101C\],
+html:not(.dark) [class*="bg-[#09101C]"],
+html:not(.dark) .bg-\[\#101A2C\],
+html:not(.dark) [class*="bg-[#101A2C]"] {
   background-color: #ffffff !important;
   color: #0f172a;
   border-color: #e2e8f0;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 1px 3px 0 rgba(2, 132, 199, 0.05), 0 1px 2px -1px rgba(15, 23, 42, 0.04);
 }
 
+/* Secondary cards, wells & subtle panels */
 html:not(.dark) .bg-\[\#131E30\],
 html:not(.dark) [class*="bg-[#131E30]"],
 html:not(.dark) .bg-\[\#0F1D30\],
 html:not(.dark) [class*="bg-[#0F1D30]"],
 html:not(.dark) .bg-\[\#0F1E33\],
-html:not(.dark) [class*="bg-[#0F1E33]"] {
-  background-color: #f1f5f9 !important;
+html:not(.dark) [class*="bg-[#0F1E33]"],
+html:not(.dark) .bg-\[\#1C2C45\],
+html:not(.dark) [class*="bg-[#1C2C45]"] {
+  background-color: #f8fafc !important;
   color: #0f172a;
   border-color: #e2e8f0;
 }
@@ -95,13 +119,13 @@ html:not(.dark) [class*="bg-slate-950"] {
   border-color: #e2e8f0;
 }
 
-/* Gradients in light mode */
+/* Gradients in light mode - soft blue-sky undertones for big web/app look */
 html:not(.dark) [class*="from-[#0F1D30]"],
 html:not(.dark) [class*="from-[#0F1E33]"],
 html:not(.dark) [class*="from-[#0F172A]"],
 html:not(.dark) [class*="from-[#0A0E17]"] {
   --tw-gradient-from: #ffffff var(--tw-gradient-from-position) !important;
-  --tw-gradient-to: #f1f5f9 var(--tw-gradient-to-position) !important;
+  --tw-gradient-to: #f0f7ff var(--tw-gradient-to-position) !important;
   --tw-gradient-stops: var(--tw-gradient-from), #f8fafc var(--tw-gradient-via-position), var(--tw-gradient-to) !important;
   background-color: #ffffff !important;
 }
@@ -109,7 +133,7 @@ html:not(.dark) [class*="from-[#0A0E17]"] {
 html:not(.dark) [class*="to-[#0A1322]"],
 html:not(.dark) [class*="to-[#0A0E17]"],
 html:not(.dark) [class*="to-[#0F172A]"] {
-  --tw-gradient-to: #f1f5f9 var(--tw-gradient-to-position) !important;
+  --tw-gradient-to: #f0f7ff var(--tw-gradient-to-position) !important;
 }
 
 html:not(.dark) .border-\[\#1E293B\],
@@ -119,24 +143,35 @@ html:not(.dark) .border-slate-700 {
   border-color: #e2e8f0 !important;
 }
 
-/* Headings and labels in light mode - keeping saturated buttons with white text */
-html:not(.dark) h1.text-white,
-html:not(.dark) h2.text-white,
-html:not(.dark) h3.text-white,
-html:not(.dark) h4.text-white,
-html:not(.dark) p.text-white,
-html:not(.dark) span.text-white:not([class*="bg-red"]):not([class*="bg-rose"]):not([class*="bg-emerald"]):not([class*="bg-purple"]):not([class*="bg-blue"]):not([class*="bg-indigo"]):not([class*="bg-amber"]),
-html:not(.dark) div.text-white:not([class*="bg-red"]):not([class*="bg-rose"]):not([class*="bg-emerald"]):not([class*="bg-purple"]):not([class*="bg-blue"]):not([class*="bg-indigo"]):not([class*="bg-amber"]) {
+/* Headings and labels in light mode - keeping buttons and colored badges crisp */
+html:not(.dark) h1.text-white:not([class*="bg-"]):not([class*="from-"]),
+html:not(.dark) h2.text-white:not([class*="bg-"]):not([class*="from-"]),
+html:not(.dark) h3.text-white:not([class*="bg-"]):not([class*="from-"]),
+html:not(.dark) h4.text-white:not([class*="bg-"]):not([class*="from-"]),
+html:not(.dark) p.text-white:not([class*="bg-"]):not([class*="from-"]),
+html:not(.dark) span.text-white:not(button *):not([class*="bg-"]):not([class*="from-"]),
+html:not(.dark) div.text-white:not(button *):not([class*="bg-"]):not([class*="from-"]) {
   color: #0f172a;
 }
 
-/* Ensure buttons with colored backgrounds keep white text */
-html:not(.dark) button[class*="bg-red-"],
-html:not(.dark) button[class*="bg-rose-"],
-html:not(.dark) button[class*="bg-emerald-"],
-html:not(.dark) button[class*="bg-purple-"],
-html:not(.dark) button[class*="bg-blue-"],
-html:not(.dark) button[class*="bg-indigo-"] {
+/* Ensure buttons with colored or gradient backgrounds keep pure white text */
+html:not(.dark) button[class*="bg-"],
+html:not(.dark) button[class*="from-"],
+html:not(.dark) button.text-white,
+html:not(.dark) button .text-white {
+  color: #ffffff !important;
+}
+
+/* Ensure colored badges and chips retain their white text */
+html:not(.dark) [class*="bg-red"] .text-white,
+html:not(.dark) [class*="bg-rose"] .text-white,
+html:not(.dark) [class*="bg-emerald"] .text-white,
+html:not(.dark) [class*="bg-sky"] .text-white,
+html:not(.dark) [class*="bg-blue"] .text-white,
+html:not(.dark) [class*="bg-amber"] .text-white,
+html:not(.dark) [class*="bg-orange"] .text-white,
+html:not(.dark) [class*="bg-purple"] .text-white,
+html:not(.dark) [class*="from-"] .text-white {
   color: #ffffff !important;
 }
 
@@ -156,13 +191,19 @@ html:not(.dark) .text-slate-500 {
   color: #64748b;
 }
 
-/* Header and Navigation in Light Mode */
-html:not(.dark) header,
-html:not(.dark) nav {
-  background-color: rgba(255, 255, 255, 0.95) !important;
-  border-color: #e2e8f0 !important;
+/* Header and Navigation in Light Mode - Crisp white with subtle sky-blue divider */
+html:not(.dark) header {
+  background-color: rgba(255, 255, 255, 0.98) !important;
+  border-bottom: 1px solid #e0f2fe !important;
   color: #0f172a;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+  box-shadow: 0 2px 8px -2px rgba(2, 132, 199, 0.05);
+}
+
+html:not(.dark) nav {
+  background-color: rgba(255, 255, 255, 0.98) !important;
+  border-top: 1px solid #e0f2fe !important;
+  color: #0f172a;
+  box-shadow: 0 -4px 16px -2px rgba(2, 132, 199, 0.06);
 }
 
 html:not(.dark) input:not([type="checkbox"]):not([type="radio"]),
@@ -171,6 +212,13 @@ html:not(.dark) textarea {
   background-color: #ffffff !important;
   color: #0f172a !important;
   border-color: #cbd5e1 !important;
+}
+
+html:not(.dark) input:not([type="checkbox"]):not([type="radio"]):focus,
+html:not(.dark) select:focus,
+html:not(.dark) textarea:focus {
+  border-color: #0284c7 !important;
+  box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.12) !important;
 }
 
 html:not(.dark) input::placeholder,
@@ -272,6 +320,54 @@ html:not(.dark) ::-webkit-scrollbar-thumb:hover {
 
 .animate-slide-up {
   animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Micro-animations: tactile button press and click feedback */
+button:active:not(:disabled), a:active, [role="button"]:active {
+  transform: scale(0.965);
+  transition: transform 120ms cubic-bezier(0.2, 0, 0.1, 1);
+}
+
+/* Card hover and interactive drag elevation */
+.card-hover, [data-interactive="true"] {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.card-hover:hover, [data-interactive="true"]:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px -5px rgba(2, 132, 199, 0.08), 0 6px 12px -4px rgba(16, 185, 129, 0.06);
+}
+.card-hover:active, [data-interactive="true"]:active {
+  transform: scale(0.985);
+}
+
+/* Shimmer gradient effect */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(2,132,199,0.08) 50%, rgba(255,255,255,0) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 2.2s infinite;
+}
+
+/* Drag indicator pulse */
+@keyframes drag-bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+.animate-drag-bounce {
+  animation: drag-bounce 1.6s ease-in-out infinite;
 }
 
 button, a, input, select {

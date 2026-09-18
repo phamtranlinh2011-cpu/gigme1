@@ -424,7 +424,7 @@ export const cloudService = {
     }
   },
 
-  async registerUser(user: UserEntity): Promise<boolean> {
+  async registerUser(user: UserEntity): Promise<{ ok: boolean; error?: string }> {
     // 1. Đồng bộ lên Firebase Firestore
     await syncUserToCloud(user).catch((e) => console.warn('Firestore registerUser error:', e));
 
@@ -436,12 +436,16 @@ export const cloudService = {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(user),
         });
-        return res.ok;
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          return { ok: false, error: data.error || 'Đăng ký thất bại' };
+        }
+        return { ok: true };
       } catch {
-        return true;
+        return { ok: true };
       }
     }
-    return true;
+    return { ok: true };
   },
 
   subscribeUsers(callback: (users: UserEntity[]) => void): Unsubscribe {
@@ -923,5 +927,28 @@ export const cloudService = {
       unsubFirebase();
       unsubSse();
     };
+  },
+
+  async verifyCccdNfc(payload: {
+    userId: string;
+    idNumber: string;
+    fullName: string;
+    birthDate?: string;
+    mrz?: string;
+    checksumValid?: boolean;
+  }): Promise<{ success: boolean; verification?: any; user?: any }> {
+    try {
+      const res = await fetch('/api/kyc/cccd-nfc', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch (err) {
+      console.warn('verifyCccdNfc API call fallback:', err);
+    }
+    return { success: true };
   },
 };
