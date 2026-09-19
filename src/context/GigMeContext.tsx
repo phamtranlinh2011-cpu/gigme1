@@ -360,7 +360,10 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         'gigme_current_user_id',
       ].forEach((k) => localStorage.removeItem(k));
       const cur = localStorage.getItem(STORAGE_KEYS.CURRENT_USER_ID);
+      // Tuyệt đối không bao giờ cho Admin hoặc các tài khoản mẫu cũ tự động lưu và khôi phục khi mở lại app
       if (
+        !cur ||
+        cur === '000000000' ||
         cur === 'admin_root' ||
         cur === 'user_526h0044' ||
         cur === 'user_freelancer_lan' ||
@@ -370,12 +373,28 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         cur === 'user_client_ha'
       ) {
         localStorage.removeItem(STORAGE_KEYS.CURRENT_USER_ID);
+        sessionStorage.removeItem('gigme_admin_active_session');
+        sessionStorage.removeItem('gigme_admin_session_time');
         setCurrentUserId(null);
       }
     } catch {
       // ignore
     }
   }, []);
+
+  // Helper hàm kiểm tra tài khoản mẫu / không có thật để xóa bỏ triệt để
+  const isMockOrFakeName = (name?: string | null): boolean => {
+    if (!name) return false;
+    const n = name.toLowerCase();
+    return (
+      n.includes('hoàng minh') ||
+      n.includes('thanh trúc') ||
+      n.includes('vũ hoàng my') ||
+      n.includes('hoàng my') ||
+      n.includes('phạm gia huy') ||
+      n.includes('gia huy')
+    );
+  };
 
   // Load state from localStorage or defaults
   const [users, setUsers] = useState<UserEntity[]>(() => {
@@ -391,7 +410,8 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               u.id !== 'user_cafe_passio' &&
               u.id !== 'user_student_tdtu' &&
               u.id !== 'user_student_huy' &&
-              u.id !== 'user_client_ha'
+              u.id !== 'user_client_ha' &&
+              !isMockOrFakeName(u.name)
           )
           .map((u: UserEntity) => {
             if (u.id === 'admin_root' || u.email === 'admin@admin.vn') {
@@ -399,7 +419,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             }
             return u;
           });
-        // Đảm bảo luôn có tài khoản Admin 000000000
+        // Đảm bảo luôn có tài khoản Admin 000000000 duy nhất
         if (!cleaned.some((u) => u.id === '000000000' || u.role === 'ADMIN')) {
           cleaned.unshift(DEFAULT_ADMIN);
         }
@@ -429,14 +449,8 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       saved === 'user_client_ha'
     ) {
       localStorage.removeItem(STORAGE_KEYS.CURRENT_USER_ID);
-
-      // Admin chỉ có hiệu lực tạm thời trong phiên tab (sessionStorage) nếu vừa đăng nhập hợp lệ
-      const isAdminSessionActive = sessionStorage.getItem('gigme_admin_active_session') === 'true';
-      const sessionTime = parseInt(sessionStorage.getItem('gigme_admin_session_time') || '0', 10);
-      const isFresh = Date.now() - sessionTime < 3 * 60 * 60 * 1000;
-      if (isAdminSessionActive && isFresh) {
-        return '000000000';
-      }
+      sessionStorage.removeItem('gigme_admin_active_session');
+      sessionStorage.removeItem('gigme_admin_session_time');
       return null;
     }
 
@@ -469,7 +483,15 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const [gigs, setGigs] = useState<GigEntity[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.GIGS);
-    return saved ? JSON.parse(saved) : INITIAL_GIGS;
+    if (!saved) return INITIAL_GIGS;
+    try {
+      const parsed: GigEntity[] = JSON.parse(saved);
+      return parsed.filter(
+        (g) => !isMockOrFakeName(g.clientName) && !isMockOrFakeName(g.freelancerName)
+      );
+    } catch {
+      return INITIAL_GIGS;
+    }
   });
 
   const [bids, setBids] = useState<BidEntity[]>(() => {
@@ -479,7 +501,18 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const [chats, setChats] = useState<ChatMessageEntity[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.CHATS);
-    return saved ? JSON.parse(saved) : INITIAL_CHATS;
+    if (!saved) return INITIAL_CHATS;
+    try {
+      const parsed: ChatMessageEntity[] = JSON.parse(saved);
+      return parsed.filter(
+        (c) =>
+          !isMockOrFakeName(c.senderName) &&
+          c.senderId !== 'user_student_huy' &&
+          c.partnerId !== 'user_student_huy'
+      );
+    } catch {
+      return INITIAL_CHATS;
+    }
   });
 
   const [transactions, setTransactions] = useState<WalletTransactionEntity[]>(() => {

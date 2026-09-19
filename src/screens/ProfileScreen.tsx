@@ -1019,6 +1019,23 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
             <span className="font-extrabold text-xs">Đăng Xuất Khỏi Thiết Bị</span>
           </div>
         </button>
+
+        {/* THÔNG TIN BẢN QUYỀN & PHÁP LÝ (COPYRIGHT NOTICE) */}
+        <div className="pt-4 pb-2 text-center space-y-1.5 border-t border-[#C5E5EC]/10">
+          <p className="text-xs font-bold text-[#C5E5EC]/90 flex items-center justify-center space-x-1.5">
+            <span>© {new Date().getFullYear()} GigMe Campus. Tất cả các quyền được bảo lưu.</span>
+          </p>
+          <p className="text-[11px] text-[#C5E5EC]/60 max-w-sm mx-auto leading-relaxed">
+            Nền tảng kết nối việc làm sinh viên & dịch vụ vi mô campus thông minh. Bản quyền thuộc về đội ngũ sáng lập GigMe.
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1 text-[10px] text-[#C5E5EC]/50 pt-1">
+            <span>Phiên bản v2.4 Campus Pro</span>
+            <span>•</span>
+            <span>Bảo mật Smart Escrow 100%</span>
+            <span>•</span>
+            <span>Mã hóa TLS/AES-256</span>
+          </div>
+        </div>
       </div>
 
       {/* CHANGE PIN MODAL */}

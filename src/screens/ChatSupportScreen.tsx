@@ -139,6 +139,26 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
     },
   ]);
 
+  // Kiểm tra & loại bỏ triệt để các tài khoản ảo/mẫu (Hoàng Minh, Thanh Trúc, Vũ Hoàng My, Phạm Gia Huy)
+  const isMockOrFakeAccount = (name?: string | null, id?: string | null): boolean => {
+    if (!name && !id) return false;
+    const n = (name || '').toLowerCase();
+    const i = (id || '').toLowerCase();
+    return (
+      n.includes('hoàng minh') ||
+      n.includes('thanh trúc') ||
+      n.includes('vũ hoàng my') ||
+      n.includes('hoàng my') ||
+      n.includes('phạm gia huy') ||
+      n.includes('gia huy') ||
+      i === 'user_student_huy' ||
+      i === 'mock_hoang_minh' ||
+      i === 'mock_thanh_truc' ||
+      i === 'mock_vu_hoang_my' ||
+      i === 'mock_pham_gia_huy'
+    );
+  };
+
   // Build Campus Contacts Directory (Chỉ tài khoản THẬT: Admin 000000000, Bạn bè ID 9 số, và người thuê/làm từ Kèo thật)
   const campusContacts: MessengerContact[] = useMemo(() => {
     const list: MessengerContact[] = [];
@@ -270,7 +290,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
       });
     }
 
-    return list;
+    return list.filter((c) => !isMockOrFakeAccount(c.name, c.id));
   }, [rawGigs, currentUser, users, allChats]);
 
   // Active contact details
