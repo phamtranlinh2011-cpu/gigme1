@@ -22,19 +22,19 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentTab, onSelectTab })
   const isClient = roleMode === 'CLIENT';
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 bg-[#0A162D]/95 dark:bg-[#000000]/98 backdrop-blur-lg border-t border-cyan-500/25 dark:border-[#121824] px-1 sm:px-3 py-1.5 shadow-[0_-4px_20px_rgba(0,180,255,0.12)] dark:shadow-2xl">
+    <nav className="fixed bottom-0 left-0 right-0 z-40 bg-[#0B1528]/95 dark:bg-[#070D18]/98 backdrop-blur-lg border-t border-[#C5E5EC]/20 px-1 sm:px-3 py-1.5 shadow-[0_-4px_25px_rgba(48,100,174,0.25)]">
       <div className="max-w-lg mx-auto flex items-center justify-between">
         {/* Tab 1: Radar Discovery */}
         <button
           id="nav-home-btn"
           onClick={() => onSelectTab('HOME')}
-          className={`flex-1 min-w-0 flex flex-col items-center py-1 px-1 rounded-xl transition ${
+          className={`flex-1 min-w-0 flex flex-col items-center py-1 px-1 rounded-xl transition cursor-pointer ${
             currentTab === 'HOME'
-              ? 'text-cyan-400 dark:text-[#00E5FF] bg-cyan-950/50 dark:bg-slate-900/80 font-black'
-              : 'text-slate-400 dark:text-slate-500 hover:text-cyan-300 dark:hover:text-slate-200'
+              ? 'text-[#E0FAEB] bg-[#3064AE]/35 font-black border border-[#C5E5EC]/30 shadow-xs'
+              : 'text-[#C5E5EC]/70 hover:text-white'
           }`}
         >
-          <Radar className={`w-4 h-4 sm:w-5 sm:h-5 ${currentTab === 'HOME' ? 'animate-pulse text-cyan-400' : ''}`} />
+          <Radar className={`w-4 h-4 sm:w-5 sm:h-5 ${currentTab === 'HOME' ? 'animate-pulse text-[#E0FAEB]' : ''}`} />
           <span className="text-[10px] font-bold mt-0.5 truncate max-w-full">Radar</span>
         </button>
 
@@ -42,15 +42,15 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentTab, onSelectTab })
         <button
           id="nav-chat-btn"
           onClick={() => onSelectTab('CHAT')}
-          className={`flex-1 min-w-0 flex flex-col items-center py-1 px-1 rounded-xl transition relative ${
+          className={`flex-1 min-w-0 flex flex-col items-center py-1 px-1 rounded-xl transition relative cursor-pointer ${
             currentTab === 'CHAT'
-              ? 'text-cyan-400 dark:text-[#00E5FF] bg-cyan-950/50 dark:bg-slate-900/80 font-black'
-              : 'text-slate-400 dark:text-slate-500 hover:text-cyan-300 dark:hover:text-slate-200'
+              ? 'text-[#E0FAEB] bg-[#3064AE]/35 font-black border border-[#C5E5EC]/30 shadow-xs'
+              : 'text-[#C5E5EC]/70 hover:text-white'
           }`}
         >
           <div className="relative">
             <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5" />
-            <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-[#E0FAEB] animate-pulse" />
           </div>
           <span className="text-[10px] font-bold mt-0.5 truncate max-w-full">Tin Nhắn</span>
         </button>
@@ -59,10 +59,10 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentTab, onSelectTab })
         <button
           id="nav-marketplace-btn"
           onClick={() => onSelectTab('MARKETPLACE')}
-          className={`flex-1 min-w-0 flex flex-col items-center py-1 px-1 rounded-xl transition ${
+          className={`flex-1 min-w-0 flex flex-col items-center py-1 px-1 rounded-xl transition cursor-pointer ${
             currentTab === 'MARKETPLACE'
-              ? 'text-cyan-400 dark:text-[#00E5FF] bg-cyan-950/50 dark:bg-slate-900/80 font-black'
-              : 'text-slate-400 dark:text-slate-500 hover:text-cyan-300 dark:hover:text-slate-200'
+              ? 'text-[#E0FAEB] bg-[#3064AE]/35 font-black border border-[#C5E5EC]/30 shadow-xs'
+              : 'text-[#C5E5EC]/70 hover:text-white'
           }`}
         >
           <BookOpen className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -74,7 +74,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentTab, onSelectTab })
           <button
             id="nav-create-btn"
             onClick={() => onSelectTab('CREATE_GIG')}
-            className="relative -top-3 flex flex-col items-center justify-center w-11 h-11 sm:w-13 sm:h-13 rounded-full bg-gradient-to-tr from-cyan-500 via-blue-600 to-indigo-600 text-white border-2 border-cyan-400/40 dark:border-cyan-400/30 shadow-lg shadow-cyan-500/30 dark:shadow-[0_0_20px_rgba(0,229,255,0.4)] ring-4 ring-cyan-950/40 dark:ring-slate-900 transition transform hover:scale-105 active:scale-95"
+            className="relative -top-3 flex flex-col items-center justify-center w-11 h-11 sm:w-13 sm:h-13 rounded-full bg-gradient-to-tr from-[#3064AE] via-[#417AC6] to-[#C5E5EC] text-white border-2 border-[#E0FAEB]/40 shadow-lg shadow-[#3064AE]/40 ring-4 ring-[#0B1528] transition transform hover:scale-105 active:scale-95 cursor-pointer"
             title="Đăng việc nhanh"
           >
             <PlusCircle className="w-5 h-5 sm:w-6 sm:h-6 stroke-[2.4]" />
@@ -85,10 +85,10 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentTab, onSelectTab })
         <button
           id="nav-leaderboard-btn"
           onClick={() => onSelectTab('LEADERBOARD')}
-          className={`flex-1 min-w-0 flex flex-col items-center py-1 px-1 rounded-xl transition ${
+          className={`flex-1 min-w-0 flex flex-col items-center py-1 px-1 rounded-xl transition cursor-pointer ${
             currentTab === 'LEADERBOARD'
-              ? 'text-cyan-400 dark:text-[#00E5FF] bg-cyan-950/50 dark:bg-slate-900/80 font-black'
-              : 'text-slate-400 dark:text-slate-500 hover:text-cyan-300 dark:hover:text-slate-200'
+              ? 'text-[#E0FAEB] bg-[#3064AE]/35 font-black border border-[#C5E5EC]/30 shadow-xs'
+              : 'text-[#C5E5EC]/70 hover:text-white'
           }`}
         >
           <Trophy className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -99,10 +99,10 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentTab, onSelectTab })
         <button
           id="nav-wallet-btn"
           onClick={() => onSelectTab('WALLET')}
-          className={`flex-1 min-w-0 flex flex-col items-center py-1 px-1 rounded-xl transition ${
+          className={`flex-1 min-w-0 flex flex-col items-center py-1 px-1 rounded-xl transition cursor-pointer ${
             currentTab === 'WALLET'
-              ? 'text-cyan-400 dark:text-[#00E5FF] bg-cyan-950/50 dark:bg-slate-900/80 font-black'
-              : 'text-slate-400 dark:text-slate-500 hover:text-cyan-300 dark:hover:text-slate-200'
+              ? 'text-[#E0FAEB] bg-[#3064AE]/35 font-black border border-[#C5E5EC]/30 shadow-xs'
+              : 'text-[#C5E5EC]/70 hover:text-white'
           }`}
         >
           <Wallet className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -113,10 +113,10 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentTab, onSelectTab })
         <button
           id="nav-profile-btn"
           onClick={() => onSelectTab('PROFILE')}
-          className={`flex-1 min-w-0 flex flex-col items-center py-1 px-1 rounded-xl transition ${
+          className={`flex-1 min-w-0 flex flex-col items-center py-1 px-1 rounded-xl transition cursor-pointer ${
             currentTab === 'PROFILE'
-              ? 'text-cyan-400 dark:text-[#00E5FF] bg-cyan-950/50 dark:bg-slate-900/80 font-black'
-              : 'text-slate-400 dark:text-slate-500 hover:text-cyan-300 dark:hover:text-slate-200'
+              ? 'text-[#E0FAEB] bg-[#3064AE]/35 font-black border border-[#C5E5EC]/30 shadow-xs'
+              : 'text-[#C5E5EC]/70 hover:text-white'
           }`}
         >
           <UserCheck className="w-4 h-4 sm:w-5 sm:h-5" />

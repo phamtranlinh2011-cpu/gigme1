@@ -194,25 +194,25 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onBa
   return (
     <div className="max-w-5xl mx-auto px-4 py-6 pb-28 text-white space-y-6 text-xs">
       {/* Admin Top Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-4 border-b border-red-500/30">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-4 border-b border-[#C5E5EC]/20">
         <div className="flex items-center space-x-3">
           <button
             onClick={onBack}
-            className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition"
+            className="p-2 rounded-xl bg-[#12233B] hover:bg-[#152844] text-[#C5E5EC] border border-[#C5E5EC]/25 transition cursor-pointer"
           >
             <ArrowLeft className="w-4 h-4" />
           </button>
           <div>
             <div className="flex items-center space-x-2">
               <h1 className="text-lg font-black text-white flex items-center">
-                <ShieldAlert className="w-5 h-5 text-red-500 mr-1.5" />
+                <ShieldAlert className="w-5 h-5 text-rose-400 mr-1.5" />
                 GigMe Master Admin Console
               </h1>
-              <span className="text-[10px] px-2 py-0.5 rounded bg-red-600 text-white font-black">
+              <span className="text-[10px] px-2 py-0.5 rounded bg-rose-600/80 text-white font-black border border-rose-400/40">
                 ROOT PRIVILEGES
               </span>
             </div>
-            <p className="text-[11px] text-slate-400">
+            <p className="text-[11px] text-[#C5E5EC]/70">
               Hệ thống giám sát quỹ Smart Escrow Vault & Trọng tài phân xử khiếu nại
             </p>
           </div>
@@ -223,10 +223,10 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onBa
           <button
             type="button"
             onClick={() => setShowMaintenanceModal(true)}
-            className={`flex items-center space-x-2 px-3.5 py-2 rounded-xl font-extrabold text-xs transition border ${
+            className={`flex items-center space-x-2 px-3.5 py-2 rounded-xl font-extrabold text-xs transition border cursor-pointer ${
               isMaintenanceActive
                 ? 'bg-amber-500/20 border-amber-500 text-amber-300 shadow-[0_0_20px_rgba(245,158,11,0.4)] animate-pulse'
-                : 'bg-slate-900 border-slate-700 text-slate-300 hover:text-white hover:border-amber-500/50'
+                : 'bg-[#12233B] border-[#C5E5EC]/25 text-[#C5E5EC] hover:text-white hover:border-[#C5E5EC]/50'
             }`}
           >
             <Wrench className="w-4 h-4 text-amber-400" />
@@ -237,10 +237,10 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onBa
           {/* Emergency Freeze Switch */}
           <button
             onClick={toggleEmergencyFreeze}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-xl font-extrabold text-xs transition border ${
+            className={`flex items-center space-x-2 px-4 py-2 rounded-xl font-extrabold text-xs transition border cursor-pointer ${
               emergencyFreeze
-                ? 'bg-red-600 border-red-400 text-white shadow-[0_0_20px_rgba(239,68,68,0.5)] animate-pulse'
-                : 'bg-slate-900 border-slate-700 text-slate-300 hover:text-white'
+                ? 'bg-rose-600 border-rose-400 text-white shadow-[0_0_20px_rgba(239,68,68,0.5)] animate-pulse'
+                : 'bg-[#12233B] border-[#C5E5EC]/25 text-[#C5E5EC] hover:text-white'
             }`}
           >
             <Power className="w-4 h-4" />
@@ -251,7 +251,7 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onBa
 
       {/* Global Maintenance Alert Banner for Admin */}
       {isMaintenanceActive && (
-        <div className="bg-gradient-to-r from-amber-950/70 via-slate-900 to-amber-950/70 border border-amber-500/50 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-[0_0_30px_rgba(245,158,11,0.15)]">
+        <div className="bg-gradient-to-r from-amber-950/70 via-[#12233B] to-amber-950/70 border border-amber-500/50 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-[0_0_30px_rgba(245,158,11,0.15)]">
           <div className="flex items-center space-x-3">
             <div className="p-2.5 rounded-xl bg-amber-500/20 border border-amber-500/40 flex-shrink-0">
               <Wrench className="w-5 h-5 text-amber-400 animate-spin" />
@@ -263,14 +263,14 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onBa
                   CLOUD SYNC ACTIVE
                 </span>
               </div>
-              <div className="text-[11px] text-slate-300 mt-0.5">
+              <div className="text-[11px] text-[#C5E5EC]/80 mt-0.5">
                 Dự kiến kết thúc: <span className="text-white font-bold">{new Date(maintenanceConfig.endTime).toLocaleString('vi-VN')}</span>. Người dùng thông thường chỉ có quyền xem thông tin cá nhân.
               </div>
             </div>
           </div>
           <button
             onClick={() => setShowMaintenanceModal(true)}
-            className="px-3.5 py-1.5 rounded-xl bg-amber-500 text-black font-extrabold text-xs hover:brightness-110 transition whitespace-nowrap shadow"
+            className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 text-black font-extrabold text-xs hover:brightness-110 transition whitespace-nowrap shadow cursor-pointer"
           >
             Quản Lý Thời Gian & Nội Dung
           </button>
@@ -279,51 +279,51 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onBa
 
       {/* Metrics Banner */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="p-4 rounded-2xl bg-[#0F172A] border border-[#1E293B]">
-          <span className="text-slate-400 flex items-center space-x-1.5 font-bold mb-1">
-            <Lock className="w-4 h-4 text-[#00E5FF]" />
+        <div className="p-4 rounded-2xl bg-[#0E1B2E] border border-[#C5E5EC]/20 shadow-lg">
+          <span className="text-[#C5E5EC]/80 flex items-center space-x-1.5 font-bold mb-1">
+            <Lock className="w-4 h-4 text-[#C5E5EC]" />
             <span>Tổng Quỹ Escrow Đang Khóa</span>
           </span>
-          <span className="text-xl font-black text-[#00E5FF] font-mono">
+          <span className="text-xl font-black text-[#C5E5EC] font-mono">
             {formatVnd(totalEscrowLockedVault)}
           </span>
-          <p className="text-[10px] text-slate-500 mt-1">Đảm bảo an toàn không thể rút gian lận</p>
+          <p className="text-[10px] text-[#C5E5EC]/60 mt-1">Đảm bảo an toàn không thể rút gian lận</p>
         </div>
 
-        <div className="p-4 rounded-2xl bg-[#0F172A] border border-[#1E293B]">
-          <span className="text-slate-400 flex items-center space-x-1.5 font-bold mb-1">
-            <DollarSign className="w-4 h-4 text-emerald-400" />
+        <div className="p-4 rounded-2xl bg-[#0E1B2E] border border-[#C5E5EC]/20 shadow-lg">
+          <span className="text-[#C5E5EC]/80 flex items-center space-x-1.5 font-bold mb-1">
+            <DollarSign className="w-4 h-4 text-[#E0FAEB]" />
             <span>Doanh Thu Phí Sàn (7-10%)</span>
           </span>
-          <span className="text-xl font-black text-emerald-400 font-mono">
+          <span className="text-xl font-black text-[#E0FAEB] font-mono">
             {formatVnd(totalPlatformFeesCollected)}
           </span>
-          <p className="text-[10px] text-slate-500 mt-1">Tự động trích từ các giao dịch hoàn tất</p>
+          <p className="text-[10px] text-[#C5E5EC]/60 mt-1">Tự động trích từ các giao dịch hoàn tất</p>
         </div>
 
-        <div className="p-4 rounded-2xl bg-[#0F172A] border border-[#1E293B]">
-          <span className="text-slate-400 flex items-center space-x-1.5 font-bold mb-1">
-            <AlertTriangle className="w-4 h-4 text-red-400" />
+        <div className="p-4 rounded-2xl bg-[#0E1B2E] border border-[#C5E5EC]/20 shadow-lg">
+          <span className="text-[#C5E5EC]/80 flex items-center space-x-1.5 font-bold mb-1">
+            <AlertTriangle className="w-4 h-4 text-rose-400" />
             <span>Tranh Chấp Cần Xử Lý</span>
           </span>
-          <span className="text-xl font-black text-red-400 font-mono">
+          <span className="text-xl font-black text-rose-400 font-mono">
             {disputedGigs.length} vụ việc
           </span>
-          <p className="text-[10px] text-slate-500 mt-1">Yêu cầu phán quyết trong 24 giờ</p>
+          <p className="text-[10px] text-[#C5E5EC]/60 mt-1">Yêu cầu phán quyết trong 24 giờ</p>
         </div>
       </div>
 
       {/* ADMIN REVENUE WALLET & AUTO-WITHDRAWAL HUB */}
-      <div className="rounded-3xl bg-gradient-to-br from-[#131E30] via-[#0F172A] to-[#0A0E17] border border-cyan-500/40 p-5 shadow-2xl space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
+      <div className="rounded-3xl bg-gradient-to-br from-[#12233B] via-[#0E1B2E] to-[#0A1628] border border-[#C5E5EC]/30 p-5 shadow-2xl space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#C5E5EC]/20">
           <div>
             <div className="flex items-center space-x-2">
-              <span className="p-2 rounded-xl bg-cyan-500/20 text-[#00E5FF]">
+              <span className="p-2 rounded-xl bg-[#3064AE]/30 text-[#C5E5EC] border border-[#C5E5EC]/20">
                 <CreditCard className="w-5 h-5" />
               </span>
               <div>
                 <h3 className="text-sm font-black text-white">Ví Doanh Thu Trang Mạng Của Admin</h3>
-                <p className="text-[11px] text-slate-400">
+                <p className="text-[11px] text-[#C5E5EC]/70">
                   Tiền phí 10% từ các giao dịch tự động đổ vào ví này để Admin tự rút về
                 </p>
               </div>
@@ -331,8 +331,8 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onBa
           </div>
 
           <div className="text-left sm:text-right">
-            <span className="text-[11px] text-slate-400 font-semibold block">Số dư quỹ doanh thu:</span>
-            <span className="text-2xl font-black text-[#00E5FF] font-mono tracking-tight">
+            <span className="text-[11px] text-[#C5E5EC]/80 font-semibold block">Số dư quỹ doanh thu:</span>
+            <span className="text-2xl font-black text-[#E0FAEB] font-mono tracking-tight">
               {formatVnd(adminBalance)}
             </span>
           </div>
@@ -340,14 +340,14 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onBa
 
         {/* Connected MoMo and Bank details */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-          <div className="p-3 rounded-2xl bg-[#131E30] border border-pink-500/30 flex items-center justify-between">
+          <div className="p-3 rounded-2xl bg-[#0E1B2E] border border-pink-500/30 flex items-center justify-between">
             <div className="flex items-center space-x-2.5">
               <div className="p-2 rounded-xl bg-pink-500/15 text-pink-400">
                 <Smartphone className="w-4 h-4" />
               </div>
               <div>
                 <span className="font-bold text-white block">Ví MoMo Admin</span>
-                <span className="text-[11px] text-slate-400 font-mono">SĐT: {adminMoMo}</span>
+                <span className="text-[11px] text-[#C5E5EC]/70 font-mono">SĐT: {adminMoMo}</span>
               </div>
             </div>
             <span className="text-[10px] px-2 py-0.5 rounded-full bg-pink-500/20 text-pink-300 font-bold border border-pink-500/30">
@@ -355,19 +355,19 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onBa
             </span>
           </div>
 
-          <div className="p-3 rounded-2xl bg-[#131E30] border border-slate-700 flex items-center justify-between">
+          <div className="p-3 rounded-2xl bg-[#0E1B2E] border border-[#C5E5EC]/25 flex items-center justify-between">
             <div className="flex items-center space-x-2.5">
-              <div className="p-2 rounded-xl bg-slate-800 text-slate-300">
-                <Building className="w-4 h-4 text-emerald-400" />
+              <div className="p-2 rounded-xl bg-[#12233B] text-[#C5E5EC]">
+                <Building className="w-4 h-4 text-[#E0FAEB]" />
               </div>
               <div>
                 <span className="font-bold text-white block">Tài Khoản SĐT Admin</span>
-                <span className="text-[11px] text-slate-400 font-mono">{adminPhone}</span>
+                <span className="text-[11px] text-[#C5E5EC]/70 font-mono">{adminPhone}</span>
               </div>
             </div>
             <button
               onClick={() => setShowWithdrawForm((p) => !p)}
-              className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#00E5FF] to-cyan-500 text-black font-extrabold text-xs hover:brightness-110 shadow transition flex items-center space-x-1"
+              className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-[#3064AE] via-[#2A5594] to-[#25735B] text-white font-extrabold text-xs hover:brightness-110 shadow-sm border border-[#E0FAEB]/30 transition flex items-center space-x-1 cursor-pointer"
             >
               <ArrowUpRight className="w-3.5 h-3.5" />
               <span>{showWithdrawForm ? 'Đóng Form' : 'Rút Doanh Thu'}</span>
@@ -377,17 +377,17 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onBa
 
         {/* Withdrawal Form */}
         {showWithdrawForm && (
-          <form onSubmit={handleAdminWithdraw} className="p-4 rounded-2xl bg-slate-900 border border-slate-800 space-y-3 text-xs animate-fade-in">
+          <form onSubmit={handleAdminWithdraw} className="p-4 rounded-2xl bg-[#081120] border border-[#C5E5EC]/25 space-y-3 text-xs animate-fade-in">
             <div className="flex items-center justify-between">
               <span className="font-extrabold text-white text-xs">Tạo Lệnh Rút Tiền Doanh Thu</span>
               <div className="flex space-x-1">
                 <button
                   type="button"
                   onClick={() => setWithdrawTarget('MOMO')}
-                  className={`px-3 py-1 rounded-xl font-bold transition ${
+                  className={`px-3 py-1 rounded-xl font-bold transition cursor-pointer ${
                     withdrawTarget === 'MOMO'
                       ? 'bg-pink-600 text-white shadow'
-                      : 'bg-slate-800 text-slate-400 hover:text-white'
+                      : 'bg-[#12233B] text-[#C5E5EC]/70 hover:text-white'
                   }`}
                 >
                   Rút Về MoMo ({adminMoMo})
@@ -395,10 +395,10 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onBa
                 <button
                   type="button"
                   onClick={() => setWithdrawTarget('BANK')}
-                  className={`px-3 py-1 rounded-xl font-bold transition ${
+                  className={`px-3 py-1 rounded-xl font-bold transition cursor-pointer ${
                     withdrawTarget === 'BANK'
-                      ? 'bg-emerald-600 text-white shadow'
-                      : 'bg-slate-800 text-slate-400 hover:text-white'
+                      ? 'bg-gradient-to-r from-[#3064AE] to-[#25735B] text-white shadow border border-[#E0FAEB]/30'
+                      : 'bg-[#12233B] text-[#C5E5EC]/70 hover:text-white'
                   }`}
                 >
                   Rút Về Ngân Hàng
@@ -408,7 +408,7 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onBa
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-slate-400 mb-1 font-semibold">Số tiền muốn rút (VND)</label>
+                <label className="block text-[#C5E5EC]/80 mb-1 font-semibold">Số tiền muốn rút (VND)</label>
                 <input
                   type="number"
                   step="10000"
@@ -416,22 +416,22 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onBa
                   max={adminBalance}
                   value={withdrawAmount}
                   onChange={(e) => setWithdrawAmount(Number(e.target.value))}
-                  className="w-full px-3 py-2 rounded-xl bg-[#131E30] border border-slate-700 text-white font-mono font-bold"
+                  className="w-full px-3 py-2 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-white font-mono font-bold focus:border-[#C5E5EC] focus:outline-none"
                   placeholder="50000"
                 />
-                <span className="text-[10px] text-slate-500 mt-1 block">
+                <span className="text-[10px] text-[#C5E5EC]/60 mt-1 block">
                   Khả dụng: {formatVnd(adminBalance)}
                 </span>
               </div>
 
               {withdrawTarget === 'MOMO' ? (
                 <div>
-                  <label className="block text-slate-400 mb-1 font-semibold">Số MoMo thụ hưởng</label>
+                  <label className="block text-[#C5E5EC]/80 mb-1 font-semibold">Số MoMo thụ hưởng</label>
                   <input
                     type="text"
                     disabled
                     value={adminMoMo}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-pink-300 font-mono font-bold cursor-not-allowed"
+                    className="w-full px-3 py-2 rounded-xl bg-[#0E1B2E] border border-[#C5E5EC]/20 text-pink-300 font-mono font-bold cursor-not-allowed"
                   />
                   <span className="text-[10px] text-pink-400 mt-1 block">
                     Tiền chuyển tức thì sang ví MoMo chính chủ của Admin
@@ -440,11 +440,11 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onBa
               ) : (
                 <div className="space-y-2">
                   <div>
-                    <label className="block text-slate-400 mb-1 font-semibold">Ngân hàng</label>
+                    <label className="block text-[#C5E5EC]/80 mb-1 font-semibold">Ngân hàng</label>
                     <select
                       value={bankName}
                       onChange={(e) => setBankName(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl bg-[#131E30] border border-slate-700 text-white"
+                      className="w-full px-3 py-2 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-white focus:border-[#C5E5EC] focus:outline-none"
                     >
                       <option value="Vietcombank">Vietcombank - NHTM Ngoại Thương</option>
                       <option value="MBBank">MBBank - Ngân Hàng Quân Đội</option>
@@ -454,14 +454,14 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onBa
                     </select>
                   </div>
                   <div>
-                    <label className="block text-slate-400 mb-1 font-semibold">Số tài khoản nhận</label>
+                    <label className="block text-[#C5E5EC]/80 mb-1 font-semibold">Số tài khoản nhận</label>
                     <input
                       type="text"
                       required
                       value={bankAccNumber}
                       onChange={(e) => setBankAccNumber(e.target.value)}
                       placeholder="0909120918"
-                      className="w-full px-3 py-2 rounded-xl bg-[#131E30] border border-slate-700 text-white font-mono"
+                      className="w-full px-3 py-2 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-white font-mono focus:border-[#C5E5EC] focus:outline-none"
                     />
                   </div>
                 </div>
@@ -472,7 +472,7 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onBa
               <button
                 type="submit"
                 disabled={adminBalance <= 0 || withdrawAmount > adminBalance}
-                className="px-5 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 disabled:opacity-50 text-black font-extrabold text-xs hover:brightness-110 shadow-lg transition"
+                className="px-5 py-2 rounded-xl bg-gradient-to-r from-[#3064AE] via-[#2A5594] to-[#25735B] disabled:opacity-50 text-white font-extrabold text-xs hover:brightness-110 shadow-lg border border-[#E0FAEB]/30 transition cursor-pointer"
               >
                 Xác Nhận Rút {formatVnd(withdrawAmount)}
               </button>
@@ -482,11 +482,11 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onBa
       </div>
 
       {/* Navigation tabs */}
-      <div className="flex flex-wrap bg-[#0F172A] p-1 rounded-2xl border border-slate-800 font-bold text-xs gap-1">
+      <div className="flex flex-wrap bg-[#0E1B2E] p-1 rounded-2xl border border-[#C5E5EC]/20 font-bold text-xs gap-1">
         <button
           onClick={() => setActiveTab('DISPUTES')}
-          className={`flex-1 min-w-[120px] py-2 px-3 rounded-xl transition ${
-            activeTab === 'DISPUTES' ? 'bg-red-600 text-white shadow' : 'text-slate-400 hover:text-white'
+          className={`flex-1 min-w-[120px] py-2 px-3 rounded-xl transition cursor-pointer ${
+            activeTab === 'DISPUTES' ? 'bg-rose-600 text-white shadow' : 'text-[#C5E5EC]/70 hover:text-white'
           }`}
         >
           Khiếu Nại ({disputedGigs.length})
@@ -494,8 +494,8 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onBa
 
         <button
           onClick={() => setActiveTab('USERS')}
-          className={`flex-1 min-w-[120px] py-2 px-3 rounded-xl transition ${
-            activeTab === 'USERS' ? 'bg-[#00E5FF] text-black shadow' : 'text-slate-400 hover:text-white'
+          className={`flex-1 min-w-[120px] py-2 px-3 rounded-xl transition cursor-pointer ${
+            activeTab === 'USERS' ? 'bg-gradient-to-r from-[#3064AE] via-[#2A5594] to-[#25735B] text-white shadow border border-[#E0FAEB]/30' : 'text-[#C5E5EC]/70 hover:text-white'
           }`}
         >
           Người Dùng ({allUsers.length})
@@ -503,8 +503,8 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onBa
 
         <button
           onClick={() => setActiveTab('VAULT')}
-          className={`flex-1 min-w-[120px] py-2 px-3 rounded-xl transition ${
-            activeTab === 'VAULT' ? 'bg-purple-600 text-white shadow' : 'text-slate-400 hover:text-white'
+          className={`flex-1 min-w-[120px] py-2 px-3 rounded-xl transition cursor-pointer ${
+            activeTab === 'VAULT' ? 'bg-gradient-to-r from-[#3064AE] via-[#2A5594] to-[#25735B] text-white shadow border border-[#E0FAEB]/30' : 'text-[#C5E5EC]/70 hover:text-white'
           }`}
         >
           Kiểm Toán Quỹ
@@ -512,8 +512,8 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onBa
 
         <button
           onClick={() => setActiveTab('ANALYTICS')}
-          className={`flex-1 min-w-[120px] py-2 px-3 rounded-xl transition flex items-center justify-center space-x-1 ${
-            activeTab === 'ANALYTICS' ? 'bg-emerald-500 text-black shadow' : 'text-slate-400 hover:text-white'
+          className={`flex-1 min-w-[120px] py-2 px-3 rounded-xl transition flex items-center justify-center space-x-1 cursor-pointer ${
+            activeTab === 'ANALYTICS' ? 'bg-gradient-to-r from-[#3064AE] via-[#2A5594] to-[#25735B] text-white shadow border border-[#E0FAEB]/30' : 'text-[#C5E5EC]/70 hover:text-white'
           }`}
         >
           <BarChart3 className="w-3.5 h-3.5" />
@@ -522,14 +522,14 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onBa
 
         <button
           onClick={() => setActiveTab('SYBIL_DETECTION')}
-          className={`flex-1 min-w-[120px] py-2 px-3 rounded-xl transition flex items-center justify-center space-x-1 ${
-            activeTab === 'SYBIL_DETECTION' ? 'bg-amber-500 text-black shadow' : 'text-slate-400 hover:text-white'
+          className={`flex-1 min-w-[120px] py-2 px-3 rounded-xl transition flex items-center justify-center space-x-1 cursor-pointer ${
+            activeTab === 'SYBIL_DETECTION' ? 'bg-amber-600 text-white shadow' : 'text-[#C5E5EC]/70 hover:text-white'
           }`}
         >
           <Bot className="w-3.5 h-3.5" />
           <span>Chống Bot & Sybil</span>
           {sybilAudit.flaggedCount > 0 && (
-            <span className="ml-1 px-1.5 py-0.2 rounded-full bg-red-600 text-white text-[9px] font-black">
+            <span className="ml-1 px-1.5 py-0.2 rounded-full bg-rose-600 text-white text-[9px] font-black">
               {sybilAudit.flaggedCount}
             </span>
           )}
@@ -540,37 +540,37 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onBa
       {activeTab === 'DISPUTES' && (
         <div className="space-y-3">
           {disputedGigs.length === 0 ? (
-            <div className="text-center py-16 rounded-3xl bg-[#0F172A] border border-slate-800 text-slate-500">
-              <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto mb-2" />
+            <div className="text-center py-16 rounded-3xl bg-[#0E1B2E] border border-[#C5E5EC]/20 text-[#C5E5EC]/60">
+              <CheckCircle2 className="w-10 h-10 text-[#E0FAEB] mx-auto mb-2" />
               <p className="font-bold text-white">Hệ thống đang hoạt động an toàn!</p>
-              <p className="text-slate-400 mt-1">Không có khiếu nại tranh chấp nào đang chờ xử lý.</p>
+              <p className="text-[#C5E5EC]/70 mt-1">Không có khiếu nại tranh chấp nào đang chờ xử lý.</p>
             </div>
           ) : (
             disputedGigs.map((gig) => (
               <div
                 key={gig.id}
-                className="p-5 rounded-3xl bg-[#0F172A] border border-red-500/40 space-y-3 shadow-xl"
+                className="p-5 rounded-3xl bg-[#0E1B2E] border border-rose-500/40 space-y-3 shadow-xl"
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <span className="text-[10px] px-2 py-0.5 rounded bg-red-950 text-red-400 font-black border border-red-700">
+                    <span className="text-[10px] px-2 py-0.5 rounded bg-rose-950/60 text-rose-300 font-black border border-rose-700/50">
                       TRANH CHẤP
                     </span>
                     <h3 className="font-extrabold text-sm text-white mt-1">{gig.title}</h3>
                   </div>
-                  <span className="font-mono font-black text-base text-[#00E5FF]">
+                  <span className="font-mono font-black text-base text-[#E0FAEB]">
                     {formatVnd(gig.price)}
                   </span>
                 </div>
 
-                <div className="p-3 rounded-2xl bg-slate-900 border border-slate-800 space-y-1">
-                  <p className="text-slate-300">
+                <div className="p-3 rounded-2xl bg-[#12233B] border border-[#C5E5EC]/20 space-y-1">
+                  <p className="text-[#C5E5EC]">
                     <strong>Người thuê:</strong> {gig.clientName}
                   </p>
-                  <p className="text-slate-300">
+                  <p className="text-[#C5E5EC]">
                     <strong>Người làm:</strong> {gig.freelancerName || 'Chưa nhận'}
                   </p>
-                  <p className="text-red-300">
+                  <p className="text-rose-300">
                     <strong>Nội dung khiếu nại:</strong> &quot;{gig.disputeReason || 'Bất đồng chất lượng hoặc thời hạn'}&quot;
                   </p>
                 </div>
@@ -578,7 +578,7 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onBa
                 <div className="flex flex-col sm:flex-row gap-2 pt-2">
                   <button
                     onClick={() => adminResolveDispute(gig.id, 'Hoàn tiền cho người thuê', true, 'Phán quyết trọng tài')}
-                    className="flex-1 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-extrabold transition flex items-center justify-center space-x-1.5"
+                    className="flex-1 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-extrabold transition flex items-center justify-center space-x-1.5 cursor-pointer"
                   >
                     <XCircle className="w-4 h-4" />
                     <span>Phán Quyết: Hoàn Tiền Cho Người Thuê</span>
@@ -586,7 +586,7 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onBa
 
                   <button
                     onClick={() => adminResolveDispute(gig.id, 'Giải ngân cho freelancer', false, 'Phán quyết trọng tài')}
-                    className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold transition flex items-center justify-center space-x-1.5"
+                    className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-[#3064AE] via-[#2A5594] to-[#25735B] hover:brightness-110 text-white font-extrabold transition flex items-center justify-center space-x-1.5 border border-[#E0FAEB]/30 cursor-pointer"
                   >
                     <CheckCircle2 className="w-4 h-4" />
                     <span>Phán Quyết: Giải Ngân Cho Freelancer</span>
@@ -602,37 +602,37 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onBa
       {activeTab === 'USERS' && (
         <div className="space-y-3">
           <div className="relative">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+            <Search className="w-4 h-4 text-[#C5E5EC]/50 absolute left-3 top-3" />
             <input
               type="text"
               value={userSearch}
               onChange={(e) => setUserSearch(e.target.value)}
-              className="w-full pl-9 pr-3 py-2.5 rounded-2xl bg-[#0F172A] border border-slate-800 text-white text-xs placeholder:text-slate-500"
+              className="w-full pl-9 pr-3 py-2.5 rounded-2xl bg-[#0E1B2E] border border-[#C5E5EC]/25 text-white text-xs placeholder:text-[#C5E5EC]/40 focus:border-[#C5E5EC] focus:outline-none"
               placeholder="Tìm kiếm tài khoản theo tên, email, SĐT..."
             />
           </div>
 
-          <div className="rounded-3xl bg-[#0F172A] border border-[#1E293B] overflow-hidden shadow-xl">
-            <div className="divide-y divide-slate-800">
+          <div className="rounded-3xl bg-[#0E1B2E] border border-[#C5E5EC]/20 overflow-hidden shadow-xl">
+            <div className="divide-y divide-[#C5E5EC]/15">
               {filteredUsers.map((u: UserEntity) => (
-                <div key={u.id} className="p-4 flex items-center justify-between gap-3 hover:bg-[#131E30] transition">
+                <div key={u.id} className="p-4 flex items-center justify-between gap-3 hover:bg-[#12233B] transition">
                   <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-600 to-indigo-600 flex items-center justify-center font-bold text-white">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#3064AE] to-[#25735B] flex items-center justify-center font-bold text-white border border-[#E0FAEB]/30">
                       {u.name.charAt(0).toUpperCase()}
                     </div>
                     <div>
                       <div className="flex items-center space-x-2">
                         <span className="font-extrabold text-white">{u.name}</span>
-                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-cyan-950 text-cyan-300 font-bold border border-cyan-800">
+                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-[#3064AE]/30 text-[#C5E5EC] font-bold border border-[#C5E5EC]/30">
                           {u.tier}
                         </span>
                         {u.role === 'ADMIN' && (
-                          <span className="text-[9px] px-1.5 py-0.2 rounded bg-red-950 text-red-400 font-bold">
+                          <span className="text-[9px] px-1.5 py-0.2 rounded bg-rose-900/60 text-rose-300 font-bold border border-rose-700/50">
                             ADMIN
                           </span>
                         )}
                       </div>
-                      <p className="text-[11px] text-slate-400 mt-0.5">{u.email || u.phone}</p>
+                      <p className="text-[11px] text-[#C5E5EC]/70 mt-0.5">{u.email || u.phone}</p>
                     </div>
                   </div>
 
@@ -640,7 +640,7 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onBa
                     <span className="font-mono font-bold text-white text-xs block">
                       Ví: {formatVnd(u.walletBalance)}
                     </span>
-                    <span className="text-[10px] text-amber-400">Uy tín: {u.trustScore}/100</span>
+                    <span className="text-[10px] text-amber-300">Uy tín: {u.trustScore}/100</span>
                   </div>
                 </div>
               ))}
@@ -651,13 +651,13 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onBa
 
       {/* TAB 3: SMART ESCROW AUDIT */}
       {activeTab === 'VAULT' && (
-        <div className="rounded-3xl bg-[#0F172A] border border-[#1E293B] p-6 space-y-4 shadow-xl">
+        <div className="rounded-3xl bg-[#0E1B2E] border border-[#C5E5EC]/20 p-6 space-y-4 shadow-xl">
           <h3 className="font-extrabold text-sm text-white flex items-center space-x-2">
-            <Lock className="w-4 h-4 text-[#00E5FF]" />
+            <Lock className="w-4 h-4 text-[#C5E5EC]" />
             <span>Nguyên Tắc Bất Biến Của Smart Escrow Vault</span>
           </h3>
 
-          <div className="space-y-2 text-slate-300 leading-relaxed text-xs">
+          <div className="space-y-2 text-[#C5E5EC]/85 leading-relaxed text-xs">
             <p>
               1. <strong>Không ai được phép rút trước:</strong> Toàn bộ số tiền thù lao thỏa thuận của người thuê được
               đóng băng trong Smart Escrow Vault ngay khi đăng việc.
@@ -679,67 +679,67 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onBa
         <div className="space-y-6">
           {/* Top Analytics KPI Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            <div className="p-4 rounded-2xl bg-[#0F172A] border border-emerald-500/30">
-              <span className="text-slate-400 flex items-center space-x-1.5 font-bold mb-1">
-                <TrendingUp className="w-4 h-4 text-emerald-400" />
+            <div className="p-4 rounded-2xl bg-[#0E1B2E] border border-[#E0FAEB]/30">
+              <span className="text-[#C5E5EC]/80 flex items-center space-x-1.5 font-bold mb-1">
+                <TrendingUp className="w-4 h-4 text-[#E0FAEB]" />
                 <span>Doanh Thu Phí Sàn</span>
               </span>
-              <span className="text-2xl font-black text-emerald-400 font-mono">
+              <span className="text-2xl font-black text-[#E0FAEB] font-mono">
                 {formatVnd(totalPlatformFeesCollected)}
               </span>
-              <p className="text-[10px] text-slate-400 mt-1">Trích 10% tự động từ đơn thành công</p>
+              <p className="text-[10px] text-[#C5E5EC]/60 mt-1">Trích 10% tự động từ đơn thành công</p>
             </div>
 
-            <div className="p-4 rounded-2xl bg-[#0F172A] border border-cyan-500/30">
-              <span className="text-slate-400 flex items-center space-x-1.5 font-bold mb-1">
-                <ShieldCheck className="w-4 h-4 text-[#00E5FF]" />
+            <div className="p-4 rounded-2xl bg-[#0E1B2E] border border-[#C5E5EC]/30">
+              <span className="text-[#C5E5EC]/80 flex items-center space-x-1.5 font-bold mb-1">
+                <ShieldCheck className="w-4 h-4 text-[#C5E5EC]" />
                 <span>Tỷ Lệ Tranh Chấp</span>
               </span>
               <div className="flex items-baseline space-x-2">
                 <span className="text-2xl font-black text-white font-mono">{disputeRate}%</span>
-                <span className="text-[11px] font-bold text-emerald-400">({(100 - Number(disputeRate)).toFixed(1)}% an toàn)</span>
+                <span className="text-[11px] font-bold text-[#E0FAEB]">({(100 - Number(disputeRate)).toFixed(1)}% an toàn)</span>
               </div>
-              <p className="text-[10px] text-slate-400 mt-1">{disputedGigs.length} vụ / {rawGigs.length} tổng đơn việc</p>
+              <p className="text-[10px] text-[#C5E5EC]/60 mt-1">{disputedGigs.length} vụ / {rawGigs.length} tổng đơn việc</p>
             </div>
 
-            <div className="p-4 rounded-2xl bg-[#0F172A] border border-purple-500/30">
-              <span className="text-slate-400 flex items-center space-x-1.5 font-bold mb-1">
-                <Lock className="w-4 h-4 text-purple-400" />
+            <div className="p-4 rounded-2xl bg-[#0E1B2E] border border-[#C5E5EC]/30">
+              <span className="text-[#C5E5EC]/80 flex items-center space-x-1.5 font-bold mb-1">
+                <Lock className="w-4 h-4 text-[#C5E5EC]" />
                 <span>Tổng Dòng Tiền Escrow</span>
               </span>
-              <span className="text-2xl font-black text-purple-300 font-mono">
+              <span className="text-2xl font-black text-[#C5E5EC] font-mono">
                 {formatVnd(totalEscrowVolume)}
               </span>
-              <p className="text-[10px] text-slate-400 mt-1">Toàn bộ thù lao ký quỹ trung gian</p>
+              <p className="text-[10px] text-[#C5E5EC]/60 mt-1">Toàn bộ thù lao ký quỹ trung gian</p>
             </div>
 
-            <div className="p-4 rounded-2xl bg-[#0F172A] border border-blue-500/30">
-              <span className="text-slate-400 flex items-center space-x-1.5 font-bold mb-1">
-                <CheckCircle2 className="w-4 h-4 text-blue-400" />
+            <div className="p-4 rounded-2xl bg-[#0E1B2E] border border-[#3064AE]/50">
+              <span className="text-[#C5E5EC]/80 flex items-center space-x-1.5 font-bold mb-1">
+                <CheckCircle2 className="w-4 h-4 text-[#3064AE]" />
                 <span>Đã Giải Ngân Cho SV</span>
               </span>
-              <span className="text-2xl font-black text-blue-300 font-mono">
+              <span className="text-2xl font-black text-[#E0FAEB] font-mono">
                 {formatVnd(disbursedEscrowVolume)}
               </span>
-              <p className="text-[10px] text-slate-400 mt-1">Chi trả trực tiếp về ví thợ</p>
+              <p className="text-[10px] text-[#C5E5EC]/60 mt-1">Chi trả trực tiếp về ví thợ</p>
             </div>
           </div>
 
           {/* Section: Lượng việc theo từng trường đại học */}
-          <div className="rounded-3xl bg-[#0F172A] border border-slate-800 p-6 space-y-4 shadow-xl">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-800">
+          <div className="rounded-3xl bg-[#0E1B2E] border border-[#C5E5EC]/20 p-6 space-y-4 shadow-xl">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-[#C5E5EC]/20">
               <div className="flex items-center space-x-2">
-                <GraduationCap className="w-5 h-5 text-[#00E5FF]" />
+                <GraduationCap className="w-5 h-5 text-[#C5E5EC]" />
                 <div>
                   <h3 className="text-sm font-black text-white">
                     Phân Phối Lượng Việc Theo Từng Trường Đại Học (Campus Analytics)
                   </h3>
-                  <p className="text-[11px] text-slate-400">
+                  <p className="text-[11px] text-[#C5E5EC]/70">
                     Thống kê tỷ lệ mật độ công việc sinh viên tại các làng đại học & khu ký túc xá
                   </p>
                 </div>
               </div>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-950 text-cyan-300 font-bold border border-cyan-800">
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#3064AE]/30 text-[#C5E5EC] font-bold border border-[#C5E5EC]/30">
                 Toàn Khu Vực TP.HCM
               </span>
             </div>
@@ -756,12 +756,12 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onBa
                         <span>{c.name}</span>
                       </span>
                       <div className="flex items-center space-x-2">
-                        <span className="text-slate-400 font-mono">{c.count} việc</span>
-                        <span className="font-mono font-black text-[#00E5FF] w-10 text-right">{percent}%</span>
+                        <span className="text-[#C5E5EC]/70 font-mono">{c.count} việc</span>
+                        <span className="font-mono font-black text-[#E0FAEB] w-10 text-right">{percent}%</span>
                       </div>
                     </div>
                     {/* Visual Progress Bar */}
-                    <div className="h-2 w-full bg-slate-900 rounded-full overflow-hidden border border-slate-800">
+                    <div className="h-2 w-full bg-[#081120] rounded-full overflow-hidden border border-[#C5E5EC]/15">
                       <div
                         className={`h-full ${c.color} transition-all duration-500 rounded-full`}
                         style={{ width: `${percent}%` }}
@@ -774,42 +774,42 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onBa
           </div>
 
           {/* Section: Dòng tiền Escrow thời gian thực */}
-          <div className="rounded-3xl bg-[#0F172A] border border-cyan-500/30 p-6 space-y-4 shadow-xl">
-            <div className="flex items-center space-x-2 pb-3 border-b border-slate-800">
-              <PieChart className="w-5 h-5 text-cyan-400" />
+          <div className="rounded-3xl bg-[#0E1B2E] border border-[#C5E5EC]/25 p-6 space-y-4 shadow-xl">
+            <div className="flex items-center space-x-2 pb-3 border-b border-[#C5E5EC]/20">
+              <PieChart className="w-5 h-5 text-[#C5E5EC]" />
               <div>
                 <h3 className="text-sm font-black text-white">
                   Dòng Tiền Smart Escrow Vault Thời Gian Thực
                 </h3>
-                <p className="text-[11px] text-slate-400">
+                <p className="text-[11px] text-[#C5E5EC]/70">
                   Đối soát dòng tiền tức thời, không thất thoát bất kỳ giao dịch nào
                 </p>
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
-              <div className="p-3.5 rounded-2xl bg-[#131E30] border border-slate-800">
-                <span className="text-slate-400 font-semibold block mb-1">1. Đã Giải Ngân Hoàn Tất</span>
-                <span className="text-base font-black text-emerald-400 font-mono">{formatVnd(disbursedEscrowVolume)}</span>
-                <span className="text-[10px] text-slate-500 block mt-1">{completedGigs.length} đơn hoàn thành 100%</span>
+              <div className="p-3.5 rounded-2xl bg-[#12233B] border border-[#C5E5EC]/20">
+                <span className="text-[#C5E5EC]/70 font-semibold block mb-1">1. Đã Giải Ngân Hoàn Tất</span>
+                <span className="text-base font-black text-[#E0FAEB] font-mono">{formatVnd(disbursedEscrowVolume)}</span>
+                <span className="text-[10px] text-[#C5E5EC]/50 block mt-1">{completedGigs.length} đơn hoàn thành 100%</span>
               </div>
 
-              <div className="p-3.5 rounded-2xl bg-[#131E30] border border-slate-800">
-                <span className="text-slate-400 font-semibold block mb-1">2. Đang Ký Quỹ Thực Hiện</span>
-                <span className="text-base font-black text-cyan-400 font-mono">{formatVnd(pendingEscrowVolume)}</span>
-                <span className="text-[10px] text-slate-500 block mt-1">{inProgressGigs.length} đơn đang làm việc</span>
+              <div className="p-3.5 rounded-2xl bg-[#12233B] border border-[#C5E5EC]/20">
+                <span className="text-[#C5E5EC]/70 font-semibold block mb-1">2. Đang Ký Quỹ Thực Hiện</span>
+                <span className="text-base font-black text-[#C5E5EC] font-mono">{formatVnd(pendingEscrowVolume)}</span>
+                <span className="text-[10px] text-[#C5E5EC]/50 block mt-1">{inProgressGigs.length} đơn đang làm việc</span>
               </div>
 
-              <div className="p-3.5 rounded-2xl bg-[#131E30] border border-slate-800">
-                <span className="text-slate-400 font-semibold block mb-1">3. Tạm Giữ Tranh Chấp</span>
-                <span className="text-base font-black text-red-400 font-mono">{formatVnd(disputedEscrowVolume)}</span>
-                <span className="text-[10px] text-slate-500 block mt-1">{disputedGigs.length} đơn chờ trọng tài</span>
+              <div className="p-3.5 rounded-2xl bg-[#12233B] border border-[#C5E5EC]/20">
+                <span className="text-[#C5E5EC]/70 font-semibold block mb-1">3. Tạm Giữ Tranh Chấp</span>
+                <span className="text-base font-black text-rose-400 font-mono">{formatVnd(disputedEscrowVolume)}</span>
+                <span className="text-[10px] text-[#C5E5EC]/50 block mt-1">{disputedGigs.length} đơn chờ trọng tài</span>
               </div>
 
-              <div className="p-3.5 rounded-2xl bg-[#131E30] border border-slate-800">
-                <span className="text-slate-400 font-semibold block mb-1">4. Quỹ Sàn Khả Dụng</span>
-                <span className="text-base font-black text-amber-400 font-mono">{formatVnd(adminBalance)}</span>
-                <span className="text-[10px] text-slate-500 block mt-1">Admin có thể rút ngay</span>
+              <div className="p-3.5 rounded-2xl bg-[#12233B] border border-[#C5E5EC]/20">
+                <span className="text-[#C5E5EC]/70 font-semibold block mb-1">4. Quỹ Sàn Khả Dụng</span>
+                <span className="text-base font-black text-amber-300 font-mono">{formatVnd(adminBalance)}</span>
+                <span className="text-[10px] text-[#C5E5EC]/50 block mt-1">Admin có thể rút ngay</span>
               </div>
             </div>
           </div>
@@ -820,7 +820,7 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onBa
       {activeTab === 'SYBIL_DETECTION' && (
         <div className="space-y-6">
           {/* Header & Re-scan Controller */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-5 rounded-3xl bg-gradient-to-r from-amber-950/40 via-[#0F172A] to-[#0A1220] border border-amber-500/40 shadow-xl">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-5 rounded-3xl bg-gradient-to-r from-amber-950/40 via-[#0E1B2E] to-[#0A1628] border border-amber-500/40 shadow-xl">
             <div className="flex items-center space-x-3">
               <div className="p-3 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/40">
                 <Bot className="w-6 h-6" />
@@ -834,7 +834,7 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onBa
                     Thuật toán AI
                   </span>
                 </div>
-                <p className="text-[11px] text-slate-400 mt-0.5">
+                <p className="text-[11px] text-[#C5E5EC]/70 mt-0.5">
                   Phát hiện tự book đơn ảo cày điểm tín nhiệm ELO, rửa tiền hoặc dùng chung phần cứng thiết bị
                 </p>
               </div>
@@ -843,7 +843,7 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onBa
             <button
               onClick={handleRunSybilScan}
               disabled={isScanningSybil}
-              className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-black font-extrabold text-xs shadow-lg shadow-amber-500/20 transition flex items-center space-x-1.5 shrink-0 disabled:opacity-50"
+              className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-black font-extrabold text-xs shadow-lg shadow-amber-500/20 transition flex items-center space-x-1.5 shrink-0 disabled:opacity-50 cursor-pointer"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isScanningSybil ? 'animate-spin' : ''}`} />
               <span>{isScanningSybil ? 'Đang Quét Mạng Lưới...' : 'Quét Phân Tích Lại'}</span>
@@ -852,40 +852,40 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onBa
 
           {/* 3 Metrics Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-            <div className="p-4 rounded-2xl bg-[#0F172A] border border-slate-800">
-              <span className="text-slate-400 font-bold block mb-1">Tổng Tài Khoản Đã Rà Soát</span>
+            <div className="p-4 rounded-2xl bg-[#0E1B2E] border border-[#C5E5EC]/20">
+              <span className="text-[#C5E5EC]/70 font-bold block mb-1">Tổng Tài Khoản Đã Rà Soát</span>
               <span className="text-2xl font-black text-white font-mono">{sybilAudit.totalScannedUsers}</span>
-              <span className="text-[10px] text-slate-500 block mt-1">Đối chiếu toàn bộ user & lịch sử kèo</span>
+              <span className="text-[10px] text-[#C5E5EC]/50 block mt-1">Đối chiếu toàn bộ user & lịch sử kèo</span>
             </div>
 
-            <div className="p-4 rounded-2xl bg-[#0F172A] border border-amber-500/30">
+            <div className="p-4 rounded-2xl bg-[#0E1B2E] border border-amber-500/30">
               <span className="text-amber-400 font-bold block mb-1">Tài Khoản Nghi Vấn Gắn Cờ</span>
               <span className="text-2xl font-black text-amber-400 font-mono">{sybilAudit.flaggedCount}</span>
               <span className="text-[10px] text-amber-300/70 block mt-1">Điểm rủi ro (Risk Score &gt; 30)</span>
             </div>
 
-            <div className="p-4 rounded-2xl bg-[#0F172A] border border-red-500/30">
-              <span className="text-red-400 font-bold block mb-1">Nhóm Vòng Lặp Đánh Giá Chéo</span>
-              <span className="text-2xl font-black text-red-400 font-mono">{sybilAudit.highRiskRingsCount}</span>
-              <span className="text-[10px] text-red-300/70 block mt-1">Cặp tài khoản tự khen nhau kiếm ELO</span>
+            <div className="p-4 rounded-2xl bg-[#0E1B2E] border border-rose-500/30">
+              <span className="text-rose-400 font-bold block mb-1">Nhóm Vòng Lặp Đánh Giá Chéo</span>
+              <span className="text-2xl font-black text-rose-400 font-mono">{sybilAudit.highRiskRingsCount}</span>
+              <span className="text-[10px] text-rose-300/70 block mt-1">Cặp tài khoản tự khen nhau kiếm ELO</span>
             </div>
           </div>
 
           {/* List of Flagged Threats */}
-          <div className="rounded-3xl bg-[#0F172A] border border-slate-800 p-5 space-y-4 shadow-xl">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+          <div className="rounded-3xl bg-[#0E1B2E] border border-[#C5E5EC]/20 p-5 space-y-4 shadow-xl">
+            <div className="flex items-center justify-between pb-3 border-b border-[#C5E5EC]/20">
               <h3 className="font-extrabold text-sm text-white flex items-center space-x-2">
-                <Fingerprint className="w-4 h-4 text-[#00E5FF]" />
+                <Fingerprint className="w-4 h-4 text-[#C5E5EC]" />
                 <span>Danh Sách Cảnh Báo Tài Khoản Nghi Vấn ({sybilAudit.threats.length})</span>
               </h3>
-              <span className="text-[10px] text-slate-400">Sắp xếp theo mức độ nguy hại</span>
+              <span className="text-[10px] text-[#C5E5EC]/70">Sắp xếp theo mức độ nguy hại</span>
             </div>
 
             {sybilAudit.threats.length === 0 ? (
-              <div className="text-center py-12 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-2">
-                <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto" />
+              <div className="text-center py-12 rounded-2xl bg-[#081120] border border-[#C5E5EC]/20 space-y-2">
+                <CheckCircle2 className="w-8 h-8 text-[#E0FAEB] mx-auto" />
                 <p className="font-bold text-white">Mạng lưới hoàn toàn trong sạch!</p>
-                <p className="text-slate-400 text-[11px]">Không phát hiện dấu vết tấn công Sybil hoặc buff đánh giá chéo.</p>
+                <p className="text-[#C5E5EC]/70 text-[11px]">Không phát hiện dấu vết tấn công Sybil hoặc buff đánh giá chéo.</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -896,23 +896,23 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onBa
                       key={t.id}
                       className={`p-4 rounded-2xl border transition space-y-3 ${
                         isHandled
-                          ? 'bg-slate-900/40 border-slate-800 opacity-60'
+                          ? 'bg-[#12233B]/40 border-[#C5E5EC]/15 opacity-60'
                           : t.threatLevel === 'HIGH_RISK_SYBIL_RING'
-                          ? 'bg-red-950/20 border-red-500/40'
+                          ? 'bg-rose-950/20 border-rose-500/40'
                           : 'bg-amber-950/15 border-amber-500/30'
                       }`}
                     >
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                         <div className="flex items-center space-x-3">
-                          <div className="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center font-bold text-white text-sm border border-slate-700">
+                          <div className="w-10 h-10 rounded-xl bg-[#12233B] flex items-center justify-center font-bold text-white text-sm border border-[#C5E5EC]/20">
                             {t.userName.charAt(0).toUpperCase()}
                           </div>
                           <div>
                             <div className="flex items-center space-x-2">
                               <span className="font-extrabold text-white text-xs">{t.userName}</span>
-                              <span className="text-[10px] text-slate-400 font-mono">{t.userPhone}</span>
+                              <span className="text-[10px] text-[#C5E5EC]/70 font-mono">{t.userPhone}</span>
                               {t.threatLevel === 'HIGH_RISK_SYBIL_RING' ? (
-                                <span className="px-2 py-0.5 rounded-full bg-red-600 text-white font-black text-[9px]">
+                                <span className="px-2 py-0.5 rounded-full bg-rose-600 text-white font-black text-[9px]">
                                   NGUY CƠ CAO (VÒNG LẶP CHÉO)
                                 </span>
                               ) : (
@@ -921,14 +921,14 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onBa
                                 </span>
                               )}
                             </div>
-                            <span className="text-[11px] text-slate-400">Mã tài khoản: {t.userId}</span>
+                            <span className="text-[11px] text-[#C5E5EC]/70">Mã tài khoản: {t.userId}</span>
                           </div>
                         </div>
 
                         <div className="flex items-center space-x-3 sm:text-right">
                           <div>
-                            <span className="text-[10px] text-slate-400 block font-semibold">Điểm Rủi Ro:</span>
-                            <span className={`font-mono font-black text-sm ${t.score >= 50 ? 'text-red-400' : 'text-amber-400'}`}>
+                            <span className="text-[10px] text-[#C5E5EC]/70 block font-semibold">Điểm Rủi Ro:</span>
+                            <span className={`font-mono font-black text-sm ${t.score >= 50 ? 'text-rose-400' : 'text-amber-400'}`}>
                               {t.score}/100
                             </span>
                           </div>
@@ -936,8 +936,8 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onBa
                       </div>
 
                       {/* Reasons detected */}
-                      <div className="p-3 rounded-xl bg-slate-900/90 border border-slate-800 space-y-1 text-[11px]">
-                        <span className="font-bold text-slate-300 block mb-1">Dấu hiệu phát hiện bởi thuật toán:</span>
+                      <div className="p-3 rounded-xl bg-[#081120] border border-[#C5E5EC]/20 space-y-1 text-[11px]">
+                        <span className="font-bold text-[#C5E5EC] block mb-1">Dấu hiệu phát hiện bởi thuật toán:</span>
                         {t.reasons.map((r, ri) => (
                           <div key={ri} className="flex items-start space-x-1.5 text-amber-200">
                             <span className="text-amber-400 shrink-0">•</span>
@@ -949,7 +949,7 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onBa
                       {/* Action buttons */}
                       <div className="flex items-center justify-end space-x-2 pt-1">
                         {isHandled ? (
-                          <span className="text-[10px] font-bold text-emerald-400 flex items-center space-x-1">
+                          <span className="text-[10px] font-bold text-[#E0FAEB] flex items-center space-x-1">
                             <Check className="w-3.5 h-3.5" />
                             <span>Đã xử lý & ghi nhật ký</span>
                           </span>
@@ -958,7 +958,7 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onBa
                             <button
                               type="button"
                               onClick={() => handleDismissThreat(t.id)}
-                              className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition"
+                              className="px-3 py-1.5 rounded-xl bg-[#12233B] hover:bg-[#152844] text-[#C5E5EC] border border-[#C5E5EC]/20 text-xs font-bold transition cursor-pointer"
                             >
                               Bỏ Qua
                             </button>
@@ -966,7 +966,7 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onBa
                             <button
                               type="button"
                               onClick={() => handleFreezeUser(t.userId, t.id)}
-                              className="px-3.5 py-1.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-black text-xs transition flex items-center space-x-1 shadow-md shadow-red-600/20"
+                              className="px-3.5 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-black text-xs transition flex items-center space-x-1 shadow-md shadow-rose-600/20 cursor-pointer"
                             >
                               <Ban className="w-3.5 h-3.5" />
                               <span>Đóng Băng & Trừ ELO</span>

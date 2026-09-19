@@ -633,8 +633,8 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
 
   // Main container height classes
   const heightClass = isFullscreen
-    ? 'fixed inset-0 z-50 p-4 bg-white dark:bg-[#0A0E17] flex flex-col'
-    : 'relative rounded-3xl bg-gradient-to-b from-sky-50/70 via-white to-blue-50/40 dark:bg-[#0F172A] border border-sky-200/90 dark:border-[#1E293B] p-4 sm:p-5 shadow-[0_4px_20px_-4px_rgba(2,132,199,0.08)]';
+    ? 'fixed inset-0 z-50 p-4 bg-[#0A1424] flex flex-col'
+    : 'relative rounded-3xl bg-[#0E1B2E] border border-[#C5E5EC]/25 p-4 sm:p-5 shadow-2xl overflow-hidden';
 
   const mapAreaHeight = isFullscreen
     ? 'flex-1 min-h-[400px]'
@@ -642,20 +642,23 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
 
   return (
     <div className={`${heightClass} w-full max-w-full overflow-hidden transition-all duration-300`}>
+      {/* Decorative top gradient bar */}
+      <div className="absolute left-0 top-0 right-0 h-1 bg-brand-tri-gradient pointer-events-none" />
+
       {/* Top Header Bar */}
-      <div className="flex items-center justify-between gap-2 mb-2 pb-2.5 border-b border-sky-100 dark:border-slate-800/80">
+      <div className="flex items-center justify-between gap-2 mb-2 pb-2.5 border-b border-[#C5E5EC]/15">
         <div className="flex items-center space-x-2 min-w-0">
-          <div className="p-1.5 sm:p-2 rounded-xl shrink-0 bg-gradient-to-br from-sky-500 to-blue-600 text-white shadow-xs">
-            <MapIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+          <div className="p-1.5 sm:p-2 rounded-xl shrink-0 bg-gradient-to-br from-[#3064AE] to-[#255294] text-white border border-[#C5E5EC]/30 shadow-xs">
+            <MapIcon className="w-4 h-4 sm:w-5 sm:h-5 text-[#E0FAEB]" />
           </div>
           <div className="min-w-0">
             <div className="flex items-center space-x-1.5">
-              <h3 className="text-xs sm:text-sm font-black text-slate-900 dark:text-white tracking-wide truncate">
+              <h3 className="text-xs sm:text-sm font-black text-white tracking-wide truncate">
                 Bản Đồ Google Maps
               </h3>
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping shrink-0" />
+              <span className="w-2 h-2 rounded-full bg-[#E0FAEB] animate-ping shrink-0" />
             </div>
-            <p className="text-[10px] sm:text-[11px] text-sky-800/80 font-medium truncate">
+            <p className="text-[10px] sm:text-[11px] text-[#C5E5EC]/80 font-medium truncate">
               {currentUserCoords.label || 'Vị trí của bạn'} • {gigs.length} công việc
             </p>
           </div>
@@ -666,23 +669,23 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
           {/* Trạng thái GPS Tự Động (Tự động quét ngầm không cần bấm) */}
           <div
             onClick={() => setShowMockDetectorDialog(true)}
-            className="cursor-pointer px-2.5 py-1 rounded-xl bg-emerald-50 hover:bg-emerald-100 dark:bg-[#131E30] dark:hover:bg-slate-800 border border-emerald-200 dark:border-slate-800 text-[11px] font-bold flex items-center space-x-1.5 transition text-emerald-800 dark:text-slate-300 shadow-2xs"
+            className="cursor-pointer px-2.5 py-1 rounded-xl bg-[#3064AE]/20 hover:bg-[#3064AE]/35 border border-[#C5E5EC]/25 text-[11px] font-bold flex items-center space-x-1.5 transition text-[#E0FAEB] shadow-2xs"
             title="Định vị GPS tự động & Bảo mật vị trí"
           >
             {isGpsLoading ? (
               <>
-                <Crosshair className="w-3 h-3 text-[#0284C7] animate-spin" />
-                <span className="text-[#0284C7]">GPS Tự Động...</span>
+                <Crosshair className="w-3 h-3 text-[#C5E5EC] animate-spin" />
+                <span className="text-[#C5E5EC]">GPS Tự Động...</span>
               </>
             ) : gpsReport?.isMock ? (
               <>
-                <ShieldAlert className="w-3.5 h-3.5 text-amber-500 animate-bounce" />
-                <span className="text-amber-600">GPS Tự Động (Cảnh báo)</span>
+                <ShieldAlert className="w-3.5 h-3.5 text-amber-400 animate-bounce" />
+                <span className="text-amber-300">GPS Tự Động (Cảnh báo)</span>
               </>
             ) : (
               <>
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-emerald-700 font-extrabold">GPS Tự Động</span>
+                <span className="w-2 h-2 rounded-full bg-[#E0FAEB] animate-pulse" />
+                <span className="text-[#E0FAEB] font-extrabold">GPS Tự Động</span>
               </>
             )}
           </div>
@@ -690,7 +693,7 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
           {/* Fullscreen Button */}
           <button
             onClick={() => setIsFullscreen((prev) => !prev)}
-            className="p-1.5 sm:p-2 rounded-xl bg-sky-50 dark:bg-[#131E30] hover:bg-sky-100 dark:hover:bg-slate-800 border border-sky-200 dark:border-slate-800 text-sky-700 dark:text-slate-300 transition active:scale-95 shadow-2xs"
+            className="p-1.5 sm:p-2 rounded-xl bg-[#12233B] hover:bg-[#162B48] border border-[#C5E5EC]/25 text-[#C5E5EC] transition active:scale-95 shadow-2xs cursor-pointer"
             title={isFullscreen ? 'Thu nhỏ' : 'Toàn màn hình'}
           >
             {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
@@ -702,17 +705,17 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
       <div className="flex items-center space-x-2 overflow-x-auto pb-2 mb-2 text-xs scrollbar-none w-full">
         {/* Radius chips */}
         <div className="flex items-center space-x-1 shrink-0">
-          <span className="text-sky-800 text-[10px] font-extrabold">Bán kính:</span>
+          <span className="text-[#C5E5EC] text-[10px] font-extrabold">Bán kính:</span>
           {RADIUS_OPTIONS.map((opt) => (
             <button
               key={opt.value}
               onClick={() => onRadiusChange(opt.value)}
-              className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold transition whitespace-nowrap border active:scale-95 ${
+              className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold transition whitespace-nowrap border active:scale-95 cursor-pointer ${
                 radiusMeters === opt.value
                   ? isClientMode
-                    ? 'bg-gradient-to-r from-sky-500 to-blue-600 text-white border-sky-500 shadow-xs'
-                    : 'bg-gradient-to-r from-orange-500 to-amber-600 text-white border-orange-500 shadow-xs'
-                  : 'bg-white/90 dark:bg-[#131E30] text-slate-700 dark:text-slate-400 border-sky-100 dark:border-slate-800 hover:bg-sky-50 hover:border-sky-300'
+                    ? 'bg-gradient-to-r from-[#3064AE] to-[#255294] text-white border-[#C5E5EC]/50 shadow-xs'
+                    : 'bg-gradient-to-r from-orange-500 to-amber-600 text-white border-orange-400 shadow-xs'
+                  : 'bg-[#12233B] text-[#C5E5EC]/80 border-[#C5E5EC]/20 hover:bg-[#162B48] hover:text-white'
               }`}
             >
               {opt.label}
@@ -720,11 +723,11 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
           ))}
         </div>
 
-        <span className="text-sky-200 dark:text-slate-700 shrink-0">|</span>
+        <span className="text-[#C5E5EC]/30 shrink-0">|</span>
 
         {/* Campus Hubs chips */}
         <div className="flex items-center space-x-1 shrink-0">
-          <span className="text-sky-800 text-[10px] font-extrabold">Khu vực:</span>
+          <span className="text-[#C5E5EC] text-[10px] font-extrabold">Khu vực:</span>
           {Object.entries(VIETNAM_HUBS).map(([key, hub]) => {
             const isCurrent =
               currentUserCoords.latitude === hub.latitude &&
@@ -733,10 +736,10 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
               <button
                 key={key}
                 onClick={() => handleSelectCampus(key)}
-                className={`px-2 py-0.5 rounded-lg font-extrabold whitespace-nowrap transition text-[10px] border active:scale-95 ${
+                className={`px-2 py-0.5 rounded-lg font-extrabold whitespace-nowrap transition text-[10px] border active:scale-95 cursor-pointer ${
                   isCurrent
-                    ? 'bg-gradient-to-r from-sky-500 to-blue-600 text-white border-sky-500 shadow-xs font-black'
-                    : 'bg-white/90 dark:bg-[#131E30] text-slate-700 dark:text-slate-400 border-sky-100 dark:border-slate-800 hover:bg-sky-50 hover:border-sky-300'
+                    ? 'bg-gradient-to-r from-[#3064AE] to-[#255294] text-white border-[#C5E5EC]/50 shadow-xs font-black'
+                    : 'bg-[#12233B] text-[#C5E5EC]/80 border-[#C5E5EC]/20 hover:bg-[#162B48] hover:text-white'
                 }`}
               >
                 {hub.label?.split('(')[0].trim() || key}
@@ -746,35 +749,35 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
         </div>
 
         {/* Map Layers */}
-        <span className="text-slate-300 dark:text-slate-700 shrink-0">|</span>
+        <span className="text-[#C5E5EC]/30 shrink-0">|</span>
         <div className="flex items-center space-x-1 shrink-0">
-          <span className="text-slate-500 text-[10px] font-bold">Lớp nền:</span>
+          <span className="text-[#C5E5EC]/80 text-[10px] font-bold">Lớp nền:</span>
           <button
             onClick={() => setMapLayer('GOOGLE_STREETS')}
-            className={`px-2 py-0.5 rounded-lg text-[10px] font-bold whitespace-nowrap transition border active:scale-95 ${
+            className={`px-2 py-0.5 rounded-lg text-[10px] font-bold whitespace-nowrap transition border active:scale-95 cursor-pointer ${
               mapLayer === 'GOOGLE_STREETS'
-                ? 'bg-[#0284C7] text-white border-[#0284C7]'
-                : 'bg-white dark:bg-[#131E30] text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:text-slate-900'
+                ? 'bg-[#3064AE] text-white border-[#C5E5EC]/50 shadow-xs'
+                : 'bg-[#12233B] text-[#C5E5EC]/80 border-[#C5E5EC]/20 hover:text-white hover:bg-[#162B48]'
             }`}
           >
             Chuẩn
           </button>
           <button
             onClick={() => setMapLayer('GOOGLE_SATELLITE')}
-            className={`px-2 py-0.5 rounded-lg text-[10px] font-bold whitespace-nowrap transition border active:scale-95 ${
+            className={`px-2 py-0.5 rounded-lg text-[10px] font-bold whitespace-nowrap transition border active:scale-95 cursor-pointer ${
               mapLayer === 'GOOGLE_SATELLITE'
-                ? 'bg-[#0284C7] text-white border-[#0284C7]'
-                : 'bg-white dark:bg-[#131E30] text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:text-slate-900'
+                ? 'bg-[#3064AE] text-white border-[#C5E5EC]/50 shadow-xs'
+                : 'bg-[#12233B] text-[#C5E5EC]/80 border-[#C5E5EC]/20 hover:text-white hover:bg-[#162B48]'
             }`}
           >
             Vệ Tinh
           </button>
           <button
             onClick={() => setMapLayer('DARK_CYBER')}
-            className={`px-2 py-0.5 rounded-lg text-[10px] font-bold whitespace-nowrap transition border ${
+            className={`px-2 py-0.5 rounded-lg text-[10px] font-bold whitespace-nowrap transition border cursor-pointer ${
               mapLayer === 'DARK_CYBER'
-                ? 'bg-blue-600 text-white border-blue-500'
-                : 'bg-[#131E30] text-slate-400 border-slate-800 hover:text-white'
+                ? 'bg-[#3064AE] text-white border-[#C5E5EC]/50 shadow-xs'
+                : 'bg-[#12233B] text-[#C5E5EC]/80 border-[#C5E5EC]/20 hover:text-white hover:bg-[#162B48]'
             }`}
           >
             Dark Cyber
@@ -813,7 +816,7 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
       {/* ==========================================
           INTERACTIVE DISPLAY AREA (GOOGLE MAPS)
          ========================================== */}
-      <div className={`relative w-full ${mapAreaHeight} rounded-2xl overflow-hidden border border-slate-200 shadow-xs bg-slate-100`}>
+      <div className={`relative w-full ${mapAreaHeight} rounded-2xl overflow-hidden border border-[#C5E5EC]/25 shadow-xl bg-[#0A1424]`}>
         {/* LEAFLET GOOGLE MAP CONTAINER */}
         <div
           ref={mapContainerRef}
@@ -824,21 +827,21 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
         <div className="absolute top-4 right-4 z-20 flex flex-col space-y-1.5">
           <button
             onClick={handleZoomIn}
-            className="p-2.5 rounded-xl bg-white/95 hover:bg-white text-slate-700 hover:text-[#0284C7] border border-slate-200 shadow-md transition backdrop-blur-sm active:scale-95"
+            className="p-2.5 rounded-xl bg-[#0E1B2E]/95 hover:bg-[#13243C] text-[#C5E5EC] hover:text-white border border-[#C5E5EC]/30 shadow-lg transition backdrop-blur-sm active:scale-95 cursor-pointer"
             title="Phóng to"
           >
             <ZoomIn className="w-4 h-4" />
           </button>
           <button
             onClick={handleZoomOut}
-            className="p-2.5 rounded-xl bg-white/95 hover:bg-white text-slate-700 hover:text-[#0284C7] border border-slate-200 shadow-md transition backdrop-blur-sm active:scale-95"
+            className="p-2.5 rounded-xl bg-[#0E1B2E]/95 hover:bg-[#13243C] text-[#C5E5EC] hover:text-white border border-[#C5E5EC]/30 shadow-lg transition backdrop-blur-sm active:scale-95 cursor-pointer"
             title="Thu nhỏ"
           >
             <ZoomOut className="w-4 h-4" />
           </button>
           <button
             onClick={handleRecenter}
-            className="p-2.5 rounded-xl bg-white/95 hover:bg-white text-[#0284C7] border border-slate-200 shadow-md transition backdrop-blur-sm active:scale-95"
+            className="p-2.5 rounded-xl bg-[#0E1B2E]/95 hover:bg-[#13243C] text-[#E0FAEB] border border-[#C5E5EC]/30 shadow-lg transition backdrop-blur-sm active:scale-95 cursor-pointer"
             title="Tâm vị trí của tôi"
           >
             <Crosshair className="w-4 h-4" />
@@ -846,13 +849,13 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
         </div>
 
         {/* Compass Badge in Corner */}
-        <div className="absolute top-4 left-4 z-20 pointer-events-none flex items-center space-x-1.5 bg-white/90 backdrop-blur-md px-3 py-1 rounded-xl text-[10px] text-slate-700 border border-slate-200/80 shadow-md">
-          <Compass className="w-3.5 h-3.5 text-[#0284C7] animate-spin-slow" />
+        <div className="absolute top-4 left-4 z-20 pointer-events-none flex items-center space-x-1.5 bg-[#0E1B2E]/90 backdrop-blur-md px-3 py-1 rounded-xl text-[10px] text-[#C5E5EC] border border-[#C5E5EC]/30 shadow-md">
+          <Compass className="w-3.5 h-3.5 text-[#E0FAEB] animate-spin-slow" />
           <span className="font-bold">ĐỊNH VỊ THỜI GIAN THỰC</span>
         </div>
 
         {/* Map Drag / Zoom Hint overlay */}
-        <div className="absolute bottom-3 left-4 z-20 pointer-events-none hidden sm:flex items-center space-x-2 bg-white/90 backdrop-blur-md px-2.5 py-1 rounded-xl text-[10px] text-slate-600 border border-slate-200 shadow-xs">
+        <div className="absolute bottom-3 left-4 z-20 pointer-events-none hidden sm:flex items-center space-x-2 bg-[#0E1B2E]/90 backdrop-blur-md px-2.5 py-1 rounded-xl text-[10px] text-[#C5E5EC]/80 border border-[#C5E5EC]/20 shadow-xs">
           <span>💡 Kéo bản đồ để di chuyển • Lăn chuột / chụm tay để phóng to thu nhỏ</span>
         </div>
       </div>
@@ -861,37 +864,37 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
           SELECTED GIG NAVIGATION & ROUTE DIRECTIONS
          ========================================== */}
       {selectedGig && routeStats && (
-        <div className="mt-3 p-3.5 sm:p-4 rounded-2xl bg-white border border-slate-200 shadow-sm animate-fade-in text-xs space-y-3">
+        <div className="mt-3 p-3.5 sm:p-4 rounded-2xl bg-[#0E1B2E] border border-[#C5E5EC]/25 shadow-xl animate-fade-in text-xs space-y-3 text-white">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div className="flex items-start space-x-3 overflow-hidden">
-              <div className="p-2.5 rounded-2xl bg-sky-50 text-[#0284C7] font-black shrink-0 mt-0.5 border border-sky-200 shadow-xs">
-                <MapPin className="w-5 h-5 text-[#0284C7]" />
+              <div className="p-2.5 rounded-2xl bg-[#3064AE]/30 text-[#C5E5EC] font-black shrink-0 mt-0.5 border border-[#C5E5EC]/25 shadow-xs">
+                <MapPin className="w-5 h-5 text-[#C5E5EC]" />
               </div>
               <div>
                 <div className="flex items-center space-x-2">
                   {selectedGig.isFlash && (
-                    <span className="flex items-center text-[10px] font-black text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
-                      <Zap className="w-3 h-3 mr-0.5 fill-current" /> HỎA TỐC
+                    <span className="flex items-center text-[10px] font-black text-amber-200 bg-amber-950/60 px-2 py-0.5 rounded border border-amber-400/30">
+                      <Zap className="w-3 h-3 mr-0.5 fill-current text-amber-300" /> HỎA TỐC
                     </span>
                   )}
-                  <span className="text-[10px] px-2 py-0.5 rounded bg-sky-50 text-[#0284C7] font-bold border border-sky-200">
+                  <span className="text-[10px] px-2 py-0.5 rounded bg-[#3064AE]/30 text-[#C5E5EC] font-bold border border-[#C5E5EC]/25">
                     {selectedGig.category}
                   </span>
                 </div>
-                <h4 className="font-extrabold text-slate-900 text-sm mt-0.5 line-clamp-1">
+                <h4 className="font-extrabold text-white text-sm mt-0.5 line-clamp-1">
                   {selectedGig.title}
                 </h4>
-                <p className="text-slate-500 text-[11px] line-clamp-1 mt-0.5">
+                <p className="text-[#C5E5EC]/70 text-[11px] line-clamp-1 mt-0.5">
                   {selectedGig.locationName}
                 </p>
               </div>
             </div>
 
             <div className="sm:text-right shrink-0 pl-11 sm:pl-0">
-              <span className="text-base font-black text-[#0284C7] font-mono block">
+              <span className="text-base font-black text-[#E0FAEB] font-mono block">
                 {formatVnd(selectedGig.price)}
               </span>
-              <span className="text-[10px] text-slate-400">
+              <span className="text-[10px] text-[#C5E5EC]/60">
                 {selectedGig.isReverseAuction ? 'Đấu giá ngược' : 'Đã khóa Smart Escrow'}
               </span>
             </div>
@@ -899,16 +902,16 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
 
           {/* Live Tracking Real-time Notification Banner */}
           {isLiveTracking && (
-            <div className="p-3 rounded-2xl bg-emerald-50/90 border border-emerald-200/90 shadow-xs flex items-center justify-between gap-2 animate-fade-in">
+            <div className="p-3 rounded-2xl bg-[#12233B] border border-[#E0FAEB]/30 shadow-xs flex items-center justify-between gap-2 animate-fade-in">
               <div className="flex items-center space-x-2.5 min-w-0">
-                <div className="w-8 h-8 rounded-full bg-emerald-100 border border-emerald-300 flex items-center justify-center text-base shrink-0 animate-bounce">
+                <div className="w-8 h-8 rounded-full bg-[#3064AE]/40 border border-[#C5E5EC]/30 flex items-center justify-center text-base shrink-0 animate-bounce">
                   {selectedGig.category === 'Đưa đón & SafeWalk' ? '🚶‍♂️' : selectedGig.isFlash || selectedGig.category === 'Vận chuyển & Ship' ? '🛵' : '🚴‍♂️'}
                 </div>
                 <div className="min-w-0">
                   <div className="flex items-center space-x-1.5">
-                    <span className="text-slate-900 font-black text-xs truncate">
+                    <span className="text-white font-black text-xs truncate">
                       {selectedGig.category === 'Đưa đón & SafeWalk' ? '🚶‍♂️' : selectedGig.isFlash || selectedGig.category === 'Vận chuyển & Ship' ? '🛵' : '🚴‍♂️'} Người làm đang cách bạn{' '}
-                      <strong className="text-[#0284C7]">
+                      <strong className="text-[#E0FAEB]">
                         {(() => {
                           const totalD = osrmRouteDetails?.distanceMeters ?? routeStats.distanceMeters ?? 450;
                           const rem = Math.max(30, Math.round(totalD * (1 - trackingProgress)));
@@ -916,9 +919,9 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
                         })()}
                       </strong>
                     </span>
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping shrink-0" />
+                    <span className="w-2 h-2 rounded-full bg-[#E0FAEB] animate-ping shrink-0" />
                   </div>
-                  <p className="text-[11px] text-emerald-800 font-semibold truncate">
+                  <p className="text-[11px] text-[#C5E5EC]/80 font-semibold truncate">
                     Khoảng ~
                     {(() => {
                       const totalD = osrmRouteDetails?.distanceMeters ?? routeStats.distanceMeters ?? 450;
@@ -931,7 +934,7 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
                 </div>
               </div>
               <div className="text-right shrink-0">
-                <span className="px-2.5 py-1 rounded-full bg-emerald-600 text-white font-black text-[10px] shadow-xs">
+                <span className="px-2.5 py-1 rounded-full bg-[#3064AE] text-white font-black text-[10px] shadow-xs border border-[#C5E5EC]/30">
                   ETA:{' '}
                   {(() => {
                     const totalD = osrmRouteDetails?.distanceMeters ?? routeStats.distanceMeters ?? 450;
@@ -946,26 +949,26 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
           )}
 
           {/* Route details banner */}
-          <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex flex-wrap items-center justify-between gap-3 text-[11px]">
+          <div className="p-2.5 rounded-xl bg-[#12233B] border border-[#C5E5EC]/20 flex flex-wrap items-center justify-between gap-3 text-[11px]">
             <div className="flex flex-wrap items-center gap-3 sm:gap-4">
-              <div className="flex items-center space-x-1.5 text-sky-700 font-bold">
-                <Navigation className="w-4 h-4 text-[#0284C7]" />
+              <div className="flex items-center space-x-1.5 text-[#C5E5EC] font-bold">
+                <Navigation className="w-4 h-4 text-[#C5E5EC]" />
                 <span>
-                  Cách bạn: <strong>{osrmRouteDetails ? (osrmRouteDetails.distanceMeters >= 1000 ? `${(osrmRouteDetails.distanceMeters / 1000).toFixed(1)} km` : `${osrmRouteDetails.distanceMeters}m`) : routeStats.formattedDistance}</strong>
+                  Cách bạn: <strong className="text-white">{osrmRouteDetails ? (osrmRouteDetails.distanceMeters >= 1000 ? `${(osrmRouteDetails.distanceMeters / 1000).toFixed(1)} km` : `${osrmRouteDetails.distanceMeters}m`) : routeStats.formattedDistance}</strong>
                 </span>
               </div>
 
-              <div className="flex items-center space-x-1 text-slate-600 font-medium">
-                <Footprints className="w-3.5 h-3.5 text-emerald-600" />
+              <div className="flex items-center space-x-1 text-[#C5E5EC]/80 font-medium">
+                <Footprints className="w-3.5 h-3.5 text-[#E0FAEB]" />
                 <span>~{osrmRouteDetails?.walkMinutes ?? routeStats.walkMinutes}p đi bộ</span>
               </div>
 
-              <div className="flex items-center space-x-1 text-slate-600 font-medium">
-                <Bike className="w-3.5 h-3.5 text-amber-600" />
+              <div className="flex items-center space-x-1 text-[#C5E5EC]/80 font-medium">
+                <Bike className="w-3.5 h-3.5 text-amber-300" />
                 <span>~{osrmRouteDetails?.motoMinutes ?? routeStats.motoMinutes}p xe máy</span>
               </div>
 
-              <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-sky-50 text-sky-700 border border-sky-200">
+              <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-[#3064AE]/30 text-[#C5E5EC] border border-[#C5E5EC]/25">
                 {osrmRouteDetails?.routeSource === 'OSRM_REAL_ROAD' ? '🗺️ Google/OSRM Lộ trình thực' : '🧭 Lộ trình nội khu'}
               </span>
             </div>
@@ -975,13 +978,13 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
               <button
                 type="button"
                 onClick={() => setIsLiveTracking((p) => !p)}
-                className={`px-3 py-1.5 rounded-xl font-extrabold text-xs transition flex items-center space-x-1.5 active:scale-95 ${
+                className={`px-3 py-1.5 rounded-xl font-extrabold text-xs transition flex items-center space-x-1.5 active:scale-95 cursor-pointer ${
                   isLiveTracking
-                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-300'
-                    : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                    ? 'bg-[#3064AE]/40 text-[#E0FAEB] border border-[#E0FAEB]/40'
+                    : 'bg-[#162B48] text-[#C5E5EC] border border-[#C5E5EC]/25 hover:bg-[#1A3355]'
                 }`}
               >
-                <span className={`w-2 h-2 rounded-full ${isLiveTracking ? 'bg-emerald-500 animate-ping' : 'bg-slate-400'}`} />
+                <span className={`w-2 h-2 rounded-full ${isLiveTracking ? 'bg-[#E0FAEB] animate-ping' : 'bg-slate-400'}`} />
                 <span>{isLiveTracking ? 'Live Tracking 🛵' : 'Bật Theo Dõi'}</span>
               </button>
 
@@ -990,7 +993,7 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
                 href={routeStats.googleDirUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-sky-600 to-blue-600 text-white font-extrabold text-xs hover:brightness-105 shadow-sm shadow-sky-500/20 transition flex items-center space-x-1.5 active:scale-95"
+                className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-[#3064AE] via-[#417AC6] to-[#C5E5EC] text-white font-extrabold text-xs hover:brightness-110 shadow-md shadow-[#3064AE]/30 transition flex items-center space-x-1.5 active:scale-95 border border-[#E0FAEB]/30"
               >
                 <ExternalLink className="w-3.5 h-3.5" />
                 <span>Google Maps &rarr;</span>
@@ -1004,11 +1007,11 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
           MOCK LOCATION DETECTOR (CHỐNG FAKE GPS) MODAL
          ========================================== */}
       {showMockDetectorDialog && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-200 rounded-3xl max-w-md w-full p-5 space-y-4 shadow-2xl relative text-xs animate-scale-up text-slate-900">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+          <div className="bg-[#0E1B2E] border border-[#C5E5EC]/30 rounded-3xl max-w-md w-full p-5 space-y-4 shadow-2xl relative text-xs animate-scale-up text-white">
             <button
               onClick={() => setShowMockDetectorDialog(false)}
-              className="absolute top-4 right-4 p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 transition"
+              className="absolute top-4 right-4 p-1.5 rounded-xl bg-[#12233B] hover:bg-[#162B48] text-[#C5E5EC] transition cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
@@ -1017,8 +1020,8 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
               <div
                 className={`p-3 rounded-2xl ${
                   gpsReport?.isMock
-                    ? 'bg-red-50 text-red-600'
-                    : 'bg-emerald-50 text-emerald-600'
+                    ? 'bg-red-950/60 text-red-400 border border-red-500/30'
+                    : 'bg-[#162B48] text-[#E0FAEB] border border-[#E0FAEB]/30'
                 }`}
               >
                 {gpsReport?.isMock ? (
@@ -1028,10 +1031,10 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
                 )}
               </div>
               <div>
-                <h3 className="text-sm font-extrabold text-slate-900">
+                <h3 className="text-sm font-extrabold text-white">
                   Kiểm Định Chống Fake GPS (Anti-Mock)
                 </h3>
-                <p className="text-slate-500 text-[11px]">
+                <p className="text-[#C5E5EC]/70 text-[11px]">
                   Bảo vệ xác thực vị trí nhận kèo và check-in Escrow
                 </p>
               </div>
@@ -1041,8 +1044,8 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
             <div
               className={`p-3 rounded-2xl border ${
                 gpsReport?.isMock
-                  ? 'bg-red-50 border-red-200 text-red-800'
-                  : 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                  ? 'bg-red-950/40 border-red-500/40 text-red-300'
+                  : 'bg-[#12233B] border-[#E0FAEB]/30 text-[#E0FAEB]'
               }`}
             >
               <div className="flex items-center justify-between font-bold mb-1">
@@ -1051,41 +1054,41 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
                   {gpsReport?.isMock ? 'PHÁT HIỆN FAKE GPS' : 'VỊ TRÍ THỰC HỢP LỆ'}
                 </span>
               </div>
-              <p className="text-[11px] text-slate-600">
+              <p className="text-[11px] text-[#C5E5EC]/80">
                 {gpsReport?.reason ||
                   'Tín hiệu GPS có độ dao động tự nhiên, không phát hiện phần mềm giả lập Mock Location.'}
               </p>
             </div>
 
             {/* Technical telemetry inspection */}
-            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2 text-[11px]">
-              <div className="flex justify-between items-center text-slate-600">
+            <div className="p-3.5 rounded-2xl bg-[#12233B] border border-[#C5E5EC]/20 space-y-2 text-[11px]">
+              <div className="flex justify-between items-center text-[#C5E5EC]/80">
                 <span>Sai số GPS thực tế:</span>
-                <strong className="font-mono text-[#0284C7]">
+                <strong className="font-mono text-[#E0FAEB]">
                   {gpsReport ? `~${gpsReport.accuracyMeters} mét` : '15 mét'}
                 </strong>
               </div>
-              <div className="flex justify-between items-center text-slate-600">
+              <div className="flex justify-between items-center text-[#C5E5EC]/80">
                 <span>Vệ tinh GNSS kết nối:</span>
-                <strong className="font-mono text-emerald-700">
+                <strong className="font-mono text-[#E0FAEB]">
                   {gpsReport ? `${gpsReport.satellitesEstimated} vệ tinh` : '9 vệ tinh'}
                 </strong>
               </div>
-              <div className="flex justify-between items-center text-slate-600">
+              <div className="flex justify-between items-center text-[#C5E5EC]/80">
                 <span>Kiểm tra dao động Jitter:</span>
-                <strong className="text-slate-800">
+                <strong className="text-white">
                   {gpsReport?.isMock ? 'Bị khóa cứng (0.000m)' : 'Tự nhiên (Đạt chuẩn)'}
                 </strong>
               </div>
-              <div className="flex justify-between items-center text-slate-600">
+              <div className="flex justify-between items-center text-[#C5E5EC]/80">
                 <span>Cờ Mock Provider:</span>
-                <strong className={gpsReport?.isMock ? 'text-red-600' : 'text-emerald-700'}>
+                <strong className={gpsReport?.isMock ? 'text-red-400' : 'text-[#E0FAEB]'}>
                   {gpsReport?.isMock ? 'Phát hiện (isMock=true)' : 'Không (An toàn)'}
                 </strong>
               </div>
-              <div className="flex justify-between items-center text-slate-600">
+              <div className="flex justify-between items-center text-[#C5E5EC]/80">
                 <span>Quy chế Escrow:</span>
-                <strong className="text-[#0284C7]">Bắt buộc GPS thực để nhận tiền</strong>
+                <strong className="text-[#C5E5EC]">Bắt buộc GPS thực để nhận tiền</strong>
               </div>
             </div>
 
@@ -1095,7 +1098,7 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
                 onClick={() => {
                   handleGetLiveGps();
                 }}
-                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:brightness-105 text-white font-extrabold transition flex items-center justify-center space-x-1.5 shadow-sm active:scale-95"
+                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#3064AE] via-[#417AC6] to-[#C5E5EC] hover:brightness-110 text-white font-extrabold transition flex items-center justify-center space-x-1.5 shadow-md active:scale-95 border border-[#E0FAEB]/30 cursor-pointer"
               >
                 <Crosshair className="w-3.5 h-3.5" />
                 <span>Quét Cập Nhật Tọa Độ GPS Thực Tế</span>

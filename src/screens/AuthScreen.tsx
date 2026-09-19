@@ -415,10 +415,10 @@ export const AuthScreen: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#081022] via-[#0B1733] to-[#081022] flex flex-col justify-center items-center px-4 py-8 text-white selection:bg-cyan-500/30 selection:text-cyan-300 relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-b from-[#081120] via-[#0E1B2E] to-[#081120] flex flex-col justify-center items-center px-4 py-8 text-white selection:bg-[#3064AE]/40 selection:text-[#C5E5EC] relative overflow-hidden">
       {/* Ambient background glow accents */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-10 right-10 w-72 h-72 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-[#3064AE]/15 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-10 right-10 w-72 h-72 bg-[#C5E5EC]/10 rounded-full blur-3xl pointer-events-none" />
 
       <div className="w-full max-w-md relative z-10">
         {/* Brand Header */}
@@ -428,28 +428,28 @@ export const AuthScreen: React.FC = () => {
             alt="GigMe Logo"
             onClick={handleLogoClick}
             title="GigMe Logo"
-            className="w-20 h-20 rounded-2xl mx-auto shadow-xl border border-cyan-500/30 object-cover mb-3 ring-2 ring-cyan-500/20 cursor-pointer select-none active:scale-95 transition-transform"
+            className="w-20 h-20 rounded-2xl mx-auto shadow-xl border border-[#C5E5EC]/30 object-cover mb-3 ring-2 ring-[#3064AE]/30 cursor-pointer select-none active:scale-95 transition-transform"
           />
           <h1 className="text-3xl font-black tracking-tight text-white select-none">
-            Gig<span className="text-[#00E5FF]">Me</span>
+            Gig<span className="text-[#C5E5EC]">Me</span>
           </h1>
-          <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto">
+          <p className="text-xs text-[#C5E5EC]/80 mt-1 max-w-xs mx-auto">
             Nền tảng việc làm sinh viên & Smart Escrow bảo chứng 100%
           </p>
         </div>
 
         {/* Tab switch */}
-        <div className="flex bg-[#081020] p-1.5 rounded-2xl mb-5 text-xs font-extrabold border border-slate-800/80">
+        <div className="flex bg-[#0B1628] p-1.5 rounded-2xl mb-5 text-xs font-extrabold border border-[#C5E5EC]/20 shadow-inner">
           <button
             id="tab-auth-login"
             onClick={() => {
               setActiveTab('LOGIN');
               setAuthError(null);
             }}
-            className={`flex-1 py-2 rounded-xl transition ${
+            className={`flex-1 py-2 rounded-xl transition cursor-pointer ${
               activeTab === 'LOGIN'
-                ? 'bg-gradient-to-r from-[#00E5FF] to-blue-500 text-black font-black shadow-md shadow-cyan-500/20'
-                : 'text-slate-400 hover:text-white'
+                ? 'bg-gradient-to-r from-[#3064AE] via-[#2A5594] to-[#25735B] text-white font-black shadow-md shadow-[#3064AE]/30 border border-[#E0FAEB]/30'
+                : 'text-[#C5E5EC]/70 hover:text-white'
             }`}
           >
             Đăng Nhập
@@ -461,10 +461,10 @@ export const AuthScreen: React.FC = () => {
               setActiveTab('REGISTER');
               setAuthError(null);
             }}
-            className={`flex-1 py-2 rounded-xl transition ${
+            className={`flex-1 py-2 rounded-xl transition cursor-pointer ${
               activeTab === 'REGISTER'
-                ? 'bg-gradient-to-r from-[#00E5FF] to-blue-500 text-black font-black shadow-md shadow-cyan-500/20'
-                : 'text-slate-400 hover:text-white'
+                ? 'bg-gradient-to-r from-[#3064AE] via-[#2A5594] to-[#25735B] text-white font-black shadow-md shadow-[#3064AE]/30 border border-[#E0FAEB]/30'
+                : 'text-[#C5E5EC]/70 hover:text-white'
             }`}
           >
             Đăng Ký
@@ -476,21 +476,22 @@ export const AuthScreen: React.FC = () => {
               setActiveTab('PHONE_OTP');
               setAuthError(null);
             }}
-            className={`flex-1 py-2 px-1 rounded-xl transition ${
+            className={`flex-1 py-2 px-1 rounded-xl transition cursor-pointer ${
               activeTab === 'PHONE_OTP'
-                ? 'bg-gradient-to-r from-[#00E5FF] to-blue-500 text-black font-black shadow-md shadow-cyan-500/20'
-                : 'text-slate-400 hover:text-white'
+                ? 'bg-gradient-to-r from-[#3064AE] via-[#2A5594] to-[#25735B] text-white font-black shadow-md shadow-[#3064AE]/30 border border-[#E0FAEB]/30'
+                : 'text-[#C5E5EC]/70 hover:text-white'
             }`}
           >
             <span className="flex items-center justify-center space-x-1">
-              <span>SMS MO / SĐT</span>
-              <span className="text-[9px] px-1 py-0.5 rounded bg-amber-400 text-black font-extrabold uppercase tracking-tight">0đ Phí</span>
+              <span>Tự Nhắn SMS (MO)</span>
+              <span className="text-[9px] px-1 py-0.5 rounded bg-[#E0FAEB] text-[#0E1B2E] font-extrabold uppercase tracking-tight">0đ Phí</span>
             </span>
           </button>
         </div>
 
         {/* Card Form */}
-        <div className="rounded-3xl bg-[#0B162D] border border-cyan-500/25 p-6 sm:p-7 shadow-2xl shadow-black/80 backdrop-blur-sm">
+        <div className="rounded-3xl bg-[#0E1B2E] border border-[#C5E5EC]/30 p-6 sm:p-7 shadow-2xl shadow-black/80 backdrop-blur-sm relative overflow-hidden">
+          <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-[#3064AE] via-[#C5E5EC] to-[#E0FAEB]" />
           {/* Inline Error Banner */}
           {authError && (
             <div className="mb-4 p-3 rounded-xl bg-rose-950/40 border border-rose-500/40 text-rose-200 text-xs flex items-center space-x-2.5">
@@ -513,14 +514,14 @@ export const AuthScreen: React.FC = () => {
                       type="button"
                       onClick={() => handleQuickLogin('admin@admin.vn', 'admin1507')}
                       disabled={isLoggingIn}
-                      className="px-2.5 py-1 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-[11px] font-bold transition active:scale-95 shadow-xs"
+                      className="px-2.5 py-1 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-[11px] font-bold transition active:scale-95 shadow-xs cursor-pointer"
                     >
                       Đăng Nhập Admin
                     </button>
                     <button
                       type="button"
                       onClick={() => setIsAdminMode(false)}
-                      className="p-1 rounded-md text-slate-400 hover:text-white"
+                      className="p-1 rounded-md text-slate-400 hover:text-white cursor-pointer"
                       title="Ẩn cổng admin"
                     >
                       &times;
@@ -531,16 +532,16 @@ export const AuthScreen: React.FC = () => {
 
               <form onSubmit={handleLogin} className="space-y-4 text-xs">
                 <div>
-                  <label className="block text-slate-300 mb-1 font-semibold">Gmail hoặc Số điện thoại</label>
+                  <label className="block text-[#C5E5EC]/90 mb-1 font-semibold">Gmail hoặc Số điện thoại</label>
                   <div className="relative">
-                    <Mail className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
+                    <Mail className="w-4 h-4 text-[#C5E5EC]/50 absolute left-3 top-2.5" />
                     <input
                       type="text"
                       id="login-contact-input"
                       required
                       value={loginContact}
                       onChange={(e) => setLoginContact(e.target.value)}
-                      className="w-full pl-9 pr-3 py-2 rounded-xl bg-[#081020] border border-slate-700/80 text-white placeholder:text-slate-500 focus:border-[#00E5FF] focus:bg-[#0c1830] focus:outline-none transition"
+                      className="w-full pl-9 pr-3 py-2 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-white placeholder:text-[#C5E5EC]/40 focus:border-[#C5E5EC] focus:bg-[#152844] focus:outline-none transition"
                       placeholder="09xxxxxxxx hoặc email@sinhvien.edu.vn"
                     />
                   </div>
@@ -548,30 +549,30 @@ export const AuthScreen: React.FC = () => {
 
                 <div>
                   <div className="flex justify-between items-center mb-1">
-                    <label className="text-slate-300 font-semibold">Mật khẩu</label>
+                    <label className="text-[#C5E5EC]/90 font-semibold">Mật khẩu</label>
                     <button
                       type="button"
                       onClick={() => setActiveTab('FORGOT')}
-                      className="text-[11px] text-[#00E5FF] font-bold hover:underline"
+                      className="text-[11px] text-[#C5E5EC] font-bold hover:underline cursor-pointer"
                     >
                       Quên mật khẩu?
                     </button>
                   </div>
                   <div className="relative">
-                    <Lock className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
+                    <Lock className="w-4 h-4 text-[#C5E5EC]/50 absolute left-3 top-2.5" />
                     <input
                       type={showLoginPassword ? 'text' : 'password'}
                       id="login-password-input"
                       required
                       value={loginPassword}
                       onChange={(e) => setLoginPassword(e.target.value)}
-                      className="w-full pl-9 pr-10 py-2 rounded-xl bg-[#081020] border border-slate-700/80 text-white placeholder:text-slate-500 focus:border-[#00E5FF] focus:bg-[#0c1830] focus:outline-none transition"
+                      className="w-full pl-9 pr-10 py-2 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-white placeholder:text-[#C5E5EC]/40 focus:border-[#C5E5EC] focus:bg-[#152844] focus:outline-none transition"
                       placeholder="••••••••"
                     />
                     <button
                       type="button"
                       onClick={() => setShowLoginPassword(!showLoginPassword)}
-                      className="absolute right-3 top-2.5 text-slate-400 hover:text-white"
+                      className="absolute right-3 top-2.5 text-[#C5E5EC]/60 hover:text-white cursor-pointer"
                     >
                       {showLoginPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
@@ -582,10 +583,10 @@ export const AuthScreen: React.FC = () => {
                   type="submit"
                   id="submit-login-btn"
                   disabled={isLoggingIn}
-                  className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#00E5FF] to-blue-600 text-black font-black text-sm hover:brightness-110 shadow-lg shadow-cyan-500/20 transition flex items-center justify-center space-x-1.5 disabled:opacity-50 active:scale-95"
+                  className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#3064AE] via-[#2A5594] to-[#25735B] text-white font-black text-sm hover:brightness-110 shadow-lg shadow-[#3064AE]/25 transition flex items-center justify-center space-x-1.5 disabled:opacity-50 active:scale-95 border border-[#E0FAEB]/30 cursor-pointer"
                 >
                   {isLoggingIn ? (
-                    <span className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin mr-2" />
+                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
                   ) : null}
                   <span>Đăng Nhập Vào GigMe</span>
                   <ArrowRight className="w-4 h-4" />
@@ -610,15 +611,15 @@ export const AuthScreen: React.FC = () => {
               )}
 
               <div>
-                <label className="block text-slate-300 mb-1 font-semibold">Họ và tên đầy đủ</label>
+                <label className="block text-[#C5E5EC]/90 mb-1 font-semibold">Họ và tên đầy đủ</label>
                 <div className="relative">
-                  <User className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
+                  <User className="w-4 h-4 text-[#C5E5EC]/50 absolute left-3 top-2.5" />
                   <input
                     type="text"
                     required
                     value={regName}
                     onChange={(e) => setRegName(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 rounded-xl bg-[#081020] border border-slate-700/80 text-white placeholder:text-slate-500 focus:border-[#00E5FF] focus:bg-[#0c1830] focus:outline-none transition"
+                    className="w-full pl-9 pr-3 py-2 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-white placeholder:text-[#C5E5EC]/40 focus:border-[#C5E5EC] focus:bg-[#152844] focus:outline-none transition"
                     placeholder="Nguyễn Văn A"
                   />
                 </div>
@@ -626,19 +627,19 @@ export const AuthScreen: React.FC = () => {
 
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="text-slate-300 font-semibold">
+                  <label className="text-[#C5E5EC]/90 font-semibold">
                     Địa chỉ Gmail <span className="text-rose-400 font-bold">* Bắt buộc</span>
                   </label>
-                  <span className="text-[10px] text-slate-400">1 tài khoản / 1 Gmail</span>
+                  <span className="text-[10px] text-[#C5E5EC]/60">1 tài khoản / 1 Gmail</span>
                 </div>
                 <div className="relative">
-                  <Mail className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
+                  <Mail className="w-4 h-4 text-[#C5E5EC]/50 absolute left-3 top-2.5" />
                   <input
                     type="email"
                     required
                     value={regGmail}
                     onChange={(e) => setRegGmail(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 rounded-xl bg-[#081020] border border-slate-700/80 text-white placeholder:text-slate-500 focus:border-[#00E5FF] focus:bg-[#0c1830] focus:outline-none transition"
+                    className="w-full pl-9 pr-3 py-2 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-white placeholder:text-[#C5E5EC]/40 focus:border-[#C5E5EC] focus:bg-[#152844] focus:outline-none transition"
                     placeholder="tenban@gmail.com"
                   />
                 </div>
@@ -647,20 +648,20 @@ export const AuthScreen: React.FC = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <label className="text-slate-300 font-semibold">
+                    <label className="text-[#C5E5EC]/90 font-semibold">
                       Số điện thoại {requiresExtraKyc && !regCccd ? <span className="text-amber-400 font-bold">*</span> : ''}
                     </label>
-                    <span className="text-[10px] text-slate-400">1 TK / 1 SĐT</span>
+                    <span className="text-[10px] text-[#C5E5EC]/60">1 TK / 1 SĐT</span>
                   </div>
                   <div className="relative">
-                    <Phone className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
+                    <Phone className="w-4 h-4 text-[#C5E5EC]/50 absolute left-3 top-2.5" />
                     <input
                       type="tel"
                       value={regPhone}
                       onChange={(e) => setRegPhone(e.target.value)}
-                      className={`w-full pl-9 pr-3 py-2 rounded-xl bg-[#081020] border ${
-                        requiresExtraKyc && !regPhone && !regCccd ? 'border-amber-500' : 'border-slate-700/80'
-                      } text-white placeholder:text-slate-500 focus:border-[#00E5FF] focus:bg-[#0c1830] focus:outline-none transition`}
+                      className={`w-full pl-9 pr-3 py-2 rounded-xl bg-[#12233B] border ${
+                        requiresExtraKyc && !regPhone && !regCccd ? 'border-amber-500' : 'border-[#C5E5EC]/25'
+                      } text-white placeholder:text-[#C5E5EC]/40 focus:border-[#C5E5EC] focus:bg-[#152844] focus:outline-none transition`}
                       placeholder="09xxxxxxxx"
                     />
                   </div>
@@ -668,21 +669,21 @@ export const AuthScreen: React.FC = () => {
 
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <label className="text-slate-300 font-semibold">
+                    <label className="text-[#C5E5EC]/90 font-semibold">
                       Số CCCD (12 số) {requiresExtraKyc && !regPhone ? <span className="text-amber-400 font-bold">*</span> : ''}
                     </label>
-                    <span className="text-[10px] text-slate-400">1 TK / 1 CCCD</span>
+                    <span className="text-[10px] text-[#C5E5EC]/60">1 TK / 1 CCCD</span>
                   </div>
                   <div className="relative">
-                    <CreditCard className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
+                    <CreditCard className="w-4 h-4 text-[#C5E5EC]/50 absolute left-3 top-2.5" />
                     <input
                       type="text"
                       maxLength={12}
                       value={regCccd}
                       onChange={(e) => setRegCccd(e.target.value.replace(/\D/g, ''))}
-                      className={`w-full pl-9 pr-3 py-2 rounded-xl bg-[#081020] border ${
-                        requiresExtraKyc && !regPhone && !regCccd ? 'border-amber-500' : 'border-slate-700/80'
-                      } text-white placeholder:text-slate-500 focus:border-[#00E5FF] focus:bg-[#0c1830] focus:outline-none font-mono transition`}
+                      className={`w-full pl-9 pr-3 py-2 rounded-xl bg-[#12233B] border ${
+                        requiresExtraKyc && !regPhone && !regCccd ? 'border-amber-500' : 'border-[#C5E5EC]/25'
+                      } text-white placeholder:text-[#C5E5EC]/40 focus:border-[#C5E5EC] focus:bg-[#152844] focus:outline-none font-mono transition`}
                       placeholder="00120300xxxx"
                     />
                   </div>
@@ -691,11 +692,11 @@ export const AuthScreen: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-slate-300 mb-1 font-semibold">Giới tính</label>
+                  <label className="block text-[#C5E5EC]/90 mb-1 font-semibold">Giới tính</label>
                   <select
                     value={regGender}
                     onChange={(e) => setRegGender(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-[#081020] border border-slate-700/80 text-white focus:border-[#00E5FF] focus:outline-none"
+                    className="w-full px-3 py-2 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-white focus:border-[#C5E5EC] focus:outline-none"
                   >
                     <option value="Nam">Nam</option>
                     <option value="Nữ">Nữ</option>
@@ -704,14 +705,14 @@ export const AuthScreen: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-slate-300 mb-1 font-semibold">Ngày sinh</label>
+                  <label className="block text-[#C5E5EC]/90 mb-1 font-semibold">Ngày sinh</label>
                   <div className="relative">
-                    <Calendar className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
+                    <Calendar className="w-4 h-4 text-[#C5E5EC]/50 absolute left-3 top-2.5" />
                     <input
                       type="text"
                       value={regBirthDate}
                       onChange={(e) => setRegBirthDate(e.target.value)}
-                      className="w-full pl-9 pr-3 py-2 rounded-xl bg-[#081020] border border-slate-700/80 text-white placeholder:text-slate-500 focus:border-[#00E5FF] focus:outline-none"
+                      className="w-full pl-9 pr-3 py-2 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-white placeholder:text-[#C5E5EC]/40 focus:border-[#C5E5EC] focus:outline-none"
                       placeholder="15/08/2003"
                     />
                   </div>
@@ -720,20 +721,20 @@ export const AuthScreen: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-slate-300 mb-1 font-semibold">Mật khẩu (≥6 ký tự)</label>
+                  <label className="block text-[#C5E5EC]/90 mb-1 font-semibold">Mật khẩu (≥6 ký tự)</label>
                   <div className="relative">
                     <input
                       type={showRegPassword ? 'text' : 'password'}
                       required
                       value={regPassword}
                       onChange={(e) => setRegPassword(e.target.value)}
-                      className="w-full px-3 pr-8 py-2 rounded-xl bg-[#081020] border border-slate-700/80 text-white placeholder:text-slate-500 focus:border-[#00E5FF] focus:bg-[#0c1830] focus:outline-none"
+                      className="w-full px-3 pr-8 py-2 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-white placeholder:text-[#C5E5EC]/40 focus:border-[#C5E5EC] focus:bg-[#152844] focus:outline-none"
                       placeholder="••••••••"
                     />
                     <button
                       type="button"
                       onClick={() => setShowRegPassword(!showRegPassword)}
-                      className="absolute right-2.5 top-2.5 text-slate-400 hover:text-white"
+                      className="absolute right-2.5 top-2.5 text-[#C5E5EC]/60 hover:text-white cursor-pointer"
                     >
                       {showRegPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                     </button>
@@ -741,9 +742,9 @@ export const AuthScreen: React.FC = () => {
                 </div>
                 <div>
                   <div className="flex justify-between items-center mb-1">
-                    <label className="text-slate-300 font-semibold">Xác nhận</label>
+                    <label className="text-[#C5E5EC]/90 font-semibold">Xác nhận</label>
                     {regConfirmPassword && (
-                      <span className={`text-[10px] font-bold ${regPassword === regConfirmPassword ? 'text-emerald-400' : 'text-rose-400'}`}>
+                      <span className={`text-[10px] font-bold ${regPassword === regConfirmPassword ? 'text-[#E0FAEB]' : 'text-rose-400'}`}>
                         {regPassword === regConfirmPassword ? '✓ Khớp' : '✗ Chưa khớp'}
                       </span>
                     )}
@@ -754,17 +755,17 @@ export const AuthScreen: React.FC = () => {
                       required
                       value={regConfirmPassword}
                       onChange={(e) => setRegConfirmPassword(e.target.value)}
-                      className={`w-full px-3 pr-8 py-2 rounded-xl bg-[#081020] border ${
+                      className={`w-full px-3 pr-8 py-2 rounded-xl bg-[#12233B] border ${
                         regConfirmPassword && regPassword !== regConfirmPassword
                           ? 'border-rose-500'
-                          : 'border-slate-700/80'
-                      } text-white placeholder:text-slate-500 focus:border-[#00E5FF] focus:bg-[#0c1830] focus:outline-none`}
+                          : 'border-[#C5E5EC]/25'
+                      } text-white placeholder:text-[#C5E5EC]/40 focus:border-[#C5E5EC] focus:bg-[#152844] focus:outline-none`}
                       placeholder="••••••••"
                     />
                     <button
                       type="button"
                       onClick={() => setShowRegConfirm(!showRegConfirm)}
-                      className="absolute right-2.5 top-2.5 text-slate-400 hover:text-white"
+                      className="absolute right-2.5 top-2.5 text-[#C5E5EC]/60 hover:text-white cursor-pointer"
                     >
                       {showRegConfirm ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                     </button>
@@ -772,14 +773,14 @@ export const AuthScreen: React.FC = () => {
                 </div>
               </div>
 
-              <div className="p-2.5 rounded-xl bg-[#081020] border border-slate-800 text-[10px] text-slate-400 space-y-1">
+              <div className="p-2.5 rounded-xl bg-[#12233B] border border-[#C5E5EC]/20 text-[10px] text-[#C5E5EC]/70 space-y-1">
                 <p>🔒 <strong>Quy tắc bảo mật GigMe:</strong> 1 Số điện thoại, 1 Gmail hoặc 1 CCCD chỉ được liên kết với 1 tài khoản duy nhất.</p>
               </div>
 
               <button
                 type="submit"
                 id="submit-register-btn"
-                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#00E5FF] to-blue-600 text-black font-black text-sm hover:brightness-110 shadow-lg shadow-cyan-500/20 transition mt-2 active:scale-95"
+                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#3064AE] via-[#2A5594] to-[#25735B] text-white font-black text-sm hover:brightness-110 shadow-lg shadow-[#3064AE]/25 transition mt-2 active:scale-95 border border-[#E0FAEB]/30 cursor-pointer"
               >
                 Đăng Ký Tài Khoản Mới
               </button>
@@ -789,57 +790,19 @@ export const AuthScreen: React.FC = () => {
           {/* 3. PHONE & MO SMS LOGIN */}
           {activeTab === 'PHONE_OTP' && (
             <div className="space-y-4 text-xs">
-              {/* Method Switcher: MO vs OTP */}
-              <div className="grid grid-cols-2 gap-2 p-1 bg-[#081020] rounded-xl border border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setSmsMethod('MO')}
-                  className={`py-2 px-2.5 rounded-lg font-bold flex flex-col items-center justify-center space-y-0.5 transition ${
-                    smsMethod === 'MO'
-                      ? 'bg-gradient-to-r from-[#00E5FF] to-blue-600 text-black shadow-sm'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  <span className="flex items-center space-x-1">
-                    <MessageSquare className="w-3.5 h-3.5" />
-                    <span className="text-[11px]">Tự Nhắn SMS (MO)</span>
-                  </span>
-                  <span className={`text-[9px] ${smsMethod === 'MO' ? 'text-slate-900 font-extrabold' : 'text-emerald-400'}`}>
-                    0đ Phí Sàn • SIM Tự Trả
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setSmsMethod('OTP')}
-                  className={`py-2 px-2.5 rounded-lg font-bold flex flex-col items-center justify-center space-y-0.5 transition ${
-                    smsMethod === 'OTP'
-                      ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-sm'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  <span className="flex items-center space-x-1">
-                    <KeyRound className="w-3.5 h-3.5" />
-                    <span className="text-[11px]">Nhận Mã OTP SMS</span>
-                  </span>
-                  <span className="text-[9px] text-slate-400">Hệ thống gửi mã 6 số</span>
-                </button>
-              </div>
-
-              {/* METHOD 1: MO SMS (Người dùng tự nhắn tin SMS chủ động) */}
-              {smsMethod === 'MO' && (
+              {/* MO SMS ONLY (Người dùng tự nhắn tin SMS chủ động) */}
                 <div className="space-y-3.5">
                   {/* Explanation Banner */}
-                  <div className="p-3 rounded-xl bg-blue-950/40 border border-blue-500/30 text-blue-200 space-y-1.5">
+                  <div className="p-3 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-[#C5E5EC] space-y-1.5">
                     <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-bold flex items-center text-cyan-300">
-                        <Sparkles className="w-3.5 h-3.5 mr-1 text-[#00E5FF]" /> Cơ Chế SMS MO (Mobile Originated)
+                      <span className="text-[11px] font-bold flex items-center text-[#C5E5EC]">
+                        <Sparkles className="w-3.5 h-3.5 mr-1 text-[#E0FAEB]" /> Cơ Chế SMS MO (Mobile Originated)
                       </span>
-                      <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-[10px] font-semibold border border-emerald-500/40">
+                      <span className="px-1.5 py-0.5 rounded bg-[#E0FAEB]/20 text-[#E0FAEB] text-[10px] font-semibold border border-[#E0FAEB]/30">
                         Chính Chủ 100%
                       </span>
                     </div>
-                    <p className="text-[11px] text-slate-300 leading-relaxed">
+                    <p className="text-[11px] text-[#C5E5EC]/80 leading-relaxed">
                       Bạn chủ động mở ứng dụng tin nhắn và gửi cú pháp đến đầu số tổng đài. Cước phí được <strong>nhà mạng viễn thông trừ trực tiếp vào tài khoản SIM</strong> (1.000đ – 1.500đ/tin). Chủ nền tảng <strong>không tốn chi phí</strong> gửi SMS Brandname!
                     </p>
                   </div>
@@ -847,25 +810,25 @@ export const AuthScreen: React.FC = () => {
                   {/* Input Phone & Config */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     <div>
-                      <label className="block text-slate-300 mb-1 font-semibold">Số điện thoại của bạn (tùy chọn)</label>
+                      <label className="block text-[#C5E5EC]/90 mb-1 font-semibold">Số điện thoại của bạn (tùy chọn)</label>
                       <div className="relative">
-                        <Phone className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
+                        <Phone className="w-4 h-4 text-[#C5E5EC]/50 absolute left-3 top-2.5" />
                         <input
                           type="tel"
                           value={phoneInput}
                           onChange={(e) => setPhoneInput(e.target.value)}
-                          className="w-full pl-9 pr-3 py-2 rounded-xl bg-[#081020] border border-slate-700/80 text-white font-mono placeholder:text-slate-500 focus:border-[#00E5FF] focus:bg-[#0c1830] focus:outline-none"
+                          className="w-full pl-9 pr-3 py-2 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-white font-mono placeholder:text-[#C5E5EC]/40 focus:border-[#C5E5EC] focus:bg-[#152844] focus:outline-none"
                           placeholder="09xxxxxxxx"
                         />
                       </div>
                     </div>
 
                     <div>
-                      <label className="block text-slate-300 mb-1 font-semibold">Đầu số tổng đài dịch vụ</label>
+                      <label className="block text-[#C5E5EC]/90 mb-1 font-semibold">Đầu số tổng đài dịch vụ</label>
                       <select
                         value={moShortcode}
                         onChange={(e) => setMoShortcode(e.target.value as any)}
-                        className="w-full px-3 py-2 rounded-xl bg-[#081020] border border-slate-700/80 text-white font-mono focus:border-[#00E5FF] focus:bg-[#0c1830] focus:outline-none"
+                        className="w-full px-3 py-2 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-white font-mono focus:border-[#C5E5EC] focus:bg-[#152844] focus:outline-none"
                       >
                         <option value="8077">8077 (Cước 1.000đ / tin - Khuyên Dùng)</option>
                         <option value="8177">8177 (Cước 1.500đ / tin)</option>
@@ -881,7 +844,7 @@ export const AuthScreen: React.FC = () => {
                       type="button"
                       onClick={handleGenerateMoSession}
                       disabled={moLoading}
-                      className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#00E5FF] to-blue-600 text-black font-extrabold text-sm hover:brightness-110 shadow-lg shadow-cyan-500/20 transition active:scale-95 flex items-center justify-center space-x-2"
+                      className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#3064AE] via-[#2A5594] to-[#25735B] text-white font-extrabold text-sm hover:brightness-110 shadow-lg shadow-[#3064AE]/25 transition active:scale-95 flex items-center justify-center space-x-2 border border-[#E0FAEB]/30 cursor-pointer"
                     >
                       {moLoading ? (
                         <>
@@ -897,26 +860,26 @@ export const AuthScreen: React.FC = () => {
                     </button>
                   ) : (
                     /* Active MO Session Details */
-                    <div className="space-y-3 p-4 rounded-2xl bg-[#081020] border-2 border-cyan-500/40 shadow-xl">
+                    <div className="space-y-3 p-4 rounded-2xl bg-[#12233B] border border-[#C5E5EC]/30 shadow-xl">
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-1.5 text-cyan-300 font-bold">
-                          <Radio className="w-4 h-4 text-cyan-400 animate-pulse" />
+                        <div className="flex items-center space-x-1.5 text-[#C5E5EC] font-bold">
+                          <Radio className="w-4 h-4 text-[#E0FAEB] animate-pulse" />
                           <span>Cú Pháp Xác Thực Chủ Động</span>
                         </div>
-                        <span className="px-2 py-0.5 rounded-md bg-cyan-950 text-cyan-300 text-[10px] font-mono border border-cyan-500/40">
+                        <span className="px-2 py-0.5 rounded-md bg-[#0E1B2E] text-[#E0FAEB] text-[10px] font-mono border border-[#C5E5EC]/30">
                           {moSession.feeText}
                         </span>
                       </div>
 
                       {/* Syntax Box */}
-                      <div className="p-3.5 rounded-xl bg-[#030712] border border-cyan-500/30 text-center space-y-2">
-                        <div className="text-[11px] text-slate-400 uppercase tracking-wider font-semibold">
+                      <div className="p-3.5 rounded-xl bg-[#081120] border border-[#C5E5EC]/30 text-center space-y-2">
+                        <div className="text-[11px] text-[#C5E5EC]/70 uppercase tracking-wider font-semibold">
                           Soạn tin nhắn SMS theo cú pháp chính xác:
                         </div>
-                        <div className="font-mono text-xl font-black text-[#00E5FF] tracking-widest selection:bg-cyan-500 selection:text-black py-1">
+                        <div className="font-mono text-xl font-black text-[#E0FAEB] tracking-widest selection:bg-[#3064AE] selection:text-white py-1">
                           {moSession.syntax}
                         </div>
-                        <div className="text-xs text-slate-300 flex items-center justify-center space-x-1.5">
+                        <div className="text-xs text-[#C5E5EC]/90 flex items-center justify-center space-x-1.5">
                           <span>Gửi đến đầu số:</span>
                           <strong className="text-amber-300 font-mono text-base px-2 py-0.5 rounded bg-amber-950/50 border border-amber-500/40">
                             {moSession.shortcode}
@@ -927,7 +890,7 @@ export const AuthScreen: React.FC = () => {
                       {/* Primary Deeplink Action */}
                       <a
                         href={moSession.deeplink}
-                        className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-[#00E5FF] to-blue-600 text-black font-black text-sm hover:brightness-110 shadow-lg shadow-cyan-500/25 transition active:scale-95 flex items-center justify-center space-x-2 text-center"
+                        className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-[#3064AE] via-[#2A5594] to-[#25735B] text-white font-black text-sm hover:brightness-110 shadow-lg shadow-[#3064AE]/25 transition active:scale-95 flex items-center justify-center space-x-2 text-center border border-[#E0FAEB]/30 cursor-pointer"
                       >
                         <MessageSquare className="w-4 h-4 shrink-0" />
                         <span>Mở Trình Nhắn Tin SMS Để Gửi Ngay</span>
@@ -939,40 +902,40 @@ export const AuthScreen: React.FC = () => {
                         <button
                           type="button"
                           onClick={handleCopySyntax}
-                          className="py-1.5 px-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-semibold flex items-center justify-center space-x-1.5 transition border border-slate-700"
+                          className="py-1.5 px-2 rounded-lg bg-[#0E1B2E] hover:bg-[#152844] text-[#C5E5EC] text-[11px] font-semibold flex items-center justify-center space-x-1.5 transition border border-[#C5E5EC]/25 cursor-pointer"
                         >
-                          {moCopiedSyntax ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-slate-400" />}
+                          {moCopiedSyntax ? <Check className="w-3.5 h-3.5 text-[#E0FAEB]" /> : <Copy className="w-3.5 h-3.5 text-[#C5E5EC]/70" />}
                           <span>{moCopiedSyntax ? 'Đã Chép Cú Pháp' : 'Chép Cú Pháp'}</span>
                         </button>
 
                         <button
                           type="button"
                           onClick={handleCopyShortcode}
-                          className="py-1.5 px-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-semibold flex items-center justify-center space-x-1.5 transition border border-slate-700"
+                          className="py-1.5 px-2 rounded-lg bg-[#0E1B2E] hover:bg-[#152844] text-[#C5E5EC] text-[11px] font-semibold flex items-center justify-center space-x-1.5 transition border border-[#C5E5EC]/25 cursor-pointer"
                         >
-                          {moCopiedShortcode ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-slate-400" />}
+                          {moCopiedShortcode ? <Check className="w-3.5 h-3.5 text-[#E0FAEB]" /> : <Copy className="w-3.5 h-3.5 text-[#C5E5EC]/70" />}
                           <span>{moCopiedShortcode ? 'Đã Chép Đầu Số' : 'Chép Đầu Số'}</span>
                         </button>
                       </div>
 
                       {/* Live Radar Listening Indicator */}
-                      <div className="p-2.5 rounded-xl bg-emerald-950/30 border border-emerald-500/30 flex items-center space-x-2 text-emerald-300">
+                      <div className="p-2.5 rounded-xl bg-[#0E1B2E] border border-[#E0FAEB]/30 flex items-center space-x-2 text-[#E0FAEB]">
                         <div className="relative flex h-3 w-3 shrink-0">
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                          <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#E0FAEB] opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-3 w-3 bg-[#E0FAEB]"></span>
                         </div>
-                        <span className="text-[11px] leading-tight font-medium">
+                        <span className="text-[11px] leading-tight font-medium text-[#C5E5EC]">
                           Hệ thống đang kết nối Webhook viễn thông và tự động đăng nhập khi tin nhắn MO tới tổng đài...
                         </span>
                       </div>
 
                       {/* Test Simulation Button */}
-                      <div className="pt-1 border-t border-slate-800/80 flex items-center justify-between">
+                      <div className="pt-1 border-t border-[#C5E5EC]/20 flex items-center justify-between">
                         <button
                           type="button"
                           onClick={handleSimulateMoReceived}
                           disabled={moSimulating}
-                          className="w-full py-2 px-3 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 text-[11px] font-bold transition flex items-center justify-center space-x-1.5"
+                          className="w-full py-2 px-3 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 text-[11px] font-bold transition flex items-center justify-center space-x-1.5 cursor-pointer"
                         >
                           <Zap className="w-3.5 h-3.5 text-amber-400" />
                           <span>
@@ -986,7 +949,7 @@ export const AuthScreen: React.FC = () => {
                         <button
                           type="button"
                           onClick={handleGenerateMoSession}
-                          className="text-[11px] text-slate-400 hover:text-cyan-300 underline"
+                          className="text-[11px] text-[#C5E5EC]/70 hover:text-white underline cursor-pointer"
                         >
                           Đổi mã xác thực khác
                         </button>
@@ -999,22 +962,22 @@ export const AuthScreen: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setMoShowWebhookDoc(!moShowWebhookDoc)}
-                      className="text-[11px] text-slate-400 hover:text-slate-200 flex items-center space-x-1 font-medium"
+                      className="text-[11px] text-[#C5E5EC]/70 hover:text-[#C5E5EC] flex items-center space-x-1 font-medium cursor-pointer"
                     >
-                      <HelpCircle className="w-3.5 h-3.5 text-slate-500" />
+                      <HelpCircle className="w-3.5 h-3.5 text-[#C5E5EC]/60" />
                       <span>{moShowWebhookDoc ? 'Ẩn hướng dẫn kết nối Webhook SMS Gateway' : 'Xem cấu hình kết nối Webhook cho tổng đài SMS viễn thông'}</span>
                     </button>
 
                     {moShowWebhookDoc && (
-                      <div className="mt-2 p-3 rounded-xl bg-[#050B17] border border-slate-800 text-[11px] text-slate-300 space-y-2 font-mono">
-                        <div className="text-cyan-400 font-bold">Endpoint nhận tin nhắn từ SMS Gateway:</div>
-                        <div className="p-2 rounded bg-black/60 border border-slate-800 break-all text-[10px] text-emerald-300 select-all">
+                      <div className="mt-2 p-3 rounded-xl bg-[#081120] border border-[#C5E5EC]/20 text-[11px] text-[#C5E5EC] space-y-2 font-mono">
+                        <div className="text-[#E0FAEB] font-bold">Endpoint nhận tin nhắn từ SMS Gateway:</div>
+                        <div className="p-2 rounded bg-black/60 border border-[#C5E5EC]/20 break-all text-[10px] text-[#E0FAEB] select-all">
                           POST /api/sms/mo-callback
                         </div>
-                        <div className="text-slate-400 text-[10px]">
+                        <div className="text-[#C5E5EC]/70 text-[10px]">
                           Hỗ trợ định dạng JSON body hoặc Query parameters của Viettel, VinaPhone, MobiFone, SpeedSMS, eSMS:
                         </div>
-                        <pre className="p-2 rounded bg-black/60 text-[10px] text-slate-300 overflow-x-auto">
+                        <pre className="p-2 rounded bg-black/60 text-[10px] text-[#C5E5EC] overflow-x-auto">
 {`{
   "phone": "0988668899",
   "message": "${moSession ? moSession.syntax : 'XACTHUC 123456'}",
@@ -1025,89 +988,6 @@ export const AuthScreen: React.FC = () => {
                     )}
                   </div>
                 </div>
-              )}
-
-              {/* METHOD 2: TRADITIONAL OTP (Hệ thống gửi mã 6 số) */}
-              {smsMethod === 'OTP' && (
-                <form onSubmit={handlePhoneOtpLogin} className="space-y-4">
-                  <div>
-                    <label className="block text-slate-300 mb-1 font-semibold">Số điện thoại di động</label>
-                    <div className="flex space-x-2">
-                      <div className="relative flex-1">
-                        <Phone className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
-                        <input
-                          type="tel"
-                          required
-                          value={phoneInput}
-                          onChange={(e) => setPhoneInput(e.target.value)}
-                          className="w-full pl-9 pr-3 py-2 rounded-xl bg-[#081020] border border-slate-700/80 text-white font-mono placeholder:text-slate-500 focus:border-[#00E5FF] focus:bg-[#0c1830] focus:outline-none"
-                          placeholder="09xxxxxxxx"
-                        />
-                      </div>
-                      <button
-                        type="button"
-                        onClick={handleSendPhoneOtp}
-                        disabled={phoneCountdown > 0}
-                        className={`px-3.5 py-2 rounded-xl font-extrabold whitespace-nowrap transition ${
-                          phoneCountdown > 0
-                            ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
-                            : 'bg-gradient-to-r from-[#00E5FF] to-blue-600 text-black hover:brightness-110 active:scale-95 shadow-sm'
-                        }`}
-                      >
-                        {phoneCountdown > 0 ? `Gửi lại (${phoneCountdown}s)` : 'Gửi Mã OTP'}
-                      </button>
-                    </div>
-                  </div>
-
-                  {generatedOtp && (
-                    <div className="p-3 rounded-xl bg-emerald-950/40 border border-emerald-500/30 text-emerald-200 space-y-1">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-bold flex items-center text-emerald-300">
-                          <Sparkles className="w-3.5 h-3.5 mr-1 text-emerald-400" /> Tin nhắn SMS OTP:
-                        </span>
-                        <span className="text-[10px] text-emerald-300 font-mono">Hiệu lực 3 phút</span>
-                      </div>
-                      <div className="flex items-center space-x-2 py-1">
-                        <span className="text-xs text-slate-300">Mã xác thực của bạn:</span>
-                        <strong className="font-mono text-base tracking-[0.2em] text-emerald-300 bg-[#081020] px-2.5 py-0.5 rounded-lg border border-emerald-400/40 shadow-xs">
-                          {generatedOtp}
-                        </strong>
-                      </div>
-                      <p className="text-[10px] text-slate-400">
-                        * Bắt buộc phải nhập chính xác 6 số này vào ô bên dưới mới có thể đăng nhập.
-                      </p>
-                    </div>
-                  )}
-
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="block text-slate-300 font-semibold">Nhập mã OTP 6 số</label>
-                      <span className="text-[10px] text-rose-400 font-medium">* Bắt buộc nhập mã</span>
-                    </div>
-                    <div className="relative">
-                      <KeyRound className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        pattern="[0-9]{6}"
-                        maxLength={6}
-                        required
-                        value={phoneOtpInput}
-                        onChange={(e) => setPhoneOtpInput(e.target.value.replace(/\D/g, ''))}
-                        className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-[#081020] border border-slate-700/80 text-white font-mono tracking-[0.3em] text-center text-base font-bold placeholder:tracking-normal placeholder:text-xs placeholder:font-normal placeholder:text-slate-500 focus:border-[#00E5FF] focus:bg-[#0c1830] focus:outline-none"
-                        placeholder="Nhập đủ 6 chữ số OTP"
-                      />
-                    </div>
-                  </div>
-
-                  <button
-                    type="submit"
-                    className="w-full py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-extrabold text-sm hover:brightness-105 shadow-md shadow-purple-600/20 transition active:scale-95"
-                  >
-                    Xác Thực OTP & Đăng Nhập
-                  </button>
-                </form>
-              )}
             </div>
           )}
 
@@ -1119,31 +999,31 @@ export const AuthScreen: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setActiveTab('LOGIN')}
-                  className="text-[#00E5FF] font-bold hover:underline text-[11px]"
+                  className="text-[#C5E5EC] font-bold hover:underline text-[11px] cursor-pointer"
                 >
                   Quay lại đăng nhập
                 </button>
               </div>
 
               <div>
-                <label className="block text-slate-300 mb-1 font-semibold">Gmail hoặc Số điện thoại tài khoản</label>
+                <label className="block text-[#C5E5EC]/90 mb-1 font-semibold">Gmail hoặc Số điện thoại tài khoản</label>
                 <div className="flex space-x-2">
                   <input
                     type="text"
                     required
                     value={forgotContact}
                     onChange={(e) => setForgotContact(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-[#081020] border border-slate-700/80 text-white placeholder:text-slate-500 focus:border-[#00E5FF] focus:bg-[#0c1830] focus:outline-none"
+                    className="w-full px-3 py-2 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-white placeholder:text-[#C5E5EC]/40 focus:border-[#C5E5EC] focus:bg-[#152844] focus:outline-none"
                     placeholder="vietanh.dhbk@gmail.com"
                   />
                   <button
                     type="button"
                     onClick={handleSendForgotOtp}
                     disabled={forgotCountdown > 0}
-                    className={`px-3.5 py-2 rounded-xl font-extrabold whitespace-nowrap transition ${
+                    className={`px-3.5 py-2 rounded-xl font-extrabold whitespace-nowrap transition cursor-pointer ${
                       forgotCountdown > 0
-                        ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
-                        : 'bg-gradient-to-r from-[#00E5FF] to-blue-600 text-black hover:brightness-110 active:scale-95 shadow-xs'
+                        ? 'bg-[#12233B] text-[#C5E5EC]/50 cursor-not-allowed border border-[#C5E5EC]/20'
+                        : 'bg-gradient-to-r from-[#3064AE] via-[#2A5594] to-[#25735B] text-white hover:brightness-110 active:scale-95 shadow-xs border border-[#E0FAEB]/30'
                     }`}
                   >
                     {forgotCountdown > 0 ? `Gửi lại (${forgotCountdown}s)` : 'Nhận OTP'}
@@ -1152,20 +1032,20 @@ export const AuthScreen: React.FC = () => {
               </div>
 
               {generatedOtp && (
-                <div className="p-3 rounded-xl bg-emerald-950/40 border border-emerald-500/30 text-emerald-200 space-y-1">
+                <div className="p-3 rounded-xl bg-[#12233B] border border-[#E0FAEB]/30 text-[#E0FAEB] space-y-1">
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold flex items-center text-emerald-300">
-                      <Sparkles className="w-3.5 h-3.5 mr-1 text-emerald-400" /> Tin nhắn OTP:
+                    <span className="text-[11px] font-bold flex items-center text-[#E0FAEB]">
+                      <Sparkles className="w-3.5 h-3.5 mr-1 text-[#E0FAEB]" /> Tin nhắn OTP:
                     </span>
-                    <span className="text-[10px] text-emerald-300 font-mono">Hiệu lực 3 phút</span>
+                    <span className="text-[10px] text-[#C5E5EC] font-mono">Hiệu lực 3 phút</span>
                   </div>
                   <div className="flex items-center space-x-2 py-1">
-                    <span className="text-xs text-slate-300">Mã xác thực:</span>
-                    <strong className="font-mono text-base tracking-[0.2em] text-emerald-300 bg-[#081020] px-2.5 py-0.5 rounded-lg border border-emerald-400/40 shadow-xs">
+                    <span className="text-xs text-[#C5E5EC]/80">Mã xác thực:</span>
+                    <strong className="font-mono text-base tracking-[0.2em] text-[#E0FAEB] bg-[#0E1B2E] px-2.5 py-0.5 rounded-lg border border-[#E0FAEB]/40 shadow-xs">
                       {generatedOtp}
                     </strong>
                   </div>
-                  <p className="text-[10px] text-slate-400">
+                  <p className="text-[10px] text-[#C5E5EC]/70">
                     * Bắt buộc nhập chính xác 6 số này vào ô bên dưới để đặt lại mật khẩu mới.
                   </p>
                 </div>
@@ -1173,7 +1053,7 @@ export const AuthScreen: React.FC = () => {
 
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="block text-slate-300 font-semibold">Nhập mã OTP 6 số</label>
+                  <label className="block text-[#C5E5EC]/90 font-semibold">Nhập mã OTP 6 số</label>
                   <span className="text-[10px] text-rose-400 font-medium">* Bắt buộc nhập mã</span>
                 </div>
                 <input
@@ -1184,26 +1064,26 @@ export const AuthScreen: React.FC = () => {
                   required
                   value={forgotOtpInput}
                   onChange={(e) => setForgotOtpInput(e.target.value.replace(/\D/g, ''))}
-                  className="w-full px-3 py-2.5 rounded-xl bg-[#081020] border border-slate-700/80 text-white font-mono tracking-[0.3em] text-center text-base font-bold placeholder:tracking-normal placeholder:text-xs placeholder:font-normal placeholder:text-slate-500 focus:border-[#00E5FF] focus:bg-[#0c1830] focus:outline-none"
+                  className="w-full px-3 py-2.5 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-white font-mono tracking-[0.3em] text-center text-base font-bold placeholder:tracking-normal placeholder:text-xs placeholder:font-normal placeholder:text-[#C5E5EC]/40 focus:border-[#C5E5EC] focus:bg-[#152844] focus:outline-none"
                   placeholder="Nhập đủ 6 chữ số OTP"
                 />
               </div>
 
               <div>
-                <label className="block text-slate-300 mb-1 font-semibold">Mật khẩu mới</label>
+                <label className="block text-[#C5E5EC]/90 mb-1 font-semibold">Mật khẩu mới</label>
                 <div className="relative">
                   <input
                     type={showNewPassword ? 'text' : 'password'}
                     required
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    className="w-full px-3 pr-10 py-2 rounded-xl bg-[#081020] border border-slate-700/80 text-white placeholder:text-slate-500 focus:border-[#00E5FF] focus:bg-[#0c1830] focus:outline-none"
+                    className="w-full px-3 pr-10 py-2 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-white placeholder:text-[#C5E5EC]/40 focus:border-[#C5E5EC] focus:bg-[#152844] focus:outline-none"
                     placeholder="Mật khẩu tối thiểu 6 ký tự"
                   />
                   <button
                     type="button"
                     onClick={() => setShowNewPassword(!showNewPassword)}
-                    className="absolute right-3 top-2.5 text-slate-400 hover:text-white"
+                    className="absolute right-3 top-2.5 text-[#C5E5EC]/60 hover:text-white cursor-pointer"
                   >
                     {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
@@ -1212,7 +1092,7 @@ export const AuthScreen: React.FC = () => {
 
               <button
                 type="submit"
-                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#00E5FF] to-blue-600 text-black font-black text-sm hover:brightness-110 transition shadow-lg shadow-cyan-500/20 active:scale-95"
+                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#3064AE] via-[#2A5594] to-[#25735B] text-white font-black text-sm hover:brightness-110 transition shadow-lg shadow-[#3064AE]/25 active:scale-95 border border-[#E0FAEB]/30 cursor-pointer"
               >
                 Cập Nhật Mật Khẩu Mới
               </button>
@@ -1220,14 +1100,14 @@ export const AuthScreen: React.FC = () => {
           )}
 
           {/* Social Logins */}
-          <div className="mt-6 pt-4 border-t border-slate-800 text-center">
-            <span className="text-[11px] text-slate-400 block mb-3 font-semibold">Hoặc tiếp tục nhanh với</span>
+          <div className="mt-6 pt-4 border-t border-[#C5E5EC]/20 text-center">
+            <span className="text-[11px] text-[#C5E5EC]/70 block mb-3 font-semibold">Hoặc tiếp tục nhanh với</span>
             <div className="grid grid-cols-3 gap-2">
               <button
                 type="button"
                 onClick={() => handleSocialLogin('Google')}
                 disabled={socialLoadingProvider !== null}
-                className="py-2.5 rounded-xl bg-[#081020] hover:bg-[#0f1d38] border border-slate-700/80 font-bold text-xs text-slate-200 transition flex items-center justify-center space-x-1.5 disabled:opacity-50 shadow-xs active:scale-95"
+                className="py-2.5 rounded-xl bg-[#12233B] hover:bg-[#162C4E] border border-[#C5E5EC]/20 font-bold text-xs text-slate-200 transition flex items-center justify-center space-x-1.5 disabled:opacity-50 shadow-xs active:scale-95 cursor-pointer"
               >
                 {socialLoadingProvider === 'Google' ? (
                   <span className="w-3 h-3 border-2 border-slate-400 border-t-slate-100 rounded-full animate-spin" />
@@ -1245,7 +1125,7 @@ export const AuthScreen: React.FC = () => {
                 type="button"
                 onClick={() => handleSocialLogin('Facebook')}
                 disabled={socialLoadingProvider !== null}
-                className="py-2.5 rounded-xl bg-[#081020] hover:bg-[#0f1d38] border border-slate-700/80 font-bold text-xs text-[#1877F2] transition flex items-center justify-center space-x-1.5 disabled:opacity-50 shadow-xs active:scale-95"
+                className="py-2.5 rounded-xl bg-[#12233B] hover:bg-[#162C4E] border border-[#C5E5EC]/20 font-bold text-xs text-[#1877F2] transition flex items-center justify-center space-x-1.5 disabled:opacity-50 shadow-xs active:scale-95 cursor-pointer"
               >
                 {socialLoadingProvider === 'Facebook' ? (
                   <span className="w-3 h-3 border-2 border-blue-400 border-t-blue-200 rounded-full animate-spin" />
@@ -1260,7 +1140,7 @@ export const AuthScreen: React.FC = () => {
                 type="button"
                 onClick={() => handleSocialLogin('Apple')}
                 disabled={socialLoadingProvider !== null}
-                className="py-2.5 rounded-xl bg-[#081020] hover:bg-[#0f1d38] border border-slate-700/80 font-bold text-xs text-white transition flex items-center justify-center space-x-1.5 disabled:opacity-50 shadow-xs active:scale-95"
+                className="py-2.5 rounded-xl bg-[#12233B] hover:bg-[#162C4E] border border-[#C5E5EC]/20 font-bold text-xs text-white transition flex items-center justify-center space-x-1.5 disabled:opacity-50 shadow-xs active:scale-95 cursor-pointer"
               >
                 {socialLoadingProvider === 'Apple' ? (
                   <span className="w-3 h-3 border-2 border-slate-400 border-t-white rounded-full animate-spin" />
@@ -1273,6 +1153,12 @@ export const AuthScreen: React.FC = () => {
               </button>
             </div>
           </div>
+        </div>
+
+        {/* Copyright Notice */}
+        <div className="mt-8 text-center text-xs text-[#C5E5EC]/70 space-y-1">
+          <p className="font-medium">© 2026 GigMe Student Platform. Bản quyền thuộc về GigMe Campus.</p>
+          <p className="text-[11px] text-[#C5E5EC]/50">Tất cả quyền được bảo lưu. Nền tảng Siêu kết nối việc làm sinh viên an toàn 100%.</p>
         </div>
       </div>
     </div>

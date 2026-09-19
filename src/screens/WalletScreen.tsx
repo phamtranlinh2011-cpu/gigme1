@@ -87,46 +87,48 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onOpenVerify }) => {
 
   return (
     <div className="max-w-3xl mx-auto px-3 sm:px-4 py-4 sm:py-6 pb-28 text-slate-900 dark:text-white space-y-4 sm:space-y-6">
-      {/* Balance Card with modern executive styling */}
-      <div className="rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950 text-white p-5 sm:p-6 shadow-md relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-sky-500/10 rounded-full blur-3xl pointer-events-none" />
+      {/* Balance Card with Cobalt Blue (60%), Crystal Blue (30%), Ethereal Green (10%) Brand Styling */}
+      <div className="rounded-3xl bg-gradient-to-r from-[#18345E] via-[#10223D] to-[#0A1526] border border-[#C5E5EC]/25 text-white p-5 sm:p-6 shadow-xl relative overflow-hidden">
+        {/* Left Decorative Proportional Brand Gradient Bar */}
+        <div className="absolute left-0 top-0 bottom-0 w-2 bg-brand-tri-gradient" />
+        <div className="absolute top-0 right-0 w-64 h-64 bg-[#3064AE]/20 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="relative z-10 space-y-4">
+        <div className="relative z-10 space-y-4 pl-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <div className="p-2 rounded-xl bg-sky-500/20 text-[#0284C7]">
-                <Wallet className="w-5 h-5 text-sky-400" />
+              <div className="p-2 rounded-xl bg-[#3064AE]/30 text-[#C5E5EC] border border-[#C5E5EC]/20">
+                <Wallet className="w-5 h-5 text-[#C5E5EC]" />
               </div>
-              <span className="text-xs font-bold text-slate-200">Ví Smart Escrow GigMe</span>
+              <span className="text-xs font-bold text-[#C5E5EC]">Ví Smart Escrow GigMe</span>
             </div>
 
             <div className="flex items-center space-x-2">
               <button
                 onClick={() => setIsStatementOpen(true)}
-                className="px-2.5 py-1 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-xs text-sky-300 font-bold flex items-center space-x-1 transition"
+                className="px-2.5 py-1 rounded-xl bg-[#3064AE]/20 hover:bg-[#3064AE]/40 border border-[#C5E5EC]/30 text-xs text-[#C5E5EC] font-bold flex items-center space-x-1 transition"
                 title="Xuất sao kê PDF / Excel"
               >
-                <Download className="w-3.5 h-3.5" />
+                <Download className="w-3.5 h-3.5 text-[#E0FAEB]" />
                 <span className="hidden sm:inline">Sao Kê</span>
               </button>
               <button
                 onClick={() => setShowBalance((p) => !p)}
-                className="text-slate-300 hover:text-white p-1"
+                className="text-[#C5E5EC] hover:text-white p-1"
                 title="Ẩn/hiện số dư"
               >
-                {showBalance ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                {showBalance ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4 text-[#E0FAEB]" />}
               </button>
             </div>
           </div>
 
           <div>
-            <span className="text-xs text-slate-300 font-semibold">Số dư khả dụng:</span>
+            <span className="text-xs text-[#C5E5EC]/80 font-semibold">Số dư khả dụng:</span>
             <div className="text-2xl sm:text-3xl font-black text-white font-mono mt-0.5 tracking-tight">
               {showBalance ? formatVnd(currentUser?.walletBalance || 0) : '•••••••• đ'}
             </div>
             <div className="flex items-center space-x-2 mt-1.5 text-xs">
-              <span className="text-slate-300">Đang giữ trong Smart Escrow:</span>
-              <span className="font-bold text-sky-400 font-mono">
+              <span className="text-[#C5E5EC]/70">Đang giữ trong Smart Escrow:</span>
+              <span className="font-bold text-[#E0FAEB] font-mono">
                 {showBalance ? formatVnd(currentUser?.escrowLockedBalance || 0) : '••••••'}
               </span>
             </div>
@@ -140,7 +142,7 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onOpenVerify }) => {
                 playNotificationSound('BUTTON_CLICK');
                 setIsQrOpen(true);
               }}
-              className="py-3 px-3 rounded-2xl bg-gradient-to-r from-sky-500 to-blue-600 text-white font-extrabold text-xs hover:brightness-105 shadow-sm transition flex items-center justify-center space-x-1.5 active:scale-95"
+              className="py-3 px-3 rounded-2xl bg-gradient-to-r from-[#3064AE] via-[#417AC6] to-[#C5E5EC] text-white font-extrabold text-xs hover:brightness-110 shadow-lg shadow-[#3064AE]/30 transition flex items-center justify-center space-x-1.5 active:scale-95 border border-[#E0FAEB]/30 cursor-pointer"
             >
               <QrCode className="w-4 h-4 stroke-[2.5]" />
               <span>Nạp VietQR Pro 24/7</span>
@@ -152,9 +154,9 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onOpenVerify }) => {
                 playNotificationSound('BUTTON_CLICK');
                 setIsBankWithdrawOpen(true);
               }}
-              className="py-3 px-3 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-extrabold text-xs transition flex items-center justify-center space-x-1.5 active:scale-95"
+              className="py-3 px-3 rounded-2xl bg-[#0E1B2E] hover:bg-[#152742] border border-[#C5E5EC]/30 text-[#C5E5EC] font-extrabold text-xs transition flex items-center justify-center space-x-1.5 active:scale-95 cursor-pointer"
             >
-              <ArrowUpRight className="w-4 h-4 text-rose-400 stroke-[2.5]" />
+              <ArrowUpRight className="w-4 h-4 text-[#E0FAEB] stroke-[2.5]" />
               <span>Rút Napas 247 (&lt;3s)</span>
             </button>
           </div>
@@ -162,20 +164,20 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onOpenVerify }) => {
       </div>
 
       {/* Default Bank Card (Napas 247) */}
-      <div className="rounded-3xl bg-white border border-slate-200 p-4 sm:p-5 shadow-xs">
+      <div className="rounded-3xl bg-[#12233B] border border-[#C5E5EC]/20 p-4 sm:p-5 shadow-lg">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center space-x-2">
-            <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600">
-              <Building2 className="w-4 h-4" />
+            <div className="p-2 rounded-xl bg-[#3064AE]/25 text-[#C5E5EC]">
+              <Building2 className="w-4 h-4 text-[#C5E5EC]" />
             </div>
             <div>
-              <h4 className="font-extrabold text-xs text-slate-900 flex items-center space-x-1.5">
+              <h4 className="font-extrabold text-xs text-white flex items-center space-x-1.5">
                 <span>Tài Khoản Nhận Tiền Mặc Định</span>
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 font-bold border border-emerald-200">
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#E0FAEB]/15 text-[#E0FAEB] font-bold border border-[#E0FAEB]/30">
                   Napas 247
                 </span>
               </h4>
-              <p className="text-[10px] text-slate-500">Tự động điền khi rút tiền, giải ngân siêu tốc 24/7</p>
+              <p className="text-[10px] text-[#C5E5EC]/70">Tự động điền khi rút tiền, giải ngân siêu tốc 24/7</p>
             </div>
           </div>
           <button
@@ -183,24 +185,24 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onOpenVerify }) => {
               playNotificationSound('BUTTON_CLICK');
               setIsBankWithdrawOpen(true);
             }}
-            className="text-[11px] font-bold text-[#0284C7] hover:underline"
+            className="text-[11px] font-bold text-[#C5E5EC] hover:underline"
           >
             {currentUser?.defaultBank ? 'Đổi tài khoản' : '+ Liên kết ngay'}
           </button>
         </div>
 
         {currentUser?.defaultBank ? (
-          <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+          <div className="p-3.5 rounded-2xl bg-[#0E1B2E] border border-[#C5E5EC]/20 flex items-center justify-between">
             <div className="space-y-1">
               <div className="flex items-center space-x-2">
-                <span className="font-bold text-slate-900 text-xs">{currentUser.defaultBank.bankName}</span>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 font-mono font-bold">
+                <span className="font-bold text-white text-xs">{currentUser.defaultBank.bankName}</span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#18345E] text-[#C5E5EC] font-mono font-bold">
                   •••• {currentUser.defaultBank.accountNumber.slice(-4)}
                 </span>
               </div>
-              <div className="text-[11px] text-slate-500 font-mono flex items-center space-x-2">
-                <span className="text-slate-800 font-semibold uppercase">{currentUser.defaultBank.accountHolder}</span>
-                <span className="text-emerald-600 text-[10px] font-bold">✓ Đã khớp E-KYC</span>
+              <div className="text-[11px] text-[#C5E5EC]/80 font-mono flex items-center space-x-2">
+                <span className="text-white font-semibold uppercase">{currentUser.defaultBank.accountHolder}</span>
+                <span className="text-[#E0FAEB] text-[10px] font-bold">✓ Đã khớp E-KYC</span>
               </div>
             </div>
             <button
@@ -208,15 +210,15 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onOpenVerify }) => {
                 playNotificationSound('BUTTON_CLICK');
                 setIsBankWithdrawOpen(true);
               }}
-              className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-red-600 to-rose-500 hover:brightness-105 text-white font-extrabold text-xs shadow-xs transition flex items-center space-x-1 active:scale-95"
+              className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#3064AE] to-[#255294] hover:brightness-110 text-white font-extrabold text-xs shadow-xs transition flex items-center space-x-1 active:scale-95 border border-[#C5E5EC]/30 cursor-pointer"
             >
               <ArrowUpRight className="w-3.5 h-3.5" />
               <span>Rút Về TK Này</span>
             </button>
           </div>
         ) : (
-          <div className="p-3 rounded-2xl bg-slate-50 border border-dashed border-slate-300 flex items-center justify-between">
-            <div className="text-xs text-slate-500">
+          <div className="p-3 rounded-2xl bg-[#0E1B2E] border border-dashed border-[#C5E5EC]/30 flex items-center justify-between">
+            <div className="text-xs text-[#C5E5EC]/80">
               Chưa lưu tài khoản ngân hàng. Nhấn để cài đặt số tài khoản Napas 247 nhận tiền tức thì.
             </div>
             <button
@@ -224,7 +226,7 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onOpenVerify }) => {
                 playNotificationSound('BUTTON_CLICK');
                 setIsBankWithdrawOpen(true);
               }}
-              className="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-[#0284C7] font-bold text-xs shrink-0 ml-2 shadow-xs"
+              className="px-3 py-1.5 rounded-xl bg-[#162B48] hover:bg-[#1E375C] border border-[#C5E5EC]/30 text-[#C5E5EC] font-bold text-xs shrink-0 ml-2 shadow-xs cursor-pointer"
             >
               Thiết lập
             </button>
@@ -234,7 +236,7 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onOpenVerify }) => {
 
       {/* Payment Services & Student Support Hub */}
       <div className="space-y-2">
-        <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500 block px-1">
+        <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#C5E5EC]/70 block px-1">
           Cổng thanh toán & Dịch vụ sinh viên
         </span>
 
@@ -242,20 +244,20 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onOpenVerify }) => {
           {/* Card 1: MoMo / ZaloPay Gateway */}
           <button
             onClick={() => setIsGatewayOpen(true)}
-            className="p-3.5 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200 text-left transition flex items-center justify-between group shadow-xs active:scale-[0.99]"
+            className="p-3.5 rounded-2xl bg-[#12233B] hover:bg-[#162B48] border border-[#C5E5EC]/20 text-left transition flex items-center justify-between group shadow-sm active:scale-[0.99] cursor-pointer"
           >
             <div className="flex items-center space-x-2.5 min-w-0">
-              <div className="p-2 rounded-xl bg-pink-50 text-pink-600 shrink-0">
+              <div className="p-2 rounded-xl bg-pink-500/15 text-pink-400 shrink-0">
                 <Smartphone className="w-4 h-4" />
               </div>
               <div className="min-w-0">
-                <h5 className="font-extrabold text-xs text-slate-900 group-hover:text-pink-600 transition truncate">
+                <h5 className="font-extrabold text-xs text-white group-hover:text-pink-400 transition truncate">
                   Cổng MoMo & ZaloPay
                 </h5>
-                <p className="text-[10px] text-slate-500 truncate">App-to-App 1 chạm tức thì</p>
+                <p className="text-[10px] text-[#C5E5EC]/70 truncate">App-to-App 1 chạm tức thì</p>
               </div>
             </div>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-pink-50 text-pink-700 border border-pink-200 font-bold shrink-0">
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-pink-500/15 text-pink-300 border border-pink-500/30 font-bold shrink-0">
               SDK
             </span>
           </button>
@@ -263,20 +265,20 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onOpenVerify }) => {
           {/* Card 2: Open API Auto Scanner */}
           <button
             onClick={() => setIsQrOpen(true)}
-            className="p-3.5 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200 text-left transition flex items-center justify-between group shadow-xs active:scale-[0.99]"
+            className="p-3.5 rounded-2xl bg-[#12233B] hover:bg-[#162B48] border border-[#C5E5EC]/20 text-left transition flex items-center justify-between group shadow-sm active:scale-[0.99] cursor-pointer"
           >
             <div className="flex items-center space-x-2.5 min-w-0">
-              <div className="p-2 rounded-xl bg-sky-50 text-[#0284C7] shrink-0">
-                <QrCode className="w-4 h-4" />
+              <div className="p-2 rounded-xl bg-[#3064AE]/25 text-[#C5E5EC] shrink-0">
+                <QrCode className="w-4 h-4 text-[#C5E5EC]" />
               </div>
               <div className="min-w-0">
-                <h5 className="font-extrabold text-xs text-slate-900 group-hover:text-[#0284C7] transition truncate">
+                <h5 className="font-extrabold text-xs text-white group-hover:text-[#C5E5EC] transition truncate">
                   Tự Động Khớp VietQR
                 </h5>
-                <p className="text-[10px] text-slate-500 truncate">Open API Casso/SePAY 3 giây</p>
+                <p className="text-[10px] text-[#C5E5EC]/70 truncate">Open API Casso/SePAY 3 giây</p>
               </div>
             </div>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-sky-50 text-[#0284C7] border border-sky-200 font-bold shrink-0">
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#3064AE]/20 text-[#C5E5EC] border border-[#C5E5EC]/30 font-bold shrink-0">
               AUTO
             </span>
           </button>
@@ -285,20 +287,20 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onOpenVerify }) => {
           <button
             id="ewallet-btn"
             onClick={() => setIsEWalletOpen(true)}
-            className="p-3.5 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200 text-left transition flex items-center justify-between group shadow-xs active:scale-[0.99]"
+            className="p-3.5 rounded-2xl bg-[#12233B] hover:bg-[#162B48] border border-[#C5E5EC]/20 text-left transition flex items-center justify-between group shadow-sm active:scale-[0.99] cursor-pointer"
           >
             <div className="flex items-center space-x-2.5 min-w-0">
-              <div className="p-2 rounded-xl bg-slate-100 text-slate-700 shrink-0">
+              <div className="p-2 rounded-xl bg-[#0E1B2E] text-[#C5E5EC] shrink-0">
                 <CreditCard className="w-4 h-4" />
               </div>
               <div className="min-w-0">
-                <h5 className="font-extrabold text-xs text-slate-900 group-hover:text-[#0284C7] transition truncate">
+                <h5 className="font-extrabold text-xs text-white group-hover:text-[#C5E5EC] transition truncate">
                   Ví Điện Tử Đã Liên Kết
                 </h5>
-                <p className="text-[10px] text-slate-500 truncate">Quản lý ví ShopeePay / Viettel</p>
+                <p className="text-[10px] text-[#C5E5EC]/70 truncate">Quản lý ví ShopeePay / Viettel</p>
               </div>
             </div>
-            <span className="text-[10px] text-slate-400 shrink-0">&rarr;</span>
+            <span className="text-[10px] text-[#C5E5EC] shrink-0">&rarr;</span>
           </button>
 
           {/* Card 4: SOS Micro-loan */}
@@ -311,20 +313,20 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onOpenVerify }) => {
                 setShowLoanModal(true);
               }
             }}
-            className="p-3.5 rounded-2xl bg-white hover:bg-slate-50 border border-purple-200 text-left transition flex items-center justify-between group shadow-xs active:scale-[0.99]"
+            className="p-3.5 rounded-2xl bg-[#12233B] hover:bg-[#162B48] border border-purple-500/30 text-left transition flex items-center justify-between group shadow-sm active:scale-[0.99] cursor-pointer"
           >
             <div className="flex items-center space-x-2.5 min-w-0">
-              <div className="p-2 rounded-xl bg-purple-50 text-purple-600 shrink-0">
-                <Sparkles className="w-4 h-4 text-purple-600" />
+              <div className="p-2 rounded-xl bg-purple-500/20 text-purple-400 shrink-0">
+                <Sparkles className="w-4 h-4 text-purple-400" />
               </div>
               <div className="min-w-0">
-                <h5 className="font-extrabold text-xs text-slate-900 group-hover:text-purple-600 transition truncate">
+                <h5 className="font-extrabold text-xs text-white group-hover:text-purple-400 transition truncate">
                   Vay Khẩn Cấp SOS 0%
                 </h5>
-                <p className="text-[10px] text-slate-500 truncate">Hạn mức sinh viên 200k - 500k</p>
+                <p className="text-[10px] text-[#C5E5EC]/70 truncate">Hạn mức sinh viên 200k - 500k</p>
               </div>
             </div>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200 font-bold shrink-0">
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/40 font-bold shrink-0">
               0% LÃI
             </span>
           </button>
@@ -336,7 +338,7 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onOpenVerify }) => {
               triggerHaptic('light');
               setIsApplePayOpen(true);
             }}
-            className="p-3.5 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200 text-left transition flex items-center justify-between group shadow-xs active:scale-[0.99] sm:col-span-2"
+            className="p-3.5 rounded-2xl bg-[#12233B] hover:bg-[#162B48] border border-[#C5E5EC]/20 text-left transition flex items-center justify-between group shadow-sm active:scale-[0.99] sm:col-span-2 cursor-pointer"
           >
             <div className="flex items-center space-x-2.5 min-w-0">
               <div className="p-2 rounded-xl bg-slate-900 text-white shrink-0">
@@ -364,29 +366,29 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onOpenVerify }) => {
       </div>
 
       {/* Connected Wallets Status (MoMo, ZaloPay, Viettel Money) */}
-      <div className="p-4 rounded-3xl bg-white border border-slate-200 space-y-2.5 shadow-xs">
+      <div className="p-4 rounded-3xl bg-[#12233B] border border-[#C5E5EC]/20 space-y-2.5 shadow-lg">
         <div className="flex items-center justify-between">
-          <h4 className="text-xs font-extrabold text-slate-900 flex items-center space-x-1.5">
-            <Smartphone className="w-4 h-4 text-pink-500" />
+          <h4 className="text-xs font-extrabold text-white flex items-center space-x-1.5">
+            <Smartphone className="w-4 h-4 text-[#C5E5EC]" />
             <span>Liên Kết Ví Điện Tử (MoMo, ZaloPay, Viettel Money)</span>
           </h4>
           <button
             onClick={() => setIsEWalletOpen(true)}
-            className="text-[11px] text-[#0284C7] hover:underline font-bold"
+            className="text-[11px] text-[#C5E5EC] hover:underline font-bold cursor-pointer"
           >
             Quản lý &rarr;
           </button>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
-          <div className="p-2.5 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+          <div className="p-2.5 rounded-2xl bg-[#0E1B2E] border border-[#C5E5EC]/15 flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <span className="w-6 h-6 rounded-lg bg-pink-100 text-pink-600 font-black text-[10px] flex items-center justify-center">
+              <span className="w-6 h-6 rounded-lg bg-pink-500/20 text-pink-300 font-black text-[10px] flex items-center justify-center border border-pink-500/30">
                 M
               </span>
               <div>
-                <span className="font-bold text-slate-900 block text-[11px]">MoMo</span>
-                <span className="text-[10px] text-slate-500 font-mono">
+                <span className="font-bold text-white block text-[11px]">MoMo</span>
+                <span className="text-[10px] text-[#C5E5EC]/70 font-mono">
                   {currentUser?.connectedMoMo || 'Chưa liên kết'}
                 </span>
               </div>
@@ -394,22 +396,22 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onOpenVerify }) => {
             <span
               className={`text-[10px] px-2 py-0.5 rounded-full font-bold border ${
                 currentUser?.connectedMoMo
-                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                  : 'bg-slate-100 text-slate-500 border-slate-200'
+                  ? 'bg-[#E0FAEB]/15 text-[#E0FAEB] border-[#E0FAEB]/30'
+                  : 'bg-[#182C48] text-slate-400 border-slate-700'
               }`}
             >
               {currentUser?.connectedMoMo ? 'Đã nối' : 'Chưa nối'}
             </span>
           </div>
 
-          <div className="p-2.5 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+          <div className="p-2.5 rounded-2xl bg-[#0E1B2E] border border-[#C5E5EC]/15 flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <span className="w-6 h-6 rounded-lg bg-blue-100 text-blue-600 font-black text-[10px] flex items-center justify-center">
+              <span className="w-6 h-6 rounded-lg bg-[#3064AE]/30 text-[#C5E5EC] font-black text-[10px] flex items-center justify-center border border-[#C5E5EC]/30">
                 Z
               </span>
               <div>
-                <span className="font-bold text-slate-900 block text-[11px]">ZaloPay</span>
-                <span className="text-[10px] text-slate-500 font-mono">
+                <span className="font-bold text-white block text-[11px]">ZaloPay</span>
+                <span className="text-[10px] text-[#C5E5EC]/70 font-mono">
                   {currentUser?.connectedZaloPay || 'Chưa liên kết'}
                 </span>
               </div>
@@ -417,22 +419,22 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onOpenVerify }) => {
             <span
               className={`text-[10px] px-2 py-0.5 rounded-full font-bold border ${
                 currentUser?.connectedZaloPay
-                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                  : 'bg-slate-100 text-slate-500 border-slate-200'
+                  ? 'bg-[#E0FAEB]/15 text-[#E0FAEB] border-[#E0FAEB]/30'
+                  : 'bg-[#182C48] text-slate-400 border-slate-700'
               }`}
             >
               {currentUser?.connectedZaloPay ? 'Đã nối' : 'Chưa nối'}
             </span>
           </div>
 
-          <div className="p-2.5 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+          <div className="p-2.5 rounded-2xl bg-[#0E1B2E] border border-[#C5E5EC]/15 flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <span className="w-6 h-6 rounded-lg bg-red-100 text-red-600 font-black text-[10px] flex items-center justify-center">
+              <span className="w-6 h-6 rounded-lg bg-red-500/20 text-red-300 font-black text-[10px] flex items-center justify-center border border-red-500/30">
                 V
               </span>
               <div>
-                <span className="font-bold text-slate-900 block text-[11px]">Viettel Money</span>
-                <span className="text-[10px] text-slate-500 font-mono">
+                <span className="font-bold text-white block text-[11px]">Viettel Money</span>
+                <span className="text-[10px] text-[#C5E5EC]/70 font-mono">
                   {currentUser?.connectedViettelMoney || 'Chưa liên kết'}
                 </span>
               </div>
@@ -440,8 +442,8 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onOpenVerify }) => {
             <span
               className={`text-[10px] px-2 py-0.5 rounded-full font-bold border ${
                 currentUser?.connectedViettelMoney
-                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                  : 'bg-slate-100 text-slate-500 border-slate-200'
+                  ? 'bg-[#E0FAEB]/15 text-[#E0FAEB] border-[#E0FAEB]/30'
+                  : 'bg-[#182C48] text-slate-400 border-slate-700'
               }`}
             >
               {currentUser?.connectedViettelMoney ? 'Đã nối' : 'Chưa nối'}
@@ -451,22 +453,23 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onOpenVerify }) => {
       </div>
 
       {/* Student SOS Micro-Loan Feature Highlight */}
-      <div className="p-4 rounded-3xl bg-purple-50/70 border border-purple-200 flex items-start justify-between gap-3 text-xs shadow-xs">
-        <div>
-          <div className="flex items-center space-x-1.5 text-purple-900 font-extrabold">
-            <Zap className="w-4 h-4 text-amber-500 fill-current" />
+      <div className="p-4 rounded-3xl bg-[#141C30] border border-purple-500/30 flex items-start justify-between gap-3 text-xs shadow-lg relative overflow-hidden">
+        <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-purple-500 via-[#3064AE] to-[#E0FAEB]" />
+        <div className="pl-1">
+          <div className="flex items-center space-x-1.5 text-white font-extrabold">
+            <Zap className="w-4 h-4 text-amber-400 fill-current" />
             <span>Gói Cứu Trợ Sinh Viên SOS (0% Lãi Suất)</span>
           </div>
-          <p className="text-slate-600 mt-1 leading-relaxed">
+          <p className="text-[#C5E5EC]/85 mt-1 leading-relaxed">
             Hạn mức tối đa <strong>500.000đ</strong> dành riêng cho sinh viên đã xác thực cấp 2. Tự động trả dần khi
             nhận thù lao các kèo tiếp theo.
           </p>
-          <div className="flex items-center space-x-3 mt-2 text-[11px] text-purple-700">
+          <div className="flex items-center space-x-3 mt-2 text-[11px] text-[#C5E5EC]">
             <span>
-              Hạn mức còn lại: <strong>{formatVnd(currentUser?.microLoanCreditLimit || 500000)}</strong>
+              Hạn mức còn lại: <strong className="text-white">{formatVnd(currentUser?.microLoanCreditLimit || 500000)}</strong>
             </span>
             <span>•</span>
-            <span>Giải ngân ngay trong 5 giây</span>
+            <span className="text-[#E0FAEB]">Giải ngân ngay trong 5 giây</span>
           </div>
         </div>
 
@@ -478,7 +481,7 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onOpenVerify }) => {
               setShowLoanModal(true);
             }
           }}
-          className="px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-extrabold text-xs shrink-0 transition shadow-xs active:scale-95"
+          className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-[#3064AE] hover:brightness-110 text-white font-extrabold text-xs shrink-0 transition shadow-md active:scale-95 border border-purple-400/30 cursor-pointer"
         >
           {isVerified ? 'Vay Nhanh' : 'Xác Thực Để Vay'}
         </button>
@@ -487,28 +490,28 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onOpenVerify }) => {
       {/* Transactions History Header & Filters */}
       <div className="space-y-3">
         <div className="flex items-center justify-between flex-wrap gap-2">
-          <h3 className="font-extrabold text-sm text-slate-900 flex items-center space-x-1.5">
-            <Clock className="w-4 h-4 text-[#0284C7]" />
+          <h3 className="font-extrabold text-sm text-white flex items-center space-x-1.5">
+            <Clock className="w-4 h-4 text-[#C5E5EC]" />
             <span>Lịch Sử Giao Dịch ({filteredTx.length})</span>
           </h3>
 
           <div className="flex items-center space-x-2">
             <button
               onClick={() => setIsStatementOpen(true)}
-              className="px-2.5 py-1 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-[10px] text-slate-700 font-bold flex items-center space-x-1 transition shadow-xs"
+              className="px-2.5 py-1 rounded-xl bg-[#12233B] hover:bg-[#162B48] border border-[#C5E5EC]/20 text-[10px] text-[#C5E5EC] font-bold flex items-center space-x-1 transition shadow-xs cursor-pointer"
             >
-              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+              <FileSpreadsheet className="w-3.5 h-3.5 text-[#E0FAEB]" />
               <span>Xuất PDF/Excel</span>
             </button>
 
             {/* Filter tabs */}
-            <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 text-[10px] font-bold">
+            <div className="flex bg-[#0E1B2E] p-1 rounded-xl border border-[#C5E5EC]/20 text-[10px] font-bold">
               {(['ALL', 'INCOME', 'EXPENSE', 'ESCROW', 'LOAN'] as const).map((filter) => (
                 <button
                   key={filter}
                   onClick={() => setTxFilter(filter)}
-                  className={`px-2 py-1 rounded-lg transition ${
-                    txFilter === filter ? 'bg-white text-slate-900 shadow-xs font-extrabold' : 'text-slate-500 hover:text-slate-900'
+                  className={`px-2 py-1 rounded-lg transition cursor-pointer ${
+                    txFilter === filter ? 'bg-[#3064AE] text-white shadow-xs font-extrabold' : 'text-[#C5E5EC]/70 hover:text-white'
                   }`}
                 >
                   {filter === 'ALL'
@@ -528,7 +531,7 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onOpenVerify }) => {
 
         {/* Transactions List */}
         {filteredTx.length === 0 ? (
-          <div className="text-center py-12 rounded-2xl bg-white border border-slate-200 text-slate-400 text-xs shadow-xs">
+          <div className="text-center py-12 rounded-2xl bg-[#12233B] border border-[#C5E5EC]/15 text-[#C5E5EC]/60 text-xs shadow-xs">
             Chưa có giao dịch nào trong danh mục này.
           </div>
         ) : (
@@ -538,20 +541,20 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onOpenVerify }) => {
               return (
                 <div
                   key={tx.id}
-                  className="p-3.5 rounded-2xl bg-white border border-slate-200 hover:border-slate-300 flex items-center justify-between transition text-xs shadow-xs"
+                  className="p-3.5 rounded-2xl bg-[#12233B] border border-[#C5E5EC]/15 hover:border-[#C5E5EC]/35 flex items-center justify-between transition text-xs shadow-sm"
                 >
                   <div className="flex items-center space-x-3">
                     <div
                       className={`p-2 rounded-xl ${
-                        isPlus ? 'bg-emerald-50 text-emerald-600' : 'bg-orange-50 text-orange-600'
+                        isPlus ? 'bg-[#E0FAEB]/15 text-[#E0FAEB]' : 'bg-orange-500/15 text-orange-400'
                       }`}
                     >
                       {isPlus ? <ArrowDownLeft className="w-4 h-4" /> : <ArrowUpRight className="w-4 h-4" />}
                     </div>
 
                     <div>
-                      <h4 className="font-extrabold text-slate-900 text-xs">{tx.title || tx.description || 'Giao dịch ví'}</h4>
-                      <p className="text-[10px] text-slate-500">
+                      <h4 className="font-extrabold text-white text-xs">{tx.title || tx.description || 'Giao dịch ví'}</h4>
+                      <p className="text-[10px] text-[#C5E5EC]/70">
                         {tx.subtitle ? `${tx.subtitle} • ` : ''}
                         {new Date(tx.timestamp).toLocaleString('vi-VN')} • Mã: {tx.id.slice(0, 8)}
                       </p>
@@ -561,12 +564,12 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onOpenVerify }) => {
                   <div className="text-right">
                     <span
                       className={`font-mono font-black text-sm block ${
-                        isPlus ? 'text-emerald-600' : 'text-slate-800'
+                        isPlus ? 'text-[#E0FAEB]' : 'text-slate-200'
                       }`}
                     >
                       {isPlus ? `+${formatVnd(tx.amount)}` : formatVnd(tx.amount)}
                     </span>
-                    <span className="text-[10px] text-slate-500 font-semibold">{tx.type}</span>
+                    <span className="text-[10px] text-[#C5E5EC]/70 font-semibold">{tx.type}</span>
                   </div>
                 </div>
               );
@@ -589,36 +592,37 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onOpenVerify }) => {
 
       {/* STUDENT LOAN MODAL */}
       {showLoanModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-fade-in">
-          <div className="w-full max-w-md rounded-2xl bg-white border border-slate-200 p-6 text-slate-900 shadow-xl">
-            <div className="flex justify-between items-center pb-3 border-b border-slate-200">
-              <h3 className="font-extrabold text-sm flex items-center space-x-1.5 text-purple-700">
-                <Sparkles className="w-4 h-4 text-purple-600" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-4 animate-fade-in">
+          <div className="w-full max-w-md rounded-2xl bg-[#0E1B2E] border border-[#C5E5EC]/30 p-6 text-white shadow-2xl relative overflow-hidden">
+            <div className="absolute left-0 top-0 right-0 h-1.5 bg-brand-horiz-gradient" />
+            <div className="flex justify-between items-center pb-3 border-b border-[#C5E5EC]/15">
+              <h3 className="font-extrabold text-sm flex items-center space-x-1.5 text-white">
+                <Sparkles className="w-4 h-4 text-[#E0FAEB]" />
                 <span>Vay Cứu Trợ Sinh Viên 0% Lãi Suất</span>
               </h3>
-              <button onClick={() => setShowLoanModal(false)} className="text-slate-400 hover:text-slate-700">
+              <button onClick={() => setShowLoanModal(false)} className="text-[#C5E5EC]/70 hover:text-white cursor-pointer p-1">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <form onSubmit={handleLoanSubmit} className="py-4 space-y-3.5 text-xs">
-              <div className="p-3 rounded-xl bg-purple-50 border border-purple-200 text-purple-800">
+              <div className="p-3 rounded-xl bg-[#12233B] border border-[#3064AE]/40 text-[#C5E5EC]">
                 Chương trình hỗ trợ sinh viên khó khăn đột xuất. Khoản vay sẽ được chuyển trực tiếp vào ví ngay lập tức
                 với 0đ phụ phí!
               </div>
 
               <div>
-                <label className="block text-slate-700 mb-1 font-semibold">Chọn số tiền cần vay</label>
+                <label className="block text-[#C5E5EC] mb-1 font-semibold">Chọn số tiền cần vay</label>
                 <div className="grid grid-cols-3 gap-2">
                   {[100000, 200000, 500000].map((amt) => (
                     <button
                       key={amt}
                       type="button"
                       onClick={() => setLoanAmount(amt)}
-                      className={`py-2 rounded-xl border font-bold transition ${
+                      className={`py-2 rounded-xl border font-bold transition cursor-pointer ${
                         loanAmount === amt
-                          ? 'bg-purple-600 text-white border-purple-600'
-                          : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                          ? 'bg-[#3064AE] text-white border-[#C5E5EC] shadow-md'
+                          : 'bg-[#12233B] text-[#C5E5EC] border-[#C5E5EC]/20 hover:bg-[#162B48]'
                       }`}
                     >
                       {formatVnd(amt)}
@@ -628,20 +632,20 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onOpenVerify }) => {
               </div>
 
               <div>
-                <label className="block text-slate-700 mb-1 font-semibold">Mục đích sử dụng</label>
+                <label className="block text-[#C5E5EC] mb-1 font-semibold">Mục đích sử dụng</label>
                 <input
                   type="text"
                   required
                   value={loanReason}
                   onChange={(e) => setLoanReason(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 focus:border-purple-600 focus:outline-none"
+                  className="w-full px-3 py-2 rounded-xl bg-[#12233B] border border-[#C5E5EC]/20 text-white placeholder-[#C5E5EC]/40 focus:border-[#C5E5EC] focus:outline-hidden"
                   placeholder="Đóng tiền trọ, mua thuốc, ăn uống..."
                 />
               </div>
 
               <button
                 type="submit"
-                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-extrabold text-sm hover:brightness-105 shadow-sm transition active:scale-95"
+                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#3064AE] via-[#417AC6] to-[#C5E5EC] text-white font-extrabold text-sm hover:brightness-110 shadow-lg shadow-[#3064AE]/30 transition active:scale-95 border border-[#E0FAEB]/30 cursor-pointer"
               >
                 Nhận Tiền Giải Ngân Ngay Lập Tức
               </button>

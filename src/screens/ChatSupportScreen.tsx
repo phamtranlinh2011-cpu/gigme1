@@ -32,10 +32,19 @@ import {
   Filter,
   Trash2,
   User,
+  Copy,
+  UserPlus,
+  Cloud,
+  FileText,
 } from 'lucide-react';
 import { useGigMe } from '../context/GigMeContext';
 import { formatVnd, ChatMessageEntity, UserEntity } from '../types';
 import { generateSynthesizedVoiceWav, playSynthesizedVoiceTone } from '../utils/audio';
+import { rateLimiter } from '../utils/rateLimiter';
+import { compressImageToWebP } from '../utils/imageCompressor';
+import { VerifiedEduBadge } from '../components/VerifiedEduBadge';
+import { FriendBackupRestoreModal } from '../components/FriendBackupRestoreModal';
+import { TermsAndRefundPolicyModal } from '../components/TermsAndRefundPolicyModal';
 
 interface ChatSupportScreenProps {
   onBack: () => void;
@@ -44,13 +53,14 @@ interface ChatSupportScreenProps {
 interface MessengerContact {
   id: string;
   name: string;
-  role: 'CLIENT' | 'WORKER';
+  role: 'CLIENT' | 'WORKER' | 'ADMIN';
   roleLabel: string;
   school: string;
   avatarBg: string;
   isOnline: boolean;
   lastActiveText: string;
   specialtyOrNeed: string;
+  isEduVerified?: boolean;
   associatedGig?: {
     id: string;
     title: string;
@@ -65,6 +75,10 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
     roleMode,
     allChats,
     rawGigs,
+    users,
+    addFriendById,
+    removeFriendById,
+    findUserByNineDigitId,
     sendChat,
     startVoipCall,
     selectGig,
@@ -75,6 +89,12 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilterTab, setActiveFilterTab] = useState<'ALL' | 'CLIENTS' | 'WORKERS' | 'ONLINE' | 'AI'>('ALL');
   
+  // 9-digit ID Search & Friend Connection State
+  const [searchIdInput, setSearchIdInput] = useState('');
+  const [foundUserResult, setFoundUserResult] = useState<UserEntity | null>(null);
+  const [searchIdError, setSearchIdError] = useState('');
+  const [copiedMyId, setCopiedMyId] = useState(false);
+
   // Selected conversation: contact ID or 'AI_ASSISTANT'
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
 
@@ -87,6 +107,8 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
   const [showContactInfoModal, setShowContactInfoModal] = useState(false);
   const [showNewChatModal, setShowNewChatModal] = useState(false);
   const [bannerDismissed, setBannerDismissed] = useState(false);
+  const [showBackupModal, setShowBackupModal] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
 
   // Voice recording state
   const [isRecordingVoice, setIsRecordingVoice] = useState(false);
@@ -112,95 +134,66 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
     {
       id: 'ai_welcome',
       sender: 'AI',
-      text: 'Xin chào bạn! Mình là Trợ lý AI GigMe 24/7 (powered by Gemini). Mình luôn sẵn sàng giải đáp về ký quỹ Smart Escrow, rút tiền Napas 247 tức thì, và hỗ trợ liên hệ giữa người thuê & người làm.',
+      text: 'Xin chào bạn! Mình là Trợ lý AI GigMe. Mình luôn sẵn sàng giải đáp mọi câu hỏi của bạn về Gigme',
       time: 'Trực tuyến',
     },
   ]);
 
-  // Build Campus Contacts Directory (Hirers & Freelancers from Gigs and Campus Network)
+  // Build Campus Contacts Directory (Chỉ tài khoản THẬT: Admin 000000000, Bạn bè ID 9 số, và người thuê/làm từ Kèo thật)
   const campusContacts: MessengerContact[] = useMemo(() => {
-    const list: MessengerContact[] = [
-      {
-        id: 'contact_client_hoangminh',
-        name: 'Hoàng Minh',
-        role: 'CLIENT',
-        roleLabel: 'Người thuê',
-        school: 'ĐH Bách Khoa Hà Nội',
-        avatarBg: 'from-blue-600 to-cyan-500',
-        isOnline: true,
-        lastActiveText: 'Đang hoạt động',
-        specialtyOrNeed: 'Cần hỗ trợ debug bài tập Python & thuật toán',
-      },
-      {
-        id: 'contact_worker_thanhtruc',
-        name: 'Thanh Trúc',
-        role: 'WORKER',
-        roleLabel: 'Người làm',
-        school: 'ĐHQG TP.HCM (KTX Khu B)',
-        avatarBg: 'from-emerald-600 to-teal-500',
-        isOnline: true,
-        lastActiveText: 'Đang hoạt động',
-        specialtyOrNeed: 'Chuyên chạy vặt KTX, giao nhận đồ giặt & mua cơm',
-      },
-      {
-        id: 'contact_worker_leduy',
-        name: 'Lê Duy',
-        role: 'WORKER',
-        roleLabel: 'Người làm IT',
-        school: 'ĐH Bách Khoa Đà Nẵng',
-        avatarBg: 'from-purple-600 to-indigo-500',
-        isOnline: false,
-        lastActiveText: 'Hoạt động 15 phút trước',
-        specialtyOrNeed: 'Thiết kế Slide Canva, Figma, lập trình React & Node',
-      },
-      {
-        id: 'contact_client_myuyen',
-        name: 'Vũ Hoàng My',
-        role: 'CLIENT',
-        roleLabel: 'Người thuê',
-        school: 'ĐH Kinh Tế TP.HCM (UEH)',
-        avatarBg: 'from-amber-600 to-orange-500',
-        isOnline: true,
-        lastActiveText: 'Đang hoạt động',
-        specialtyOrNeed: 'Tìm bạn hỗ trợ khảo sát thị trường & thu thập dữ liệu',
-      },
-      {
-        id: 'contact_worker_giahuy',
-        name: 'Phạm Gia Huy',
-        role: 'WORKER',
-        roleLabel: 'Người làm',
-        school: 'ĐH Công Nghệ Thông Tin (UIT)',
-        avatarBg: 'from-cyan-600 to-blue-500',
-        isOnline: true,
-        lastActiveText: 'Đang hoạt động',
-        specialtyOrNeed: 'Gia sư Lập trình C++, Cấu trúc dữ liệu & Giải thuật',
-      },
-      {
-        id: 'contact_client_quocbao',
-        name: 'Đặng Quốc Bảo',
-        role: 'CLIENT',
-        roleLabel: 'Người thuê',
-        school: 'ĐH Quốc Tế (IU)',
-        avatarBg: 'from-rose-600 to-pink-500',
-        isOnline: false,
-        lastActiveText: 'Hoạt động 1 giờ trước',
-        specialtyOrNeed: 'Cần tìm gia sư luyện thi IELTS Speaking 6.5+',
-      },
-    ];
+    const list: MessengerContact[] = [];
 
-    // Merge in contacts from real gigs in context
+    // 1. Luôn có tài khoản Hỗ trợ Admin chính thức của GigMe (ID: 000000000) nếu người dùng hiện tại không phải Admin
+    if (currentUser?.id !== '000000000') {
+      list.push({
+        id: '000000000',
+        name: 'Ban Quản Trị GigMe (Admin Support)',
+        role: 'ADMIN',
+        roleLabel: 'Admin 000000000',
+        school: 'Tổng Đài Hỗ Trợ Sinh Viên GigMe',
+        avatarBg: 'from-[#3064AE] via-[#2A5594] to-[#25735B]',
+        isOnline: true,
+        lastActiveText: 'Trực tuyến 24/7 (ID: 000000000)',
+        specialtyOrNeed: 'Hỗ trợ giải quyết sự cố, mở khóa ví, xác minh CCCD & tranh chấp ký quỹ',
+      });
+    }
+
+    // 2. Danh bạ bạn bè thật kết nối qua ID 9 số (friendIds)
+    if (currentUser?.friendIds && currentUser.friendIds.length > 0) {
+      currentUser.friendIds.forEach((friendId) => {
+        if (friendId === '000000000' || friendId === currentUser?.id) return;
+        const friendUser = (users || []).find((u) => u.id === friendId);
+        if (friendUser && !list.find((c) => c.id === friendUser.id)) {
+          list.push({
+            id: friendUser.id,
+            name: friendUser.name,
+            role: friendUser.role === 'ADMIN' ? 'ADMIN' : 'WORKER',
+            roleLabel: `Bạn bè (ID: ${friendUser.id})`,
+            school: friendUser.studentSchool || 'Sinh viên Campus',
+            avatarBg: 'from-blue-600 to-indigo-600',
+            isOnline: true,
+            lastActiveText: 'Đang online',
+            specialtyOrNeed: `Bạn bè kết nối qua ID 9 số: ${friendUser.id}`,
+            isEduVerified: !!friendUser.isEduVerified || !!friendUser.isStudentVerified,
+          });
+        }
+      });
+    }
+
+    // 3. Người thuê & Thợ từ các công việc thật trong hệ thống (rawGigs)
     if (rawGigs && rawGigs.length > 0) {
       rawGigs.forEach((gig) => {
-        // Hirer contact from gig
+        // Người thuê
         if (gig.clientId && gig.clientId !== currentUser?.id) {
           const existing = list.find((c) => c.id === gig.clientId);
           if (!existing) {
-            list.unshift({
+            const clientUser = (users || []).find((u) => u.id === gig.clientId);
+            list.push({
               id: gig.clientId,
-              name: gig.clientName || 'Người thuê việc',
+              name: gig.clientName || clientUser?.name || `Người thuê (ID ${gig.clientId})`,
               role: 'CLIENT',
               roleLabel: 'Người thuê',
-              school: gig.locationName?.includes('Hà Nội') ? 'ĐH Bách Khoa HN' : 'ĐHQG TP.HCM',
+              school: clientUser?.studentSchool || (gig.locationName?.includes('Hà Nội') ? 'ĐH Bách Khoa HN' : 'ĐHQG TP.HCM'),
               avatarBg: 'from-blue-600 to-indigo-600',
               isOnline: true,
               lastActiveText: 'Đang online',
@@ -222,16 +215,17 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
           }
         }
 
-        // Freelancer contact from gig
+        // Người làm việc
         if (gig.freelancerId && gig.freelancerId !== currentUser?.id) {
           const existing = list.find((c) => c.id === gig.freelancerId);
           if (!existing) {
-            list.unshift({
+            const freelancerUser = (users || []).find((u) => u.id === gig.freelancerId);
+            list.push({
               id: gig.freelancerId,
-              name: gig.freelancerName || 'Người làm việc',
+              name: gig.freelancerName || freelancerUser?.name || `Người làm (ID ${gig.freelancerId})`,
               role: 'WORKER',
               roleLabel: 'Người làm',
-              school: 'Sinh viên Campus',
+              school: freelancerUser?.studentSchool || 'Sinh viên Campus',
               avatarBg: 'from-emerald-600 to-cyan-600',
               isOnline: true,
               lastActiveText: 'Đang online',
@@ -255,8 +249,29 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
       });
     }
 
+    // 4. Nếu có tin nhắn trong allChats với một người dùng nào đó chưa có trong list
+    if (allChats && allChats.length > 0) {
+      allChats.forEach((chat) => {
+        const partnerId = chat.senderId === currentUser?.id ? chat.partnerId : chat.senderId;
+        if (partnerId && partnerId !== currentUser?.id && !list.find((c) => c.id === partnerId)) {
+          const u = (users || []).find((usr) => usr.id === partnerId);
+          list.push({
+            id: partnerId,
+            name: u?.name || (partnerId === '000000000' ? 'Ban Quản Trị GigMe' : `Tài khoản ${partnerId}`),
+            role: u?.role === 'ADMIN' ? 'ADMIN' : 'WORKER',
+            roleLabel: `ID ${partnerId}`,
+            school: u?.studentSchool || 'Campus Hub',
+            avatarBg: 'from-teal-600 to-blue-600',
+            isOnline: true,
+            lastActiveText: 'Hoạt động gần đây',
+            specialtyOrNeed: `ID 9 số: ${partnerId}`,
+          });
+        }
+      });
+    }
+
     return list;
-  }, [rawGigs, currentUser]);
+  }, [rawGigs, currentUser, users, allChats]);
 
   // Active contact details
   const activeContact = useMemo(() => {
@@ -327,6 +342,39 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
     });
   }, [campusContacts, searchQuery, activeFilterTab]);
 
+  // 9-digit ID Search & Friend logic
+  const handleSearchById = () => {
+    const rateCheck = rateLimiter.check('SEARCH_ID', currentUser?.id);
+    if (!rateCheck.allowed) {
+      setSearchIdError(rateCheck.errorMsg || 'Vui lòng chờ ít giây để chống spam tìm kiếm.');
+      return;
+    }
+
+    const cleanId = searchIdInput.trim();
+    if (!cleanId) {
+      setSearchIdError('Vui lòng nhập ID 9 số để tìm kiếm.');
+      return;
+    }
+    setSearchIdError('');
+    rateLimiter.record('SEARCH_ID', currentUser?.id);
+
+    const found = findUserByNineDigitId
+      ? findUserByNineDigitId(cleanId)
+      : (users || []).find((u) => u.id === cleanId);
+
+    if (found) {
+      if (found.id === currentUser?.id) {
+        setSearchIdError('Đây là ID của chính bạn.');
+        setFoundUserResult(null);
+        return;
+      }
+      setFoundUserResult(found);
+    } else {
+      setFoundUserResult(null);
+      setSearchIdError(`Không tìm thấy tài khoản với ID "${cleanId}". Hãy chắc chắn ID gồm các chữ số hợp lệ.`);
+    }
+  };
+
   // Latest message preview for a contact
   const getLastMessageForContact = (contactId: string, associatedGigId?: string) => {
     const relevant = (allChats || []).filter(
@@ -345,9 +393,20 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
     if (e) e.preventDefault();
     if (!activeContact) return;
 
+    const rateCheck = rateLimiter.check('CHAT', currentUser?.id);
+    if (!rateCheck.allowed) {
+      showNotification(
+        '⚠️ Giới hạn tốc độ gửi tin nhắn',
+        rateCheck.errorMsg || 'Vui lòng chờ ít giây để chống spam tin nhắn.',
+        false
+      );
+      return;
+    }
+
     const targetThread = activeContact.associatedGig?.id || activeContact.id;
 
     if (pendingImage) {
+      rateLimiter.record('CHAT', currentUser?.id);
       sendChat(
         messageInput.trim() || 'Đã gửi một hình ảnh',
         'IMAGE',
@@ -364,6 +423,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
     }
 
     if (pendingVideo) {
+      rateLimiter.record('CHAT', currentUser?.id);
       sendChat(
         messageInput.trim() || `Đã gửi video: ${pendingVideo.name}`,
         'VIDEO',
@@ -381,6 +441,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
 
     if (!messageInput.trim()) return;
 
+    rateLimiter.record('CHAT', currentUser?.id);
     sendChat(
       messageInput.trim(),
       'NONE',
@@ -397,6 +458,17 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
   // Quick Thumbs-up (Messenger classic 👍)
   const handleSendThumbsUp = () => {
     if (!activeContact) return;
+    const rateCheck = rateLimiter.check('CHAT', currentUser?.id);
+    if (!rateCheck.allowed) {
+      showNotification(
+        '⚠️ Giới hạn tốc độ gửi tin nhắn',
+        rateCheck.errorMsg || 'Vui lòng chờ ít giây.',
+        false
+      );
+      return;
+    }
+    rateLimiter.record('CHAT', currentUser?.id);
+
     const targetThread = activeContact.associatedGig?.id || activeContact.id;
     sendChat(
       '👍',
@@ -413,6 +485,17 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
   // Preset Quick Replies
   const handleSendQuickReply = (text: string) => {
     if (!activeContact) return;
+    const rateCheck = rateLimiter.check('CHAT', currentUser?.id);
+    if (!rateCheck.allowed) {
+      showNotification(
+        '⚠️ Giới hạn tốc độ gửi tin nhắn',
+        rateCheck.errorMsg || 'Vui lòng chờ ít giây.',
+        false
+      );
+      return;
+    }
+    rateLimiter.record('CHAT', currentUser?.id);
+
     const targetThread = activeContact.associatedGig?.id || activeContact.id;
     sendChat(
       text,
@@ -431,6 +514,17 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
     const query = (textToSend || messageInput).trim();
     if (!query) return;
 
+    const rateCheck = rateLimiter.check('AI_QUERY', currentUser?.id);
+    if (!rateCheck.allowed) {
+      showNotification(
+        '⚠️ Giới hạn tốc độ hỏi AI',
+        rateCheck.errorMsg || 'Vui lòng chờ ít giây trước khi đặt câu hỏi tiếp.',
+        false
+      );
+      return;
+    }
+    rateLimiter.record('AI_QUERY', currentUser?.id);
+
     const userMsg = {
       id: `ai_u_${Date.now()}`,
       sender: 'USER' as const,
@@ -443,10 +537,15 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
     setIsAiTyping(true);
 
     try {
+      const historyPayload = aiChatMessages.slice(-8).map((m) => ({
+        role: m.sender === 'USER' ? 'user' : 'assistant',
+        content: m.text,
+      }));
+
       const response = await fetch('/api/gemini/chat-assistant', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: query }),
+        body: JSON.stringify({ message: query, history: historyPayload }),
       });
       const data = await response.json();
       const reply = data.reply || 'Hệ thống Smart Escrow của GigMe luôn bảo vệ 100% quyền lợi của bạn!';
@@ -475,19 +574,29 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
     }
   };
 
-  // Image File Picker
-  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Image File Picker (Tự động nén chuẩn WebP tiết kiệm 4G)
+  const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        setPendingImage(reader.result);
-        setShowAttachmentMenu(false);
-      }
-    };
-    reader.readAsDataURL(file);
+    try {
+      const compressed = await compressImageToWebP(file, { maxWidth: 1280, maxHeight: 1280, quality: 0.82 });
+      setPendingImage(compressed.dataUrl);
+      setShowAttachmentMenu(false);
+      showNotification(
+        '⚡ Nén Ảnh WebP Tự Động',
+        `Đã nén tiết kiệm ${compressed.savedPercent}% dữ liệu 4G (${compressed.originalSizeFormatted} ➔ ${compressed.compressedSizeFormatted}).`
+      );
+    } catch {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          setPendingImage(reader.result);
+          setShowAttachmentMenu(false);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
     e.target.value = '';
   };
 
@@ -727,34 +836,34 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
     return (
       <div className="max-w-2xl mx-auto px-2 sm:px-4 py-3 flex flex-col h-[calc(100vh-4.5rem)] pb-20">
         {/* Messenger Header for AI */}
-        <div className="flex items-center justify-between pb-3 border-b border-slate-800 shrink-0">
+        <div className="flex items-center justify-between pb-3 border-b border-[#C5E5EC]/15 shrink-0">
           <div className="flex items-center space-x-3">
             <button
               onClick={() => setActiveConversationId(null)}
-              className="p-2 rounded-xl bg-[#131E30] hover:bg-[#1A2840] text-slate-300 transition"
+              className="p-2 rounded-xl bg-[#12233B] hover:bg-[#162B48] text-[#C5E5EC] border border-[#C5E5EC]/20 transition cursor-pointer"
               title="Quay lại danh sách chat"
             >
-              <ArrowLeft className="w-5 h-5 text-[#00E5FF]" />
+              <ArrowLeft className="w-5 h-5 text-[#C5E5EC]" />
             </button>
             <div className="relative">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#00E5FF] to-blue-600 flex items-center justify-center text-black font-extrabold shadow-md">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#3064AE] via-[#417AC6] to-[#C5E5EC] flex items-center justify-center text-white font-extrabold shadow-md border border-[#C5E5EC]/30">
                 <Bot className="w-5 h-5" />
               </div>
-              <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-400 border-2 border-[#081022] animate-pulse" />
+              <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-[#E0FAEB] border-2 border-[#09111D] animate-pulse" />
             </div>
             <div>
               <div className="flex items-center space-x-1.5">
                 <h3 className="font-extrabold text-sm text-white">Trợ Lý AI GigMe 24/7</h3>
-                <span className="px-1.5 py-0.5 rounded bg-cyan-500/20 text-[#00E5FF] text-[9px] font-bold">
+                <span className="px-1.5 py-0.5 rounded bg-[#3064AE]/30 text-[#C5E5EC] text-[9px] font-bold border border-[#C5E5EC]/25">
                   Gemini 2.5
                 </span>
               </div>
-              <p className="text-[11px] text-emerald-400 font-medium">Đang trực tuyến • Sẵn sàng hỗ trợ 24/7</p>
+              <p className="text-[11px] text-[#E0FAEB] font-medium">Đang trực tuyến • Sẵn sàng hỗ trợ 24/7</p>
             </div>
           </div>
           <button
             onClick={() => setActiveConversationId(null)}
-            className="text-xs text-slate-400 hover:text-white px-2.5 py-1 rounded-lg bg-slate-800/80 transition"
+            className="text-xs text-[#C5E5EC]/80 hover:text-white px-2.5 py-1 rounded-lg bg-[#12233B] border border-[#C5E5EC]/20 transition cursor-pointer"
           >
             Đóng
           </button>
@@ -771,7 +880,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
             <button
               key={idx}
               onClick={() => handleSendAiMessage(chip)}
-              className="px-3 py-1.5 rounded-full bg-[#131E30] hover:bg-[#1A2942] border border-cyan-500/30 text-cyan-300 whitespace-nowrap transition text-xs font-semibold shrink-0"
+              className="px-3 py-1.5 rounded-full bg-[#12233B] hover:bg-[#162B48] border border-[#C5E5EC]/30 text-[#C5E5EC] whitespace-nowrap transition text-xs font-semibold shrink-0 cursor-pointer"
             >
               {chip}
             </button>
@@ -785,16 +894,16 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
             return (
               <div key={msg.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
                 <div className="flex items-center space-x-1.5 mb-1 px-1">
-                  <span className="text-[10px] text-slate-400 font-bold">
+                  <span className="text-[10px] text-[#C5E5EC]/70 font-bold">
                     {isMe ? currentUser?.name || 'Bạn' : 'Trợ lý AI GigMe'}
                   </span>
-                  <span className="text-[9px] text-slate-500">{msg.time}</span>
+                  <span className="text-[9px] text-[#C5E5EC]/50">{msg.time}</span>
                 </div>
                 <div
                   className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-xs leading-relaxed ${
                     isMe
-                      ? 'bg-gradient-to-r from-[#00E5FF] to-blue-600 text-black font-semibold rounded-tr-none shadow-md shadow-cyan-500/10'
-                      : 'bg-[#131E30] border border-slate-700/80 text-slate-200 rounded-tl-none shadow-sm'
+                      ? 'bg-gradient-to-r from-[#3064AE] to-[#255294] text-white font-medium rounded-tr-none shadow-md shadow-[#3064AE]/20 border border-[#C5E5EC]/25'
+                      : 'bg-[#12233B] border border-[#C5E5EC]/20 text-slate-100 rounded-tl-none shadow-sm'
                   }`}
                 >
                   {msg.text}
@@ -804,8 +913,8 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
           })}
 
           {isAiTyping && (
-            <div className="flex items-center space-x-2 text-slate-400 text-xs py-2 px-2">
-              <Bot className="w-4 h-4 text-cyan-400 animate-spin" />
+            <div className="flex items-center space-x-2 text-[#C5E5EC] text-xs py-2 px-2">
+              <Bot className="w-4 h-4 text-[#C5E5EC] animate-spin" />
               <span className="animate-pulse">Trợ lý AI đang phản hồi...</span>
             </div>
           )}
@@ -818,19 +927,19 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
             e.preventDefault();
             handleSendAiMessage();
           }}
-          className="pt-2 border-t border-slate-800 shrink-0 flex items-center space-x-2"
+          className="pt-2 border-t border-[#C5E5EC]/15 shrink-0 flex items-center space-x-2"
         >
           <input
             type="text"
             value={messageInput}
             onChange={(e) => setMessageInput(e.target.value)}
             placeholder="Hỏi về tiền cọc, rút tiền Napas, mẹo nhận việc..."
-            className="flex-1 py-2.5 px-4 rounded-2xl bg-[#0F172A] border border-slate-800 text-white text-xs placeholder:text-slate-500 focus:border-[#00E5FF] transition outline-none"
+            className="flex-1 py-2.5 px-4 rounded-2xl bg-[#12233B] border border-[#C5E5EC]/20 text-white text-xs placeholder:text-[#C5E5EC]/40 focus:border-[#3064AE] transition outline-none"
           />
           <button
             type="submit"
             disabled={!messageInput.trim() || isAiTyping}
-            className="p-2.5 rounded-2xl bg-[#00E5FF] hover:brightness-110 disabled:opacity-40 text-black font-bold transition shadow-md shadow-cyan-500/20 shrink-0"
+            className="p-2.5 rounded-2xl bg-[#3064AE] hover:bg-[#255294] disabled:opacity-40 text-white font-bold transition shadow-md shadow-[#3064AE]/30 border border-[#C5E5EC]/30 shrink-0 cursor-pointer"
           >
             <Send className="w-4 h-4" />
           </button>
@@ -849,25 +958,25 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
     return (
       <div className="max-w-2xl mx-auto px-2 sm:px-4 py-2 flex flex-col h-[calc(100vh-4.5rem)] pb-20">
         {/* MESSENGER TOP APP BAR */}
-        <div className="flex items-center justify-between pb-2.5 border-b border-slate-800 shrink-0">
+        <div className="flex items-center justify-between pb-2.5 border-b border-[#C5E5EC]/15 shrink-0">
           <div className="flex items-center space-x-2.5 min-w-0">
             <button
               onClick={() => setActiveConversationId(null)}
-              className="p-2 rounded-xl bg-[#131E30] hover:bg-[#1A2840] text-slate-300 transition shrink-0"
+              className="p-2 rounded-xl bg-[#12233B] hover:bg-[#162B48] text-[#C5E5EC] border border-[#C5E5EC]/20 transition shrink-0 cursor-pointer"
               title="Quay lại danh sách"
             >
-              <ArrowLeft className="w-5 h-5 text-[#00E5FF]" />
+              <ArrowLeft className="w-5 h-5 text-[#C5E5EC]" />
             </button>
 
             {/* Partner Avatar */}
             <div className="relative shrink-0">
               <div
-                className={`w-10 h-10 rounded-full bg-gradient-to-tr ${activeContact.avatarBg} flex items-center justify-center text-white font-extrabold text-sm shadow-md`}
+                className={`w-10 h-10 rounded-full bg-gradient-to-tr ${activeContact.avatarBg} flex items-center justify-center text-white font-extrabold text-sm shadow-md border border-[#C5E5EC]/30`}
               >
                 {activeContact.name.charAt(0).toUpperCase()}
               </div>
               {isPartnerOnline && (
-                <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-400 border-2 border-[#081022]" />
+                <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-[#E0FAEB] border-2 border-[#09111D]" />
               )}
             </div>
 
@@ -878,16 +987,16 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                 <span
                   className={`px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 ${
                     activeContact.role === 'CLIENT'
-                      ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
-                      : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                      ? 'bg-[#3064AE]/30 text-[#C5E5EC] border border-[#C5E5EC]/30'
+                      : 'bg-[#E0FAEB]/20 text-[#E0FAEB] border border-[#E0FAEB]/30'
                   }`}
                 >
                   {activeContact.roleLabel}
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400 truncate">
+              <p className="text-[11px] text-[#C5E5EC]/70 truncate">
                 {isPartnerOnline ? (
-                  <span className="text-emerald-400 font-medium">Đang hoạt động</span>
+                  <span className="text-[#E0FAEB] font-medium">Đang hoạt động</span>
                 ) : (
                   activeContact.lastActiveText
                 )}{' '}
@@ -900,21 +1009,21 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
           <div className="flex items-center space-x-1 shrink-0">
             <button
               onClick={() => startVoipCall(activeContact.name, activeContact.roleLabel, associatedGig?.id)}
-              className="p-2 rounded-xl bg-[#131E30] hover:bg-[#1A2942] text-cyan-300 transition"
+              className="p-2 rounded-xl bg-[#12233B] hover:bg-[#162B48] text-[#C5E5EC] border border-[#C5E5EC]/20 transition cursor-pointer"
               title="Gọi thoại VoIP miễn phí qua mạng Campus"
             >
               <PhoneCall className="w-4 h-4" />
             </button>
             <button
               onClick={() => startVoipCall(activeContact.name, `${activeContact.roleLabel} (Video)`, associatedGig?.id)}
-              className="p-2 rounded-xl bg-[#131E30] hover:bg-[#1A2942] text-cyan-300 transition"
+              className="p-2 rounded-xl bg-[#12233B] hover:bg-[#162B48] text-[#C5E5EC] border border-[#C5E5EC]/20 transition cursor-pointer"
               title="Gọi video trực tuyến"
             >
               <Video className="w-4 h-4" />
             </button>
             <button
               onClick={() => setShowContactInfoModal(true)}
-              className="p-2 rounded-xl bg-[#131E30] hover:bg-[#1A2942] text-slate-400 hover:text-white transition"
+              className="p-2 rounded-xl bg-[#12233B] hover:bg-[#162B48] text-[#C5E5EC]/80 hover:text-white border border-[#C5E5EC]/20 transition cursor-pointer"
               title="Xem thông tin chi tiết"
             >
               <Info className="w-4 h-4" />
@@ -922,13 +1031,13 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
           </div>
         </div>
 
-        {/* DISMISSIBLE 1-LINE COLLABORATION STATUS (SUBTLE - NOT A TASK CARD) */}
+        {/* DISMISSIBLE 1-LINE COLLABORATION STATUS */}
         {associatedGig && !bannerDismissed && (
-          <div className="my-2 px-3 py-1.5 rounded-xl bg-[#101B2E] border border-cyan-500/20 flex items-center justify-between text-xs text-slate-300 shrink-0">
+          <div className="my-2 px-3 py-1.5 rounded-xl bg-[#12233B] border border-[#C5E5EC]/20 flex items-center justify-between text-xs text-slate-300 shrink-0">
             <div className="flex items-center space-x-2 truncate">
-              <Briefcase className="w-3.5 h-3.5 text-[#00E5FF] shrink-0" />
+              <Briefcase className="w-3.5 h-3.5 text-[#C5E5EC] shrink-0" />
               <span className="truncate">
-                <span className="text-[#00E5FF] font-bold">Kèo chung:</span> {associatedGig.title} (
+                <span className="text-[#C5E5EC] font-bold">Kèo chung:</span> {associatedGig.title} (
                 {formatVnd(associatedGig.price)})
               </span>
             </div>
@@ -938,13 +1047,13 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                   selectGig(associatedGig.id);
                   showNotification('Thông tin việc làm', `Đã chọn kèo "${associatedGig.title}"`);
                 }}
-                className="text-[11px] text-[#00E5FF] hover:underline font-bold"
+                className="text-[11px] text-[#C5E5EC] hover:underline font-bold cursor-pointer"
               >
                 Chi tiết
               </button>
               <button
                 onClick={() => setBannerDismissed(true)}
-                className="text-slate-500 hover:text-slate-300 p-0.5"
+                className="text-[#C5E5EC]/60 hover:text-white p-0.5 cursor-pointer"
                 title="Ẩn thông báo này"
               >
                 <X className="w-3 h-3" />
@@ -965,7 +1074,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
             <button
               key={idx}
               onClick={() => handleSendQuickReply(chip)}
-              className="px-2.5 py-1 rounded-full bg-[#131E30] hover:bg-[#1A2840] border border-slate-800 text-slate-300 hover:text-white whitespace-nowrap transition text-xs shrink-0"
+              className="px-2.5 py-1 rounded-full bg-[#12233B] hover:bg-[#162B48] border border-[#C5E5EC]/20 text-[#C5E5EC] hover:text-white whitespace-nowrap transition text-xs shrink-0 cursor-pointer"
             >
               {chip}
             </button>
@@ -975,15 +1084,15 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
         {/* MESSENGER MESSAGES STREAM */}
         <div className="flex-1 overflow-y-auto py-2 space-y-2.5 pr-1">
           {currentConversationMessages.length === 0 ? (
-            <div className="text-center py-12 text-slate-500 text-xs">
+            <div className="text-center py-12 text-[#C5E5EC]/60 text-xs">
               <div
-                className={`w-14 h-14 mx-auto mb-3 rounded-full bg-gradient-to-tr ${activeContact.avatarBg} flex items-center justify-center text-white font-black text-xl shadow-lg`}
+                className={`w-14 h-14 mx-auto mb-3 rounded-full bg-gradient-to-tr ${activeContact.avatarBg} flex items-center justify-center text-white font-black text-xl shadow-lg border border-[#C5E5EC]/30`}
               >
                 {activeContact.name.charAt(0).toUpperCase()}
               </div>
               <h4 className="font-extrabold text-sm text-white">{activeContact.name}</h4>
-              <p className="text-slate-400 text-xs mt-0.5">{activeContact.specialtyOrNeed}</p>
-              <p className="text-[11px] text-slate-500 mt-2">
+              <p className="text-[#C5E5EC]/80 text-xs mt-0.5">{activeContact.specialtyOrNeed}</p>
+              <p className="text-[11px] text-[#C5E5EC]/60 mt-2">
                 Hãy gửi tin nhắn đầu tiên để kết nối và trao đổi công việc trực tiếp!
               </p>
             </div>
@@ -995,10 +1104,10 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                 <div key={msg.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} group`}>
                   {/* Sender Name & Time */}
                   <div className="flex items-center space-x-1.5 mb-0.5 px-1">
-                    <span className="text-[10px] text-slate-400 font-bold">
+                    <span className="text-[10px] text-[#C5E5EC]/70 font-bold">
                       {isMe ? 'Bạn' : msg.senderName || activeContact.name}
                     </span>
-                    <span className="text-[9px] text-slate-500">
+                    <span className="text-[9px] text-[#C5E5EC]/50">
                       {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
                   </div>
@@ -1007,8 +1116,8 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                   <div
                     className={`max-w-[85%] rounded-2xl px-3.5 py-2 text-xs leading-relaxed relative ${
                       isMe
-                        ? 'bg-gradient-to-r from-[#00E5FF] to-blue-600 text-black font-semibold rounded-tr-none shadow-md shadow-cyan-500/10'
-                        : 'bg-[#131E30] border border-slate-700/80 text-slate-100 rounded-tl-none shadow-sm'
+                        ? 'bg-gradient-to-r from-[#3064AE] to-[#255294] text-white font-medium rounded-tr-none shadow-md shadow-[#3064AE]/20 border border-[#C5E5EC]/25'
+                        : 'bg-[#12233B] border border-[#C5E5EC]/20 text-slate-100 rounded-tl-none shadow-sm'
                     }`}
                   >
                     {/* Text Message */}
@@ -1106,78 +1215,28 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
           </div>
         )}
 
-        {/* VOICE RECORDING STATUS BAR */}
-        {isRecordingVoice && (
-          <div className="mb-2 px-4 py-3 rounded-2xl bg-rose-950/90 border border-rose-500/60 shadow-lg flex items-center justify-between shrink-0 animate-fade-in">
-            <div className="flex items-center space-x-3 text-rose-300 text-xs font-bold">
-              <span className="w-3.5 h-3.5 rounded-full bg-rose-500 animate-ping shrink-0" />
-              <div className="flex items-center space-x-2">
-                <span className="font-mono text-white text-sm font-black">
-                  {Math.floor(recordingDuration / 60)}:{(recordingDuration % 60).toString().padStart(2, '0')}
-                </span>
-                <span className="text-[11px] text-rose-200/90">Đang thu âm giọng nói...</span>
-              </div>
-              {/* Dynamic waveform indicator */}
-              <div className="hidden sm:flex items-center space-x-0.5 h-4">
-                {[12, 24, 36, 20, 32, 16, 28, 40, 24, 16].map((h, i) => (
-                  <span
-                    key={i}
-                    className="w-1 bg-rose-400 rounded-full animate-pulse"
-                    style={{
-                      height: `${h}px`,
-                      animationDelay: `${i * 120}ms`,
-                      animationDuration: '600ms',
-                    }}
-                  />
-                ))}
-              </div>
-            </div>
-            <div className="flex items-center space-x-2 shrink-0">
-              <button
-                type="button"
-                onClick={cancelVoiceRecording}
-                className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition"
-              >
-                Hủy
-              </button>
-              <button
-                type="button"
-                onClick={stopVoiceRecording}
-                className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-rose-500 to-red-600 hover:brightness-110 text-white font-extrabold text-xs shadow-md transition active:scale-95 flex items-center space-x-1.5"
-              >
-                <Send className="w-3.5 h-3.5" />
-                <span>Gửi Thoại</span>
-              </button>
-            </div>
-          </div>
-        )}
-
         {/* ATTACHMENT POPUP MENU */}
         {showAttachmentMenu && (
-          <div className="mb-2 p-2 rounded-2xl bg-[#131E30] border border-slate-700 shadow-xl flex items-center space-x-3 shrink-0">
+          <div className="mb-2 p-2 rounded-2xl bg-[#12233B] border border-[#C5E5EC]/25 shadow-xl flex items-center space-x-3 shrink-0">
             <button
-              onClick={() => fileInputImageRef.current?.click()}
-              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-[#0F172A] hover:bg-[#1A2942] text-xs font-semibold text-cyan-300 transition"
+              onClick={() => {
+                setShowAttachmentMenu(false);
+                fileInputImageRef.current?.click();
+              }}
+              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-[#0E1B2E] hover:bg-[#162B48] text-xs font-semibold text-[#C5E5EC] border border-[#C5E5EC]/20 transition cursor-pointer"
             >
-              <ImageIcon className="w-4 h-4" />
+              <ImageIcon className="w-4 h-4 text-[#C5E5EC]" />
               <span>Gửi Ảnh</span>
-            </button>
-            <button
-              onClick={() => fileInputCameraRef.current?.click()}
-              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-[#0F172A] hover:bg-[#1A2942] text-xs font-semibold text-cyan-300 transition"
-            >
-              <Camera className="w-4 h-4" />
-              <span>Chụp Ảnh</span>
             </button>
             <button
               onClick={() => {
                 setShowAttachmentMenu(false);
-                startVoiceRecording();
+                fileInputCameraRef.current?.click();
               }}
-              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-[#0F172A] hover:bg-[#1A2942] text-xs font-semibold text-cyan-300 transition"
+              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-[#0E1B2E] hover:bg-[#162B48] text-xs font-semibold text-[#C5E5EC] border border-[#C5E5EC]/20 transition cursor-pointer"
             >
-              <Mic className="w-4 h-4" />
-              <span>Ghi Âm Thoại</span>
+              <Camera className="w-4 h-4 text-[#C5E5EC]" />
+              <span>Chụp Ảnh</span>
             </button>
           </div>
         )}
@@ -1200,33 +1259,19 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
         />
 
         {/* MESSENGER BOTTOM INPUT BAR */}
-        <form onSubmit={handleSendMessage} className="pt-2 border-t border-slate-800 shrink-0 flex items-center space-x-2">
+        <form onSubmit={handleSendMessage} className="pt-2 border-t border-[#C5E5EC]/15 shrink-0 flex items-center space-x-2">
           {/* Plus button for attachment menu */}
           <button
             type="button"
             onClick={() => setShowAttachmentMenu((p) => !p)}
-            className={`p-2.5 rounded-2xl transition shrink-0 ${
+            className={`p-2.5 rounded-2xl transition shrink-0 cursor-pointer ${
               showAttachmentMenu
-                ? 'bg-[#00E5FF] text-black'
-                : 'bg-[#131E30] hover:bg-[#1A2840] text-cyan-400'
+                ? 'bg-[#3064AE] text-white'
+                : 'bg-[#12233B] hover:bg-[#162B48] text-[#C5E5EC] border border-[#C5E5EC]/20'
             }`}
-            title="Đính kèm tệp, ảnh, camera"
+            title="Đính kèm ảnh, chụp camera"
           >
             <Plus className="w-4 h-4" />
-          </button>
-
-          {/* Quick Mic recording button */}
-          <button
-            type="button"
-            onClick={isRecordingVoice ? stopVoiceRecording : startVoiceRecording}
-            className={`p-2.5 rounded-2xl transition shrink-0 ${
-              isRecordingVoice
-                ? 'bg-rose-600 text-white animate-pulse'
-                : 'bg-[#131E30] hover:bg-[#1A2840] text-slate-300'
-            }`}
-            title="Ghi âm giọng nói"
-          >
-            <Mic className="w-4 h-4" />
           </button>
 
           {/* Text Input */}
@@ -1235,14 +1280,14 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
             value={messageInput}
             onChange={(e) => setMessageInput(e.target.value)}
             placeholder="Nhập tin nhắn..."
-            className="flex-1 py-2.5 px-4 rounded-2xl bg-[#0F172A] border border-slate-800 text-white text-xs placeholder:text-slate-500 focus:border-[#00E5FF] transition outline-none"
+            className="flex-1 py-2.5 px-4 rounded-2xl bg-[#12233B] border border-[#C5E5EC]/20 text-white text-xs placeholder:text-[#C5E5EC]/40 focus:border-[#3064AE] transition outline-none"
           />
 
           {/* Send Button or Thumbs-up if empty */}
           {messageInput.trim() || pendingImage ? (
             <button
               type="submit"
-              className="p-2.5 rounded-2xl bg-[#00E5FF] hover:brightness-110 text-black font-bold transition shadow-md shadow-cyan-500/20 shrink-0"
+              className="p-2.5 rounded-2xl bg-[#3064AE] hover:bg-[#255294] text-white font-bold transition shadow-md shadow-[#3064AE]/30 border border-[#C5E5EC]/30 shrink-0 cursor-pointer"
               title="Gửi tin nhắn"
             >
               <Send className="w-4 h-4" />
@@ -1251,7 +1296,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
             <button
               type="button"
               onClick={handleSendThumbsUp}
-              className="p-2.5 rounded-2xl bg-[#131E30] hover:bg-[#1A2840] text-cyan-400 transition shrink-0"
+              className="p-2.5 rounded-2xl bg-[#12233B] hover:bg-[#162B48] text-[#C5E5EC] border border-[#C5E5EC]/20 transition shrink-0 cursor-pointer"
               title="Gửi nút Thích (Like)"
             >
               <ThumbsUp className="w-4 h-4" />
@@ -1282,26 +1327,26 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                 <span
                   className={`inline-block mt-1 px-2 py-0.5 rounded text-xs font-bold ${
                     activeContact.role === 'CLIENT'
-                      ? 'bg-blue-500/20 text-blue-300'
-                      : 'bg-emerald-500/20 text-emerald-300'
+                      ? 'bg-[#3064AE]/30 text-[#C5E5EC] border border-[#C5E5EC]/30'
+                      : 'bg-[#E0FAEB]/20 text-[#E0FAEB] border border-[#E0FAEB]/30'
                   }`}
                 >
                   {activeContact.roleLabel}
                 </span>
-                <p className="text-xs text-slate-400 mt-1">{activeContact.school}</p>
-                <p className="text-xs text-cyan-300 font-medium mt-2 bg-slate-900/60 p-2 rounded-xl border border-slate-800">
+                <p className="text-xs text-[#C5E5EC]/70 mt-1">{activeContact.school}</p>
+                <p className="text-xs text-[#C5E5EC] font-medium mt-2 bg-[#12233B] p-2 rounded-xl border border-[#C5E5EC]/20">
                   {activeContact.specialtyOrNeed}
                 </p>
               </div>
 
-              <div className="space-y-2 pt-2 border-t border-slate-800 text-xs">
-                <div className="flex items-center justify-between text-slate-400">
+              <div className="space-y-2 pt-2 border-t border-[#C5E5EC]/15 text-xs">
+                <div className="flex items-center justify-between text-[#C5E5EC]/70">
                   <span>Trạng thái:</span>
-                  <span className="text-emerald-400 font-bold">{activeContact.lastActiveText}</span>
+                  <span className="text-[#E0FAEB] font-bold">{activeContact.lastActiveText}</span>
                 </div>
-                <div className="flex items-center justify-between text-slate-400">
+                <div className="flex items-center justify-between text-[#C5E5EC]/70">
                   <span>Bảo chứng GigMe:</span>
-                  <span className="text-cyan-400 font-bold flex items-center space-x-1">
+                  <span className="text-[#C5E5EC] font-bold flex items-center space-x-1">
                     <ShieldCheck className="w-3.5 h-3.5" />
                     <span>Đã định danh sinh viên</span>
                   </span>
@@ -1313,7 +1358,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                   setShowContactInfoModal(false);
                   startVoipCall(activeContact.name, activeContact.roleLabel);
                 }}
-                className="w-full mt-4 py-2.5 rounded-2xl bg-[#00E5FF] hover:brightness-110 text-black font-extrabold text-xs flex items-center justify-center space-x-2 transition"
+                className="w-full mt-4 py-2.5 rounded-2xl bg-gradient-to-r from-[#3064AE] via-[#417AC6] to-[#C5E5EC] hover:brightness-110 text-white font-extrabold text-xs flex items-center justify-center space-x-2 transition shadow-lg shadow-[#3064AE]/30 border border-[#E0FAEB]/30 cursor-pointer"
               >
                 <PhoneCall className="w-4 h-4" />
                 <span>Gọi Thoại Miễn Phí</span>
@@ -1332,7 +1377,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
               <img src={previewZoomImage} alt="Zoom" className="max-h-[85vh] rounded-2xl object-contain shadow-2xl" />
               <button
                 onClick={() => setPreviewZoomImage(null)}
-                className="absolute top-3 right-3 p-2 rounded-full bg-black/60 text-white"
+                className="absolute top-3 right-3 p-2 rounded-full bg-black/60 text-white cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1347,24 +1392,24 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
   // VIEW 3: MAIN INBOX LIST (MESSENGER FOR CAMPUS)
   // ==========================================
   return (
-    <div className="max-w-2xl mx-auto px-3 sm:px-4 py-3 flex flex-col h-[calc(100vh-4.5rem)] pb-24 text-slate-900">
+    <div className="max-w-2xl mx-auto px-3 sm:px-4 py-3 flex flex-col h-[calc(100vh-4.5rem)] pb-24 text-slate-100">
       {/* MESSENGER TOP BAR */}
-      <div className="flex items-center justify-between pb-3 border-b border-slate-800 shrink-0">
+      <div className="flex items-center justify-between pb-3 border-b border-[#C5E5EC]/15 shrink-0">
         <div className="flex items-center space-x-2.5">
           <div className="relative">
-            <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-black font-extrabold text-xs shadow-md">
+            <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-[#3064AE] via-[#417AC6] to-[#C5E5EC] flex items-center justify-center text-white font-extrabold text-xs shadow-md border border-[#C5E5EC]/30">
               {currentUser?.name?.charAt(0).toUpperCase() || 'U'}
             </div>
-            <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-400 border border-[#081022]" />
+            <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-[#E0FAEB] border border-[#09111D]" />
           </div>
           <div>
             <h2 className="text-lg font-black text-white flex items-center space-x-1.5">
               <span>Đoạn chat</span>
-              <span className="px-1.5 py-0.5 rounded-full bg-cyan-500/20 text-[#00E5FF] text-[10px] font-bold">
+              <span className="px-1.5 py-0.5 rounded-full bg-[#3064AE]/30 text-[#C5E5EC] text-[10px] font-bold border border-[#C5E5EC]/25">
                 {campusContacts.length}
               </span>
             </h2>
-            <p className="text-[11px] text-slate-400">Kết nối trực tiếp giữa người thuê & thợ sinh viên</p>
+            <p className="text-[11px] text-[#C5E5EC]/70">Kết nối trực tiếp giữa người thuê & thợ sinh viên</p>
           </div>
         </div>
 
@@ -1372,34 +1417,164 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
         <div className="flex items-center space-x-2">
           <button
             onClick={() => setShowNewChatModal(true)}
-            className="p-2 rounded-xl bg-[#131E30] hover:bg-[#1A2840] text-cyan-400 transition"
+            className="p-2 rounded-xl bg-[#12233B] hover:bg-[#162B48] text-[#C5E5EC] border border-[#C5E5EC]/20 transition cursor-pointer"
             title="Nhắn tin với sinh viên mới"
           >
             <Plus className="w-4 h-4" />
           </button>
           <button
             onClick={onBack}
-            className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition"
+            className="px-3 py-1.5 rounded-xl bg-[#12233B] hover:bg-[#162B48] text-[#C5E5EC] border border-[#C5E5EC]/20 font-bold text-xs transition cursor-pointer"
           >
             &larr; Khám phá
           </button>
         </div>
       </div>
 
+      {/* 9-DIGIT ID SYSTEM BANNER & QUICK FRIEND SEARCH */}
+      <div className="my-2.5 p-3 rounded-2xl bg-[#0E1B2E] border border-[#C5E5EC]/25 shadow-md space-y-2.5">
+        {/* User's Own ID & Admin Badge */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <span className="text-xs text-[#C5E5EC]/80 font-bold">ID 9 Số Của Bạn:</span>
+            <span className="px-2.5 py-0.5 rounded-lg bg-[#3064AE]/30 border border-[#C5E5EC]/30 text-white font-mono font-black text-sm tracking-wider">
+              {currentUser?.id || '000000000'}
+            </span>
+            {currentUser?.id === '000000000' && (
+              <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] font-black">
+                ADMIN
+              </span>
+            )}
+          </div>
+
+          <button
+            onClick={() => {
+              if (currentUser?.id) {
+                navigator.clipboard.writeText(currentUser.id);
+                setCopiedMyId(true);
+                showNotification('Đã sao chép ID', `ID ${currentUser.id} đã được lưu vào bộ nhớ tạm.`);
+                setTimeout(() => setCopiedMyId(false), 2000);
+              }
+            }}
+            className="flex items-center space-x-1 text-xs font-bold text-[#E0FAEB] hover:text-white bg-[#12233B] px-2.5 py-1 rounded-xl border border-[#E0FAEB]/30 transition cursor-pointer"
+          >
+            <Copy className="w-3.5 h-3.5" />
+            <span>{copiedMyId ? 'Đã sao chép!' : 'Sao chép ID'}</span>
+          </button>
+        </div>
+
+        {/* Search Friend By 9-digit ID Input */}
+        <div className="space-y-1.5 pt-1.5 border-t border-[#C5E5EC]/15">
+          <div className="flex items-center space-x-2">
+            <input
+              type="text"
+              maxLength={9}
+              value={searchIdInput}
+              onChange={(e) => {
+                setSearchIdInput(e.target.value.replace(/\D/g, ''));
+                setSearchIdError('');
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleSearchById();
+              }}
+              placeholder="Nhập ID 9 số để tìm bạn (000000000 -> 999999999)..."
+              className="flex-1 px-3 py-2 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-xs text-white placeholder:text-[#C5E5EC]/40 focus:border-[#3064AE] outline-none font-mono"
+            />
+            <button
+              onClick={handleSearchById}
+              className="px-3.5 py-2 rounded-xl bg-[#3064AE] hover:bg-[#255294] text-white font-bold text-xs border border-[#C5E5EC]/30 transition flex items-center space-x-1 cursor-pointer shrink-0"
+            >
+              <Search className="w-3.5 h-3.5" />
+              <span>Tìm ID</span>
+            </button>
+          </div>
+
+          {searchIdError && (
+            <p className="text-[11px] text-rose-300 font-medium">{searchIdError}</p>
+          )}
+
+          {/* Found User Result Card */}
+          {foundUserResult && (
+            <div className="p-2.5 rounded-xl bg-[#12233B] border border-[#C5E5EC]/30 flex items-center justify-between mt-2">
+              <div className="flex items-center space-x-2.5 min-w-0">
+                <div className="w-8 h-8 rounded-full bg-[#3064AE] flex items-center justify-center text-white font-black text-xs">
+                  {foundUserResult.name.charAt(0).toUpperCase()}
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center space-x-1.5">
+                    <span className="font-extrabold text-xs text-white truncate">{foundUserResult.name}</span>
+                    <span className="text-[10px] text-[#C5E5EC] font-mono font-bold">({foundUserResult.id})</span>
+                  </div>
+                  <p className="text-[10px] text-[#C5E5EC]/70 truncate">{foundUserResult.studentSchool || 'Sinh viên'}</p>
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-1.5 shrink-0">
+                {currentUser?.friendIds?.includes(foundUserResult.id) ? (
+                  <span className="text-[11px] text-emerald-400 font-bold px-2 py-1 rounded bg-emerald-500/15 border border-emerald-500/30">
+                    ✓ Bạn bè
+                  </span>
+                ) : (
+                  <button
+                    onClick={() => {
+                      if (addFriendById) addFriendById(foundUserResult.id);
+                      showNotification('Kết bạn', `Đã thêm ${foundUserResult.name} vào danh bạ.`);
+                    }}
+                    className="px-2.5 py-1 rounded-lg bg-emerald-600/30 hover:bg-emerald-600/50 text-[#E0FAEB] border border-emerald-500/40 text-[11px] font-bold transition flex items-center space-x-1 cursor-pointer"
+                  >
+                    <UserPlus className="w-3 h-3" />
+                    <span>Kết bạn</span>
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    setActiveConversationId(foundUserResult.id);
+                    setFoundUserResult(null);
+                    setSearchIdInput('');
+                  }}
+                  className="px-2.5 py-1 rounded-lg bg-[#3064AE] hover:bg-[#255294] text-white border border-[#C5E5EC]/30 text-[11px] font-bold transition flex items-center space-x-1 cursor-pointer"
+                >
+                  <MessageCircle className="w-3 h-3" />
+                  <span>Nhắn</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Cloud Backup & Terms Quick Access */}
+          <div className="flex items-center gap-2 pt-2 border-t border-[#C5E5EC]/15">
+            <button
+              onClick={() => setShowBackupModal(true)}
+              className="flex-1 py-1.5 px-2.5 rounded-xl bg-[#12233B] hover:bg-[#162B48] border border-[#C5E5EC]/25 text-[#C5E5EC] hover:text-white text-[11px] font-bold transition flex items-center justify-center space-x-1.5 cursor-pointer"
+            >
+              <Cloud className="w-3.5 h-3.5 text-[#C5E5EC]" />
+              <span>Sao lưu danh bạ Cloud</span>
+            </button>
+            <button
+              onClick={() => setShowTermsModal(true)}
+              className="py-1.5 px-2.5 rounded-xl bg-[#12233B] hover:bg-[#162B48] border border-[#C5E5EC]/25 text-[#E0FAEB] hover:text-white text-[11px] font-bold transition flex items-center justify-center space-x-1.5 cursor-pointer shrink-0"
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-[#E0FAEB]" />
+              <span>Điều khoản & Hoàn tiền</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* SEARCH BAR */}
       <div className="relative my-2.5 shrink-0">
-        <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+        <Search className="w-4 h-4 text-[#C5E5EC]/60 absolute left-3.5 top-3" />
         <input
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Tìm người thuê, người làm, trường ĐH..."
-          className="w-full pl-10 pr-8 py-2.5 rounded-2xl bg-[#0F172A] border border-slate-800 text-white text-xs placeholder:text-slate-500 focus:border-[#00E5FF] transition outline-none"
+          className="w-full pl-10 pr-8 py-2.5 rounded-2xl bg-[#12233B] border border-[#C5E5EC]/25 text-white text-xs placeholder:text-[#C5E5EC]/40 focus:border-[#3064AE] transition outline-none"
         />
         {searchQuery && (
           <button
             onClick={() => setSearchQuery('')}
-            className="absolute right-3 top-2.5 text-slate-400 hover:text-white"
+            className="absolute right-3 top-2.5 text-[#C5E5EC]/60 hover:text-white cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -1407,8 +1582,8 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
       </div>
 
       {/* ACTIVE NOW (STORIES / AVATAR BUBBLE ROW - LIKE MESSENGER) */}
-      <div className="shrink-0 py-1 border-b border-slate-800/80">
-        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 px-1">
+      <div className="shrink-0 py-1 border-b border-[#C5E5EC]/15">
+        <p className="text-[10px] font-bold text-[#C5E5EC]/70 uppercase tracking-wider mb-2 px-1">
           Đang hoạt động trên Campus ({campusContacts.filter((c) => c.isOnline).length})
         </p>
         <div className="flex items-center gap-3 overflow-x-auto pb-1.5 no-scrollbar">
@@ -1418,14 +1593,14 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
             className="flex flex-col items-center space-y-1 cursor-pointer shrink-0 group"
           >
             <div className="relative">
-              <div className="w-12 h-12 rounded-full p-0.5 bg-gradient-to-tr from-[#00E5FF] to-blue-500 group-hover:scale-105 transition">
-                <div className="w-full h-full rounded-full bg-[#0F172A] flex items-center justify-center text-cyan-300">
+              <div className="w-12 h-12 rounded-full p-0.5 bg-gradient-to-tr from-[#3064AE] via-[#417AC6] to-[#C5E5EC] group-hover:scale-105 transition">
+                <div className="w-full h-full rounded-full bg-[#0E1B2E] flex items-center justify-center text-[#C5E5EC]">
                   <Bot className="w-5 h-5" />
                 </div>
               </div>
-              <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-400 border-2 border-[#081022]" />
+              <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-[#E0FAEB] border-2 border-[#09111D]" />
             </div>
-            <span className="text-[10px] text-slate-300 font-bold max-w-[60px] truncate text-center">
+            <span className="text-[10px] text-[#C5E5EC] font-bold max-w-[60px] truncate text-center">
               Trợ lý AI
             </span>
           </div>
@@ -1443,13 +1618,13 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                   <div
                     className={`w-12 h-12 rounded-full p-0.5 bg-gradient-to-tr ${contact.avatarBg} group-hover:scale-105 transition`}
                   >
-                    <div className="w-full h-full rounded-full bg-[#0F172A] flex items-center justify-center text-white font-extrabold text-sm">
+                    <div className="w-full h-full rounded-full bg-[#0E1B2E] flex items-center justify-center text-white font-extrabold text-sm">
                       {contact.name.charAt(0).toUpperCase()}
                     </div>
                   </div>
-                  <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-400 border-2 border-[#081022]" />
+                  <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-[#E0FAEB] border-2 border-[#09111D]" />
                 </div>
-                <span className="text-[10px] text-slate-300 font-medium max-w-[64px] truncate text-center">
+                <span className="text-[10px] text-[#C5E5EC]/80 font-medium max-w-[64px] truncate text-center">
                   {contact.name}
                 </span>
               </div>
@@ -1461,39 +1636,39 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
       <div className="flex items-center space-x-1.5 py-2.5 shrink-0 overflow-x-auto no-scrollbar">
         <button
           onClick={() => setActiveFilterTab('ALL')}
-          className={`px-3 py-1 rounded-xl text-xs font-bold transition whitespace-nowrap ${
+          className={`px-3 py-1 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
             activeFilterTab === 'ALL'
-              ? 'bg-[#00E5FF] text-black shadow-md shadow-cyan-500/20'
-              : 'bg-[#131E30] text-slate-300 hover:bg-[#1A2840]'
+              ? 'bg-[#3064AE] text-white border border-[#C5E5EC]/30 shadow-md shadow-[#3064AE]/30'
+              : 'bg-[#12233B] text-[#C5E5EC] border border-[#C5E5EC]/20 hover:bg-[#162B48]'
           }`}
         >
           Tất cả ({campusContacts.length + 1})
         </button>
         <button
           onClick={() => setActiveFilterTab('CLIENTS')}
-          className={`px-3 py-1 rounded-xl text-xs font-bold transition whitespace-nowrap ${
+          className={`px-3 py-1 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
             activeFilterTab === 'CLIENTS'
-              ? 'bg-[#00E5FF] text-black shadow-md shadow-cyan-500/20'
-              : 'bg-[#131E30] text-slate-300 hover:bg-[#1A2840]'
+              ? 'bg-[#3064AE] text-white border border-[#C5E5EC]/30 shadow-md shadow-[#3064AE]/30'
+              : 'bg-[#12233B] text-[#C5E5EC] border border-[#C5E5EC]/20 hover:bg-[#162B48]'
           }`}
         >
           💼 Người thuê ({campusContacts.filter((c) => c.role === 'CLIENT').length})
         </button>
         <button
           onClick={() => setActiveFilterTab('WORKERS')}
-          className={`px-3 py-1 rounded-xl text-xs font-bold transition whitespace-nowrap ${
+          className={`px-3 py-1 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
             activeFilterTab === 'WORKERS'
-              ? 'bg-[#00E5FF] text-black shadow-md shadow-cyan-500/20'
-              : 'bg-[#131E30] text-slate-300 hover:bg-[#1A2840]'
+              ? 'bg-[#3064AE] text-white border border-[#C5E5EC]/30 shadow-md shadow-[#3064AE]/30'
+              : 'bg-[#12233B] text-[#C5E5EC] border border-[#C5E5EC]/20 hover:bg-[#162B48]'
           }`}
         >
           ⚡ Người làm ({campusContacts.filter((c) => c.role === 'WORKER').length})
         </button>
         <button
           onClick={() => setActiveConversationId('AI_ASSISTANT')}
-          className="px-3 py-1 rounded-xl text-xs font-bold bg-cyan-500/10 text-[#00E5FF] border border-cyan-500/30 hover:bg-cyan-500/20 transition flex items-center space-x-1 whitespace-nowrap shrink-0"
+          className="px-3 py-1 rounded-xl text-xs font-bold bg-[#3064AE]/20 text-[#C5E5EC] border border-[#C5E5EC]/30 hover:bg-[#3064AE]/30 transition flex items-center space-x-1 whitespace-nowrap shrink-0 cursor-pointer"
         >
-          <Bot className="w-3.5 h-3.5" />
+          <Bot className="w-3.5 h-3.5 text-[#C5E5EC]" />
           <span>Trợ lý AI 24/7</span>
         </button>
       </div>
@@ -1504,39 +1679,39 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
         {(activeFilterTab === 'ALL' || activeFilterTab === 'AI') && (
           <div
             onClick={() => setActiveConversationId('AI_ASSISTANT')}
-            className="p-3 rounded-2xl bg-gradient-to-r from-[#0F1D30] to-[#12233B] border border-cyan-500/30 hover:border-cyan-400/60 cursor-pointer transition shadow-sm flex items-center justify-between space-x-3 group"
+            className="p-3 rounded-2xl bg-[#12233B] border border-[#C5E5EC]/25 hover:border-[#C5E5EC]/50 cursor-pointer transition shadow-sm flex items-center justify-between space-x-3 group"
           >
             <div className="flex items-center space-x-3 min-w-0">
               <div className="relative shrink-0">
-                <div className="w-11 h-11 rounded-full bg-gradient-to-tr from-[#00E5FF] to-blue-600 flex items-center justify-center text-black font-extrabold shadow-md">
-                  <Bot className="w-5 h-5 text-black" />
+                <div className="w-11 h-11 rounded-full bg-gradient-to-tr from-[#3064AE] via-[#417AC6] to-[#C5E5EC] flex items-center justify-center text-white font-extrabold shadow-md border border-[#C5E5EC]/30">
+                  <Bot className="w-5 h-5 text-white" />
                 </div>
-                <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-400 border-2 border-[#0F1D30] animate-pulse" />
+                <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-[#E0FAEB] border-2 border-[#09111D] animate-pulse" />
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center space-x-2">
-                  <h4 className="font-extrabold text-sm text-white truncate group-hover:text-[#00E5FF] transition">
+                  <h4 className="font-extrabold text-sm text-white truncate group-hover:text-[#C5E5EC] transition">
                     Trợ Lý AI GigMe 24/7
                   </h4>
-                  <span className="px-1.5 py-0.2 rounded bg-cyan-500/20 text-[#00E5FF] font-bold text-[9px] shrink-0">
+                  <span className="px-1.5 py-0.2 rounded bg-[#3064AE]/30 text-[#C5E5EC] font-bold text-[9px] shrink-0 border border-[#C5E5EC]/25">
                     Official AI
                   </span>
                 </div>
-                <p className="text-[11px] text-slate-300 truncate mt-0.5">
+                <p className="text-[11px] text-[#C5E5EC]/70 truncate mt-0.5">
                   Hỏi đáp Smart Escrow, giải ngân Napas 247, quy chế campus...
                 </p>
               </div>
             </div>
-            <span className="text-[10px] text-cyan-400 font-bold shrink-0">Trực tuyến</span>
+            <span className="text-[10px] text-[#E0FAEB] font-bold shrink-0">Trực tuyến</span>
           </div>
         )}
 
         {/* CONTACTS THREADS (HIRERS & WORKERS) */}
         {filteredContacts.length === 0 ? (
-          <div className="text-center py-12 text-slate-500 text-xs">
-            <MessageCircle className="w-9 h-9 mx-auto mb-2 text-slate-600" />
-            <p className="font-bold text-slate-400">Không tìm thấy liên hệ phù hợp.</p>
-            <p className="text-[11px] text-slate-500 mt-1">
+          <div className="text-center py-12 text-[#C5E5EC]/60 text-xs">
+            <MessageCircle className="w-9 h-9 mx-auto mb-2 text-[#C5E5EC]/40" />
+            <p className="font-bold text-[#C5E5EC]">Không tìm thấy liên hệ phù hợp.</p>
+            <p className="text-[11px] text-[#C5E5EC]/60 mt-1">
               Bấm nút (+) ở góc trên để tìm kiếm và nhắn tin với sinh viên khác!
             </p>
           </div>
@@ -1556,43 +1731,46 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
               <div
                 key={contact.id}
                 onClick={() => setActiveConversationId(contact.id)}
-                className="p-3 rounded-2xl bg-[#0F172A] border border-slate-800/80 hover:border-slate-700 hover:bg-[#131E30] cursor-pointer transition shadow-sm flex items-center justify-between space-x-3 group"
+                className="p-3 rounded-2xl bg-[#12233B] border border-[#C5E5EC]/20 hover:border-[#C5E5EC]/40 hover:bg-[#162B48] cursor-pointer transition shadow-sm flex items-center justify-between space-x-3 group"
               >
                 <div className="flex items-center space-x-3 min-w-0">
                   {/* Avatar */}
                   <div className="relative shrink-0">
                     <div
-                      className={`w-11 h-11 rounded-full bg-gradient-to-tr ${contact.avatarBg} flex items-center justify-center text-white font-extrabold text-sm shadow`}
+                      className={`w-11 h-11 rounded-full bg-gradient-to-tr ${contact.avatarBg} flex items-center justify-center text-white font-extrabold text-sm shadow border border-[#C5E5EC]/20`}
                     >
                       {contact.name.charAt(0).toUpperCase()}
                     </div>
                     {contact.isOnline && (
-                      <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-400 border-2 border-[#0F172A]" />
+                      <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-[#E0FAEB] border-2 border-[#09111D]" />
                     )}
                   </div>
 
                   {/* Contact Info & Message Preview */}
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center space-x-2">
-                      <h4 className="font-extrabold text-sm text-white truncate group-hover:text-[#00E5FF] transition">
+                    <div className="flex items-center space-x-1.5 min-w-0">
+                      <h4 className="font-extrabold text-sm text-white truncate group-hover:text-[#C5E5EC] transition">
                         {contact.name}
                       </h4>
+                      {contact.isEduVerified && (
+                        <VerifiedEduBadge school={contact.school} size="sm" showText={false} />
+                      )}
                       <span
                         className={`px-1.5 py-0.2 rounded text-[9px] font-bold shrink-0 ${
                           contact.role === 'CLIENT'
-                            ? 'bg-blue-500/20 text-blue-300'
-                            : 'bg-emerald-500/20 text-emerald-300'
+                            ? 'bg-[#3064AE]/30 text-[#C5E5EC] border border-[#C5E5EC]/30'
+                            : 'bg-[#E0FAEB]/20 text-[#E0FAEB] border border-[#E0FAEB]/30'
                         }`}
                       >
                         {contact.roleLabel}
                       </span>
                     </div>
 
-                    <p className="text-[11px] text-slate-400 truncate mt-0.5">{previewText}</p>
+                    <p className="text-[11px] text-[#C5E5EC]/70 truncate mt-0.5">{previewText}</p>
 
                     {/* Subtle micro-tag if there is a shared gig */}
                     {contact.associatedGig && (
-                      <p className="text-[10px] text-cyan-400/80 font-medium truncate mt-0.5">
+                      <p className="text-[10px] text-[#C5E5EC] font-medium truncate mt-0.5">
                         💼 {contact.associatedGig.title}
                       </p>
                     )}
@@ -1601,8 +1779,8 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
 
                 {/* Right Metadata */}
                 <div className="text-right shrink-0 flex flex-col items-end space-y-1">
-                  <span className="text-[10px] text-slate-500 font-medium">{timeText}</span>
-                  <span className="text-[10px] text-slate-400 font-semibold">{contact.school}</span>
+                  <span className="text-[10px] text-[#C5E5EC]/50 font-medium">{timeText}</span>
+                  <span className="text-[10px] text-[#C5E5EC]/70 font-semibold">{contact.school}</span>
                 </div>
               </div>
             );
@@ -1612,22 +1790,22 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
 
       {/* MODAL: START NEW CHAT WITH ANY STUDENT */}
       {showNewChatModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-md rounded-3xl bg-[#0B1528] border border-slate-700 p-5 shadow-2xl text-slate-200 flex flex-col max-h-[80vh]">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800 shrink-0">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="w-full max-w-md rounded-3xl bg-[#0E1B2E] border border-[#C5E5EC]/30 p-5 shadow-2xl text-slate-100 flex flex-col max-h-[80vh]">
+            <div className="flex items-center justify-between pb-3 border-b border-[#C5E5EC]/15 shrink-0">
               <h4 className="font-extrabold text-sm text-white flex items-center space-x-1.5">
-                <MessageCircle className="w-4 h-4 text-[#00E5FF]" />
+                <MessageCircle className="w-4 h-4 text-[#C5E5EC]" />
                 <span>Soạn tin nhắn mới</span>
               </h4>
               <button
                 onClick={() => setShowNewChatModal(false)}
-                className="p-1 rounded-full text-slate-400 hover:text-white"
+                className="p-1 rounded-full text-[#C5E5EC]/70 hover:text-white cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <p className="text-xs text-slate-400 my-2 shrink-0">
+            <p className="text-xs text-[#C5E5EC]/70 my-2 shrink-0">
               Chọn người thuê hoặc người làm để bắt đầu cuộc trò chuyện trực tiếp:
             </p>
 
@@ -1639,11 +1817,11 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                     setShowNewChatModal(false);
                     setActiveConversationId(contact.id);
                   }}
-                  className="p-3 rounded-2xl bg-[#0F172A] hover:bg-[#131E30] border border-slate-800/80 hover:border-cyan-500/40 cursor-pointer transition flex items-center justify-between"
+                  className="p-3 rounded-2xl bg-[#12233B] hover:bg-[#162B48] border border-[#C5E5EC]/20 hover:border-[#C5E5EC]/40 cursor-pointer transition flex items-center justify-between"
                 >
                   <div className="flex items-center space-x-3">
                     <div
-                      className={`w-9 h-9 rounded-full bg-gradient-to-tr ${contact.avatarBg} flex items-center justify-center text-white font-extrabold text-xs shadow`}
+                      className={`w-9 h-9 rounded-full bg-gradient-to-tr ${contact.avatarBg} flex items-center justify-center text-white font-extrabold text-xs shadow border border-[#C5E5EC]/20`}
                     >
                       {contact.name.charAt(0).toUpperCase()}
                     </div>
@@ -1653,22 +1831,38 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                         <span
                           className={`text-[9px] px-1.5 py-0.5 rounded font-bold ${
                             contact.role === 'CLIENT'
-                              ? 'bg-blue-500/20 text-blue-300'
-                              : 'bg-emerald-500/20 text-emerald-300'
+                              ? 'bg-[#3064AE]/30 text-[#C5E5EC] border border-[#C5E5EC]/30'
+                              : 'bg-[#E0FAEB]/20 text-[#E0FAEB] border border-[#E0FAEB]/30'
                           }`}
                         >
                           {contact.roleLabel}
                         </span>
                       </div>
-                      <p className="text-[10px] text-slate-400">{contact.school}</p>
+                      <p className="text-[10px] text-[#C5E5EC]/70">{contact.school}</p>
                     </div>
                   </div>
-                  <ChevronRight className="w-4 h-4 text-slate-500" />
+                  <ChevronRight className="w-4 h-4 text-[#C5E5EC]/60" />
                 </div>
               ))}
             </div>
           </div>
         </div>
+      )}
+
+      {/* Cloud Contact Backup & Restore Modal */}
+      {showBackupModal && (
+        <FriendBackupRestoreModal
+          isOpen={showBackupModal}
+          onClose={() => setShowBackupModal(false)}
+        />
+      )}
+
+      {/* Terms of Service & 100% Refund Policy Modal */}
+      {showTermsModal && (
+        <TermsAndRefundPolicyModal
+          isOpen={showTermsModal}
+          onClose={() => setShowTermsModal(false)}
+        />
       )}
     </div>
   );

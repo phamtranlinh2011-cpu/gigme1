@@ -85,8 +85,10 @@ export interface UserEntity {
   securityPin: string;
   badges: string;
   isLocked: boolean;
+  createdAt?: number; // Thời điểm tạo tài khoản (timestamp)
   isKycVerified?: boolean;
   microLoanCreditLimit?: number;
+  friendIds?: string[]; // Danh sách ID bạn bè kết nối qua ID 9 số
   eloRating?: number; // Thang ELO sinh viên (1200 -> 2500+)
   eloTier?: 'BRONZE' | 'SILVER' | 'GOLD' | 'PLATINUM' | 'DIAMOND' | 'CHALLENGER';
   winStreak?: number; // Chuỗi đơn 5 sao liên tiếp
@@ -102,6 +104,11 @@ export interface UserEntity {
   cccdChecksumValid?: boolean; // Xác thực checksum C06 Bộ Công An
   studentId?: string; // Mã số sinh viên (MSSV)
   studentEmail?: string; // Email trường cấp (*.edu.vn)
+  isEduVerified?: boolean; // Xác thực email chính quy đuôi .edu.vn
+  eduEmail?: string; // Địa chỉ email trường (.edu.vn)
+  eduVerifiedAt?: number; // Thời điểm xác thực email trường
+  friendListBackupCode?: string; // Mã sao lưu danh bạ bạn bè ID 9 số
+  friendListLastBackupAt?: number; // Thời điểm sao lưu danh bạ gần nhất
   deviceFingerprint?: string; // Nhận diện thiết bị phát hiện Sybil
   ipAddress?: string;
   registrationIp?: string;
@@ -237,6 +244,13 @@ export interface CampusLeaderboardEntry {
   school: string;
   avatarUrl?: string;
   completedGigs: number;
+  completedGigsInMonth: number;
+  accountAgeDays: number;
+  isAccountOlderThan3Weeks: boolean; // Điều kiện 1: Tạo trên 3 tuần (> 21 ngày)
+  hasCompletedAtLeast3GigsInMonth: boolean; // Điều kiện 2: Đã làm ít nhất 3 việc trong tháng đó
+  isInTop3: boolean; // Điều kiện 3: Đứng trong top 3
+  isPrizeEligible: boolean; // Phải đủ cả 3 điều kiện mới nhận được tiền
+  prizeAmount: number; // 20.000đ (Top 1), 10.000đ (Top 2), 5.000đ (Top 3)
   trustScore: number;
   rating: number;
   onTimeRate: number;

@@ -4,235 +4,174 @@
 
 @layer base {
   :root {
-    --electric-cyan: #0284c7;
-    --neon-orange: #ea580c;
+    /* Brand Color Architecture & Proportions (from Design Specs):
+       - 60% Dominant: Cobalt Blue (#3064AE)
+       - 30% Secondary: Crystal Blue (#C5E5EC)
+       - 10% Accent: Ethereal Green (#E0FAEB)
+       - Gradient Strip: 60% Cobalt -> 30% Crystal -> 10% Ethereal
+    */
+    --cobalt-blue: #3064AE;
+    --cobalt-blue-hover: #255294;
+    --cobalt-blue-light: #417AC6;
+    --cobalt-surface: #0E1B2E;
+    --cobalt-card: #13243D;
+    
+    --crystal-blue: #C5E5EC;
+    --crystal-blue-muted: #8FBAC4;
+    --crystal-blue-soft: rgba(197, 229, 236, 0.15);
+    --crystal-border: rgba(197, 229, 236, 0.25);
+    
+    --ethereal-green: #E0FAEB;
+    --ethereal-green-deep: #22C55E;
+    --ethereal-green-soft: rgba(224, 250, 235, 0.15);
   }
 
   body {
-    background-color: #f8fafc;
-    color: #0f172a;
+    background-color: #0C1728;
+    color: #F1F6FA;
     font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    overflow-x: hidden;
   }
 }
 
-/* Dark Mode (Chế độ Tối: Ultra-Deep Pitch Obsidian Black - Tối sẫm 100% AMOLED) */
-html.dark,
-html.dark body {
-  background-color: #000000 !important;
-  color: #f8fafc !important;
+/* Brand Proportional Utility Classes */
+.bg-cobalt {
+  background-color: #3064AE !important;
+}
+.bg-cobalt-hover:hover {
+  background-color: #255294 !important;
+}
+.text-cobalt {
+  color: #3064AE !important;
+}
+.border-cobalt {
+  border-color: #3064AE !important;
 }
 
-html.dark .bg-\[\#0A0E17\],
-html.dark [class*="bg-[#0A0E17]"],
-html.dark .bg-\[\#06090F\],
-html.dark [class*="bg-[#06090F]"] {
-  background-color: #000000 !important;
-  color: #f8fafc !important;
+.bg-crystal {
+  background-color: #C5E5EC !important;
+}
+.text-crystal {
+  color: #C5E5EC !important;
+}
+.border-crystal {
+  border-color: rgba(197, 229, 236, 0.3) !important;
 }
 
-html.dark .bg-\[\#0F172A\],
-html.dark [class*="bg-[#0F172A]"],
-html.dark .bg-\[\#0A1322\],
-html.dark [class*="bg-[#0A1322]"],
-html.dark .bg-\[\#0B1322\],
-html.dark [class*="bg-[#0B1322]"],
-html.dark .bg-\[\#0A0F1A\],
-html.dark [class*="bg-[#0A0F1A]"],
-html.dark .bg-\[\#111927\],
-html.dark [class*="bg-[#111927]"],
-html.dark .bg-\[\#111F33\],
-html.dark [class*="bg-[#111F33]"],
-html.dark .bg-\[\#0E1A2C\],
-html.dark [class*="bg-[#0E1A2C]"],
-html.dark .bg-\[\#09101C\],
-html.dark [class*="bg-[#09101C]"],
-html.dark .bg-\[\#101A2C\],
-html.dark [class*="bg-[#101A2C]"] {
-  background-color: #05070c !important;
-  border-color: #121824 !important;
-  color: #f8fafc !important;
+.bg-ethereal {
+  background-color: #E0FAEB !important;
+}
+.text-ethereal {
+  color: #E0FAEB !important;
+}
+.border-ethereal {
+  border-color: #E0FAEB !important;
 }
 
-html.dark .bg-\[\#131E30\],
-html.dark [class*="bg-[#131E30]"],
-html.dark .bg-\[\#0F1D30\],
-html.dark [class*="bg-[#0F1D30]"],
-html.dark .bg-\[\#0F1E33\],
-html.dark [class*="bg-[#0F1E33]"],
-html.dark .bg-\[\#1C2C45\],
-html.dark [class*="bg-[#1C2C45]"] {
-  background-color: #020306 !important;
-  border-color: #0f141f !important;
+/* Gradient Bars matching user palette ratio (Cobalt 60% -> Crystal 30% -> Ethereal 10%) */
+.bg-brand-tri-gradient {
+  background: linear-gradient(180deg, #3064AE 0%, #3064AE 60%, #C5E5EC 88%, #E0FAEB 100%) !important;
 }
 
-html.dark header,
-html.dark nav {
-  background-color: rgba(0, 0, 0, 0.98) !important;
-  border-color: #121824 !important;
+.bg-brand-horiz-gradient {
+  background: linear-gradient(90deg, #3064AE 0%, #3064AE 60%, #C5E5EC 88%, #E0FAEB 100%) !important;
 }
 
-html.dark input:not([type="checkbox"]):not([type="radio"]),
-html.dark select,
-html.dark textarea {
-  background-color: #04060a !important;
-  border-color: #141b26 !important;
-  color: #f8fafc !important;
+.bg-brand-card {
+  background: linear-gradient(150deg, #13243D 0%, #0E1B2E 100%) !important;
+  border: 1px solid rgba(197, 229, 236, 0.22) !important;
 }
 
-html.dark .border-\[\#1E293B\],
-html.dark [class*="border-[#1E293B]"],
-html.dark .border-slate-800,
-html.dark .border-slate-700 {
-  border-color: #121824 !important;
+/* Surface and Card Styling aligned with Cobalt & Crystal scheme */
+.bg-\[\#0A0E17\],
+[class*="bg-[#0A0E17]"],
+.bg-\[\#06090F\],
+[class*="bg-[#06090F]"] {
+  background-color: #0C1728 !important;
+  color: #F1F6FA !important;
 }
 
-/* Chế độ Sáng (Oceanic Midnight Blue - Giao diện nền tối thêm sắc xanh công nghệ hiện đại) */
-html:not(.dark) body {
-  background-color: #081022;
-  color: #f1f5f9;
+.bg-\[\#0F172A\],
+[class*="bg-[#0F172A]"],
+.bg-\[\#0A1322\],
+[class*="bg-[#0A1322]"],
+.bg-\[\#0B1322\],
+[class*="bg-[#0B1322]"],
+.bg-\[\#0A0F1A\],
+[class*="bg-[#0A0F1A]"],
+.bg-\[\#111927\],
+[class*="bg-[#111927]"],
+.bg-\[\#111F33\],
+[class*="bg-[#111F33]"],
+.bg-\[\#0E1A2C\],
+[class*="bg-[#0E1A2C]"],
+.bg-\[\#09101C\],
+[class*="bg-[#09101C]"],
+.bg-\[\#101A2C\],
+[class*="bg-[#101A2C]"] {
+  background-color: #12233B !important;
+  color: #F1F6FA !important;
+  border-color: rgba(197, 229, 236, 0.22) !important;
+  box-shadow: 0 4px 20px -2px rgba(48, 100, 174, 0.18), 0 2px 6px -1px rgba(197, 229, 236, 0.08);
 }
 
-/* Background canvas and containers */
-html:not(.dark) .bg-\[\#0A0E17\],
-html:not(.dark) [class*="bg-[#0A0E17]"],
-html:not(.dark) .bg-\[\#06090F\],
-html:not(.dark) [class*="bg-[#06090F]"] {
-  background-color: #081022 !important;
-  color: #f1f5f9 !important;
+.bg-\[\#131E30\],
+[class*="bg-[#131E30]"],
+.bg-\[\#0F1D30\],
+[class*="bg-[#0F1D30]"],
+.bg-\[\#0F1E33\],
+[class*="bg-[#0F1E33]"],
+.bg-\[\#1C2C45\],
+[class*="bg-[#1C2C45]"] {
+  background-color: #0E1B2E !important;
+  color: #F1F6FA !important;
+  border-color: rgba(197, 229, 236, 0.2) !important;
 }
 
-/* Primary cards & elevated surfaces with rich royal & oceanic blue undertones */
-html:not(.dark) .bg-\[\#0F172A\],
-html:not(.dark) [class*="bg-[#0F172A]"],
-html:not(.dark) .bg-\[\#0A1322\],
-html:not(.dark) [class*="bg-[#0A1322]"],
-html:not(.dark) .bg-\[\#0B1322\],
-html:not(.dark) [class*="bg-[#0B1322]"],
-html:not(.dark) .bg-\[\#0A0F1A\],
-html:not(.dark) [class*="bg-[#0A0F1A]"],
-html:not(.dark) .bg-\[\#111927\],
-html:not(.dark) [class*="bg-[#111927]"],
-html:not(.dark) .bg-\[\#111F33\],
-html:not(.dark) [class*="bg-[#111F33]"],
-html:not(.dark) .bg-\[\#0E1A2C\],
-html:not(.dark) [class*="bg-[#0E1A2C]"],
-html:not(.dark) .bg-\[\#09101C\],
-html:not(.dark) [class*="bg-[#09101C]"],
-html:not(.dark) .bg-\[\#101A2C\],
-html:not(.dark) [class*="bg-[#101A2C]"] {
-  background-color: #0d1a33 !important;
-  color: #f1f5f9 !important;
-  border-color: #1a365d !important;
-  box-shadow: 0 4px 20px -2px rgba(14, 116, 144, 0.12), 0 2px 6px -1px rgba(2, 132, 199, 0.08);
+.bg-\[\#1E293B\],
+.bg-slate-900,
+.bg-slate-950,
+[class*="bg-slate-900"],
+[class*="bg-slate-950"] {
+  background-color: #162B48 !important;
+  color: #F1F6FA !important;
+  border-color: rgba(197, 229, 236, 0.25) !important;
 }
 
-/* Secondary cards, wells & subtle panels */
-html:not(.dark) .bg-\[\#131E30\],
-html:not(.dark) [class*="bg-[#131E30]"],
-html:not(.dark) .bg-\[\#0F1D30\],
-html:not(.dark) [class*="bg-[#0F1D30]"],
-html:not(.dark) .bg-\[\#0F1E33\],
-html:not(.dark) [class*="bg-[#0F1E33]"],
-html:not(.dark) .bg-\[\#1C2C45\],
-html:not(.dark) [class*="bg-[#1C2C45]"] {
-  background-color: #0a152b !important;
-  color: #f1f5f9 !important;
-  border-color: #172e50 !important;
+/* Header and Navigation in Cobalt & Crystal Brand Palette */
+header {
+  background-color: rgba(14, 27, 46, 0.94) !important;
+  border-bottom: 1px solid rgba(197, 229, 236, 0.2) !important;
+  color: #F1F6FA !important;
+  box-shadow: 0 4px 20px -2px rgba(48, 100, 174, 0.25);
 }
 
-html:not(.dark) .bg-\[\#1E293B\],
-html:not(.dark) .bg-slate-900,
-html:not(.dark) .bg-slate-950,
-html:not(.dark) [class*="bg-slate-900"],
-html:not(.dark) [class*="bg-slate-950"] {
-  background-color: #0f2142 !important;
-  color: #f1f5f9 !important;
-  border-color: #1d3e6e !important;
+nav {
+  background-color: rgba(14, 27, 46, 0.96) !important;
+  border-top: 1px solid rgba(197, 229, 236, 0.2) !important;
+  color: #F1F6FA !important;
+  box-shadow: 0 -4px 20px -2px rgba(48, 100, 174, 0.2);
 }
 
-/* Gradients in oceanic blue mode - high-tech cyber midnight cyan/blue ambience */
-html:not(.dark) [class*="from-[#0F1D30]"],
-html:not(.dark) [class*="from-[#0F1E33]"],
-html:not(.dark) [class*="from-[#0F172A]"],
-html:not(.dark) [class*="from-[#0A0E17]"] {
-  --tw-gradient-from: #0e1e3b var(--tw-gradient-from-position) !important;
-  --tw-gradient-to: #081224 var(--tw-gradient-to-position) !important;
-  --tw-gradient-stops: var(--tw-gradient-from), #0b172e var(--tw-gradient-via-position), var(--tw-gradient-to) !important;
-  background-color: #0e1e3b !important;
+/* Inputs and interactive elements */
+input:not([type="checkbox"]):not([type="radio"]),
+select,
+textarea {
+  background-color: #0E1B2E !important;
+  color: #F1F6FA !important;
+  border-color: rgba(197, 229, 236, 0.25) !important;
 }
 
-html:not(.dark) [class*="to-[#0A1322]"],
-html:not(.dark) [class*="to-[#0A0E17]"],
-html:not(.dark) [class*="to-[#0F172A]"] {
-  --tw-gradient-to: #081224 var(--tw-gradient-to-position) !important;
+input:not([type="checkbox"]):not([type="radio"]):focus,
+select:focus,
+textarea:focus {
+  border-color: #3064AE !important;
+  box-shadow: 0 0 0 3px rgba(197, 229, 236, 0.25) !important;
 }
 
-html:not(.dark) .border-\[\#1E293B\],
-html:not(.dark) [class*="border-[#1E293B]"],
-html:not(.dark) .border-slate-800,
-html:not(.dark) .border-slate-700 {
-  border-color: #1b355e !important;
-}
-
-/* Typography in Oceanic Blue Mode */
-html:not(.dark) h1,
-html:not(.dark) h2,
-html:not(.dark) h3,
-html:not(.dark) h4,
-html:not(.dark) h5,
-html:not(.dark) h6 {
-  color: #f8fafc;
-}
-
-html:not(.dark) .text-slate-200 {
-  color: #e2e8f0 !important;
-}
-
-html:not(.dark) .text-slate-300 {
-  color: #cbd5e1 !important;
-}
-
-html:not(.dark) .text-slate-400 {
-  color: #94a3b8 !important;
-}
-
-html:not(.dark) .text-slate-500 {
-  color: #64748b !important;
-}
-
-/* Header and Navigation in Oceanic Blue Mode */
-html:not(.dark) header {
-  background-color: rgba(10, 21, 43, 0.95) !important;
-  border-bottom: 1px solid rgba(56, 189, 248, 0.22) !important;
-  color: #f8fafc !important;
-  box-shadow: 0 4px 20px -2px rgba(0, 180, 255, 0.12);
-}
-
-html:not(.dark) nav {
-  background-color: rgba(10, 21, 43, 0.96) !important;
-  border-top: 1px solid rgba(56, 189, 248, 0.2) !important;
-  color: #f8fafc !important;
-  box-shadow: 0 -4px 20px -2px rgba(0, 180, 255, 0.1);
-}
-
-html:not(.dark) input:not([type="checkbox"]):not([type="radio"]),
-html:not(.dark) select,
-html:not(.dark) textarea {
-  background-color: #0b1830 !important;
-  color: #f8fafc !important;
-  border-color: #1d3d6b !important;
-}
-
-html:not(.dark) input:not([type="checkbox"]):not([type="radio"]):focus,
-html:not(.dark) select:focus,
-html:not(.dark) textarea:focus {
-  border-color: #38bdf8 !important;
-  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.25) !important;
-}
-
-html:not(.dark) input::placeholder,
-html:not(.dark) textarea::placeholder {
-  color: #64748b !important;
+input::placeholder,
+textarea::placeholder {
+  color: #8FBAC4 !important;
 }
 
 /* Custom scrollbar */

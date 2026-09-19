@@ -21,7 +21,6 @@ import {
 import { DownloadAppDialog } from './components/DownloadAppDialog';
 import { FcmPushNotificationModal } from './components/FcmPushNotificationModal';
 import { StudentEloModal } from './components/StudentEloModal';
-import { SosSafeWalkModal } from './components/SosSafeWalkModal';
 import { VietQrOpenApiAutoScanner } from './components/VietQrOpenApiAutoScanner';
 import { MoMoZaloPayGatewayModal } from './components/MoMoZaloPayGatewayModal';
 import { GeminiVisionStudentIdModal } from './components/GeminiVisionStudentIdModal';
@@ -49,7 +48,6 @@ const MainLayout: React.FC = () => {
   const [showDownloadApp, setShowDownloadApp] = useState(false);
   const [showFcmPush, setShowFcmPush] = useState(false);
   const [showEloModal, setShowEloModal] = useState(false);
-  const [showSafeWalk, setShowSafeWalk] = useState(false);
   const [showVietQrScanner, setShowVietQrScanner] = useState(false);
   const [showPaymentGateway, setShowPaymentGateway] = useState(false);
   const [showGeminiVision, setShowGeminiVision] = useState(false);
@@ -123,7 +121,6 @@ const MainLayout: React.FC = () => {
             onOpenGeminiVision={() => setShowGeminiVision(true)}
             onOpenFcmPush={() => setShowFcmPush(true)}
             onOpenEloModal={() => setShowEloModal(true)}
-            onOpenSafeWalk={() => setShowSafeWalk(true)}
           />
         );
       case 'CREATE_GIG':
@@ -177,17 +174,16 @@ const MainLayout: React.FC = () => {
             onOpenGeminiVision={() => setShowNfcModal(true)}
             onOpenFcmPush={() => setShowFcmPush(true)}
             onOpenEloModal={() => setShowEloModal(true)}
-            onOpenSafeWalk={() => setShowSafeWalk(true)}
           />
         );
     }
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-[#081022] via-[#0B1733] to-[#081022] dark:from-[#000000] dark:via-[#020306] dark:to-[#000000] text-slate-100 selection:bg-cyan-500/30 selection:text-cyan-300 transition-colors duration-200 relative overflow-x-hidden">
-      {/* Decorative ambient color washes for high-tech oceanic blue mode */}
-      <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-blue-600/15 to-cyan-400/15 dark:from-transparent dark:to-transparent rounded-full blur-3xl pointer-events-none -z-10" />
-      <div className="absolute top-80 left-0 w-80 h-80 bg-gradient-to-tr from-cyan-500/10 to-indigo-600/15 dark:from-transparent dark:to-transparent rounded-full blur-3xl pointer-events-none -z-10" />
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-[#0C1728] via-[#102038] to-[#0C1728] text-slate-100 selection:bg-[#3064AE] selection:text-[#E0FAEB] transition-colors duration-200 relative overflow-x-hidden">
+      {/* Decorative ambient color washes for Cobalt Blue, Crystal Blue, and Ethereal Green brand palette */}
+      <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-[#3064AE]/20 to-[#C5E5EC]/15 rounded-full blur-3xl pointer-events-none -z-10" />
+      <div className="absolute top-80 left-0 w-80 h-80 bg-gradient-to-tr from-[#3064AE]/15 via-[#C5E5EC]/10 to-[#E0FAEB]/10 rounded-full blur-3xl pointer-events-none -z-10" />
 
       <Header
         onOpenCreateGig={() => {
@@ -221,19 +217,20 @@ const MainLayout: React.FC = () => {
         }}
         onOpenFcmPush={() => setShowFcmPush(true)}
         onOpenEloModal={() => setShowEloModal(true)}
-        onOpenSafeWalk={() => setShowSafeWalk(true)}
+        onOpenVietQrScanner={() => setShowVietQrScanner(true)}
+        onOpenPaymentGateway={() => setShowPaymentGateway(true)}
       />
 
       {/* Global Realtime Maintenance Status Bar for Admin */}
       {isMaintenanceActive && currentUser?.role === 'ADMIN' && (
-        <div className="bg-gradient-to-r from-amber-950/90 via-slate-900 to-amber-950/90 border-b border-amber-500/40 px-4 py-2 text-xs flex flex-wrap items-center justify-between gap-2 text-amber-300 sticky top-0 z-30 shadow-md">
+        <div className="bg-gradient-to-r from-amber-950/90 via-[#12233B] to-amber-950/90 border-b border-amber-500/40 px-4 py-2 text-xs flex flex-wrap items-center justify-between gap-2 text-amber-300 sticky top-0 z-30 shadow-md">
           <div className="flex items-center space-x-2">
             <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
             <Wrench className="w-4 h-4 text-amber-400" />
             <span className="font-extrabold">
               ROOT ADMIN: Chế độ bảo trì đang BẬT trên toàn sàn (Người dùng thường chỉ xem được trang Hồ sơ).
             </span>
-            <span className="text-[11px] text-slate-400">
+            <span className="text-[11px] text-[#C5E5EC]/70">
               Dự kiến kết thúc: {new Date(maintenanceConfig.endTime).toLocaleTimeString('vi-VN')}
             </span>
           </div>
@@ -243,13 +240,13 @@ const MainLayout: React.FC = () => {
                 selectGig(null);
                 setCurrentTab('ADMIN');
               }}
-              className="px-2.5 py-1 rounded-lg bg-amber-500 text-black font-extrabold text-[11px] hover:brightness-110 transition shadow"
+              className="px-2.5 py-1 rounded-lg bg-amber-500 text-black font-extrabold text-[11px] hover:brightness-110 transition shadow cursor-pointer"
             >
               Vào Bảng Admin
             </button>
             <button
               onClick={() => setMaintenanceMode({ isActive: false })}
-              className="px-2.5 py-1 rounded-lg bg-red-950/80 border border-red-500/40 text-red-300 font-bold text-[11px] hover:bg-red-900 transition"
+              className="px-2.5 py-1 rounded-lg bg-rose-950/80 border border-rose-500/40 text-rose-300 font-bold text-[11px] hover:bg-rose-900 transition cursor-pointer"
             >
               Tắt Bảo Trì Nhanh
             </button>
@@ -293,11 +290,6 @@ const MainLayout: React.FC = () => {
       <StudentEloModal
         isOpen={showEloModal}
         onClose={() => setShowEloModal(false)}
-      />
-
-      <SosSafeWalkModal
-        isOpen={showSafeWalk}
-        onClose={() => setShowSafeWalk(false)}
       />
 
       <VietQrOpenApiAutoScanner

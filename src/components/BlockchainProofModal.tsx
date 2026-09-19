@@ -17,6 +17,7 @@ import {
 import { useGigMe } from '../context/GigMeContext';
 import { formatVnd } from '../types';
 import { validateGpsAuthenticity } from '../utils/antiFakeGps';
+import { compressImageToWebP } from '../utils/imageCompressor';
 
 interface BlockchainProofModalProps {
   isOpen: boolean;
@@ -181,7 +182,7 @@ export const BlockchainProofModal: React.FC<BlockchainProofModalProps> = ({
     let watermarkedUrl = sampleImage;
     if (canvas) {
       try {
-        watermarkedUrl = canvas.toDataURL('image/jpeg', 0.85);
+        watermarkedUrl = canvas.toDataURL('image/webp', 0.82) || canvas.toDataURL('image/jpeg', 0.85);
       } catch (err) {
         console.warn('Canvas toDataURL fallback:', err);
       }
@@ -201,23 +202,34 @@ export const BlockchainProofModal: React.FC<BlockchainProofModalProps> = ({
 
     showNotification(
       '🚀 Đã Gửi Bằng Chứng Watermark GPS & Timestamp',
-      `Đã đóng dấu định vị (${coords.lat.toFixed(4)}°N, ${coords.lng.toFixed(4)}°E) và thời gian thực. Khi khách hàng giải ngân, bản gốc sẽ tự động bàn giao!`,
+      `Đã đóng dấu định vị (${coords.lat.toFixed(4)}°N, ${coords.lng.toFixed(4)}°E) và thời gian thực. Bằng chứng đã được nén chuẩn WebP tiết kiệm dữ liệu.`,
       true,
       true
     );
     onClose();
   };
 
-  const handleUploadCustomImage = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleUploadCustomImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        if (ev.target?.result) {
-          setSampleImage(ev.target.result as string);
-        }
-      };
-      reader.readAsDataURL(file);
+      try {
+        const compressed = await compressImageToWebP(file, { maxWidth: 1280, maxHeight: 1280, quality: 0.82 });
+        setSampleImage(compressed.dataUrl);
+        showNotification(
+          '⚡ Nén Ảnh WebP Tự Động',
+          `Đã nén tiết kiệm ${compressed.savedPercent}% dữ liệu 4G (${compressed.originalSizeFormatted} ➔ ${compressed.compressedSizeFormatted}).`,
+          true,
+          true
+        );
+      } catch {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          if (ev.target?.result) {
+            setSampleImage(ev.target.result as string);
+          }
+        };
+        reader.readAsDataURL(file);
+      }
     }
   };
 

@@ -43,7 +43,6 @@ interface HomeScreenProps {
   onOpenGeminiVision?: () => void;
   onOpenFcmPush?: () => void;
   onOpenEloModal?: () => void;
-  onOpenSafeWalk?: () => void;
 }
 
 const CATEGORIES = [
@@ -59,19 +58,19 @@ const CATEGORIES = [
 const getCategoryBadgeStyle = (category: string) => {
   switch (category) {
     case 'Cày Game & Rank':
-      return 'text-purple-800 bg-purple-100/90 border-purple-300';
+      return 'text-purple-300 bg-purple-950/60 border-purple-500/40';
     case 'Tư vấn & Học tập':
-      return 'text-blue-800 bg-blue-100/90 border-blue-300';
+      return 'text-[#C5E5EC] bg-[#3064AE]/30 border-[#C5E5EC]/30';
     case 'Digital Tasks':
-      return 'text-indigo-800 bg-indigo-100/90 border-indigo-300';
+      return 'text-indigo-300 bg-indigo-950/60 border-indigo-500/40';
     case 'Vận chuyển & Ship':
-      return 'text-emerald-800 bg-emerald-100/90 border-emerald-300';
+      return 'text-[#E0FAEB] bg-emerald-950/60 border-[#E0FAEB]/30';
     case 'Trợ thủ Campus':
-      return 'text-teal-800 bg-teal-100/90 border-teal-300';
+      return 'text-[#C5E5EC] bg-[#12233B] border-[#C5E5EC]/40';
     case 'Flash Gigs':
-      return 'text-amber-800 bg-amber-100/90 border-amber-300';
+      return 'text-amber-300 bg-amber-950/60 border-amber-500/40';
     default:
-      return 'text-sky-800 bg-sky-100/90 border-sky-300';
+      return 'text-[#C5E5EC] bg-[#3064AE]/20 border-[#C5E5EC]/20';
   }
 };
 
@@ -86,7 +85,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   onOpenGeminiVision,
   onOpenFcmPush,
   onOpenEloModal,
-  onOpenSafeWalk,
 }) => {
   const {
     filteredGigs,
@@ -124,21 +122,22 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 pb-24 space-y-6">
       {/* Tier Newbie Advisory Banner */}
       {currentUser && currentUser.tier === 'NEWBIE' && (
-        <div className="p-4 rounded-2xl bg-amber-50/90 border border-amber-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs shadow-xs">
-          <div className="flex items-center space-x-3">
-            <div className="p-2.5 rounded-xl bg-amber-100 text-amber-700 shrink-0">
+        <div className="p-4 rounded-2xl bg-[#12233B] border border-[#3064AE]/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs shadow-lg relative overflow-hidden">
+          <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-brand-tri-gradient" />
+          <div className="flex items-center space-x-3 pl-2">
+            <div className="p-2.5 rounded-xl bg-[#3064AE]/30 text-[#E0FAEB] shrink-0 border border-[#C5E5EC]/20">
               <ShieldCheck className="w-5 h-5" />
             </div>
             <div>
-              <h4 className="font-extrabold text-amber-900">Bạn đang ở tài khoản Cấp 1 (Newbie)</h4>
-              <p className="text-amber-700/90 mt-0.5">
+              <h4 className="font-extrabold text-white">Bạn đang ở tài khoản Cấp 1 (Newbie)</h4>
+              <p className="text-[#C5E5EC]/80 mt-0.5">
                 Chỉ được xem kèo dưới 20.000đ. Hãy xác thực CCCD gắn chip (NFC) hoặc Cổng sinh viên để mở khóa toàn bộ!
               </p>
             </div>
           </div>
           <button
             onClick={onOpenVerify}
-            className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs shrink-0 transition shadow-sm active:scale-95"
+            className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#3064AE] via-[#417AC6] to-[#C5E5EC] text-white font-extrabold text-xs shrink-0 transition shadow-md shadow-[#3064AE]/30 active:scale-95 border border-[#E0FAEB]/30 cursor-pointer"
           >
             Xác Thực Cấp 2 Ngay &rarr;
           </button>
@@ -162,171 +161,135 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       {/* Campus Quick Hub Shortcuts - Sleek swipeable carousel on mobile, neat grid on desktop */}
       <div>
         <div className="flex items-center justify-between mb-2.5">
-          <span className="text-[11px] font-black uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-sky-500 animate-pulse" />
+          <span className="text-[11px] font-black uppercase tracking-wider text-[#C5E5EC] flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-[#E0FAEB] animate-pulse" />
             Tiện ích Campus 24/7
           </span>
-          <span className="text-[10px] text-sky-700 font-semibold hidden sm:inline">Trượt ngang để xem thêm tiện ích &rarr;</span>
+          <span className="text-[10px] text-[#C5E5EC]/70 font-semibold hidden sm:inline">Trượt ngang để xem thêm tiện ích &rarr;</span>
         </div>
         <div className="flex overflow-x-auto gap-2.5 pb-2 scrollbar-none snap-x sm:grid sm:grid-cols-4 lg:grid-cols-8">
           {onOpenLeaderboard && (
             <button
               onClick={onOpenLeaderboard}
-              className="min-w-[130px] sm:min-w-0 p-3 rounded-2xl bg-gradient-to-br from-amber-50/95 via-orange-50/50 to-yellow-50/70 hover:from-amber-100 hover:to-orange-100 border border-amber-200/90 hover:border-amber-400 text-left transition group shadow-xs hover:shadow-sm shrink-0 snap-start active:scale-95"
+              className="min-w-[130px] sm:min-w-0 p-3 rounded-2xl bg-[#0E1B2E] hover:bg-[#13243C] border border-[#C5E5EC]/20 hover:border-[#C5E5EC]/40 text-left transition group shadow-sm shrink-0 snap-start active:scale-95 cursor-pointer"
             >
               <div className="flex items-center justify-between mb-1.5">
-                <div className="p-1.5 rounded-lg bg-amber-100/90 text-amber-700 shadow-xs">
+                <div className="p-1.5 rounded-lg bg-[#3064AE]/30 text-amber-300 shadow-xs border border-amber-400/20">
                   <Trophy className="w-4 h-4 group-hover:scale-110 transition" />
                 </div>
-                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-200 text-amber-900 font-black shadow-2xs">
+                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-400/20 text-amber-200 border border-amber-400/30 font-black shadow-2xs">
                   Top 10
                 </span>
               </div>
-              <h5 className="font-black text-amber-950 text-xs truncate">BXH Campus</h5>
-              <p className="text-[10px] text-amber-800/80 font-medium truncate">Top thưởng tuần</p>
+              <h5 className="font-black text-white text-xs truncate">BXH Campus</h5>
+              <p className="text-[10px] text-[#C5E5EC]/70 font-medium truncate">Top thưởng tuần</p>
             </button>
           )}
 
           {onOpenMarketplace && (
             <button
               onClick={onOpenMarketplace}
-              className="min-w-[130px] sm:min-w-0 p-3 rounded-2xl bg-gradient-to-br from-emerald-50/95 via-teal-50/50 to-green-50/70 hover:from-emerald-100 hover:to-teal-100 border border-emerald-200/90 hover:border-emerald-400 text-left transition group shadow-xs hover:shadow-sm shrink-0 snap-start active:scale-95"
+              className="min-w-[130px] sm:min-w-0 p-3 rounded-2xl bg-[#0E1B2E] hover:bg-[#13243C] border border-[#C5E5EC]/20 hover:border-[#C5E5EC]/40 text-left transition group shadow-sm shrink-0 snap-start active:scale-95 cursor-pointer"
             >
               <div className="flex items-center justify-between mb-1.5">
-                <div className="p-1.5 rounded-lg bg-emerald-100/90 text-emerald-700 shadow-xs">
+                <div className="p-1.5 rounded-lg bg-[#3064AE]/30 text-[#E0FAEB] shadow-xs border border-[#E0FAEB]/20">
                   <BookOpen className="w-4 h-4 group-hover:scale-110 transition" />
                 </div>
-                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-200 text-emerald-900 font-black shadow-2xs">
+                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-[#E0FAEB]/20 text-[#E0FAEB] border border-[#E0FAEB]/30 font-black shadow-2xs">
                   Chợ 0đ
                 </span>
               </div>
-              <h5 className="font-black text-emerald-950 text-xs truncate">Chợ Giáo Trình</h5>
-              <p className="text-[10px] text-emerald-800/80 font-medium truncate">Trao đổi đồ KTX</p>
+              <h5 className="font-black text-white text-xs truncate">Chợ Giáo Trình</h5>
+              <p className="text-[10px] text-[#C5E5EC]/70 font-medium truncate">Trao đổi đồ KTX</p>
             </button>
           )}
 
           {onOpenVietQrScanner && (
             <button
               onClick={onOpenVietQrScanner}
-              className="min-w-[130px] sm:min-w-0 p-3 rounded-2xl bg-gradient-to-br from-sky-50/95 via-blue-50/50 to-cyan-50/70 hover:from-sky-100 hover:to-blue-100 border border-sky-200/90 hover:border-sky-400 text-left transition group shadow-xs hover:shadow-sm shrink-0 snap-start active:scale-95"
+              className="min-w-[130px] sm:min-w-0 p-3 rounded-2xl bg-[#0E1B2E] hover:bg-[#13243C] border border-[#C5E5EC]/20 hover:border-[#C5E5EC]/40 text-left transition group shadow-sm shrink-0 snap-start active:scale-95 cursor-pointer"
             >
               <div className="flex items-center justify-between mb-1.5">
-                <div className="p-1.5 rounded-lg bg-sky-100/90 text-[#0284C7] shadow-xs">
+                <div className="p-1.5 rounded-lg bg-[#3064AE]/30 text-[#C5E5EC] shadow-xs border border-[#C5E5EC]/20">
                   <QrCode className="w-4 h-4 group-hover:scale-110 transition" />
                 </div>
-                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-sky-200 text-sky-900 font-black shadow-2xs">
+                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-[#3064AE]/30 text-[#C5E5EC] border border-[#C5E5EC]/30 font-black shadow-2xs">
                   VietQR
                 </span>
               </div>
-              <h5 className="font-black text-sky-950 text-xs truncate">Quét VietQR</h5>
-              <p className="text-[10px] text-sky-800/80 font-medium truncate">Nạp rút 24/7</p>
+              <h5 className="font-black text-white text-xs truncate">Quét VietQR</h5>
+              <p className="text-[10px] text-[#C5E5EC]/70 font-medium truncate">Nạp rút 24/7</p>
             </button>
           )}
 
           {onOpenPaymentGateway && (
             <button
               onClick={onOpenPaymentGateway}
-              className="min-w-[130px] sm:min-w-0 p-3 rounded-2xl bg-gradient-to-br from-pink-50/95 via-rose-50/50 to-fuchsia-50/70 hover:from-pink-100 hover:to-rose-100 border border-pink-200/90 hover:border-pink-400 text-left transition group shadow-xs hover:shadow-sm shrink-0 snap-start active:scale-95"
+              className="min-w-[130px] sm:min-w-0 p-3 rounded-2xl bg-[#0E1B2E] hover:bg-[#13243C] border border-[#C5E5EC]/20 hover:border-[#C5E5EC]/40 text-left transition group shadow-sm shrink-0 snap-start active:scale-95 cursor-pointer"
             >
               <div className="flex items-center justify-between mb-1.5">
-                <div className="p-1.5 rounded-lg bg-pink-100/90 text-pink-700 shadow-xs">
+                <div className="p-1.5 rounded-lg bg-pink-950/40 text-pink-300 shadow-xs border border-pink-400/20">
                   <Smartphone className="w-4 h-4 group-hover:scale-110 transition" />
                 </div>
-                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-pink-200 text-pink-900 font-black shadow-2xs">
+                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-pink-400/20 text-pink-200 border border-pink-400/30 font-black shadow-2xs">
                   MoMo
                 </span>
               </div>
-              <h5 className="font-black text-pink-950 text-xs truncate">Cổng Ví Điện Tử</h5>
-              <p className="text-[10px] text-pink-800/80 font-medium truncate">MoMo & ZaloPay</p>
+              <h5 className="font-black text-white text-xs truncate">Cổng Ví Điện Tử</h5>
+              <p className="text-[10px] text-[#C5E5EC]/70 font-medium truncate">MoMo & ZaloPay</p>
             </button>
           )}
 
           {onOpenGeminiVision && (
             <button
               onClick={onOpenGeminiVision}
-              className="min-w-[130px] sm:min-w-0 p-3 rounded-2xl bg-gradient-to-br from-indigo-50/95 via-purple-50/50 to-blue-50/70 hover:from-indigo-100 hover:to-purple-100 border border-indigo-200/90 hover:border-indigo-400 text-left transition group shadow-xs hover:shadow-sm shrink-0 snap-start active:scale-95"
+              className="min-w-[130px] sm:min-w-0 p-3 rounded-2xl bg-[#0E1B2E] hover:bg-[#13243C] border border-[#C5E5EC]/20 hover:border-[#C5E5EC]/40 text-left transition group shadow-sm shrink-0 snap-start active:scale-95 cursor-pointer"
             >
               <div className="flex items-center justify-between mb-1.5">
-                <div className="p-1.5 rounded-lg bg-indigo-100/90 text-indigo-700 shadow-xs">
+                <div className="p-1.5 rounded-lg bg-[#3064AE]/30 text-[#E0FAEB] shadow-xs border border-[#C5E5EC]/20">
                   <GraduationCap className="w-4 h-4 group-hover:scale-110 transition" />
                 </div>
-                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-indigo-200 text-indigo-900 font-black shadow-2xs">
+                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-[#3064AE]/30 text-[#E0FAEB] border border-[#C5E5EC]/30 font-black shadow-2xs">
                   OCR AI
                 </span>
               </div>
-              <h5 className="font-black text-indigo-950 text-xs truncate">Quét Thẻ SV</h5>
-              <p className="text-[10px] text-indigo-800/80 font-medium truncate">Duyệt Cấp 2</p>
-            </button>
-          )}
-
-          {onOpenSafeWalk && (
-            <button
-              onClick={onOpenSafeWalk}
-              className="min-w-[130px] sm:min-w-0 p-3 rounded-2xl bg-gradient-to-br from-rose-50/95 via-red-50/50 to-orange-50/70 hover:from-rose-100 hover:to-red-100 border border-rose-200/90 hover:border-rose-400 text-left transition group shadow-xs hover:shadow-sm shrink-0 snap-start active:scale-95"
-            >
-              <div className="flex items-center justify-between mb-1.5">
-                <div className="p-1.5 rounded-lg bg-rose-100/90 text-rose-700 shadow-xs">
-                  <ShieldAlert className="w-4 h-4 group-hover:scale-110 transition" />
-                </div>
-                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-rose-200 text-rose-900 font-black shadow-2xs">
-                  SafeWalk
-                </span>
-              </div>
-              <h5 className="font-black text-rose-950 text-xs truncate">Bảo Vệ Đêm SOS</h5>
-              <p className="text-[10px] text-rose-800/80 font-medium truncate">Còi & hộ tống</p>
-            </button>
-          )}
-
-          {onOpenFcmPush && (
-            <button
-              onClick={onOpenFcmPush}
-              className="min-w-[130px] sm:min-w-0 p-3 rounded-2xl bg-gradient-to-br from-orange-50/95 via-amber-50/50 to-yellow-50/70 hover:from-orange-100 hover:to-amber-100 border border-orange-200/90 hover:border-orange-400 text-left transition group shadow-xs hover:shadow-sm shrink-0 snap-start active:scale-95"
-            >
-              <div className="flex items-center justify-between mb-1.5">
-                <div className="p-1.5 rounded-lg bg-orange-100/90 text-orange-700 shadow-xs">
-                  <Bell className="w-4 h-4 group-hover:scale-110 transition" />
-                </div>
-                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-orange-200 text-orange-900 font-black shadow-2xs">
-                  FCM Push
-                </span>
-              </div>
-              <h5 className="font-black text-orange-950 text-xs truncate">Báo Hỏa Tốc</h5>
-              <p className="text-[10px] text-orange-800/80 font-medium truncate">Bắn kèo 50m</p>
+              <h5 className="font-black text-white text-xs truncate">Quét Thẻ SV</h5>
+              <p className="text-[10px] text-[#C5E5EC]/70 font-medium truncate">Duyệt Cấp 2</p>
             </button>
           )}
 
           {onOpenEloModal && (
             <button
               onClick={onOpenEloModal}
-              className="min-w-[130px] sm:min-w-0 p-3 rounded-2xl bg-gradient-to-br from-violet-50/95 via-purple-50/50 to-indigo-50/70 hover:from-violet-100 hover:to-purple-100 border border-violet-200/90 hover:border-violet-400 text-left transition group shadow-xs hover:shadow-sm shrink-0 snap-start active:scale-95"
+              className="min-w-[130px] sm:min-w-0 p-3 rounded-2xl bg-[#0E1B2E] hover:bg-[#13243C] border border-[#C5E5EC]/20 hover:border-[#C5E5EC]/40 text-left transition group shadow-sm shrink-0 snap-start active:scale-95 cursor-pointer"
             >
               <div className="flex items-center justify-between mb-1.5">
-                <div className="p-1.5 rounded-lg bg-violet-100/90 text-violet-700 shadow-xs">
+                <div className="p-1.5 rounded-lg bg-[#3064AE]/30 text-[#E0FAEB] shadow-xs border border-[#C5E5EC]/20">
                   <Award className="w-4 h-4 group-hover:scale-110 transition" />
                 </div>
-                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-violet-200 text-violet-900 font-black shadow-2xs">
+                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-[#3064AE]/30 text-[#E0FAEB] border border-[#C5E5EC]/30 font-black shadow-2xs">
                   ELO
                 </span>
               </div>
-              <h5 className="font-black text-violet-950 text-xs truncate">Điểm Tín Nhiệm</h5>
-              <p className="text-[10px] text-violet-800/80 font-medium truncate">Huy hiệu & rank</p>
+              <h5 className="font-black text-white text-xs truncate">Điểm Tín Nhiệm</h5>
+              <p className="text-[10px] text-[#C5E5EC]/70 font-medium truncate">Huy hiệu & rank</p>
             </button>
           )}
 
           <button
             onClick={() => setIsOfflineModalOpen(true)}
-            className="min-w-[130px] sm:min-w-0 p-3 rounded-2xl bg-gradient-to-br from-cyan-50/95 via-teal-50/50 to-sky-50/70 hover:from-cyan-100 hover:to-sky-100 border border-cyan-200/90 hover:border-cyan-400 text-left transition group shadow-xs hover:shadow-sm shrink-0 snap-start active:scale-95"
+            className="min-w-[130px] sm:min-w-0 p-3 rounded-2xl bg-[#0E1B2E] hover:bg-[#13243C] border border-[#C5E5EC]/20 hover:border-[#C5E5EC]/40 text-left transition group shadow-sm shrink-0 snap-start active:scale-95 cursor-pointer"
           >
             <div className="flex items-center justify-between mb-1.5">
-              <div className="p-1.5 rounded-lg bg-cyan-100/90 text-cyan-700 shadow-xs">
+              <div className="p-1.5 rounded-lg bg-[#3064AE]/30 text-[#C5E5EC] shadow-xs border border-[#C5E5EC]/20">
                 <WifiOff className="w-4 h-4 group-hover:scale-110 transition" />
               </div>
-              <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-cyan-200 text-cyan-900 font-black shadow-2xs">
+              <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-[#3064AE]/30 text-[#C5E5EC] border border-[#C5E5EC]/30 font-black shadow-2xs">
                 Offline
               </span>
             </div>
-            <h5 className="font-black text-cyan-950 text-xs truncate">Kho Việc Offline</h5>
-            <p className="text-[10px] text-cyan-800/80 font-medium truncate">Xem trong thang máy</p>
+            <h5 className="font-black text-white text-xs truncate">Kho Việc Offline</h5>
+            <p className="text-[10px] text-[#C5E5EC]/70 font-medium truncate">Xem trong thang máy</p>
           </button>
         </div>
       </div>
@@ -336,20 +299,20 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         <div className="flex items-center gap-2">
           {/* Keyword Search Input */}
           <div className="relative flex-1 min-w-0">
-            <Search className="w-4 h-4 text-sky-500 absolute left-3.5 top-3" />
+            <Search className="w-4 h-4 text-[#C5E5EC] absolute left-3.5 top-3" />
             <input
               type="text"
               id="home-search-input"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-10 py-2.5 rounded-2xl bg-white/95 border border-sky-200 text-slate-900 text-xs placeholder:text-slate-400 focus:outline-none focus:border-[#0284C7] focus:ring-2 focus:ring-sky-500/20 shadow-xs transition"
+              className="w-full pl-10 pr-10 py-2.5 rounded-2xl bg-[#0E1B2E] border border-[#C5E5EC]/25 text-white text-xs placeholder:text-[#C5E5EC]/40 focus:outline-hidden focus:border-[#C5E5EC] focus:ring-2 focus:ring-[#3064AE]/30 shadow-xs transition"
               placeholder="Tìm việc làm siêu nhỏ, kéo rank, gia sư, ship hàng KTX..."
             />
             {/* Voice Search Button */}
             <button
               type="button"
               onClick={() => setIsVoiceOpen(true)}
-              className="absolute right-2.5 top-2 p-1 text-slate-400 hover:text-[#0284C7] transition rounded-lg hover:bg-sky-50"
+              className="absolute right-2.5 top-2 p-1 text-[#C5E5EC]/70 hover:text-white transition rounded-lg hover:bg-[#12233B] cursor-pointer"
               title="Tìm kiếm bằng giọng nói"
             >
               <Mic className="w-4 h-4" />
@@ -360,13 +323,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           <button
             id="ai-smart-match-btn"
             onClick={toggleSmartMatch}
-            className={`flex items-center space-x-1.5 px-3.5 py-2.5 rounded-2xl border text-xs font-black transition shadow-xs active:scale-95 ${
+            className={`flex items-center space-x-1.5 px-3.5 py-2.5 rounded-2xl border text-xs font-black transition shadow-xs active:scale-95 cursor-pointer ${
               aiSmartMatchActive
-                ? 'bg-gradient-to-r from-purple-600 to-indigo-600 border-purple-500 text-white shadow-purple-500/25 ring-2 ring-purple-300'
-                : 'bg-gradient-to-r from-purple-50 to-indigo-50 border-purple-200 text-purple-900 hover:border-purple-400 hover:bg-purple-100'
+                ? 'bg-gradient-to-r from-[#3064AE] via-[#417AC6] to-[#C5E5EC] border-[#E0FAEB]/40 text-white shadow-lg shadow-[#3064AE]/30 ring-2 ring-[#C5E5EC]/40'
+                : 'bg-[#0E1B2E] border-[#C5E5EC]/25 text-[#C5E5EC] hover:border-[#C5E5EC]/50 hover:bg-[#13243C]'
             }`}
           >
-            <Sparkles className={`w-4 h-4 ${aiSmartMatchActive ? 'text-yellow-300 animate-spin-slow' : 'text-purple-600'}`} />
+            <Sparkles className={`w-4 h-4 ${aiSmartMatchActive ? 'text-[#E0FAEB] animate-spin-slow' : 'text-[#C5E5EC]'}`} />
             <span className="hidden sm:inline">AI Smart Match</span>
             <span className="sm:hidden">AI Match</span>
           </button>
@@ -374,10 +337,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           {/* Advanced Filter Toggle */}
           <button
             onClick={() => setShowAdvancedFilters((p) => !p)}
-            className={`p-2.5 rounded-2xl border text-xs transition shadow-xs active:scale-95 ${
+            className={`p-2.5 rounded-2xl border text-xs transition shadow-xs active:scale-95 cursor-pointer ${
               showAdvancedFilters
-                ? 'bg-sky-500 text-white border-sky-600 shadow-sky-500/25'
-                : 'bg-gradient-to-r from-sky-50 to-blue-50 border-sky-200 text-sky-800 hover:bg-sky-100 hover:border-sky-300'
+                ? 'bg-[#3064AE] text-white border-[#C5E5EC] shadow-md shadow-[#3064AE]/30'
+                : 'bg-[#0E1B2E] border-[#C5E5EC]/25 text-[#C5E5EC] hover:border-[#C5E5EC]/40 hover:bg-[#13243C]'
             }`}
             title="Bộ lọc nâng cao"
           >
@@ -393,12 +356,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               <button
                 key={cat}
                 onClick={() => setCategory(cat)}
-                className={`flex items-center space-x-1 px-3.5 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap border shadow-xs active:scale-95 ${
+                className={`flex items-center space-x-1 px-3.5 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap border shadow-xs active:scale-95 cursor-pointer ${
                   isSelected
                     ? cat === 'Flash Gigs'
-                      ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white border-amber-500 shadow-sm shadow-amber-500/30'
-                      : 'bg-gradient-to-r from-sky-500 to-blue-600 text-white border-sky-500 shadow-sm shadow-sky-500/25'
-                    : 'bg-white/90 border-slate-200/90 text-slate-700 hover:text-[#0284C7] hover:border-sky-300 hover:bg-sky-50/80'
+                      ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white border-amber-400 shadow-md shadow-amber-500/30'
+                      : 'bg-gradient-to-r from-[#3064AE] to-[#255294] text-white border-[#C5E5EC]/50 shadow-md shadow-[#3064AE]/30'
+                    : 'bg-[#0E1B2E] border-[#C5E5EC]/20 text-[#C5E5EC]/80 hover:text-white hover:border-[#C5E5EC]/40 hover:bg-[#13243C]'
                 }`}
               >
                 {cat === 'Flash Gigs' && <Zap className="w-3 h-3 fill-current text-amber-300" />}
@@ -410,10 +373,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
         {/* Collapsible Advanced Filters (Price, Duration, Multi-worker, Recurring) */}
         {showAdvancedFilters && (
-          <div className="p-4 rounded-2xl bg-white border border-slate-200 space-y-3 text-xs shadow-sm animate-fade-in">
+          <div className="p-4 rounded-2xl bg-[#0E1B2E] border border-[#C5E5EC]/25 space-y-3 text-xs shadow-xl animate-fade-in text-white">
             {/* Price filter chips */}
             <div>
-              <span className="text-slate-600 font-bold block mb-1.5">Mức tiền thù lao:</span>
+              <span className="text-[#C5E5EC] font-bold block mb-1.5">Mức tiền thù lao:</span>
               <div className="flex flex-wrap gap-1.5">
                 {[
                   { label: 'Tất cả mức giá', value: 'ALL' },
@@ -424,10 +387,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   <button
                     key={p.value}
                     onClick={() => setPriceFilter(p.value)}
-                    className={`px-3 py-1 rounded-lg border font-bold text-[11px] transition ${
+                    className={`px-3 py-1 rounded-lg border font-bold text-[11px] transition cursor-pointer ${
                       selectedPriceFilter === p.value
-                        ? 'bg-[#0284C7] text-white border-[#0284C7] shadow-xs'
-                        : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                        ? 'bg-[#3064AE] text-white border-[#C5E5EC] shadow-xs'
+                        : 'bg-[#12233B] text-[#C5E5EC] border-[#C5E5EC]/20 hover:bg-[#162B48]'
                     }`}
                   >
                     {p.label}
@@ -438,7 +401,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
             {/* Duration filter chips */}
             <div>
-              <span className="text-slate-600 font-bold block mb-1.5">Thời lượng hoàn thành:</span>
+              <span className="text-[#C5E5EC] font-bold block mb-1.5">Thời lượng hoàn thành:</span>
               <div className="flex flex-wrap gap-1.5">
                 {[
                   { label: 'Tất cả thời lượng', value: 'ALL' },
@@ -449,10 +412,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   <button
                     key={d.value}
                     onClick={() => setDurationFilter(d.value)}
-                    className={`px-3 py-1 rounded-lg border font-bold text-[11px] transition ${
+                    className={`px-3 py-1 rounded-lg border font-bold text-[11px] transition cursor-pointer ${
                       selectedDurationFilter === d.value
-                        ? 'bg-[#0284C7] text-white border-[#0284C7] shadow-xs'
-                        : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                        ? 'bg-[#3064AE] text-white border-[#C5E5EC] shadow-xs'
+                        : 'bg-[#12233B] text-[#C5E5EC] border-[#C5E5EC]/20 hover:bg-[#162B48]'
                     }`}
                   >
                     {d.label}
@@ -462,21 +425,21 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             </div>
 
             {/* Checkbox toggles: Recurring & Multi-worker */}
-            <div className="flex flex-wrap gap-4 pt-2 border-t border-slate-100">
-              <label className="flex items-center space-x-2 cursor-pointer text-slate-700 font-semibold">
+            <div className="flex flex-wrap gap-4 pt-2 border-t border-[#C5E5EC]/15">
+              <label className="flex items-center space-x-2 cursor-pointer text-[#C5E5EC] font-semibold">
                 <input
                   type="checkbox"
                   checked={filterRecurringOnly}
                   onChange={toggleFilterRecurring}
-                  className="w-4 h-4 accent-[#0284C7] rounded cursor-pointer"
+                  className="w-4 h-4 accent-[#3064AE] rounded cursor-pointer"
                 />
                 <span className="flex items-center space-x-1">
-                  <Repeat className="w-3.5 h-3.5 text-[#0284C7]" />
+                  <Repeat className="w-3.5 h-3.5 text-[#E0FAEB]" />
                   <span>Kèo định kỳ / Thuê theo tuần</span>
                 </span>
               </label>
 
-              <label className="flex items-center space-x-2 cursor-pointer text-slate-700 font-semibold">
+              <label className="flex items-center space-x-2 cursor-pointer text-[#C5E5EC] font-semibold">
                 <input
                   type="checkbox"
                   checked={filterMultiWorkerOnly}
@@ -484,7 +447,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   className="w-4 h-4 accent-orange-500 rounded cursor-pointer"
                 />
                 <span className="flex items-center space-x-1">
-                  <Users className="w-3.5 h-3.5 text-orange-500" />
+                  <Users className="w-3.5 h-3.5 text-orange-400" />
                   <span>Kèo ghép nhóm (&gt;1 người cùng làm)</span>
                 </span>
               </label>
@@ -493,39 +456,37 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         )}
       </div>
 
-
-
       {/* Gigs List Section */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <h3 className="text-sm sm:text-base font-extrabold text-slate-900">Công việc quanh bạn</h3>
-            <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-sky-50 text-[#0284C7] border border-sky-200">
+            <h3 className="text-sm sm:text-base font-extrabold text-white">Công việc quanh bạn</h3>
+            <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-[#3064AE]/30 text-[#C5E5EC] border border-[#C5E5EC]/25 shadow-2xs">
               {filteredGigs.length}
             </span>
           </div>
 
           <button
             onClick={onOpenCreateGig}
-            className="text-xs font-bold text-[#0284C7] hover:underline flex items-center space-x-1"
+            className="text-xs font-bold text-[#C5E5EC] hover:text-[#E0FAEB] flex items-center space-x-1 cursor-pointer transition"
           >
             <span>+ Đăng việc mới</span>
           </button>
         </div>
 
         {filteredGigs.length === 0 ? (
-          <div className="text-center py-16 px-4 rounded-3xl bg-white border border-slate-200/90 shadow-sm">
-            <div className="w-16 h-16 rounded-2xl bg-sky-50 text-[#0284C7] flex items-center justify-center mx-auto mb-3.5">
+          <div className="text-center py-16 px-4 rounded-3xl bg-[#0E1B2E] border border-[#C5E5EC]/20 shadow-xl">
+            <div className="w-16 h-16 rounded-2xl bg-[#3064AE]/30 text-[#C5E5EC] border border-[#C5E5EC]/20 flex items-center justify-center mx-auto mb-3.5 shadow-md">
               <MapPin className="w-8 h-8" />
             </div>
-            <h4 className="text-base font-extrabold text-slate-900">Chưa có công việc nào quanh khu vực này</h4>
-            <p className="text-xs text-slate-500 mt-1.5 max-w-sm mx-auto leading-relaxed">
+            <h4 className="text-base font-extrabold text-white">Chưa có công việc nào quanh khu vực này</h4>
+            <p className="text-xs text-[#C5E5EC]/70 mt-1.5 max-w-sm mx-auto leading-relaxed">
               Hiện tại chưa có công việc nào trong phạm vi tìm kiếm. Hãy là người đầu tiên đăng việc mới hoặc mở rộng bán kính tìm kiếm!
             </p>
             <div className="flex flex-wrap items-center justify-center gap-2 mt-5">
               <button
                 onClick={onOpenCreateGig}
-                className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-sky-500 to-[#0284C7] text-white font-extrabold text-xs hover:brightness-105 shadow-sm shadow-sky-500/25 transition active:scale-95"
+                className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#3064AE] via-[#417AC6] to-[#C5E5EC] text-white font-extrabold text-xs hover:brightness-110 shadow-md shadow-[#3064AE]/30 transition active:scale-95 border border-[#E0FAEB]/30 cursor-pointer"
               >
                 + Đăng Kèo Mới Ngay
               </button>
@@ -535,7 +496,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   setCategory('Tất cả');
                   setSearchQuery('');
                 }}
-                className="px-4 py-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-xs font-bold text-slate-700 transition active:scale-95"
+                className="px-4 py-2.5 rounded-xl bg-[#12233B] hover:bg-[#162B48] border border-[#C5E5EC]/25 text-xs font-bold text-[#C5E5EC] transition active:scale-95 cursor-pointer"
               >
                 Đặt lại bộ lọc (5km)
               </button>
@@ -552,10 +513,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   onClick={() => selectGig(gig.id)}
                   className={`relative rounded-2xl p-4 transition-all duration-200 cursor-pointer flex flex-col justify-between border ${
                     isBoosted
-                      ? 'bg-gradient-to-b from-rose-50/60 via-white to-amber-50/20 border-rose-300 shadow-sm hover:shadow-md ring-1 ring-rose-300/40'
+                      ? 'bg-gradient-to-b from-[#1E1228] to-[#0E1B2E] border-rose-400/50 shadow-xl ring-1 ring-rose-400/30'
                       : isSelected
-                      ? 'bg-gradient-to-b from-sky-50/60 via-white to-white border-[#0284C7] shadow-md shadow-sky-500/15 ring-2 ring-sky-500/25'
-                      : 'bg-gradient-to-b from-white via-white to-sky-50/20 border-sky-100/90 hover:border-sky-400 hover:shadow-[0_10px_25px_-5px_rgba(2,132,199,0.12)] shadow-[0_2px_8px_-2px_rgba(2,132,199,0.05)]'
+                      ? 'bg-[#13243C] border-[#C5E5EC] shadow-2xl ring-2 ring-[#3064AE]/60'
+                      : 'bg-[#0E1B2E] border-[#C5E5EC]/20 hover:border-[#C5E5EC]/50 hover:bg-[#12233B] shadow-lg shadow-[#0A1424]/40'
                   }`}
                 >
                   {/* Top tags */}
@@ -582,34 +543,34 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                         </span>
                       </div>
 
-                      <span className="text-[11px] font-mono text-[#0284C7] font-black flex items-center space-x-0.5 bg-sky-50 px-2 py-0.5 rounded-md border border-sky-200">
-                        <MapPin className="w-3 h-3 text-[#0284C7]" />
+                      <span className="text-[11px] font-mono text-[#C5E5EC] font-black flex items-center space-x-0.5 bg-[#3064AE]/20 px-2 py-0.5 rounded-md border border-[#C5E5EC]/25">
+                        <MapPin className="w-3 h-3 text-[#C5E5EC]" />
                         <span>{gig.distanceMeters}m</span>
                       </span>
                     </div>
 
                     {/* Title */}
-                    <h4 className="text-sm font-bold text-slate-900 leading-snug line-clamp-2 mb-1.5 hover:text-[#0284C7] transition">
+                    <h4 className="text-sm font-bold text-white leading-snug line-clamp-2 mb-1.5 hover:text-[#C5E5EC] transition">
                       {gig.title}
                     </h4>
 
                     {/* Description */}
-                    <p className="text-xs text-slate-600 line-clamp-2 mb-3 leading-relaxed">
+                    <p className="text-xs text-[#C5E5EC]/75 line-clamp-2 mb-3 leading-relaxed">
                       {gig.description}
                     </p>
                   </div>
 
                   {/* Metadata & Pricing footer */}
                   <div>
-                    <div className="flex items-center justify-between text-[11px] text-slate-500 py-2 border-t border-slate-100 mb-3">
+                    <div className="flex items-center justify-between text-[11px] text-[#C5E5EC]/70 py-2 border-t border-[#C5E5EC]/15 mb-3">
                       <div className="flex items-center space-x-1">
-                        <Clock className="w-3.5 h-3.5 text-sky-600" />
-                        <span className="font-semibold text-slate-600">~{gig.estimatedDurationMinutes} phút</span>
+                        <Clock className="w-3.5 h-3.5 text-[#C5E5EC]" />
+                        <span className="font-semibold text-[#C5E5EC]/90">~{gig.estimatedDurationMinutes} phút</span>
                       </div>
 
                       {gig.totalWorkersNeeded > 1 && (
-                        <div className="flex items-center space-x-1 text-teal-800 font-bold bg-teal-100/80 px-2 py-0.5 rounded-md border border-teal-200">
-                          <Users className="w-3.5 h-3.5 text-teal-700" />
+                        <div className="flex items-center space-x-1 text-[#E0FAEB] font-bold bg-teal-950/60 px-2 py-0.5 rounded-md border border-teal-400/30">
+                          <Users className="w-3.5 h-3.5 text-teal-300" />
                           <span>
                             Nhóm {gig.multiWorkers?.length || 0}/{gig.totalWorkersNeeded} bạn
                           </span>
@@ -617,8 +578,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                       )}
 
                       {gig.isRecurringWeekly && (
-                        <div className="flex items-center space-x-1 text-sky-800 font-bold bg-sky-100/80 px-2 py-0.5 rounded-md border border-sky-200">
-                          <Repeat className="w-3.5 h-3.5 text-sky-700" />
+                        <div className="flex items-center space-x-1 text-[#C5E5EC] font-bold bg-[#3064AE]/25 px-2 py-0.5 rounded-md border border-[#C5E5EC]/30">
+                          <Repeat className="w-3.5 h-3.5 text-[#C5E5EC]" />
                           <span>Hàng tuần</span>
                         </div>
                       )}
@@ -626,11 +587,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
                     <div className="flex items-center justify-between">
                       <div>
-                        <span className="text-[10px] text-slate-500 block font-bold mb-0.5">
+                        <span className="text-[10px] text-[#C5E5EC]/70 block font-bold mb-0.5">
                           {gig.isReverseAuction ? 'Đấu giá ngược' : 'Thù lao Escrow'}
                         </span>
-                        <div className="inline-flex items-center px-2 py-0.5 rounded-lg bg-emerald-50 border border-emerald-200/90 shadow-2xs">
-                          <span className="text-base font-black text-emerald-600 font-mono">
+                        <div className="inline-flex items-center px-2 py-0.5 rounded-lg bg-[#12233B] border border-[#E0FAEB]/30 shadow-2xs">
+                          <span className="text-base font-black text-[#E0FAEB] font-mono">
                             {formatVnd(gig.isReverseAuction && gig.lowestBidPrice ? gig.lowestBidPrice : gig.price)}
                           </span>
                         </div>
@@ -642,10 +603,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                             e.stopPropagation();
                             onSelectGigDetail(gig.id);
                           }}
-                          className={`px-3.5 py-1.5 rounded-xl font-extrabold text-xs shadow-xs transition flex items-center space-x-1 active:scale-95 ${
+                          className={`px-3.5 py-1.5 rounded-xl font-extrabold text-xs shadow-md transition flex items-center space-x-1 active:scale-95 cursor-pointer ${
                             gig.auctionRoomOpen
                               ? 'bg-gradient-to-r from-red-600 to-rose-600 text-white hover:brightness-105 shadow-red-500/20'
-                              : 'bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-600 text-white hover:brightness-105 shadow-blue-500/20'
+                              : 'bg-gradient-to-r from-[#3064AE] via-[#417AC6] to-[#C5E5EC] text-white hover:brightness-110 shadow-[#3064AE]/30 border border-[#E0FAEB]/30'
                           }`}
                         >
                           <span>{gig.auctionRoomOpen ? 'Vào Đấu Giá' : gig.isReverseAuction ? 'Đấu Giá' : 'Xem Kèo'}</span>

@@ -60,7 +60,7 @@ const STORAGE_KEYS = {
 };
 
 const DEFAULT_ADMIN: UserEntity = {
-  id: 'admin_root',
+  id: '000000000', // Tài khoản Admin cố định 9 chữ số 000000000
   name: 'Ban Quản Trị GigMe',
   email: 'admin@admin.vn',
   phone: '0909120918',
@@ -101,6 +101,26 @@ const DEFAULT_ADMIN: UserEntity = {
   securityPin: '123456',
   badges: 'Quản Trị Viên Tối Cao',
   isLocked: false,
+  createdAt: 1700000000000,
+};
+
+// Hàm sinh ID độc nhất 9 chữ số từ 000000001 -> 999999999 (000000000 dành riêng cho Admin)
+export const generateUniqueUserId = (existingUsers: UserEntity[]): string => {
+  const existingIds = new Set(existingUsers.map((u) => u.id));
+  existingIds.add('000000000'); // ID độc quyền của Admin
+  existingIds.add('admin_root');
+
+  let attempts = 0;
+  while (attempts < 10000) {
+    const randomNum = Math.floor(1 + Math.random() * 999999998);
+    const idStr = String(randomNum).padStart(9, '0');
+    if (!existingIds.has(idStr)) {
+      return idStr;
+    }
+    attempts++;
+  }
+  // Fallback bảo đảm luôn đủ 9 chữ số
+  return String(Date.now() % 1000000000).padStart(9, '0');
 };
 
 const INITIAL_USERS: UserEntity[] = [
@@ -196,6 +216,11 @@ interface GigMeContextType {
   loginWithMoSms: (phone: string) => Promise<boolean>;
   loginSocial: (provider: string, emailOrName?: string) => Promise<void> | void;
   logout: () => void;
+
+  // Friends & ID 9 digits
+  addFriendById: (targetId: string) => { success: boolean; message: string; friend?: UserEntity };
+  removeFriendById: (targetId: string) => void;
+  findUserByNineDigitId: (id: string) => UserEntity | null;
 
   // Gigs & Escrow Actions
   upgradeTier: (newTier: UserTierKey, fullName: string, schoolOrId: string) => void;
@@ -336,6 +361,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       ].forEach((k) => localStorage.removeItem(k));
       const cur = localStorage.getItem(STORAGE_KEYS.CURRENT_USER_ID);
       if (
+        cur === 'admin_root' ||
         cur === 'user_526h0044' ||
         cur === 'user_freelancer_lan' ||
         cur === 'user_cafe_passio' ||
@@ -357,16 +383,27 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        const filtered = parsed.filter(
-          (u: UserEntity) =>
-            u.id !== 'user_526h0044' &&
-            u.id !== 'user_freelancer_lan' &&
-            u.id !== 'user_cafe_passio' &&
-            u.id !== 'user_student_tdtu' &&
-            u.id !== 'user_student_huy' &&
-            u.id !== 'user_client_ha'
-        );
-        return filtered.length > 0 ? filtered : INITIAL_USERS;
+        const cleaned: UserEntity[] = parsed
+          .filter(
+            (u: UserEntity) =>
+              u.id !== 'user_526h0044' &&
+              u.id !== 'user_freelancer_lan' &&
+              u.id !== 'user_cafe_passio' &&
+              u.id !== 'user_student_tdtu' &&
+              u.id !== 'user_student_huy' &&
+              u.id !== 'user_client_ha'
+          )
+          .map((u: UserEntity) => {
+            if (u.id === 'admin_root' || u.email === 'admin@admin.vn') {
+              return { ...DEFAULT_ADMIN, id: '000000000' };
+            }
+            return u;
+          });
+        // Đảm bảo luôn có tài khoản Admin 000000000
+        if (!cleaned.some((u) => u.id === '000000000' || u.role === 'ADMIN')) {
+          cleaned.unshift(DEFAULT_ADMIN);
+        }
+        return cleaned;
       } catch {
         return INITIAL_USERS;
       }
@@ -375,8 +412,15 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   });
 
   const [currentUserId, setCurrentUserId] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+
     const saved = localStorage.getItem(STORAGE_KEYS.CURRENT_USER_ID);
+
+    // Tuyệt đối không bao giờ tự động khôi phục quyền Admin hoặc ID demo cũ khi mở app/cài mới
     if (
+      !saved ||
+      saved === '000000000' ||
+      saved === 'admin_root' ||
       saved === 'user_526h0044' ||
       saved === 'user_freelancer_lan' ||
       saved === 'user_cafe_passio' ||
@@ -385,9 +429,18 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       saved === 'user_client_ha'
     ) {
       localStorage.removeItem(STORAGE_KEYS.CURRENT_USER_ID);
+
+      // Admin chỉ có hiệu lực tạm thời trong phiên tab (sessionStorage) nếu vừa đăng nhập hợp lệ
+      const isAdminSessionActive = sessionStorage.getItem('gigme_admin_active_session') === 'true';
+      const sessionTime = parseInt(sessionStorage.getItem('gigme_admin_session_time') || '0', 10);
+      const isFresh = Date.now() - sessionTime < 3 * 60 * 60 * 1000;
+      if (isAdminSessionActive && isFresh) {
+        return '000000000';
+      }
       return null;
     }
-    return saved || null;
+
+    return saved;
   });
 
   const [roleMode, setRoleMode] = useState<AppRoleMode>(() => {
@@ -1101,7 +1154,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
 
     const hashedPassword = await hashPassword(trimmedPass);
-    const newUserId = `user_${Date.now()}`;
+    const newUserId = generateUniqueUserId(users);
     const newUser: UserEntity = {
       id: newUserId,
       name: trimmedName,
@@ -1145,6 +1198,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       securityPin: '123456',
       badges: 'Thành viên mới',
       isLocked: false,
+      createdAt: Date.now(),
     };
 
     // Cloud registration & sync first to ensure server constraints pass
@@ -1195,27 +1249,47 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return false;
     }
 
-    // Admin Root check: admin@admin.vn | 0909120918 | admin1507
-    if ((trimmedContact === 'admin@admin.vn' || normalizedPhone === '0909120918') && trimmedPass === 'admin1507') {
-      let admin = users.find((u) => u.email === 'admin@admin.vn' || u.phone === '0909120918' || u.id === 'admin_root');
+    // Admin Root check: admin@admin.vn | 0909120918 | 000000000 | admin1507
+    if (
+      (trimmedContact === 'admin@admin.vn' ||
+        normalizedPhone === '0909120918' ||
+        trimmedContact === '000000000' ||
+        trimmedContact === 'admin') &&
+      trimmedPass === 'admin1507'
+    ) {
+      let admin = users.find(
+        (u) =>
+          u.id === '000000000' ||
+          u.email === 'admin@admin.vn' ||
+          u.phone === '0909120918' ||
+          u.id === 'admin_root'
+      );
       if (!admin) {
         admin = DEFAULT_ADMIN;
-        setUsers((prev) => [...prev, DEFAULT_ADMIN]);
+        setUsers((prev) => [...prev.filter((u) => u.id !== '000000000'), DEFAULT_ADMIN]);
+      } else {
+        admin = { ...admin, id: '000000000' };
       }
-      setCurrentUserId(admin.id);
-      showNotification('Chào mừng Quản trị viên!', 'Đã đăng nhập Trung Tâm Điều Hành Admin GigMe.', true);
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('gigme_admin_active_session', 'true');
+        sessionStorage.setItem('gigme_admin_session_time', String(Date.now()));
+        localStorage.removeItem(STORAGE_KEYS.CURRENT_USER_ID);
+      }
+      setCurrentUserId('000000000');
+      showNotification('Chào mừng Quản trị viên!', 'Đã đăng nhập Trung Tâm Điều Hành Admin GigMe (ID: 000000000).', true);
       return true;
     }
 
-    // Check if user is in local state with multiple matching patterns
+    // Check if user is in local state with multiple matching patterns (Email, Phone, hoặc ID 9 số)
     let user = users.find((u) => {
+      const idMatch = u.id === trimmedContact;
       const emailMatch = !!u.email && u.email.toLowerCase() === trimmedContact;
       const phoneMatch = !!u.phone && (
         u.phone === trimmedContact ||
         u.phone === normalizedPhone ||
         u.phone.replace(/\D/g, '') === normalizedPhone
       );
-      return emailMatch || phoneMatch;
+      return idMatch || emailMatch || phoneMatch;
     });
 
     // If not in local state, fetch directly from Firebase Firestore
@@ -1416,7 +1490,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     let user = users.find((u) => u.phone === trimmedPhone);
     if (!user) {
-      const newUserId = `user_${Date.now()}`;
+      const newUserId = generateUniqueUserId(users);
       user = {
         id: newUserId,
         name: `Người dùng ${trimmedPhone}`,
@@ -1458,6 +1532,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         securityPin: '123456',
         badges: 'Thành viên mới',
         isLocked: false,
+        createdAt: Date.now(),
       };
       setUsers((prev) => [...prev, user!]);
       cloudService.registerUser(user);
@@ -1500,7 +1575,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     let user = users.find((u) => u.phone === trimmedPhone);
     if (!user) {
-      const newUserId = `user_${Date.now()}`;
+      const newUserId = generateUniqueUserId(users);
       user = {
         id: newUserId,
         name: `Người dùng ${trimmedPhone}`,
@@ -1542,6 +1617,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         securityPin: '123456',
         badges: 'Xác thực SMS MO chính chủ',
         isLocked: false,
+        createdAt: Date.now(),
       };
       setUsers((prev) => [...prev, user!]);
       await cloudService.registerUser(user);
@@ -1623,8 +1699,9 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
 
         if (!user) {
+          const socialUserId = generateUniqueUserId(users);
           user = {
-            id: uid,
+            id: socialUserId,
             name: name,
             email: email,
             phone: authUser.phoneNumber || '',
@@ -1664,6 +1741,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             securityPin: '123456',
             badges: `Tài khoản ${provider} chính chủ`,
             isLocked: false,
+            createdAt: Date.now(),
           };
           setUsers((prev) => [...prev.filter((u) => u.id !== user!.id), user!]);
           // Lưu đồng bộ thật lên Firebase Firestore
@@ -1699,8 +1777,61 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const logout = () => {
     localStorage.removeItem(STORAGE_KEYS.CURRENT_USER_ID);
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('gigme_admin_active_session');
+      sessionStorage.removeItem('gigme_admin_session_time');
+    }
     setCurrentUserId(null);
-    showNotification('Đã đăng xuất', 'Bạn đã đăng xuất tài khoản thành công.', true);
+    showNotification('Đã đăng xuất', 'Bạn đã đăng xuất tài khoản an toàn.', true);
+  };
+
+  // Quản lý bạn bè & Tìm tài khoản theo ID 9 chữ số (000000000 - 999999999)
+  const findUserByNineDigitId = (id: string): UserEntity | null => {
+    const clean = (id || '').trim();
+    if (!clean) return null;
+    return users.find((u) => u.id === clean) || null;
+  };
+
+  const addFriendById = (targetId: string): { success: boolean; message: string; friend?: UserEntity } => {
+    const cleanId = (targetId || '').trim();
+    if (!cleanId) {
+      return { success: false, message: 'Vui lòng nhập ID 9 số hợp lệ!' };
+    }
+    if (!currentUser) {
+      return { success: false, message: 'Bạn cần đăng nhập để kết bạn!' };
+    }
+    if (currentUser.id === cleanId) {
+      return { success: false, message: 'Không thể tự kết bạn với chính ID của mình!' };
+    }
+    const targetUser = users.find((u) => u.id === cleanId);
+    if (!targetUser) {
+      return { success: false, message: `Không tìm thấy tài khoản nào có ID "${cleanId}".` };
+    }
+    const currentFriends = currentUser.friendIds || [];
+    if (currentFriends.includes(cleanId)) {
+      return { success: false, message: `Bạn và ${targetUser.name} đã là bạn bè!`, friend: targetUser };
+    }
+    const updatedUser: UserEntity = {
+      ...currentUser,
+      friendIds: [...currentFriends, cleanId],
+    };
+    setUsers((prev) => prev.map((u) => (u.id === currentUser.id ? updatedUser : u)));
+    try {
+      localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users.map((u) => (u.id === currentUser.id ? updatedUser : u))));
+    } catch {}
+    showNotification('Kết bạn thành công! 🤝', `Đã kết bạn với ${targetUser.name} (ID: ${cleanId}).`, true);
+    return { success: true, message: `Đã kết bạn thành công với ${targetUser.name}!`, friend: targetUser };
+  };
+
+  const removeFriendById = (targetId: string): void => {
+    if (!currentUser) return;
+    const cleanId = (targetId || '').trim();
+    const updatedUser: UserEntity = {
+      ...currentUser,
+      friendIds: (currentUser.friendIds || []).filter((id) => id !== cleanId),
+    };
+    setUsers((prev) => prev.map((u) => (u.id === currentUser.id ? updatedUser : u)));
+    showNotification('Đã xóa bạn bè', `Đã xóa ID ${cleanId} khỏi danh bạ.`);
   };
 
   const setRadius = (meters: number) => {
@@ -4312,6 +4443,9 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         loginWithMoSms,
         loginSocial,
         logout,
+        addFriendById,
+        removeFriendById,
+        findUserByNineDigitId,
         upgradeTier,
         postGig,
         placeBid,

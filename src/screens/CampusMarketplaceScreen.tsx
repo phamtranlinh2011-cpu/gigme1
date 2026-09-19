@@ -218,20 +218,23 @@ export const CampusMarketplaceScreen: React.FC<{
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-6 pb-28 text-white space-y-6 animate-fade-in">
-      {/* Header Banner */}
-      <div className="rounded-3xl bg-gradient-to-br from-[#101D33] via-[#0B1322] to-[#070D18] border-2 border-emerald-500/40 p-6 shadow-2xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+      {/* Header Banner with Brand Proportional Style: Cobalt 60%, Crystal 30%, Ethereal 10% */}
+      <div className="rounded-3xl bg-gradient-to-r from-[#18345E] via-[#0F1E36] to-[#0A1424] border border-[#C5E5EC]/25 p-6 shadow-2xl relative overflow-hidden">
+        {/* Left Decorative Proportional Brand Gradient Bar */}
+        <div className="absolute left-0 top-0 bottom-0 w-2 bg-brand-tri-gradient" />
+        <div className="absolute top-0 right-0 w-80 h-80 bg-[#3064AE]/20 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="relative z-10 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="relative z-10 flex flex-col sm:flex-row items-center justify-between gap-4 pl-2">
           <div className="space-y-2 text-center sm:text-left">
-            <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-bold">
-              <ShoppingBag className="w-4 h-4" />
+            <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-[#3064AE]/25 border border-[#C5E5EC]/30 text-[#C5E5EC] text-xs font-bold">
+              <span className="w-2 h-2 rounded-full bg-[#E0FAEB] inline-block mr-1 shadow-xs" />
+              <ShoppingBag className="w-4 h-4 text-[#C5E5EC]" />
               <span>Campus Flea Market • Chợ Đồ Cũ Sinh Viên</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
               Khu Vực Thanh Lý Đồ Cũ Sinh Viên
             </h1>
-            <p className="text-xs text-slate-300 max-w-lg">
+            <p className="text-xs text-[#C5E5EC]/85 max-w-lg">
               Săn giáo trình cũ, bàn ghế KTX, đồ công nghệ, đồ gia dụng giá sinh viên hoặc nhận đồ tặng 0đ. 100% an tâm với Smart Escrow bảo chứng giao dịch!
             </p>
           </div>
@@ -241,7 +244,7 @@ export const CampusMarketplaceScreen: React.FC<{
               playNotificationSound('BUTTON_CLICK');
               setShowCreateModal(true);
             }}
-            className="px-4 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-400 to-teal-400 text-black font-extrabold text-xs hover:brightness-110 shadow-lg shadow-emerald-500/25 transition flex items-center space-x-1.5 shrink-0"
+            className="px-4 py-2.5 rounded-2xl bg-gradient-to-r from-[#3064AE] via-[#437DD2] to-[#C5E5EC] text-white font-extrabold text-xs hover:brightness-110 shadow-lg shadow-[#3064AE]/30 transition flex items-center space-x-1.5 shrink-0 border border-[#E0FAEB]/30 cursor-pointer"
           >
             <PlusCircle className="w-4 h-4" />
             <span>Đăng Thanh Lý / Cho 0đ</span>
@@ -258,7 +261,7 @@ export const CampusMarketplaceScreen: React.FC<{
             placeholder="Tìm giáo trình, máy tính Casio, áo blouse, đồ KTX..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-[#0F172A] border border-slate-700 text-xs text-white placeholder:text-slate-500"
+            className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-[#0E1B2E] border border-[#C5E5EC]/20 text-xs text-white placeholder:text-slate-500 focus:border-[#3064AE]"
           />
         </div>
 
@@ -272,8 +275,8 @@ export const CampusMarketplaceScreen: React.FC<{
             }}
             className={`px-3 py-1 rounded-full text-xs font-bold shrink-0 transition ${
               dealFilter === 'ALL'
-                ? 'bg-cyan-500 text-black shadow-sm'
-                : 'bg-[#131E30] text-slate-300 border border-slate-700 hover:border-slate-500'
+                ? 'bg-[#3064AE] text-white shadow-sm border border-[#C5E5EC]/40'
+                : 'bg-[#0E1B2E] text-slate-300 border border-[#C5E5EC]/15 hover:border-[#C5E5EC]/30'
             }`}
           >
             🔥 Tất cả đồ thanh lý
@@ -285,8 +288,8 @@ export const CampusMarketplaceScreen: React.FC<{
             }}
             className={`px-3 py-1 rounded-full text-xs font-bold shrink-0 transition ${
               dealFilter === 'UNDER_50K'
-                ? 'bg-amber-400 text-black shadow-sm'
-                : 'bg-[#131E30] text-slate-300 border border-slate-700 hover:border-slate-500'
+                ? 'bg-[#3064AE] text-white shadow-sm border border-[#C5E5EC]/40'
+                : 'bg-[#0E1B2E] text-slate-300 border border-[#C5E5EC]/15 hover:border-[#C5E5EC]/30'
             }`}
           >
             🏷️ Đồng giá &lt; 50.000đ
@@ -298,8 +301,8 @@ export const CampusMarketplaceScreen: React.FC<{
             }}
             className={`px-3 py-1 rounded-full text-xs font-bold shrink-0 transition ${
               dealFilter === 'FREE'
-                ? 'bg-emerald-400 text-black shadow-sm'
-                : 'bg-[#131E30] text-slate-300 border border-slate-700 hover:border-slate-500'
+                ? 'bg-[#3064AE] text-[#E0FAEB] shadow-sm border border-[#E0FAEB]/40'
+                : 'bg-[#0E1B2E] text-slate-300 border border-[#C5E5EC]/15 hover:border-[#C5E5EC]/30'
             }`}
           >
             🎁 Tặng Miễn Phí (0đ)
@@ -311,8 +314,8 @@ export const CampusMarketplaceScreen: React.FC<{
             }}
             className={`px-3 py-1 rounded-full text-xs font-bold shrink-0 transition ${
               dealFilter === 'DORM'
-                ? 'bg-purple-400 text-black shadow-sm'
-                : 'bg-[#131E30] text-slate-300 border border-slate-700 hover:border-slate-500'
+                ? 'bg-[#3064AE] text-white shadow-sm border border-[#C5E5EC]/40'
+                : 'bg-[#0E1B2E] text-slate-300 border border-[#C5E5EC]/15 hover:border-[#C5E5EC]/30'
             }`}
           >
             🏠 Dọn phòng Ký túc xá
@@ -329,8 +332,8 @@ export const CampusMarketplaceScreen: React.FC<{
               }}
               className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition ${
                 categoryFilter === c.id
-                  ? 'bg-emerald-400 text-black shadow-md shadow-emerald-500/20'
-                  : 'bg-[#0F172A] border border-slate-700 text-slate-300 hover:border-slate-500'
+                  ? 'bg-[#3064AE] text-white shadow-md shadow-[#3064AE]/30 border border-[#C5E5EC]/40 font-black'
+                  : 'bg-[#101D30] border border-[#C5E5EC]/15 text-slate-300 hover:border-[#C5E5EC]/30'
               }`}
             >
               {c.label}
@@ -344,8 +347,10 @@ export const CampusMarketplaceScreen: React.FC<{
         {filteredItems.map((item) => (
           <div
             key={item.id}
-            className="rounded-3xl bg-[#0F172A] border border-slate-800 overflow-hidden shadow-xl flex flex-col justify-between group hover:border-emerald-500/40 transition duration-200"
+            className="rounded-3xl bg-gradient-to-b from-[#111F35] to-[#0C1626] border border-[#C5E5EC]/20 overflow-hidden shadow-xl flex flex-col justify-between group hover:border-[#C5E5EC]/50 transition duration-200 relative"
           >
+            {/* Top Brand Accent Stripe */}
+            <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-[#3064AE] via-[#C5E5EC] to-[#E0FAEB] opacity-70 group-hover:opacity-100 transition-opacity z-20" />
             <div>
               {/* Image & Badges */}
               <div className="relative h-44 w-full overflow-hidden bg-slate-900">
