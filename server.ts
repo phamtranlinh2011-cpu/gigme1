@@ -2109,44 +2109,120 @@ Chỉ trả về JSON thuần túy, không thêm markdown.`;
     }
   });
 
-  // 10.2 Gemini 24/7 Campus & Escrow Chat Assistant
+  // Helper to load skill.md prompt
+  function getSkillMdPrompt(): string {
+    try {
+      const skillFilePath = path.join(process.cwd(), 'skill.md');
+      if (fs.existsSync(skillFilePath)) {
+        return fs.readFileSync(skillFilePath, 'utf-8');
+      }
+    } catch (e) {
+      console.warn('Could not read skill.md:', e);
+    }
+    return `Bạn là Trợ Lý AI Thông Minh GigMe 24/7, luôn đồng hành và bảo vệ 100% quyền lợi sinh viên trên nền tảng GigMe.
+1. Smart Escrow: Ký quỹ tiền an toàn 100%, chống bùng cọc. Người làm hoàn thành nghiệm thu thì người thuê mới giải ngân.
+2. Napas 24/7: Nạp tiền VietQR 1-3s, rút tiền tức thì 0đ phí.
+3. ELO & Chuỗi Thắng: Hoàn thành 5 sao cộng +25 ELO, hủy kèo muộn bị trừ ELO.
+4. Tranh chấp: Có Trọng tài Campus đối soát minh bạch trong 24 giờ.`;
+  }
+
+  // 10.2 GigMe 24/7 Smart Campus & Escrow Chat Assistant (Powered by Groq + skill.md + Gemini Fallback)
   app.post('/api/gemini/chat-assistant', async (req: Request, res: Response) => {
     const { message, history } = req.body || {};
-    const ai = getGemini();
 
     if (!message) {
       return res.status(400).json({ error: 'Message is required' });
     }
 
-    if (!ai) {
-      return res.json({
-        reply: 'Chào bạn! Mình là Trợ lý AI GigMe. Tiền cọc của bạn được bảo vệ 100% qua Smart Escrow. Khi người làm bàn giao nghiệm thu thì bạn mới bấm giải ngân nhé!',
-      });
+    const skillPrompt = getSkillMdPrompt();
+    const GROQ_API_KEY = process.env.GROQ_API_KEY || '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';
+
+    // Format chat messages with skill instructions
+    const conversationMessages: Array<{ role: string; content: string }> = [
+      {
+        role: 'system',
+        content: `${skillPrompt}\n\nLƯU Ý QUAN TRỌNG: Hãy luôn trả lời bằng tiếng Việt, giọng điệu thân thiện, chu đáo, hiểu tâm lý sinh viên. Vận dụng triệt để các nguyên tắc và kịch bản trong tài liệu kỹ năng trên để giải quyết thấu đáo câu hỏi của sinh viên, từ những câu đơn giản đến các tình huống tranh chấp phức tạp nhất. Trình bày rõ ràng, mạch lạc, có cấu trúc dễ đọc.`,
+      },
+    ];
+
+    if (Array.isArray(history)) {
+      for (const h of history) {
+        if (h && h.content) {
+          conversationMessages.push({
+            role: h.role === 'assistant' ? 'assistant' : 'user',
+            content: String(h.content),
+          });
+        }
+      }
     }
 
-    try {
-      const systemPrompt = `Bạn là Trợ lý AI Sinh Viên GigMe 24/7, hoạt động trên nền tảng GigMe - Chợ việc làm sinh viên & Ký quỹ Smart Escrow tại các KTX và Đại học Việt Nam.
-Phong cách giao tiếp: Thân thiện, lịch sự, chuẩn phong cách sinh viên Việt Nam, nhiệt tình và rõ ràng.
-Các điểm cốt lõi bạn cần nắm:
-1. Smart Escrow: Tiền được khoá an toàn khi nhận việc. Người thuê chỉ giải ngân khi người làm hoàn thành nghiệm thu bài tập/công việc. Tránh 100% lừa đảo bùng cọc.
-2. Rút tiền Napas 247: Rút về tài khoản ngân hàng tức thì 1-3 giây, miễn phí 0đ.
-3. Chấm ELO & Chuỗi Thắng: Đơn việc 5 sao cộng +25 ELO, giúp thợ sinh viên nhận nhiều kèo VIP.
-4. Tranh chấp: Có nút Khiếu nại, Trọng tài Campus sẽ xử lý và đối soát công bằng.`;
+    conversationMessages.push({
+      role: 'user',
+      content: String(message),
+    });
 
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: [
-          { role: 'user', parts: [{ text: `${systemPrompt}\n\nCâu hỏi của sinh viên: ${message}` }] },
-        ],
-      });
+    // 1. Try Groq Cloud with provided API key (model: openai/gpt-oss-120b or openai/gpt-oss-20b)
+    if (GROQ_API_KEY) {
+      const groqModels = ['openai/gpt-oss-120b', 'openai/gpt-oss-20b', 'qwen/qwen3.8-27b'];
+      for (const groqModel of groqModels) {
+        try {
+          const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${GROQ_API_KEY.trim()}`,
+            },
+            body: JSON.stringify({
+              model: groqModel,
+              messages: conversationMessages,
+              temperature: 0.6,
+              max_tokens: 1024,
+            }),
+          });
 
-      return res.json({ reply: response.text || 'Mình đã ghi nhận câu hỏi của bạn!' });
-    } catch (err: any) {
-      console.warn('Gemini Assistant fallback:', err?.message);
-      return res.json({
-        reply: 'Hệ thống Smart Escrow bảo vệ tiền của bạn 100%. Nếu có bất kỳ thắc mắc nào, bạn có thể liên hệ Trọng tài Campus để được hỗ trợ tức thì!',
-      });
+          if (groqRes.ok) {
+            const groqData = (await groqRes.json()) as any;
+            const reply = groqData.choices?.[0]?.message?.content;
+            if (reply && reply.trim()) {
+              return res.json({ reply: reply.trim(), provider: 'groq', model: groqModel });
+            }
+          } else {
+            const errText = await groqRes.text();
+            console.warn(`Groq API (${groqModel}) returned error:`, groqRes.status, errText);
+          }
+        } catch (groqErr: any) {
+          console.warn(`Groq fetch error (${groqModel}):`, groqErr?.message);
+        }
+      }
     }
+
+    // 2. Fallback to Gemini if Groq is unavailable
+    const ai = getGemini();
+    if (ai) {
+      try {
+        const response = await ai.models.generateContent({
+          model: 'gemini-2.5-flash',
+          contents: [
+            {
+              role: 'user',
+              parts: [{ text: `${skillPrompt}\n\nCâu hỏi/tình huống của sinh viên: ${message}` }],
+            },
+          ],
+        });
+
+        if (response.text) {
+          return res.json({ reply: response.text, provider: 'gemini' });
+        }
+      } catch (geminiErr: any) {
+        console.warn('Gemini Assistant fallback error:', geminiErr?.message);
+      }
+    }
+
+    // 3. Fallback to default intelligent reply from skill
+    return res.json({
+      reply: 'Xin chào bạn! Mình là Trợ lý AI GigMe. Mình luôn sẵn sàng giải đáp mọi câu hỏi của bạn về Gigme. Bạn đang cần hỗ trợ vấn đề gì cụ thể?',
+      provider: 'fallback',
+    });
   });
 
   // 10.5 NFC CCCD ICAO 9303 Verification Endpoint
