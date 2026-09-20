@@ -57,6 +57,7 @@ interface MessengerContact {
   roleLabel: string;
   school: string;
   avatarBg: string;
+  avatarUrl?: string;
   isOnline: boolean;
   lastActiveText: string;
   specialtyOrNeed: string;
@@ -69,6 +70,12 @@ interface MessengerContact {
   };
 }
 
+// Normalized direct message thread ID generator (avoids multi-user leakage)
+const getDirectThreadId = (userA: string, userB: string): string => {
+  const sorted = [userA, userB].sort();
+  return `dm_${sorted[0]}_${sorted[1]}`;
+};
+
 export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) => {
   const {
     currentUser,
@@ -80,6 +87,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
     removeFriendById,
     findUserByNineDigitId,
     sendChat,
+    markConversationAsRead,
     startVoipCall,
     selectGig,
     showNotification,
@@ -90,6 +98,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
   const [activeFilterTab, setActiveFilterTab] = useState<'ALL' | 'CLIENTS' | 'WORKERS' | 'ONLINE' | 'AI'>('ALL');
   
   // 9-digit ID Search & Friend Connection State
+  const [showAddFriendModal, setShowAddFriendModal] = useState(false);
   const [searchIdInput, setSearchIdInput] = useState('');
   const [foundUserResult, setFoundUserResult] = useState<UserEntity | null>(null);
   const [searchIdError, setSearchIdError] = useState('');
@@ -186,11 +195,12 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
         if (friendUser && !list.find((c) => c.id === friendUser.id)) {
           list.push({
             id: friendUser.id,
-            name: friendUser.name,
+            name: friendUser.name || `Tài khoản ${friendUser.id}`,
             role: friendUser.role === 'ADMIN' ? 'ADMIN' : 'WORKER',
             roleLabel: `Bạn bè (ID: ${friendUser.id})`,
             school: friendUser.studentSchool || 'Sinh viên Campus',
             avatarBg: 'from-blue-600 to-indigo-600',
+            avatarUrl: (friendUser as any).avatarUrl || (friendUser as any).photoURL || undefined,
             isOnline: true,
             lastActiveText: 'Đang online',
             specialtyOrNeed: `Bạn bè kết nối qua ID 9 số: ${friendUser.id}`,
@@ -215,6 +225,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
               roleLabel: 'Người thuê',
               school: clientUser?.studentSchool || (gig.locationName?.includes('Hà Nội') ? 'ĐH Bách Khoa HN' : 'ĐHQG TP.HCM'),
               avatarBg: 'from-blue-600 to-indigo-600',
+              avatarUrl: (clientUser as any)?.avatarUrl || (clientUser as any)?.photoURL || undefined,
               isOnline: true,
               lastActiveText: 'Đang online',
               specialtyOrNeed: `Đơn: ${gig.title}`,
@@ -247,6 +258,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
               roleLabel: 'Người làm',
               school: freelancerUser?.studentSchool || 'Sinh viên Campus',
               avatarBg: 'from-emerald-600 to-cyan-600',
+              avatarUrl: (freelancerUser as any)?.avatarUrl || (freelancerUser as any)?.photoURL || undefined,
               isOnline: true,
               lastActiveText: 'Đang online',
               specialtyOrNeed: `Đang làm: ${gig.title}`,
@@ -269,19 +281,23 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
       });
     }
 
-    // 4. Nếu có tin nhắn trong allChats với một người dùng nào đó chưa có trong list
-    if (allChats && allChats.length > 0) {
+    // 4. Nếu có tin nhắn trong allChats với một người dùng nào đó mà currentUser thực sự tham gia
+    if (allChats && allChats.length > 0 && currentUser) {
       allChats.forEach((chat) => {
-        const partnerId = chat.senderId === currentUser?.id ? chat.partnerId : chat.senderId;
-        if (partnerId && partnerId !== currentUser?.id && !list.find((c) => c.id === partnerId)) {
+        const isUserInvolved = chat.senderId === currentUser.id || chat.partnerId === currentUser.id;
+        if (!isUserInvolved) return;
+
+        const partnerId = chat.senderId === currentUser.id ? chat.partnerId : chat.senderId;
+        if (partnerId && partnerId !== currentUser.id && !list.find((c) => c.id === partnerId)) {
           const u = (users || []).find((usr) => usr.id === partnerId);
           list.push({
             id: partnerId,
             name: u?.name || (partnerId === '000000000' ? 'Ban Quản Trị GigMe' : `Tài khoản ${partnerId}`),
-            role: u?.role === 'ADMIN' ? 'ADMIN' : 'WORKER',
-            roleLabel: `ID ${partnerId}`,
+            role: (u?.role === 'ADMIN' ? 'ADMIN' : 'WORKER') as 'CLIENT' | 'WORKER' | 'ADMIN',
+            roleLabel: partnerId === '000000000' ? 'Admin 000000000' : `ID ${partnerId}`,
             school: u?.studentSchool || 'Campus Hub',
             avatarBg: 'from-teal-600 to-blue-600',
+            avatarUrl: (u as any)?.avatarUrl || (u as any)?.photoURL || undefined,
             isOnline: true,
             lastActiveText: 'Hoạt động gần đây',
             specialtyOrNeed: `ID 9 số: ${partnerId}`,
@@ -293,23 +309,89 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
     return list.filter((c) => !isMockOrFakeAccount(c.name, c.id));
   }, [rawGigs, currentUser, users, allChats]);
 
-  // Active contact details
+  // Active contact details with foolproof fallback (so clicking any contact ALWAYS opens chat room)
   const activeContact = useMemo(() => {
     if (!activeConversationId) return null;
-    return campusContacts.find((c) => c.id === activeConversationId) || null;
-  }, [activeConversationId, campusContacts]);
+    const found = campusContacts.find((c) => c.id === activeConversationId);
+    if (found) return found;
 
-  // Messages for active conversation
+    // Search in users
+    const u = (users || []).find((usr) => usr.id === activeConversationId);
+    if (u) {
+      return {
+        id: u.id,
+        name: u.name || `Tài khoản ${u.id}`,
+        role: (u.role === 'ADMIN' ? 'ADMIN' : 'WORKER') as 'CLIENT' | 'WORKER' | 'ADMIN',
+        roleLabel: u.role === 'ADMIN' ? 'Admin 000000000' : `ID: ${u.id}`,
+        school: u.studentSchool || 'Campus Hub',
+        avatarBg: 'from-blue-600 to-indigo-600',
+        avatarUrl: (u as any)?.avatarUrl || (u as any)?.photoURL || undefined,
+        isOnline: true,
+        lastActiveText: 'Đang online',
+        specialtyOrNeed: `ID 9 số: ${u.id}`,
+        isEduVerified: !!u.isEduVerified || !!u.isStudentVerified,
+      };
+    }
+
+    // Default fallback
+    return {
+      id: activeConversationId,
+      name: activeConversationId === '000000000' ? 'Ban Quản Trị GigMe (Admin Support)' : `Người dùng (${activeConversationId})`,
+      role: (activeConversationId === '000000000' ? 'ADMIN' : 'WORKER') as 'CLIENT' | 'WORKER' | 'ADMIN',
+      roleLabel: activeConversationId === '000000000' ? 'Admin 000000000' : `ID ${activeConversationId}`,
+      school: 'Campus Hub',
+      avatarBg: 'from-[#3064AE] to-[#25735B]',
+      isOnline: true,
+      lastActiveText: 'Đang hoạt động',
+      specialtyOrNeed: `ID: ${activeConversationId}`,
+    };
+  }, [activeConversationId, campusContacts, users]);
+
+  // Messages for active conversation with strict 2-party isolation (prevents multi-user cross-talk leak)
   const currentConversationMessages = useMemo(() => {
-    if (!activeConversationId) return [];
-    // Filter messages for this contact (either gigId matching contact or partnerId matching)
+    if (!activeConversationId || !currentUser) return [];
+    const dmThreadId = getDirectThreadId(currentUser.id, activeConversationId);
+    const gigId = activeContact?.associatedGig?.id;
+
     return (allChats || []).filter((msg) => {
-      const gigIdMatch = activeContact?.associatedGig && msg.gigId === activeContact.associatedGig.id;
-      const threadMatch = msg.threadId === activeConversationId || msg.gigId === activeConversationId;
-      const partnerMatch = msg.partnerId === activeConversationId || (msg.senderId === activeConversationId);
-      return gigIdMatch || threadMatch || partnerMatch;
+      // 1. Direct thread match
+      if (msg.threadId === dmThreadId) return true;
+
+      // 2. Explicit direct pair between currentUser and activeConversationId
+      const isDirectPair =
+        (msg.senderId === currentUser.id && msg.partnerId === activeConversationId) ||
+        (msg.senderId === activeConversationId && (msg.partnerId === currentUser.id || (!msg.partnerId && msg.threadId?.includes(currentUser.id))));
+      if (isDirectPair) return true;
+
+      // 3. Gig chat match
+      if (gigId && (msg.gigId === gigId || msg.threadId === gigId)) {
+        const involvesMe = msg.senderId === currentUser.id || msg.partnerId === currentUser.id;
+        const involvesContact = msg.senderId === activeConversationId || msg.partnerId === activeConversationId;
+        return involvesMe && involvesContact;
+      }
+
+      // Legacy fallback
+      if (msg.threadId === `direct_${currentUser.id}` && msg.senderId === activeConversationId) return true;
+      if (msg.threadId === `direct_${activeConversationId}` && msg.senderId === currentUser.id) return true;
+
+      return false;
     });
-  }, [allChats, activeConversationId, activeContact]);
+  }, [allChats, activeConversationId, currentUser, activeContact]);
+
+  // Select contact handler (switches view to chat room immediately & marks read)
+  const handleSelectContact = (contactId: string) => {
+    setActiveConversationId(contactId);
+    if (markConversationAsRead) {
+      markConversationAsRead(contactId);
+    }
+  };
+
+  // Mark active conversation messages as read
+  useEffect(() => {
+    if (activeConversationId && markConversationAsRead) {
+      markConversationAsRead(activeConversationId);
+    }
+  }, [activeConversationId, allChats?.length]);
 
   // Auto-scroll on new messages
   useEffect(() => {
@@ -395,15 +477,24 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
     }
   };
 
-  // Latest message preview for a contact
+  // Latest message preview for a contact (strictly isolated between currentUser and contact)
   const getLastMessageForContact = (contactId: string, associatedGigId?: string) => {
-    const relevant = (allChats || []).filter(
-      (m) =>
-        m.threadId === contactId ||
-        m.gigId === contactId ||
-        m.partnerId === contactId ||
-        (associatedGigId && m.gigId === associatedGigId)
-    );
+    if (!currentUser) return null;
+    const dmThreadId = getDirectThreadId(currentUser.id, contactId);
+
+    const relevant = (allChats || []).filter((m) => {
+      if (m.threadId === dmThreadId) return true;
+      const isDirectPair =
+        (m.senderId === currentUser.id && m.partnerId === contactId) ||
+        (m.senderId === contactId && (m.partnerId === currentUser.id || (!m.partnerId && m.threadId?.includes(currentUser.id))));
+      if (isDirectPair) return true;
+      if (associatedGigId && (m.gigId === associatedGigId || m.threadId === associatedGigId)) {
+        const involvesMe = m.senderId === currentUser.id || m.partnerId === currentUser.id;
+        const involvesContact = m.senderId === contactId || m.partnerId === contactId;
+        return involvesMe && involvesContact;
+      }
+      return false;
+    });
     if (relevant.length === 0) return null;
     return relevant[relevant.length - 1];
   };
@@ -411,7 +502,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
   // SEND MESSAGE (MESSENGER 1-1)
   const handleSendMessage = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!activeContact) return;
+    if (!activeContact || !currentUser) return;
 
     const rateCheck = rateLimiter.check('CHAT', currentUser?.id);
     if (!rateCheck.allowed) {
@@ -423,7 +514,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
       return;
     }
 
-    const targetThread = activeContact.associatedGig?.id || activeContact.id;
+    const targetThread = activeContact.associatedGig?.id || getDirectThreadId(currentUser.id, activeContact.id);
 
     if (pendingImage) {
       rateLimiter.record('CHAT', currentUser?.id);
@@ -477,7 +568,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
 
   // Quick Thumbs-up (Messenger classic 👍)
   const handleSendThumbsUp = () => {
-    if (!activeContact) return;
+    if (!activeContact || !currentUser) return;
     const rateCheck = rateLimiter.check('CHAT', currentUser?.id);
     if (!rateCheck.allowed) {
       showNotification(
@@ -489,7 +580,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
     }
     rateLimiter.record('CHAT', currentUser?.id);
 
-    const targetThread = activeContact.associatedGig?.id || activeContact.id;
+    const targetThread = activeContact.associatedGig?.id || getDirectThreadId(currentUser.id, activeContact.id);
     sendChat(
       '👍',
       'NONE',
@@ -504,7 +595,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
 
   // Preset Quick Replies
   const handleSendQuickReply = (text: string) => {
-    if (!activeContact) return;
+    if (!activeContact || !currentUser) return;
     const rateCheck = rateLimiter.check('CHAT', currentUser?.id);
     if (!rateCheck.allowed) {
       showNotification(
@@ -516,7 +607,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
     }
     rateLimiter.record('CHAT', currentUser?.id);
 
-    const targetThread = activeContact.associatedGig?.id || activeContact.id;
+    const targetThread = activeContact.associatedGig?.id || getDirectThreadId(currentUser.id, activeContact.id);
     sendChat(
       text,
       'NONE',
@@ -668,7 +759,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
             const reader = new FileReader();
             reader.onload = () => {
               if (typeof reader.result === 'string' && activeContact) {
-                const targetThread = activeContact.associatedGig?.id || activeContact.id;
+                const targetThread = activeContact.associatedGig?.id || getDirectThreadId(currentUser?.id || '000000000', activeContact.id);
                 sendChat(
                   `🎙️ Tin nhắn thoại (${actualDuration}s)`,
                   'VOICE',
@@ -762,7 +853,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
     if (!activeContact) return;
     const actualDuration = Math.max(1, duration || 3);
     const audioDataUrl = generateSynthesizedVoiceWav(actualDuration);
-    const targetThread = activeContact.associatedGig?.id || activeContact.id;
+    const targetThread = activeContact.associatedGig?.id || getDirectThreadId(currentUser?.id || '000000000', activeContact.id);
 
     sendChat(
       `🎙️ Tin nhắn thoại (${actualDuration}s)`,
@@ -991,9 +1082,18 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
             {/* Partner Avatar */}
             <div className="relative shrink-0">
               <div
-                className={`w-10 h-10 rounded-full bg-gradient-to-tr ${activeContact.avatarBg} flex items-center justify-center text-white font-extrabold text-sm shadow-md border border-[#C5E5EC]/30`}
+                className={`w-10 h-10 rounded-full bg-gradient-to-tr ${activeContact.avatarBg} flex items-center justify-center text-white font-extrabold text-sm shadow-md border border-[#C5E5EC]/30 overflow-hidden`}
               >
-                {activeContact.name.charAt(0).toUpperCase()}
+                {activeContact.avatarUrl ? (
+                  <img
+                    src={activeContact.avatarUrl}
+                    alt={activeContact.name || 'Avatar'}
+                    className="w-full h-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  (activeContact.name || 'U').charAt(0).toUpperCase()
+                )}
               </div>
               {isPartnerOnline && (
                 <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-[#E0FAEB] border-2 border-[#09111D]" />
@@ -1435,6 +1535,15 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
 
         {/* Header Action Buttons */}
         <div className="flex items-center space-x-2">
+          {/* Add Friend Button */}
+          <button
+            onClick={() => setShowAddFriendModal(true)}
+            className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#3064AE] to-[#255294] hover:from-[#255294] hover:to-[#1d3d6b] text-white border border-[#C5E5EC]/30 font-bold text-xs transition flex items-center space-x-1.5 shadow-md cursor-pointer"
+            title="Thêm bạn bè qua ID 9 số"
+          >
+            <UserPlus className="w-4 h-4 text-[#E0FAEB]" />
+            <span>Add Friend</span>
+          </button>
           <button
             onClick={() => setShowNewChatModal(true)}
             className="p-2 rounded-xl bg-[#12233B] hover:bg-[#162B48] text-[#C5E5EC] border border-[#C5E5EC]/20 transition cursor-pointer"
@@ -1451,135 +1560,169 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
         </div>
       </div>
 
-      {/* 9-DIGIT ID SYSTEM BANNER & QUICK FRIEND SEARCH */}
-      <div className="my-2.5 p-3 rounded-2xl bg-[#0E1B2E] border border-[#C5E5EC]/25 shadow-md space-y-2.5">
-        {/* User's Own ID & Admin Badge */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <span className="text-xs text-[#C5E5EC]/80 font-bold">ID 9 Số Của Bạn:</span>
-            <span className="px-2.5 py-0.5 rounded-lg bg-[#3064AE]/30 border border-[#C5E5EC]/30 text-white font-mono font-black text-sm tracking-wider">
-              {currentUser?.id || '000000000'}
-            </span>
-            {currentUser?.id === '000000000' && (
-              <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] font-black">
-                ADMIN
-              </span>
-            )}
-          </div>
-
-          <button
-            onClick={() => {
-              if (currentUser?.id) {
-                navigator.clipboard.writeText(currentUser.id);
-                setCopiedMyId(true);
-                showNotification('Đã sao chép ID', `ID ${currentUser.id} đã được lưu vào bộ nhớ tạm.`);
-                setTimeout(() => setCopiedMyId(false), 2000);
-              }
-            }}
-            className="flex items-center space-x-1 text-xs font-bold text-[#E0FAEB] hover:text-white bg-[#12233B] px-2.5 py-1 rounded-xl border border-[#E0FAEB]/30 transition cursor-pointer"
-          >
-            <Copy className="w-3.5 h-3.5" />
-            <span>{copiedMyId ? 'Đã sao chép!' : 'Sao chép ID'}</span>
-          </button>
-        </div>
-
-        {/* Search Friend By 9-digit ID Input */}
-        <div className="space-y-1.5 pt-1.5 border-t border-[#C5E5EC]/15">
-          <div className="flex items-center space-x-2">
-            <input
-              type="text"
-              maxLength={9}
-              value={searchIdInput}
-              onChange={(e) => {
-                setSearchIdInput(e.target.value.replace(/\D/g, ''));
-                setSearchIdError('');
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleSearchById();
-              }}
-              placeholder="Nhập ID 9 số để tìm bạn (000000000 -> 999999999)..."
-              className="flex-1 px-3 py-2 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-xs text-white placeholder:text-[#C5E5EC]/40 focus:border-[#3064AE] outline-none font-mono"
-            />
-            <button
-              onClick={handleSearchById}
-              className="px-3.5 py-2 rounded-xl bg-[#3064AE] hover:bg-[#255294] text-white font-bold text-xs border border-[#C5E5EC]/30 transition flex items-center space-x-1 cursor-pointer shrink-0"
-            >
-              <Search className="w-3.5 h-3.5" />
-              <span>Tìm ID</span>
-            </button>
-          </div>
-
-          {searchIdError && (
-            <p className="text-[11px] text-rose-300 font-medium">{searchIdError}</p>
-          )}
-
-          {/* Found User Result Card */}
-          {foundUserResult && (
-            <div className="p-2.5 rounded-xl bg-[#12233B] border border-[#C5E5EC]/30 flex items-center justify-between mt-2">
-              <div className="flex items-center space-x-2.5 min-w-0">
-                <div className="w-8 h-8 rounded-full bg-[#3064AE] flex items-center justify-center text-white font-black text-xs">
-                  {foundUserResult.name.charAt(0).toUpperCase()}
+      {/* 9-DIGIT ID SYSTEM & QUICK FRIEND SEARCH - CHỈ HIỆN KHI BẤM NÚT ADDFRIEND */}
+      {showAddFriendModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="w-full max-w-md rounded-3xl bg-[#0E1B2E] border border-[#C5E5EC]/30 p-5 shadow-2xl text-slate-100 flex flex-col space-y-3.5 max-h-[90vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-2 border-b border-[#C5E5EC]/15 shrink-0">
+              <div className="flex items-center space-x-2">
+                <div className="w-8 h-8 rounded-xl bg-[#3064AE]/30 border border-[#C5E5EC]/30 flex items-center justify-center text-[#E0FAEB]">
+                  <UserPlus className="w-4 h-4" />
                 </div>
-                <div className="min-w-0">
-                  <div className="flex items-center space-x-1.5">
-                    <span className="font-extrabold text-xs text-white truncate">{foundUserResult.name}</span>
-                    <span className="text-[10px] text-[#C5E5EC] font-mono font-bold">({foundUserResult.id})</span>
-                  </div>
-                  <p className="text-[10px] text-[#C5E5EC]/70 truncate">{foundUserResult.studentSchool || 'Sinh viên'}</p>
-                </div>
+                <h3 className="font-extrabold text-sm text-white">Kết Bạn Qua ID 9 Số</h3>
+              </div>
+              <button
+                onClick={() => {
+                  setShowAddFriendModal(false);
+                  setSearchIdError('');
+                  setFoundUserResult(null);
+                }}
+                className="p-1.5 rounded-xl bg-[#12233B] hover:bg-[#162B48] text-[#C5E5EC] border border-[#C5E5EC]/20 transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* User's Own ID & Admin Badge */}
+            <div className="p-3 rounded-2xl bg-[#12233B] border border-[#C5E5EC]/25 flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <span className="text-xs text-[#C5E5EC]/80 font-bold">ID 9 Số Của Bạn:</span>
+                <span className="px-2.5 py-0.5 rounded-lg bg-[#3064AE]/40 border border-[#C5E5EC]/30 text-white font-mono font-black text-sm tracking-wider">
+                  {currentUser?.id || '000000000'}
+                </span>
+                {currentUser?.id === '000000000' && (
+                  <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] font-black">
+                    ADMIN
+                  </span>
+                )}
               </div>
 
-              <div className="flex items-center space-x-1.5 shrink-0">
-                {currentUser?.friendIds?.includes(foundUserResult.id) ? (
-                  <span className="text-[11px] text-emerald-400 font-bold px-2 py-1 rounded bg-emerald-500/15 border border-emerald-500/30">
-                    ✓ Bạn bè
-                  </span>
-                ) : (
-                  <button
-                    onClick={() => {
-                      if (addFriendById) addFriendById(foundUserResult.id);
-                      showNotification('Kết bạn', `Đã thêm ${foundUserResult.name} vào danh bạ.`);
-                    }}
-                    className="px-2.5 py-1 rounded-lg bg-emerald-600/30 hover:bg-emerald-600/50 text-[#E0FAEB] border border-emerald-500/40 text-[11px] font-bold transition flex items-center space-x-1 cursor-pointer"
-                  >
-                    <UserPlus className="w-3 h-3" />
-                    <span>Kết bạn</span>
-                  </button>
-                )}
-                <button
-                  onClick={() => {
-                    setActiveConversationId(foundUserResult.id);
-                    setFoundUserResult(null);
-                    setSearchIdInput('');
+              <button
+                onClick={() => {
+                  if (currentUser?.id) {
+                    navigator.clipboard.writeText(currentUser.id);
+                    setCopiedMyId(true);
+                    showNotification('Đã sao chép ID', `ID ${currentUser.id} đã được lưu vào bộ nhớ tạm.`);
+                    setTimeout(() => setCopiedMyId(false), 2000);
+                  }
+                }}
+                className="flex items-center space-x-1 text-xs font-bold text-[#E0FAEB] hover:text-white bg-[#0E1B2E] px-2.5 py-1 rounded-xl border border-[#E0FAEB]/30 transition cursor-pointer"
+              >
+                <Copy className="w-3.5 h-3.5" />
+                <span>{copiedMyId ? 'Đã sao chép!' : 'Sao chép ID'}</span>
+              </button>
+            </div>
+
+            {/* Search Friend By 9-digit ID Input */}
+            <div className="space-y-2 pt-1">
+              <label className="text-xs font-bold text-[#C5E5EC]/90 block">
+                Tìm bạn mới bằng mã ID:
+              </label>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="text"
+                  maxLength={9}
+                  value={searchIdInput}
+                  onChange={(e) => {
+                    setSearchIdInput(e.target.value.replace(/\D/g, ''));
+                    setSearchIdError('');
                   }}
-                  className="px-2.5 py-1 rounded-lg bg-[#3064AE] hover:bg-[#255294] text-white border border-[#C5E5EC]/30 text-[11px] font-bold transition flex items-center space-x-1 cursor-pointer"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleSearchById();
+                  }}
+                  placeholder="Nhập ID 9 số để tìm bạn (000000000 -> 999999999)..."
+                  className="flex-1 px-3 py-2.5 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-xs text-white placeholder:text-[#C5E5EC]/40 focus:border-[#3064AE] outline-none font-mono"
+                />
+                <button
+                  onClick={handleSearchById}
+                  className="px-3.5 py-2.5 rounded-xl bg-[#3064AE] hover:bg-[#255294] text-white font-bold text-xs border border-[#C5E5EC]/30 transition flex items-center space-x-1 cursor-pointer shrink-0"
                 >
-                  <MessageCircle className="w-3 h-3" />
-                  <span>Nhắn</span>
+                  <Search className="w-3.5 h-3.5" />
+                  <span>Tìm ID</span>
                 </button>
               </div>
-            </div>
-          )}
 
-          {/* Cloud Backup & Terms Quick Access */}
-          <div className="flex items-center gap-2 pt-2 border-t border-[#C5E5EC]/15">
-            <button
-              onClick={() => setShowBackupModal(true)}
-              className="flex-1 py-1.5 px-2.5 rounded-xl bg-[#12233B] hover:bg-[#162B48] border border-[#C5E5EC]/25 text-[#C5E5EC] hover:text-white text-[11px] font-bold transition flex items-center justify-center space-x-1.5 cursor-pointer"
-            >
-              <Cloud className="w-3.5 h-3.5 text-[#C5E5EC]" />
-              <span>Sao lưu danh bạ Cloud</span>
-            </button>
-            <button
-              onClick={() => setShowTermsModal(true)}
-              className="py-1.5 px-2.5 rounded-xl bg-[#12233B] hover:bg-[#162B48] border border-[#C5E5EC]/25 text-[#E0FAEB] hover:text-white text-[11px] font-bold transition flex items-center justify-center space-x-1.5 cursor-pointer shrink-0"
-            >
-              <ShieldCheck className="w-3.5 h-3.5 text-[#E0FAEB]" />
-              <span>Điều khoản & Hoàn tiền</span>
-            </button>
+              {searchIdError && (
+                <p className="text-[11px] text-rose-300 font-medium">{searchIdError}</p>
+              )}
+
+              {/* Found User Result Card */}
+              {foundUserResult && (
+                <div className="p-3 rounded-xl bg-[#12233B] border border-[#C5E5EC]/30 flex items-center justify-between mt-2">
+                  <div className="flex items-center space-x-2.5 min-w-0">
+                    <div className="w-9 h-9 rounded-full bg-[#3064AE] flex items-center justify-center text-white font-black text-xs shrink-0">
+                      {(foundUserResult.name || 'U').charAt(0).toUpperCase()}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center space-x-1.5">
+                        <span className="font-extrabold text-xs text-white truncate">{foundUserResult.name}</span>
+                        <span className="text-[10px] text-[#C5E5EC] font-mono font-bold">({foundUserResult.id})</span>
+                      </div>
+                      <p className="text-[10px] text-[#C5E5EC]/70 truncate">{foundUserResult.studentSchool || 'Sinh viên Campus'}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center space-x-1.5 shrink-0">
+                    {currentUser?.friendIds?.includes(foundUserResult.id) ? (
+                      <span className="text-[11px] text-emerald-400 font-bold px-2 py-1 rounded bg-emerald-500/15 border border-emerald-500/30">
+                        ✓ Bạn bè
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          if (addFriendById) addFriendById(foundUserResult.id);
+                          showNotification('Kết bạn', `Đã thêm ${foundUserResult.name} vào danh bạ.`);
+                        }}
+                        className="px-2.5 py-1 rounded-lg bg-emerald-600/30 hover:bg-emerald-600/50 text-[#E0FAEB] border border-emerald-500/40 text-[11px] font-bold transition flex items-center space-x-1 cursor-pointer"
+                      >
+                        <UserPlus className="w-3 h-3" />
+                        <span>Kết bạn</span>
+                      </button>
+                    )}
+                    <button
+                      onClick={() => {
+                        handleSelectContact(foundUserResult.id);
+                        setShowAddFriendModal(false);
+                        setFoundUserResult(null);
+                        setSearchIdInput('');
+                      }}
+                      className="px-2.5 py-1 rounded-lg bg-[#3064AE] hover:bg-[#255294] text-white border border-[#C5E5EC]/30 text-[11px] font-bold transition flex items-center space-x-1 cursor-pointer"
+                    >
+                      <MessageCircle className="w-3 h-3" />
+                      <span>Nhắn</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Cloud Backup & Terms Quick Access */}
+            <div className="flex items-center gap-2 pt-3 border-t border-[#C5E5EC]/15">
+              <button
+                onClick={() => {
+                  setShowAddFriendModal(false);
+                  setShowBackupModal(true);
+                }}
+                className="flex-1 py-2 px-2.5 rounded-xl bg-[#12233B] hover:bg-[#162B48] border border-[#C5E5EC]/25 text-[#C5E5EC] hover:text-white text-[11px] font-bold transition flex items-center justify-center space-x-1.5 cursor-pointer"
+              >
+                <Cloud className="w-3.5 h-3.5 text-[#C5E5EC]" />
+                <span>Sao lưu danh bạ Cloud</span>
+              </button>
+              <button
+                onClick={() => {
+                  setShowAddFriendModal(false);
+                  setShowTermsModal(true);
+                }}
+                className="py-2 px-2.5 rounded-xl bg-[#12233B] hover:bg-[#162B48] border border-[#C5E5EC]/25 text-[#E0FAEB] hover:text-white text-[11px] font-bold transition flex items-center justify-center space-x-1.5 cursor-pointer shrink-0"
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-[#E0FAEB]" />
+                <span>Điều khoản & Hoàn tiền</span>
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* SEARCH BAR */}
       <div className="relative my-2.5 shrink-0">
@@ -1631,15 +1774,24 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
             .map((contact) => (
               <div
                 key={contact.id}
-                onClick={() => setActiveConversationId(contact.id)}
+                onClick={() => handleSelectContact(contact.id)}
                 className="flex flex-col items-center space-y-1 cursor-pointer shrink-0 group"
               >
                 <div className="relative">
                   <div
                     className={`w-12 h-12 rounded-full p-0.5 bg-gradient-to-tr ${contact.avatarBg} group-hover:scale-105 transition`}
                   >
-                    <div className="w-full h-full rounded-full bg-[#0E1B2E] flex items-center justify-center text-white font-extrabold text-sm">
-                      {contact.name.charAt(0).toUpperCase()}
+                    <div className="w-full h-full rounded-full bg-[#0E1B2E] flex items-center justify-center text-white font-extrabold text-sm overflow-hidden">
+                      {contact.avatarUrl ? (
+                        <img
+                          src={contact.avatarUrl}
+                          alt={contact.name || 'Avatar'}
+                          className="w-full h-full object-cover"
+                          referrerPolicy="no-referrer"
+                        />
+                      ) : (
+                        (contact.name || 'U').charAt(0).toUpperCase()
+                      )}
                     </div>
                   </div>
                   <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-[#E0FAEB] border-2 border-[#09111D]" />
@@ -1750,16 +1902,25 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
             return (
               <div
                 key={contact.id}
-                onClick={() => setActiveConversationId(contact.id)}
+                onClick={() => handleSelectContact(contact.id)}
                 className="p-3 rounded-2xl bg-[#12233B] border border-[#C5E5EC]/20 hover:border-[#C5E5EC]/40 hover:bg-[#162B48] cursor-pointer transition shadow-sm flex items-center justify-between space-x-3 group"
               >
                 <div className="flex items-center space-x-3 min-w-0">
                   {/* Avatar */}
                   <div className="relative shrink-0">
                     <div
-                      className={`w-11 h-11 rounded-full bg-gradient-to-tr ${contact.avatarBg} flex items-center justify-center text-white font-extrabold text-sm shadow border border-[#C5E5EC]/20`}
+                      className={`w-11 h-11 rounded-full bg-gradient-to-tr ${contact.avatarBg} flex items-center justify-center text-white font-extrabold text-sm shadow border border-[#C5E5EC]/20 overflow-hidden`}
                     >
-                      {contact.name.charAt(0).toUpperCase()}
+                      {contact.avatarUrl ? (
+                        <img
+                          src={contact.avatarUrl}
+                          alt={contact.name || 'Avatar'}
+                          className="w-full h-full object-cover"
+                          referrerPolicy="no-referrer"
+                        />
+                      ) : (
+                        (contact.name || 'U').charAt(0).toUpperCase()
+                      )}
                     </div>
                     {contact.isOnline && (
                       <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-[#E0FAEB] border-2 border-[#09111D]" />
@@ -1835,15 +1996,24 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                   key={contact.id}
                   onClick={() => {
                     setShowNewChatModal(false);
-                    setActiveConversationId(contact.id);
+                    handleSelectContact(contact.id);
                   }}
                   className="p-3 rounded-2xl bg-[#12233B] hover:bg-[#162B48] border border-[#C5E5EC]/20 hover:border-[#C5E5EC]/40 cursor-pointer transition flex items-center justify-between"
                 >
                   <div className="flex items-center space-x-3">
                     <div
-                      className={`w-9 h-9 rounded-full bg-gradient-to-tr ${contact.avatarBg} flex items-center justify-center text-white font-extrabold text-xs shadow border border-[#C5E5EC]/20`}
+                      className={`w-9 h-9 rounded-full bg-gradient-to-tr ${contact.avatarBg} flex items-center justify-center text-white font-extrabold text-xs shadow border border-[#C5E5EC]/20 overflow-hidden`}
                     >
-                      {contact.name.charAt(0).toUpperCase()}
+                      {contact.avatarUrl ? (
+                        <img
+                          src={contact.avatarUrl}
+                          alt={contact.name || 'Avatar'}
+                          className="w-full h-full object-cover"
+                          referrerPolicy="no-referrer"
+                        />
+                      ) : (
+                        (contact.name || 'U').charAt(0).toUpperCase()
+                      )}
                     </div>
                     <div>
                       <div className="flex items-center space-x-1.5">

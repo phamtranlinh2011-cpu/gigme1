@@ -8,7 +8,6 @@ import { GigDetailScreen } from './screens/GigDetailScreen';
 import { WalletScreen } from './screens/WalletScreen';
 import { ProfileScreen } from './screens/ProfileScreen';
 import { AdminDashboardScreen } from './screens/AdminDashboardScreen';
-import { CampusLeaderboardScreen } from './screens/CampusLeaderboardScreen';
 import { CampusMarketplaceScreen } from './screens/CampusMarketplaceScreen';
 import { ChatSupportScreen } from './screens/ChatSupportScreen';
 import { AuthScreen } from './screens/AuthScreen';
@@ -145,13 +144,6 @@ const MainLayout: React.FC = () => {
         );
       case 'ADMIN':
         return <AdminDashboardScreen onBack={() => setCurrentTab('PROFILE')} />;
-      case 'LEADERBOARD':
-        return (
-          <CampusLeaderboardScreen
-            onBack={() => setCurrentTab('HOME')}
-            onSelectFreelancer={() => {}}
-          />
-        );
       case 'MARKETPLACE':
         return (
           <CampusMarketplaceScreen
@@ -167,7 +159,6 @@ const MainLayout: React.FC = () => {
             onSelectGigDetail={handleOpenGigDetail}
             onOpenCreateGig={() => setCurrentTab('CREATE_GIG')}
             onOpenVerify={() => setShowNfcModal(true)}
-            onOpenLeaderboard={() => setCurrentTab('LEADERBOARD')}
             onOpenMarketplace={() => setCurrentTab('MARKETPLACE')}
             onOpenVietQrScanner={() => setShowVietQrScanner(true)}
             onOpenPaymentGateway={() => setShowPaymentGateway(true)}
@@ -203,10 +194,6 @@ const MainLayout: React.FC = () => {
           setCurrentTab('ADMIN');
         }}
         onOpenDownloadApp={() => setShowDownloadApp(true)}
-        onOpenLeaderboard={() => {
-          selectGig(null);
-          setCurrentTab('LEADERBOARD');
-        }}
         onOpenMarketplace={() => {
           selectGig(null);
           setCurrentTab('MARKETPLACE');

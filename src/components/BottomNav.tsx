@@ -1,5 +1,5 @@
 import React from 'react';
-import { Radar, Wallet, UserCheck, PlusCircle, MessageSquare, Trophy, BookOpen } from 'lucide-react';
+import { Radar, Wallet, UserCheck, PlusCircle, MessageSquare, BookOpen } from 'lucide-react';
 import { useGigMe } from '../context/GigMeContext';
 
 export type TabScreen =
@@ -9,7 +9,6 @@ export type TabScreen =
   | 'PROFILE'
   | 'CHAT'
   | 'ADMIN'
-  | 'LEADERBOARD'
   | 'MARKETPLACE';
 
 interface BottomNavProps {
@@ -81,21 +80,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentTab, onSelectTab })
           </button>
         </div>
 
-        {/* Tab 4: Bảng Xếp Hạng Top Trợ Thủ */}
-        <button
-          id="nav-leaderboard-btn"
-          onClick={() => onSelectTab('LEADERBOARD')}
-          className={`flex-1 min-w-0 flex flex-col items-center py-1 px-1 rounded-xl transition cursor-pointer ${
-            currentTab === 'LEADERBOARD'
-              ? 'text-[#E0FAEB] bg-[#3064AE]/35 font-black border border-[#C5E5EC]/30 shadow-xs'
-              : 'text-[#C5E5EC]/70 hover:text-white'
-          }`}
-        >
-          <Trophy className="w-4 h-4 sm:w-5 sm:h-5" />
-          <span className="text-[10px] font-bold mt-0.5 truncate max-w-full">BXH Top</span>
-        </button>
-
-        {/* Tab 5: Wallet & Escrow */}
+        {/* Tab 4: Wallet & Escrow */}
         <button
           id="nav-wallet-btn"
           onClick={() => onSelectTab('WALLET')}

@@ -12,6 +12,8 @@ import {
   X,
   Radio,
   ExternalLink,
+  ShieldAlert,
+  AlertTriangle,
 } from 'lucide-react';
 import { useGigMe } from '../context/GigMeContext';
 import { VIETNAMESE_BANKS, formatVnd } from '../types';
@@ -28,7 +30,7 @@ export const VietQrOpenApiAutoScanner: React.FC<VietQrOpenApiAutoScannerProps> =
   onClose,
   defaultAmount = 100000,
 }) => {
-  const { currentUser, depositVietQr, showNotification } = useGigMe();
+  const { currentUser, depositVietQr, showNotification, checkDepositEligibility } = useGigMe();
   const [amount, setAmount] = useState(defaultAmount);
   const [selectedBank, setSelectedBank] = useState(VIETNAMESE_BANKS[2]); // Techcombank
   const [copied, setCopied] = useState(false);
@@ -42,6 +44,8 @@ export const VietQrOpenApiAutoScanner: React.FC<VietQrOpenApiAutoScannerProps> =
     bank: string;
     time: string;
   } | null>(null);
+
+  const eligibility = checkDepositEligibility(amount);
 
   // Generate distinct transfer code for user dynamically
   const userIdentifier =
@@ -76,6 +80,11 @@ export const VietQrOpenApiAutoScanner: React.FC<VietQrOpenApiAutoScannerProps> =
 
   // Real Open API webhook execution to Cloud Server (Casso / SePAY / VietQR API)
   const triggerOpenApiWebhook = () => {
+    if (!eligibility.allowed) {
+      showNotification('Giới hạn nạp tiền ⚠️', eligibility.reason || 'Chưa đủ điều kiện nạp tiền');
+      return;
+    }
+
     setIsProcessing(true);
     const refCode = `FT${Date.now().toString().slice(-8)}`;
 
@@ -87,7 +96,11 @@ export const VietQrOpenApiAutoScanner: React.FC<VietQrOpenApiAutoScannerProps> =
         bank_account: selectedBank.name,
       })
       .then(() => {
-        depositVietQr(amount, selectedBank.name);
+        const ok = depositVietQr(amount, selectedBank.name);
+        if (!ok) {
+          setIsProcessing(false);
+          return;
+        }
         const newTx = {
           id: refCode,
           amount: amount,
@@ -107,7 +120,11 @@ export const VietQrOpenApiAutoScanner: React.FC<VietQrOpenApiAutoScannerProps> =
       })
       .catch((err) => {
         console.warn('Webhook trigger notice:', err);
-        depositVietQr(amount, selectedBank.name);
+        const ok = depositVietQr(amount, selectedBank.name);
+        if (!ok) {
+          setIsProcessing(false);
+          return;
+        }
         setIsProcessing(false);
         setTransactionSuccess(true);
       });
@@ -191,13 +208,49 @@ export const VietQrOpenApiAutoScanner: React.FC<VietQrOpenApiAutoScannerProps> =
           </div>
         ) : (
           <div className="py-4 space-y-4 text-xs">
+            {/* Security Deposit Limits Banner */}
+            <div className="p-3 rounded-2xl bg-[#131E30] border border-cyan-500/30 space-y-1.5 text-[11px]">
+              <div className="flex items-center justify-between font-bold text-cyan-300">
+                <span className="flex items-center space-x-1">
+                  <ShieldAlert className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Quy định nạp an toàn</span>
+                </span>
+                <span className="text-[10px] bg-cyan-500/15 px-2 py-0.5 rounded-full border border-cyan-500/30 text-cyan-300">
+                  Tối đa 10M/lần • Cách 1h • Max 30M/ngày
+                </span>
+              </div>
+              <div className="flex justify-between text-slate-400 text-[10px]">
+                <span>Đã nạp hôm nay:</span>
+                <span className="font-mono font-bold text-slate-200">
+                  {formatVnd(eligibility.todayDeposited)} / 30.000.000đ (còn lại: {formatVnd(eligibility.remainingDailyQuota)})
+                </span>
+              </div>
+              {eligibility.cooldownMinutesLeft > 0 && (
+                <div className="p-2 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-300 flex items-center space-x-2 text-[11px] font-bold">
+                  <Clock className="w-4 h-4 shrink-0 text-amber-400 animate-pulse" />
+                  <span>Giãn cách bảo mật: Vui lòng đợi {eligibility.cooldownMinutesLeft} phút nữa để thực hiện lần nạp tiếp theo.</span>
+                </div>
+              )}
+              {!eligibility.allowed && eligibility.cooldownMinutesLeft === 0 && eligibility.reason && (
+                <div className="p-2 rounded-xl bg-rose-500/15 border border-rose-500/40 text-rose-300 flex items-center space-x-2 text-[11px] font-bold">
+                  <AlertTriangle className="w-4 h-4 shrink-0 text-rose-400" />
+                  <span>{eligibility.reason}</span>
+                </div>
+              )}
+            </div>
+
             {/* Amount Selection */}
             <div>
-              <label className="block text-slate-300 font-semibold mb-1.5">
-                Chọn số tiền cần nạp vào ví
-              </label>
-              <div className="grid grid-cols-4 gap-2 mb-2">
-                {[50000, 100000, 200000, 500000].map((val) => (
+              <div className="flex justify-between items-center mb-1.5">
+                <label className="block text-slate-300 font-semibold">
+                  Chọn số tiền cần nạp (Tối đa 10.000.000đ/lần)
+                </label>
+                <span className="text-[10px] text-[#00E5FF] font-mono font-bold">
+                  {formatVnd(amount)}
+                </span>
+              </div>
+              <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5 mb-2">
+                {[100000, 200000, 500000, 1000000, 5000000, 10000000].map((val) => (
                   <button
                     key={val}
                     type="button"
@@ -208,17 +261,24 @@ export const VietQrOpenApiAutoScanner: React.FC<VietQrOpenApiAutoScannerProps> =
                         : 'bg-[#131E30] text-slate-300 border-slate-700 hover:border-slate-600'
                     }`}
                   >
-                    {val / 1000}k
+                    {val >= 1000000 ? `${val / 1000000}M` : `${val / 1000}k`}
                   </button>
                 ))}
               </div>
-              <input
-                type="number"
-                step="10000"
-                value={amount}
-                onChange={(e) => setAmount(Number(e.target.value))}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-[#131E30] border border-slate-700 font-mono font-bold text-[#00E5FF] text-base"
-              />
+              <div className="relative">
+                <input
+                  type="number"
+                  step="10000"
+                  max="10000000"
+                  value={amount}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    setAmount(Math.min(10000000, Math.max(0, val)));
+                  }}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#131E30] border border-slate-700 font-mono font-bold text-[#00E5FF] text-base"
+                />
+                <span className="absolute right-3 top-3 text-xs text-slate-500 font-bold">VNĐ</span>
+              </div>
             </div>
 
             {/* Bank Select */}
@@ -316,14 +376,24 @@ export const VietQrOpenApiAutoScanner: React.FC<VietQrOpenApiAutoScannerProps> =
             <div className="space-y-2 pt-1">
               <button
                 type="button"
-                disabled={isProcessing}
+                disabled={isProcessing || !eligibility.allowed}
                 onClick={triggerOpenApiWebhook}
-                className="w-full py-3 rounded-2xl bg-gradient-to-r from-[#00E5FF] via-cyan-400 to-blue-500 text-black font-extrabold text-sm hover:brightness-110 shadow-lg shadow-cyan-500/30 transition flex items-center justify-center space-x-2 disabled:opacity-50"
+                className="w-full py-3 rounded-2xl bg-gradient-to-r from-[#00E5FF] via-cyan-400 to-blue-500 text-black font-extrabold text-sm hover:brightness-110 shadow-lg shadow-cyan-500/30 transition flex items-center justify-center space-x-2 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {isProcessing ? (
                   <>
                     <RefreshCw className="w-4 h-4 animate-spin" />
                     <span>Đang Khớp Lệnh Biến Động Ngân Hàng...</span>
+                  </>
+                ) : eligibility.cooldownMinutesLeft > 0 ? (
+                  <>
+                    <Clock className="w-4 h-4" />
+                    <span>Đang Giãn Cách (Đợi {eligibility.cooldownMinutesLeft} phút)</span>
+                  </>
+                ) : !eligibility.allowed ? (
+                  <>
+                    <ShieldAlert className="w-4 h-4" />
+                    <span>Không Thể Nạp (Vượt Hạn Mức)</span>
                   </>
                 ) : (
                   <>

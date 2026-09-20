@@ -202,7 +202,6 @@ interface GigMeContextType {
   dismissNotification: () => void;
   showNotification: (title: string, message: string, isDingSound?: boolean, isCelebration?: boolean) => void;
   withdrawFunds: (bankName: string, accountNumber: string, accountHolderName: string, amount: number, pin?: string, useBiometrics?: boolean) => boolean;
-  requestMicroLoan: (amount: number, reason: string) => boolean;
 
   // Auth
   register: (fullName: string, contact: string, gender: string, birthDate: string, password: string, confirmPassword: string, phone?: string, cccdNumber?: string) => Promise<{ success: boolean; error?: string }>;
@@ -266,7 +265,15 @@ interface GigMeContextType {
   releaseEscrowPayout: (gigId: string, enteredPin?: string, tipAmount?: number, useBiometrics?: boolean) => boolean;
   releaseMilestonePayout: (gigId: string, milestonePercent: number, enteredPin?: string, useBiometrics?: boolean) => boolean;
   fileDispute: (gigId: string, reason: string) => void;
-  depositVietQr: (amount: number, bankName: string) => void;
+  checkDepositEligibility: (amount?: number) => {
+    allowed: boolean;
+    reason?: string;
+    cooldownMinutesLeft: number;
+    todayDeposited: number;
+    remainingDailyQuota: number;
+    maxPerTx: number;
+  };
+  depositVietQr: (amount: number, bankName: string) => boolean;
   withdrawToBank: (bankName: string, accountNumber: string, accountHolderName: string, amount: number, pin?: string, useBiometrics?: boolean) => boolean;
   saveDefaultBank: (bankName: string, accountNumber: string, accountHolder: string) => void;
 
@@ -277,9 +284,9 @@ interface GigMeContextType {
   verifyStudentSso: (schoolName: string, studentEmail: string) => boolean;
   toggleBiometrics: (enabled: boolean) => void;
   linkEWallet: (walletType: string, phone: string) => boolean;
-  depositEWallet: (walletType: string, amount: number) => void;
+  depositEWallet: (walletType: string, amount: number) => boolean;
   withdrawEWallet: (walletType: string, amount: number, phone: string) => boolean;
-  topUpWallet: (amount: number, source?: string) => void;
+  topUpWallet: (amount: number, source?: string) => boolean;
   setNotificationSound: (soundKey: 'DING_DEFAULT' | 'CASH_COUNT' | 'BANK_TING' | 'SOFT_VIBRATE') => void;
   upgradeToBusinessAccount: (businessName: string, taxId: string) => boolean;
   exportStatement: (format: string) => void;
@@ -313,6 +320,7 @@ interface GigMeContextType {
     targetPartnerId?: string,
     targetPartnerName?: string
   ) => void;
+  markConversationAsRead: (partnerOrThreadId: string) => void;
   analyzePhotoWithAi: (presetType: string) => void;
   clearAiResult: () => void;
 
@@ -360,17 +368,20 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         'gigme_current_user_id',
       ].forEach((k) => localStorage.removeItem(k));
       const cur = localStorage.getItem(STORAGE_KEYS.CURRENT_USER_ID);
-      // Tuyệt đối không bao giờ cho Admin hoặc các tài khoản mẫu cũ tự động lưu và khôi phục khi mở lại app
-      if (
+      const adminSession = typeof window !== 'undefined' ? sessionStorage.getItem('gigme_admin_active_session') : null;
+
+      if (cur === '000000000' && adminSession === 'true') {
+        // Hợp lệ, duy trì phiên quản trị viên đang hoạt động
+      } else if (
         !cur ||
-        cur === '000000000' ||
         cur === 'admin_root' ||
         cur === 'user_526h0044' ||
         cur === 'user_freelancer_lan' ||
         cur === 'user_cafe_passio' ||
         cur === 'user_student_tdtu' ||
         cur === 'user_student_huy' ||
-        cur === 'user_client_ha'
+        cur === 'user_client_ha' ||
+        (cur === '000000000' && adminSession !== 'true')
       ) {
         localStorage.removeItem(STORAGE_KEYS.CURRENT_USER_ID);
         sessionStorage.removeItem('gigme_admin_active_session');
@@ -435,18 +446,22 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (typeof window === 'undefined') return null;
 
     const saved = localStorage.getItem(STORAGE_KEYS.CURRENT_USER_ID);
+    const adminSession = sessionStorage.getItem('gigme_admin_active_session');
 
-    // Tuyệt đối không bao giờ tự động khôi phục quyền Admin hoặc ID demo cũ khi mở app/cài mới
+    if (saved === '000000000' && adminSession === 'true') {
+      return '000000000';
+    }
+
     if (
       !saved ||
-      saved === '000000000' ||
       saved === 'admin_root' ||
       saved === 'user_526h0044' ||
       saved === 'user_freelancer_lan' ||
       saved === 'user_cafe_passio' ||
       saved === 'user_student_tdtu' ||
       saved === 'user_student_huy' ||
-      saved === 'user_client_ha'
+      saved === 'user_client_ha' ||
+      (saved === '000000000' && adminSession !== 'true')
     ) {
       localStorage.removeItem(STORAGE_KEYS.CURRENT_USER_ID);
       sessionStorage.removeItem('gigme_admin_active_session');
@@ -1220,7 +1235,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       lastDeviceName: 'Web Client',
       lastLoginLocation: 'Việt Nam',
       hasUnusualDeviceAlert: false,
-      rating: 5.0,
+      rating: 0,
       reviewCount: 0,
       completedGigs: 0,
       onTimeRate: 100,
@@ -1306,7 +1321,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (typeof window !== 'undefined') {
         sessionStorage.setItem('gigme_admin_active_session', 'true');
         sessionStorage.setItem('gigme_admin_session_time', String(Date.now()));
-        localStorage.removeItem(STORAGE_KEYS.CURRENT_USER_ID);
+        localStorage.setItem(STORAGE_KEYS.CURRENT_USER_ID, '000000000');
       }
       setCurrentUserId('000000000');
       showNotification('Chào mừng Quản trị viên!', 'Đã đăng nhập Trung Tâm Điều Hành Admin GigMe (ID: 000000000).', true);
@@ -1639,7 +1654,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         lastDeviceName: 'SMS MO Verified',
         lastLoginLocation: 'Việt Nam',
         hasUnusualDeviceAlert: false,
-        rating: 5.0,
+        rating: 0,
         reviewCount: 0,
         completedGigs: 0,
         onTimeRate: 100,
@@ -1763,7 +1778,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             lastDeviceName: `${provider} Auth Verified`,
             lastLoginLocation: 'Việt Nam',
             hasUnusualDeviceAlert: false,
-            rating: 5.0,
+            rating: 0,
             reviewCount: 0,
             completedGigs: 0,
             onTimeRate: 100,
@@ -3342,16 +3357,121 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return true;
   };
 
-  // DEPOSIT VIETQR DYNAMIC WITH ATOMIC CLOUD SYNC & TIER LIMIT CHECK
-  const depositVietQr = (amount: number, bankName: string) => {
-    if (!currentUser) return;
-    const tierConfig = USER_TIERS[currentUser.tier];
-    if (amount > tierConfig.maxDeposit) {
-      showNotification(
-        'Vượt hạn mức cấp bậc',
-        `Tài khoản ${tierConfig.title} (${currentUser.tier}) chỉ được nạp tối đa ${tierConfig.maxDeposit.toLocaleString('vi-VN')}đ/lần. Vui lòng định danh CCCD hoặc Sinh viên để mở rộng hạn mức!`
-      );
-      return;
+  // CHECK DEPOSIT ELIGIBILITY (Max 10M/tx, 1h cooldown, max 30M/day)
+  const checkDepositEligibility = (amount?: number): {
+    allowed: boolean;
+    reason?: string;
+    cooldownMinutesLeft: number;
+    todayDeposited: number;
+    remainingDailyQuota: number;
+    maxPerTx: number;
+  } => {
+    const maxPerTx = 10_000_000;
+    const maxPerDay = 30_000_000;
+    const cooldownMs = 60 * 60 * 1000; // 1 giờ
+
+    if (!currentUser) {
+      return {
+        allowed: false,
+        reason: 'Vui lòng đăng nhập để nạp tiền.',
+        cooldownMinutesLeft: 0,
+        todayDeposited: 0,
+        remainingDailyQuota: maxPerDay,
+        maxPerTx,
+      };
+    }
+
+    // Lọc tất cả giao dịch nạp thành công của user
+    const userDeposits = transactions.filter(
+      (t) =>
+        t.userId === currentUser.id &&
+        (t.type === 'VIETQR_DEPOSIT' || t.type === 'EWALLET_DEPOSIT') &&
+        t.isSuccess &&
+        t.amount > 0
+    );
+
+    // Tính tổng số tiền đã nạp trong ngày hôm nay (từ 00:00:00)
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const todayStartMs = startOfDay.getTime();
+
+    const todayDeposits = userDeposits.filter((t) => t.timestamp >= todayStartMs);
+    const todayDeposited = todayDeposits.reduce((sum, t) => sum + t.amount, 0);
+    const remainingDailyQuota = Math.max(0, maxPerDay - todayDeposited);
+
+    // Tìm lần nạp gần nhất để kiểm tra thời gian giãn cách 1 giờ
+    const sortedDeposits = [...userDeposits].sort((a, b) => b.timestamp - a.timestamp);
+    const lastDeposit = sortedDeposits[0];
+    let cooldownMinutesLeft = 0;
+
+    if (lastDeposit) {
+      const elapsed = Date.now() - lastDeposit.timestamp;
+      if (elapsed < cooldownMs) {
+        cooldownMinutesLeft = Math.ceil((cooldownMs - elapsed) / (60 * 1000));
+      }
+    }
+
+    if (cooldownMinutesLeft > 0) {
+      return {
+        allowed: false,
+        reason: `Quy định bảo mật: Bạn vừa nạp tiền lúc ${new Date(lastDeposit.timestamp).toLocaleTimeString('vi-VN')}. Vui lòng đợi thêm ${cooldownMinutesLeft} phút nữa để thực hiện lần nạp tiếp theo (giãn cách tối thiểu 1 giờ/lần).`,
+        cooldownMinutesLeft,
+        todayDeposited,
+        remainingDailyQuota,
+        maxPerTx,
+      };
+    }
+
+    if (amount !== undefined && amount > maxPerTx) {
+      return {
+        allowed: false,
+        reason: `Mỗi lần nạp tối đa 10.000.000đ (10 triệu VNĐ). Vui lòng điều chỉnh lại số tiền nạp!`,
+        cooldownMinutesLeft: 0,
+        todayDeposited,
+        remainingDailyQuota,
+        maxPerTx,
+      };
+    }
+
+    if (amount !== undefined && todayDeposited + amount > maxPerDay) {
+      return {
+        allowed: false,
+        reason: `Hạn mức nạp tối đa mỗi ngày là 30.000.000đ. Hôm nay bạn đã nạp ${todayDeposited.toLocaleString('vi-VN')}đ, chỉ còn có thể nạp tối đa ${remainingDailyQuota.toLocaleString('vi-VN')}đ!`,
+        cooldownMinutesLeft: 0,
+        todayDeposited,
+        remainingDailyQuota,
+        maxPerTx,
+      };
+    }
+
+    if (remainingDailyQuota <= 0) {
+      return {
+        allowed: false,
+        reason: 'Hôm nay bạn đã chạm hạn mức tối đa 30.000.000đ/ngày. Vui lòng quay lại vào ngày mai!',
+        cooldownMinutesLeft: 0,
+        todayDeposited,
+        remainingDailyQuota: 0,
+        maxPerTx,
+      };
+    }
+
+    return {
+      allowed: true,
+      cooldownMinutesLeft: 0,
+      todayDeposited,
+      remainingDailyQuota,
+      maxPerTx,
+    };
+  };
+
+  // DEPOSIT VIETQR DYNAMIC WITH ATOMIC CLOUD SYNC & DEPOSIT LIMIT CHECKS
+  const depositVietQr = (amount: number, bankName: string): boolean => {
+    if (!currentUser) return false;
+
+    const eligibility = checkDepositEligibility(amount);
+    if (!eligibility.allowed) {
+      showNotification('Giới hạn nạp tiền ⚠️', eligibility.reason || 'Không đủ điều kiện nạp tiền');
+      return false;
     }
 
     const txId = generateSecureTxId('tx_dep');
@@ -3391,6 +3511,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       true,
       true
     );
+    return true;
   };
 
   // BANK WITHDRAWAL WITH ANTI-FRAUD KYC MATCH, TIER LIMIT & NAPAS 247 INSTANT
@@ -3616,7 +3737,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     showNotification(
       '🎓 Đã Xác Thực Cổng Sinh Viên SSO!',
-      `Chào mừng sinh viên ${schoolName} (MSSV: ${cleanId}). Mở khóa Gói vay 0% lãi và Thẻ sinh viên điện tử!`,
+      `Chào mừng sinh viên ${schoolName} (MSSV: ${cleanId}). Mở khóa Thẻ sinh viên điện tử & Miễn 100% phí bảo hộ Escrow!`,
       true,
       true
     );
@@ -3666,8 +3787,14 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return true;
   };
 
-  const depositEWallet = (walletType: string, amount: number) => {
-    if (!currentUser) return;
+  const depositEWallet = (walletType: string, amount: number): boolean => {
+    if (!currentUser) return false;
+    const eligibility = checkDepositEligibility(amount);
+    if (!eligibility.allowed) {
+      showNotification('Giới hạn nạp tiền ⚠️', eligibility.reason || 'Không đủ điều kiện nạp tiền');
+      return false;
+    }
+
     const txId = generateSecureTxId('tx_ewd');
     const updatedUser: UserEntity = {
       ...currentUser,
@@ -3697,10 +3824,17 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       true,
       true
     );
+    return true;
   };
 
-  const topUpWallet = (amount: number, source = 'Nạp ví nhanh 1-Chạm') => {
-    if (!currentUser) return;
+  const topUpWallet = (amount: number, source = 'Nạp ví nhanh 1-Chạm'): boolean => {
+    if (!currentUser) return false;
+    const eligibility = checkDepositEligibility(amount);
+    if (!eligibility.allowed) {
+      showNotification('Giới hạn nạp tiền ⚠️', eligibility.reason || 'Không đủ điều kiện nạp tiền');
+      return false;
+    }
+
     const txId = generateSecureTxId('tx_topup');
     const updatedUser: UserEntity = {
       ...currentUser,
@@ -3731,6 +3865,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       true,
       true
     );
+    return true;
   };
 
   const withdrawEWallet = (walletType: string, amount: number, phone: string): boolean => {
@@ -3940,7 +4075,19 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   ) => {
     if (!currentUser) return;
     const isClient = roleMode === 'CLIENT';
-    const effectiveThreadId = targetThreadId || selectedGigId || (targetPartnerId ? `direct_${targetPartnerId}` : 'direct_general');
+
+    // Normalize direct messaging thread ID between both users to avoid cross-talk leakages
+    let effectiveThreadId = targetThreadId;
+    if (!effectiveThreadId || effectiveThreadId === 'direct_general' || effectiveThreadId.startsWith('direct_')) {
+      if (targetPartnerId) {
+        const sorted = [currentUser.id, targetPartnerId].sort();
+        effectiveThreadId = `dm_${sorted[0]}_${sorted[1]}`;
+      } else if (selectedGigId) {
+        effectiveThreadId = selectedGigId;
+      } else {
+        effectiveThreadId = 'direct_general';
+      }
+    }
 
     // Quét phát hiện lách giao dịch ngoài sàn (Anti-Leakage)
     const filterResult = detectAndFilterOffPlatformLeakage(text);
@@ -3974,6 +4121,23 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
     setChats((prev) => [...prev, msg]);
     cloudService.saveChatMessage(msg);
+  };
+
+  const markConversationAsRead = (partnerOrThreadId: string) => {
+    if (!currentUser) return;
+    setChats((prev) =>
+      prev.map((c) => {
+        const isFromPartner = c.senderId === partnerOrThreadId;
+        const isInThread = c.threadId === partnerOrThreadId || c.gigId === partnerOrThreadId;
+        const isSentToMe = c.partnerId === currentUser.id || (!c.partnerId && c.senderId !== currentUser.id);
+        if ((isFromPartner || isInThread) && isSentToMe && !c.isRead) {
+          const updated = { ...c, isRead: true };
+          cloudService.saveChatMessage(updated);
+          return updated;
+        }
+        return c;
+      })
+    );
   };
 
   const analyzePhotoWithAi = (presetType: string) => {
@@ -4029,36 +4193,6 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const clearAiResult = () => {
     setAiDetectedResult(null);
-  };
-
-  const requestMicroLoan = (amount: number, reason: string): boolean => {
-    if (!currentUser) return false;
-    const loanTx: WalletTransactionEntity = {
-      id: 'tx_loan_' + Date.now(),
-      userId: currentUser.id,
-      type: 'LOAN_DISBURSE',
-      amount: amount,
-      title: 'Khoản vay SOS Sinh viên 0% Lãi suất',
-      subtitle: `${reason} • Giải ngân tức thì`,
-      bankInfo: 'Quỹ Hỗ Trợ Sinh Viên GigMe',
-      timestamp: Date.now(),
-      isSuccess: true,
-    };
-    setTransactions((prev) => [loanTx, ...prev]);
-    setUsers((prev) =>
-      prev.map((u) =>
-        u.id === currentUser.id
-          ? { ...u, walletBalance: u.walletBalance + amount }
-          : u
-      )
-    );
-    showNotification(
-      '🎉 Vay SOS Sinh Viên thành công!',
-      `Đã giải ngân ${formatVnd(amount)} vào ví khả dụng với 0% lãi suất.`,
-      true,
-      true
-    );
-    return true;
   };
 
   // SafeWalk SOS Night Protection functions
@@ -4440,7 +4574,6 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         walletTransactions,
         userTransactions: walletTransactions,
         withdrawFunds: withdrawToBank,
-        requestMicroLoan,
         notification,
         aiDetectedResult,
         adminAllUsers: users,
@@ -4487,6 +4620,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         releaseEscrowPayout,
         releaseMilestonePayout,
         fileDispute,
+        checkDepositEligibility,
         depositVietQr,
         withdrawToBank,
         saveDefaultBank,
@@ -4511,6 +4645,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         adminToggleLockUser,
         adminDeleteGig,
         sendChat,
+        markConversationAsRead,
         analyzePhotoWithAi,
         clearAiResult,
         boostGig,

@@ -29,7 +29,6 @@ interface HeaderProps {
   onOpenProfile: () => void;
   onOpenAdmin: () => void;
   onOpenDownloadApp: () => void;
-  onOpenLeaderboard?: () => void;
   onOpenMarketplace?: () => void;
   onOpenChat?: () => void;
   onOpenFcmPush?: () => void;
@@ -44,7 +43,6 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenProfile,
   onOpenAdmin,
   onOpenDownloadApp,
-  onOpenLeaderboard,
   onOpenMarketplace,
   onOpenChat,
   onOpenFcmPush,
@@ -121,16 +119,8 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
-        {/* Shortcuts: BXH Campus & Chợ KTX (Desktop only) */}
+        {/* Shortcuts: Chợ KTX (Desktop only) */}
         <div className="hidden lg:flex items-center space-x-2 text-xs">
-          {onOpenLeaderboard && (
-            <button
-              onClick={onOpenLeaderboard}
-              className="px-3 py-1.5 rounded-xl bg-[#3064AE]/20 hover:bg-[#3064AE]/35 text-[#C5E5EC] border border-[#C5E5EC]/30 font-extrabold transition flex items-center space-x-1.5 shadow-xs active:scale-95 cursor-pointer"
-            >
-              <span>🏆 BXH Top</span>
-            </button>
-          )}
           {onOpenMarketplace && (
             <button
               onClick={onOpenMarketplace}
@@ -175,42 +165,39 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
             )}
 
-            {/* Quét VietQR Nạp rút 24/7 */}
+            {/* Quét VietQR Nạp rút 24/7 (Chỉ hiện logo icon) */}
             {onOpenVietQrScanner && (
               <button
                 id="header-vietqr-btn"
                 onClick={onOpenVietQrScanner}
-                className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-xl bg-[#12233B] hover:bg-[#162B48] text-[#E0FAEB] border border-[#C5E5EC]/30 transition text-xs font-bold active:scale-95 shadow-sm cursor-pointer"
-                title="VietQR: Quét VietQR Nạp rút 24/7"
+                className="p-2 rounded-xl bg-[#12233B] hover:bg-[#162B48] text-[#E0FAEB] border border-[#C5E5EC]/30 transition active:scale-95 shadow-sm cursor-pointer"
+                title="Quét VietQR 24/7"
               >
                 <QrCode className="w-4 h-4 text-[#E0FAEB]" />
-                <span className="hidden lg:inline">VietQR 24/7</span>
               </button>
             )}
 
-            {/* Cổng Ví Điện Tử MoMo & ZaloPay */}
+            {/* Cổng Ví Điện Tử MoMo & ZaloPay (Chỉ hiện logo icon) */}
             {onOpenPaymentGateway && (
               <button
                 id="header-momo-btn"
                 onClick={onOpenPaymentGateway}
-                className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-xl bg-[#12233B] hover:bg-[#162B48] text-pink-300 border border-pink-500/30 transition text-xs font-bold active:scale-95 shadow-sm cursor-pointer"
-                title="Cổng Ví Điện Tử MoMo & ZaloPay"
+                className="p-2 rounded-xl bg-[#12233B] hover:bg-[#162B48] text-pink-300 border border-pink-500/30 transition active:scale-95 shadow-sm cursor-pointer"
+                title="Cổng MoMo & ZaloPay"
               >
                 <Smartphone className="w-4 h-4 text-pink-400" />
-                <span className="hidden lg:inline">MoMo & ZaloPay</span>
               </button>
             )}
 
-            {/* ELO Điểm Tín Nhiệm Huy hiệu & rank */}
+            {/* ELO Điểm Tín Nhiệm Huy hiệu & rank (Chỉ hiện logo icon) */}
             {onOpenEloModal && (
               <button
                 id="header-elo-btn"
                 onClick={onOpenEloModal}
-                className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-xl bg-[#12233B] hover:bg-[#162B48] text-[#E0FAEB] border border-[#C5E5EC]/30 transition text-xs font-bold active:scale-95 shadow-sm cursor-pointer"
-                title="ELO: Điểm Tín Nhiệm Huy hiệu & rank"
+                className="p-2 rounded-xl bg-[#12233B] hover:bg-[#162B48] text-[#E0FAEB] border border-[#C5E5EC]/30 transition active:scale-95 shadow-sm cursor-pointer"
+                title={`${currentUser?.eloRating ?? 0} ELO - Điểm Tín Nhiệm`}
               >
                 <Award className="w-4 h-4 text-[#C5E5EC]" />
-                <span className="hidden xl:inline">{currentUser?.eloRating ?? 0} ELO</span>
               </button>
             )}
 

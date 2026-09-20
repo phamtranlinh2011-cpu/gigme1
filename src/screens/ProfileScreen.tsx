@@ -252,7 +252,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
 
               <div className="flex items-center space-x-3 mt-1.5 text-[11px] flex-wrap gap-y-1">
                 <span className="flex items-center text-amber-300 font-bold">
-                  <Star className="w-3.5 h-3.5 fill-current mr-1" /> {currentUser.rating}/5.0 ({currentUser.reviewCount ?? 0})
+                  <Star className={`w-3.5 h-3.5 mr-1 ${(currentUser.reviewCount ?? 0) > 0 ? 'fill-current text-amber-300' : 'text-slate-500'}`} />
+                  {(currentUser.reviewCount ?? 0) > 0 ? `${currentUser.rating}/5.0` : '0/5.0'} ({currentUser.reviewCount ?? 0})
                 </span>
                 <span className="text-slate-500">•</span>
                 <span className="flex items-center text-[#E0FAEB] font-semibold">
@@ -408,7 +409,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
 
           <div className="p-3 rounded-2xl bg-[#12233B] border border-[#C5E5EC]/15">
             <span className="text-[#C5E5EC]/70 block text-[10px] mb-1">Đặc quyền sinh viên:</span>
-            <span className="font-extrabold text-[#E0FAEB] text-xs block">Vay SOS 500.000đ 0%</span>
+            <span className="font-extrabold text-[#E0FAEB] text-xs block">Bảo hộ Escrow 100%</span>
             <span className="text-[10px] text-[#C5E5EC]/60">Ưu tiên nhận việc tốt</span>
           </div>
         </div>
@@ -495,16 +496,30 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4 rounded-2xl bg-[#12233B] border border-[#C5E5EC]/20">
           <div className="text-center sm:text-left flex items-center space-x-3 sm:border-r border-[#C5E5EC]/15 sm:pr-4">
             <span className="text-3xl font-black text-amber-400 font-mono">
-              {currentUser.rating || 4.9}
+              {(currentUser.reviewCount ?? 0) > 0 ? (currentUser.rating || 0).toFixed(1) : '0.0'}
             </span>
             <div>
               <div className="flex items-center space-x-0.5">
-                {[1, 2, 3, 4, 5].map((s) => (
-                  <Star key={s} className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
-                ))}
+                {[1, 2, 3, 4, 5].map((s) => {
+                  const hasReviews = (currentUser.reviewCount ?? 0) > 0;
+                  const isFilled = hasReviews && (currentUser.rating || 0) >= s;
+                  const isHalf = hasReviews && !isFilled && (currentUser.rating || 0) >= s - 0.5;
+                  return (
+                    <Star
+                      key={s}
+                      className={`w-3.5 h-3.5 ${
+                        isFilled
+                          ? 'text-amber-400 fill-amber-400'
+                          : isHalf
+                          ? 'text-amber-400 fill-amber-400/50'
+                          : 'text-slate-600 fill-transparent'
+                      }`}
+                    />
+                  );
+                })}
               </div>
               <span className="text-[11px] text-[#C5E5EC]/70 block mt-0.5">
-                {currentUser.reviewCount || 18} lượt đánh giá
+                {currentUser.reviewCount ?? 0} lượt đánh giá {(currentUser.reviewCount ?? 0) === 0 ? '(Chưa có đánh giá)' : ''}
               </span>
             </div>
           </div>

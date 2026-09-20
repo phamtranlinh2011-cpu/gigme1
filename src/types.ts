@@ -87,7 +87,6 @@ export interface UserEntity {
   isLocked: boolean;
   createdAt?: number; // Thời điểm tạo tài khoản (timestamp)
   isKycVerified?: boolean;
-  microLoanCreditLimit?: number;
   friendIds?: string[]; // Danh sách ID bạn bè kết nối qua ID 9 số
   eloRating?: number; // Thang ELO sinh viên (1200 -> 2500+)
   eloTier?: 'BRONZE' | 'SILVER' | 'GOLD' | 'PLATINUM' | 'DIAMOND' | 'CHALLENGER';
@@ -337,7 +336,6 @@ export interface WalletTransactionEntity {
     | 'EWALLET_DEPOSIT'
     | 'EWALLET_WITHDRAW'
     | 'ADMIN_REFUND'
-    | 'LOAN_DISBURSE'
     | 'REWARD_EARNED'
     | 'INCOME'
     | 'EXPENSE';

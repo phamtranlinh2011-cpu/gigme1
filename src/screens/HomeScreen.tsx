@@ -13,7 +13,6 @@ import {
   Award,
   ArrowRight,
   Filter,
-  Trophy,
   BookOpen,
   QrCode,
   Smartphone,
@@ -36,7 +35,6 @@ interface HomeScreenProps {
   onSelectGigDetail: (gigId: string) => void;
   onOpenCreateGig: () => void;
   onOpenVerify: () => void;
-  onOpenLeaderboard?: () => void;
   onOpenMarketplace?: () => void;
   onOpenVietQrScanner?: () => void;
   onOpenPaymentGateway?: () => void;
@@ -78,7 +76,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   onSelectGigDetail,
   onOpenCreateGig,
   onOpenVerify,
-  onOpenLeaderboard,
   onOpenMarketplace,
   onOpenVietQrScanner,
   onOpenPaymentGateway,
@@ -167,25 +164,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           </span>
           <span className="text-[10px] text-[#C5E5EC]/70 font-semibold hidden sm:inline">Trượt ngang để xem thêm tiện ích &rarr;</span>
         </div>
-        <div className="flex overflow-x-auto gap-2.5 pb-2 scrollbar-none snap-x sm:grid sm:grid-cols-4 lg:grid-cols-8">
-          {onOpenLeaderboard && (
-            <button
-              onClick={onOpenLeaderboard}
-              className="min-w-[130px] sm:min-w-0 p-3 rounded-2xl bg-[#0E1B2E] hover:bg-[#13243C] border border-[#C5E5EC]/20 hover:border-[#C5E5EC]/40 text-left transition group shadow-sm shrink-0 snap-start active:scale-95 cursor-pointer"
-            >
-              <div className="flex items-center justify-between mb-1.5">
-                <div className="p-1.5 rounded-lg bg-[#3064AE]/30 text-amber-300 shadow-xs border border-amber-400/20">
-                  <Trophy className="w-4 h-4 group-hover:scale-110 transition" />
-                </div>
-                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-400/20 text-amber-200 border border-amber-400/30 font-black shadow-2xs">
-                  Top 10
-                </span>
-              </div>
-              <h5 className="font-black text-white text-xs truncate">BXH Campus</h5>
-              <p className="text-[10px] text-[#C5E5EC]/70 font-medium truncate">Top thưởng tuần</p>
-            </button>
-          )}
-
+        <div className="flex overflow-x-auto gap-2.5 pb-2 scrollbar-none snap-x sm:grid sm:grid-cols-4 lg:grid-cols-7">
           {onOpenMarketplace && (
             <button
               onClick={onOpenMarketplace}
