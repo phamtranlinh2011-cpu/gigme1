@@ -354,7 +354,11 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
         zoom: 15,
         zoomControl: false,
         attributionControl: false,
-      });
+        tap: false, // Disables legacy 300ms tap simulation which breaks modern mobile touch & swipe gestures
+        touchZoom: true,
+        scrollWheelZoom: false, // Prevents mousewheel/touch scrolls from hijacking full page vertical scrolling
+        bounceAtZoomLimits: false,
+      } as any);
 
       // Default Tile Layer (Google Maps Streets)
       const initialLayerConfig = MAP_TILE_CONFIG[mapLayer];
@@ -367,10 +371,25 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
       markersLayerRef.current = L.layerGroup().addTo(map);
       mapInstanceRef.current = map;
 
-      // Invalidate size on load
+      // Initial size invalidate
       setTimeout(() => {
         map.invalidateSize();
       }, 150);
+    }
+
+    // Adaptive ResizeObserver: automatically syncs Leaflet dimensions with device container resizes, orientations & split-screens
+    let resizeTimer: any = null;
+    let resizeObserver: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined' && mapContainerRef.current) {
+      resizeObserver = new ResizeObserver(() => {
+        if (resizeTimer) clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => {
+          if (mapInstanceRef.current) {
+            mapInstanceRef.current.invalidateSize();
+          }
+        }, 80);
+      });
+      resizeObserver.observe(mapContainerRef.current);
     }
 
     // Map container size update whenever fullscreen toggles
@@ -383,8 +402,15 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
         clearTimeout(t1);
         clearTimeout(t2);
         clearTimeout(t3);
+        if (resizeTimer) clearTimeout(resizeTimer);
+        if (resizeObserver) resizeObserver.disconnect();
       };
     }
+
+    return () => {
+      if (resizeTimer) clearTimeout(resizeTimer);
+      if (resizeObserver) resizeObserver.disconnect();
+    };
   }, [isFullscreen]);
 
   // Update Tile Layer when user switches style (Google Streets, Satellite, Dark)

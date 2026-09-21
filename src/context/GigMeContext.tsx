@@ -261,7 +261,7 @@ interface GigMeContextType {
     reviewText: string,
     role: 'CLIENT' | 'FREELANCER'
   ) => boolean;
-  sendWebPushNotification: (title: string, body: string, icon?: string) => void;
+  sendWebPushNotification: (title: string, body: string, icon?: string, targetUrl?: string) => void;
   releaseEscrowPayout: (gigId: string, enteredPin?: string, tipAmount?: number, useBiometrics?: boolean) => boolean;
   releaseMilestonePayout: (gigId: string, milestonePercent: number, enteredPin?: string, useBiometrics?: boolean) => boolean;
   fileDispute: (gigId: string, reason: string) => void;
@@ -4316,19 +4316,9 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const sendTestFcmPush = (title: string, body: string, _type = 'FLASH') => {
-    playNotificationSound('BANK_TING');
-    showNotification(title, body, true, true);
-    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
-      try {
-        new Notification(title, {
-          body,
-          icon: '/favicon.ico',
-        });
-      } catch {
-        // ignore notification error in iframe
-      }
-    }
+    sendWebPushNotification(title, body, '/pwa-192x192.png');
   };
+
 
   // Student ELO & Badge Reputation System
   const rateGigAndElo = (gigId: string, rating: number, review: string, tags: string[] = []): boolean => {
@@ -4506,31 +4496,77 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return true;
   };
 
-  const sendWebPushNotification = (title: string, body: string, icon = '/favicon.ico') => {
+  const sendWebPushNotification = (
+    title: string,
+    body: string,
+    icon = '/pwa-192x192.png',
+    targetUrl?: string
+  ) => {
     playNotificationSound('BANK_TING');
     showNotification(title, body, true, true);
-    if (typeof window !== 'undefined' && 'Notification' in window) {
-      if (Notification.permission === 'granted') {
+
+    if (typeof window === 'undefined') return;
+
+    const pushPayload = {
+      body,
+      icon,
+      badge: '/favicon.png',
+      vibrate: [200, 100, 200, 100, 200],
+      tag: `gigme-push-${Date.now()}`,
+      renotify: true,
+      requireInteraction: true, // Keeps notification persistent on lock screen
+      data: {
+        url: targetUrl || window.location.origin,
+        timestamp: Date.now(),
+      },
+      actions: [
+        { action: 'open_app', title: 'Mở xem ngay' },
+        { action: 'dismiss', title: 'Bỏ qua' },
+      ],
+    };
+
+    const triggerNotification = async () => {
+      // 1. Try Service Worker showNotification (Enables Lock Screen push on Android / iOS PWA)
+      if ('serviceWorker' in navigator) {
+        try {
+          const reg = await navigator.serviceWorker.ready;
+          if (reg && reg.showNotification) {
+            await reg.showNotification(title, pushPayload as any);
+            return;
+          }
+        } catch (swErr) {
+          console.warn('SW showNotification fallback:', swErr);
+        }
+      }
+
+      // 2. Fallback to Window Notification API
+      if ('Notification' in window && Notification.permission === 'granted') {
         try {
           new Notification(title, {
             body,
             icon,
-            badge: icon,
+            badge: '/favicon.png',
+            tag: `gigme-${Date.now()}`,
           });
-        } catch {
-          // ignore notification error in iframe sandbox
+        } catch (e) {
+          // Ignore iframe sandbox restriction
         }
+      }
+    };
+
+    if ('Notification' in window) {
+      if (Notification.permission === 'granted') {
+        triggerNotification();
       } else if (Notification.permission === 'default') {
         Notification.requestPermission().then((permission) => {
           if (permission === 'granted') {
-            try {
-              new Notification(title, { body, icon });
-            } catch {}
+            triggerNotification();
           }
         });
       }
     }
   };
+
 
   return (
     <GigMeContext.Provider

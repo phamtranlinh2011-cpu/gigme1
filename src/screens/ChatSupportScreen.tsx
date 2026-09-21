@@ -310,7 +310,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
   }, [rawGigs, currentUser, users, allChats]);
 
   // Active contact details with foolproof fallback (so clicking any contact ALWAYS opens chat room)
-  const activeContact = useMemo(() => {
+  const activeContact = useMemo<MessengerContact | null>(() => {
     if (!activeConversationId) return null;
     const found = campusContacts.find((c) => c.id === activeConversationId);
     if (found) return found;
@@ -330,6 +330,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
         lastActiveText: 'Đang online',
         specialtyOrNeed: `ID 9 số: ${u.id}`,
         isEduVerified: !!u.isEduVerified || !!u.isStudentVerified,
+        associatedGig: undefined,
       };
     }
 
@@ -344,6 +345,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
       isOnline: true,
       lastActiveText: 'Đang hoạt động',
       specialtyOrNeed: `ID: ${activeConversationId}`,
+      associatedGig: undefined,
     };
   }, [activeConversationId, campusContacts, users]);
 

@@ -14,6 +14,9 @@ import {
   Copy,
   Check,
   Radio,
+  Lock,
+  Timer,
+  Sparkles,
 } from 'lucide-react';
 import { useGigMe } from '../context/GigMeContext';
 import { playNotificationSound } from '../utils/audio';
@@ -27,18 +30,20 @@ export const FcmPushNotificationModal: React.FC<FcmPushNotificationModalProps> =
   isOpen,
   onClose,
 }) => {
-  const { currentUser, toggleFcm, sendTestFcmPush, setNotificationSound } = useGigMe();
+  const { currentUser, toggleFcm, sendTestFcmPush, setNotificationSound, sendWebPushNotification } = useGigMe();
 
   const isEnabled = currentUser?.fcmEnabled ?? false;
   const fcmToken = currentUser?.fcmToken || 'web_push_device_token_live_ready';
 
   const [copiedToken, setCopiedToken] = useState(false);
   const [browserPermission, setBrowserPermission] = useState<string>('default');
+  const [lockScreenCountdown, setLockScreenCountdown] = useState<number | null>(null);
 
   const [subFlashGigs, setSubFlashGigs] = useState(true);
   const [subEscrow, setSubEscrow] = useState(true);
   const [subReverseAuction, setSubReverseAuction] = useState(true);
   const [subSafeWalk, setSubSafeWalk] = useState(true);
+
 
   const [history, setHistory] = useState<
     Array<{ id: string; title: string; body: string; time: string; type: string }>
@@ -89,7 +94,53 @@ export const FcmPushNotificationModal: React.FC<FcmPushNotificationModalProps> =
     setTimeout(() => setCopiedToken(false), 2000);
   };
 
+  const triggerLockScreenTest = () => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      if (Notification.permission !== 'granted') {
+        Notification.requestPermission().then((permission) => {
+          setBrowserPermission(permission);
+          if (permission === 'granted') {
+            startLockScreenCountdown();
+          }
+        });
+        return;
+      }
+    }
+    startLockScreenCountdown();
+  };
+
+  const startLockScreenCountdown = () => {
+    setLockScreenCountdown(3);
+    let count = 3;
+    const interval = setInterval(() => {
+      count -= 1;
+      if (count > 0) {
+        setLockScreenCountdown(count);
+      } else {
+        clearInterval(interval);
+        setLockScreenCountdown(null);
+        // Dispatch lockscreen push notification via Service Worker
+        sendWebPushNotification(
+          '⚡ KÈO HỎA TỐC 50M: GIAO TRÀ SỮA KTX!',
+          'Thù lao 40.000đ • Smart Escrow đã khóa bảo chứng 100% • Mở máy nhận ngay!',
+          '/pwa-192x192.png'
+        );
+        setHistory((prev) => [
+          {
+            id: `fcm_${Date.now()}`,
+            title: '⚡ KÈO HỎA TỐC 50M: GIAO TRÀ SỮA KTX!',
+            body: 'Thù lao 40.000đ • Đã bắn thông báo ra Màn hình khóa',
+            time: 'Vừa xong',
+            type: 'FLASH',
+          },
+          ...prev,
+        ]);
+      }
+    }, 1000);
+  };
+
   const triggerTestNotification = (type: 'FLASH' | 'ESCROW' | 'AUCTION' | 'SOS') => {
+
     let title = '';
     let body = '';
 
@@ -209,7 +260,7 @@ export const FcmPushNotificationModal: React.FC<FcmPushNotificationModalProps> =
               </span>
               <button
                 onClick={handleCopyToken}
-                className="flex items-center space-x-1 text-orange-600 dark:text-orange-400 hover:underline font-bold"
+                className="flex items-center space-x-1 text-orange-600 dark:text-orange-400 hover:underline font-bold cursor-pointer"
               >
                 {copiedToken ? (
                   <>
@@ -228,6 +279,72 @@ export const FcmPushNotificationModal: React.FC<FcmPushNotificationModalProps> =
               {fcmToken}
             </div>
           </div>
+
+          {/* Lock Screen Web Push Notification Card */}
+          <div className="p-4 rounded-2xl bg-gradient-to-br from-[#0C1728] via-[#102038] to-[#12233B] border border-[#3064AE]/50 space-y-3 shadow-lg">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center space-x-2.5">
+                <div className="p-2.5 rounded-xl bg-[#3064AE]/20 text-[#C5E5EC] border border-[#3064AE]/30">
+                  <Lock className="w-5 h-5 text-[#C5E5EC]" />
+                </div>
+                <div>
+                  <div className="flex items-center space-x-2">
+                    <h4 className="font-extrabold text-sm text-white">Thông Báo Đẩy Màn Hình Khóa</h4>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#3064AE]/40 text-[#E0FAEB] font-black uppercase tracking-wider">
+                      PWA 24/7
+                    </span>
+                  </div>
+                  <p className="text-xs text-[#C5E5EC]/80 mt-0.5">
+                    Rung chuông & đẩy banner lên màn hình khóa điện thoại cả khi khóa màn hình
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800 text-xs space-y-1.5">
+              <div className="flex items-center justify-between text-slate-300">
+                <span>Quyền hệ thống Lock Screen:</span>
+                <span className={`font-bold ${browserPermission === 'granted' ? 'text-emerald-400' : 'text-amber-400'}`}>
+                  {browserPermission === 'granted' ? '✓ Đã Bật (Cho Phép)' : 'Chưa Cấp Quyền'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-slate-300">
+                <span>Service Worker Lock Screen:</span>
+                <span className="font-bold text-emerald-400">✓ Sẵn sàng (sw.js)</span>
+              </div>
+              <div className="flex items-center justify-between text-slate-300">
+                <span>Nhịp rung cảm ứng (Haptic):</span>
+                <span className="font-mono text-[11px] text-[#C5E5EC]">[200ms, 100ms, 200ms]</span>
+              </div>
+            </div>
+
+            <button
+              onClick={triggerLockScreenTest}
+              disabled={lockScreenCountdown !== null}
+              className={`w-full py-2.5 px-4 rounded-xl font-extrabold text-xs flex items-center justify-center space-x-2 transition cursor-pointer shadow-md ${
+                lockScreenCountdown !== null
+                  ? 'bg-amber-500 text-black animate-pulse'
+                  : 'bg-gradient-to-r from-[#3064AE] via-[#417AC6] to-[#C5E5EC] hover:brightness-110 text-white'
+              }`}
+            >
+              {lockScreenCountdown !== null ? (
+                <>
+                  <Timer className="w-4 h-4 animate-spin" />
+                  <span>Khóa màn hình điện thoại ngay! ({lockScreenCountdown}s...)</span>
+                </>
+              ) : (
+                <>
+                  <Lock className="w-4 h-4" />
+                  <span>📲 Bắn Thử Ra Màn Hình Khóa Ngay (Đếm ngược 3s)</span>
+                </>
+              )}
+            </button>
+
+            <p className="text-[11px] text-slate-400 italic">
+              *Hướng dẫn: Bấm nút trên, lập tức bấm nút Nguồn khóa màn hình điện thoại hoặc về màn hình chính. Sau 3 giây máy sẽ rung và bắn thông báo GigMe trực tiếp ngoài màn hình khóa.
+            </p>
+          </div>
+
 
           {/* Notification Channels Selection */}
           <div className="space-y-2">

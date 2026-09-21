@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, Suspense, lazy } from 'react';
 import {
   Search,
   Mic,
@@ -23,13 +23,23 @@ import {
   Bell,
   ShieldAlert,
   WifiOff,
+  Navigation,
 } from 'lucide-react';
 import { useGigMe } from '../context/GigMeContext';
-import { InteractiveRadar } from '../components/InteractiveRadar';
-import { VoiceSearchDialog } from '../components/AdvancedDialogs';
-import { OfflineGigsModal } from '../components/OfflineGigsModal';
 import { formatVnd, GigEntity } from '../types';
 import { VIETNAM_HUBS } from '../utils/geo';
+
+// Lazy load heavy components for instant initial page render (Code-Splitting)
+const InteractiveRadar = lazy(() =>
+  import('../components/InteractiveRadar').then((m) => ({ default: m.InteractiveRadar }))
+);
+const VoiceSearchDialog = lazy(() =>
+  import('../components/AdvancedDialogs').then((m) => ({ default: m.VoiceSearchDialog }))
+);
+const OfflineGigsModal = lazy(() =>
+  import('../components/OfflineGigsModal').then((m) => ({ default: m.OfflineGigsModal }))
+);
+
 
 interface HomeScreenProps {
   onSelectGigDetail: (gigId: string) => void;
@@ -142,18 +152,36 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       )}
 
       {/* Interactive Geofence Radar & Google Maps Discovery View */}
-      <InteractiveRadar
-        gigs={filteredGigs}
-        selectedGigId={selectedGigId}
-        onSelectGig={(id) => {
-          selectGig(id);
-        }}
-        radiusMeters={selectedRadiusMeters}
-        onRadiusChange={setRadius}
-        isClientMode={isClient}
-        userCoords={userCoords}
-        onUserCoordsChange={setUserCoords}
-      />
+      <Suspense
+        fallback={
+          <div className="w-full h-80 rounded-3xl bg-gradient-to-b from-[#0D192B] to-[#102038] border border-[#3064AE]/30 flex flex-col items-center justify-center p-6 space-y-3 relative overflow-hidden shadow-xl">
+            <div className="absolute inset-0 bg-[radial-gradient(#3064AE_1px,transparent_1px)] [background-size:16px_16px] opacity-20" />
+            <div className="relative flex items-center justify-center">
+              <div className="w-16 h-16 rounded-full border border-[#3064AE]/50 animate-ping absolute opacity-30" />
+              <div className="w-12 h-12 rounded-full border-2 border-t-[#3064AE] border-r-[#C5E5EC] border-b-transparent border-l-transparent animate-spin" />
+              <Navigation className="w-5 h-5 text-[#C5E5EC] absolute" />
+            </div>
+            <div className="text-center relative z-10">
+              <p className="text-xs font-bold text-white tracking-wide">Đang nạp Bản đồ Radar GPS Campus</p>
+              <p className="text-[11px] text-[#C5E5EC]/70 mt-0.5">Tải nền bất đồng bộ - Tiết kiệm dung lượng & khởi động siêu tốc</p>
+            </div>
+          </div>
+        }
+      >
+        <InteractiveRadar
+          gigs={filteredGigs}
+          selectedGigId={selectedGigId}
+          onSelectGig={(id) => {
+            selectGig(id);
+          }}
+          radiusMeters={selectedRadiusMeters}
+          onRadiusChange={setRadius}
+          isClientMode={isClient}
+          userCoords={userCoords}
+          onUserCoordsChange={setUserCoords}
+        />
+      </Suspense>
+
 
       {/* Campus Quick Hub Shortcuts - Sleek swipeable carousel on mobile, neat grid on desktop */}
       <div>
@@ -164,7 +192,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           </span>
           <span className="text-[10px] text-[#C5E5EC]/70 font-semibold hidden sm:inline">Trượt ngang để xem thêm tiện ích &rarr;</span>
         </div>
-        <div className="flex overflow-x-auto gap-2.5 pb-2 scrollbar-none snap-x sm:grid sm:grid-cols-4 lg:grid-cols-7">
+        <div
+          data-swipeable="true"
+          className="flex overflow-x-auto gap-2.5 pb-2 scrollbar-none snap-x sm:grid sm:grid-cols-4 lg:grid-cols-7 touch-pan-x overscroll-x-contain"
+        >
           {onOpenMarketplace && (
             <button
               onClick={onOpenMarketplace}
@@ -328,7 +359,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         </div>
 
         {/* Categories Carousel */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+        <div
+          data-swipeable="true"
+          className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none touch-pan-x overscroll-x-contain"
+        >
           {CATEGORIES.map((cat) => {
             const isSelected = selectedCategory === cat;
             return (
@@ -602,18 +636,27 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       </div>
 
       {/* Voice Search Modal */}
-      <VoiceSearchDialog
-        isOpen={isVoiceOpen}
-        onClose={() => setIsVoiceOpen(false)}
-        onSelectQuery={(q) => setSearchQuery(q)}
-      />
+      {isVoiceOpen && (
+        <Suspense fallback={null}>
+          <VoiceSearchDialog
+            isOpen={isVoiceOpen}
+            onClose={() => setIsVoiceOpen(false)}
+            onSelectQuery={(q) => setSearchQuery(q)}
+          />
+        </Suspense>
+      )}
 
       {/* Offline Gigs Cache Modal */}
-      <OfflineGigsModal
-        isOpen={isOfflineModalOpen}
-        onClose={() => setIsOfflineModalOpen(false)}
-        onSelectGig={(id) => onSelectGigDetail(id)}
-      />
+      {isOfflineModalOpen && (
+        <Suspense fallback={null}>
+          <OfflineGigsModal
+            isOpen={isOfflineModalOpen}
+            onClose={() => setIsOfflineModalOpen(false)}
+            onSelectGig={(id) => onSelectGigDetail(id)}
+          />
+        </Suspense>
+      )}
+
     </div>
   );
 };

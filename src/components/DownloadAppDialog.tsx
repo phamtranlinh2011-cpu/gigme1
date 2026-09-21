@@ -14,6 +14,7 @@ import {
   Info,
   Layers,
   ArrowRight,
+  AlertCircle,
 } from 'lucide-react';
 
 interface DownloadAppDialogProps {
@@ -29,16 +30,12 @@ export const DownloadAppDialog: React.FC<DownloadAppDialogProps> = ({ isOpen, on
   if (!isOpen) return null;
 
   const apkDownloadUrl = `${window.location.origin}/api/download/gigme.apk`;
+  const mirrorApkUrl = `${window.location.origin}/downloads/Gigme.apk`;
 
   const handleDownloadApk = () => {
     setDownloading(true);
-    // Trigger download
-    const link = document.createElement('a');
-    link.href = '/api/download/gigme.apk';
-    link.download = 'Gigme.apk';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    // Mobile browsers & Android Download Manager respond best to direct navigation
+    window.location.assign('/api/download/gigme.apk');
 
     setTimeout(() => {
       setDownloading(false);
@@ -129,28 +126,64 @@ export const DownloadAppDialog: React.FC<DownloadAppDialogProps> = ({ isOpen, on
           </div>
 
           {/* Download Action Button with Cobalt Blue to Crystal Blue gradient */}
-          <button
-            onClick={handleDownloadApk}
-            disabled={downloading}
-            className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-[#3064AE] via-[#417AC6] to-[#C5E5EC] text-white font-extrabold text-sm hover:brightness-110 active:scale-[0.99] shadow-lg shadow-[#3064AE]/35 transition flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-75 border border-[#E0FAEB]/30"
-          >
-            {downloading ? (
-              <>
-                <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin mr-2" />
-                <span>Đang tải xuống tệp Gigme.apk...</span>
-              </>
-            ) : downloadSuccess ? (
-              <>
-                <CheckCircle2 className="w-4 h-4 text-[#E0FAEB]" />
-                <span className="text-[#E0FAEB]">Đã bắt đầu tải Gigme.apk!</span>
-              </>
-            ) : (
-              <>
-                <Download className="w-4 h-4 stroke-[2.5]" />
-                <span>Tải File Gigme.apk Cho Điện Thoại</span>
-              </>
-            )}
-          </button>
+          <div className="space-y-2">
+            <a
+              href="/api/download/gigme.apk"
+              download="Gigme.apk"
+              onClick={() => {
+                setDownloadSuccess(true);
+                setTimeout(() => setDownloadSuccess(false), 5000);
+              }}
+              className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-[#3064AE] via-[#417AC6] to-[#C5E5EC] text-white font-extrabold text-sm hover:brightness-110 active:scale-[0.99] shadow-lg shadow-[#3064AE]/35 transition flex items-center justify-center space-x-2 cursor-pointer border border-[#E0FAEB]/30 text-center"
+            >
+              {downloadSuccess ? (
+                <>
+                  <CheckCircle2 className="w-4 h-4 text-[#E0FAEB]" />
+                  <span className="text-[#E0FAEB]">Đã bắt đầu tải Gigme.apk về máy!</span>
+                </>
+              ) : (
+                <>
+                  <Download className="w-4 h-4 stroke-[2.5]" />
+                  <span>Tải Trực Tiếp File Gigme.apk (Link Chính)</span>
+                </>
+              )}
+            </a>
+
+            <div className="flex items-center justify-between gap-2 text-xs">
+              <a
+                href="/downloads/Gigme.apk"
+                download="Gigme.apk"
+                className="flex-1 py-2 px-3 rounded-xl bg-[#162742] hover:bg-[#1c3255] text-[#C5E5EC] text-center font-bold text-[11px] border border-[#C5E5EC]/20 transition"
+              >
+                Link Dự Phòng (Mirror)
+              </a>
+              <button
+                onClick={handleDownloadApk}
+                className="flex-1 py-2 px-3 rounded-xl bg-[#162742] hover:bg-[#1c3255] text-[#C5E5EC] text-center font-bold text-[11px] border border-[#C5E5EC]/20 transition cursor-pointer"
+              >
+                Buộc Tải Xuống Lại
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Important Mobile Notice (Zalo/Facebook Webview & Android Warning) */}
+        <div className="mt-4 p-3.5 rounded-2xl bg-amber-950/40 border border-amber-500/30 text-xs space-y-1.5 text-amber-200">
+          <div className="flex items-center space-x-2 font-bold text-amber-300">
+            <AlertCircle className="w-4 h-4 shrink-0 text-amber-400" />
+            <span>Tại sao điện thoại không tải được? (Cách khắc phục)</span>
+          </div>
+          <ul className="space-y-1.5 text-[11px] text-amber-100/90 list-disc list-inside leading-relaxed">
+            <li>
+              <strong>Nếu quét mã qua Zalo / Facebook / Messenger:</strong> Trình duyệt nội bộ của Zalo/Facebook sẽ <em>tự động chặn tải file APK</em>. Bạn hãy bấm vào biểu tượng <strong>3 chấm (⋮ hoặc ...)</strong> ở góc trên bên phải màn hình Zalo &rarr; chọn <strong>"Mở bằng trình duyệt" (Chrome / Cốc Cốc / Safari)</strong> để tải bình thường.
+            </li>
+            <li>
+              <strong>Cảnh báo của Android:</strong> Khi tải, điện thoại có thể hiện thông báo <em>"Tệp có thể gây hại cho thiết bị"</em>. Đây là cảnh báo tự động của Android với mọi file cài đặt bên ngoài CH Play. Bạn bấm <strong>"Vẫn tải xuống" (Download anyway)</strong>.
+            </li>
+            <li>
+              <strong>Mở tệp:</strong> Sau khi tải xong, vào ứng dụng <strong>Tệp (Files / Tải về)</strong> trên điện thoại &rarr; bấm vào <strong>Gigme.apk</strong> để cài đặt.
+            </li>
+          </ul>
         </div>
 
         {/* Step-by-step Installation Instructions */}

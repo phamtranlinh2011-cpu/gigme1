@@ -21,7 +21,10 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentTab, onSelectTab })
   const isClient = roleMode === 'CLIENT';
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 bg-[#0B1528]/95 dark:bg-[#070D18]/98 backdrop-blur-lg border-t border-[#C5E5EC]/20 px-1 sm:px-3 py-1.5 shadow-[0_-4px_25px_rgba(48,100,174,0.25)]">
+    <nav
+      className="fixed bottom-0 left-0 right-0 z-40 bg-[#0B1528]/95 dark:bg-[#070D18]/98 backdrop-blur-lg border-t border-[#C5E5EC]/20 px-1 sm:px-3 pt-1.5 pb-2 pb-safe shadow-[0_-4px_25px_rgba(48,100,174,0.25)]"
+      style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom, 0px))' }}
+    >
       <div className="max-w-lg mx-auto flex items-center justify-between">
         {/* Tab 1: Radar Discovery */}
         <button

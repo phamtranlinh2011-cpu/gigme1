@@ -318,9 +318,49 @@ button:active:not(:disabled), a:active, [role="button"]:active {
   animation: drag-bounce 1.6s ease-in-out infinite;
 }
 
-button, a, input, select {
-  transition-property: background-color, border-color, color, box-shadow, transform, opacity;
-  transition-duration: 180ms;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+/* Smooth Touch, Gesture & Mobile Swipe Stabilization */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  overscroll-behavior-y: none;
 }
+
+body {
+  touch-action: pan-y;
+  overscroll-behavior-x: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Horizontal Swipeable Carousels & Hubs with Inertial Momentum */
+.no-scrollbar,
+.scrollbar-none,
+[data-swipeable="true"] {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x pan-y;
+}
+
+.no-scrollbar::-webkit-scrollbar,
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+/* Safe Area Insets for Modern Edge-to-Edge & Mobile Devices */
+.pb-safe {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px));
+}
+
+.pt-safe {
+  padding-top: max(0.5rem, env(safe-area-inset-top, 0px));
+}
+
+/* Responsive Adaptive Auto-scaling Container */
+@media (max-width: 640px) {
+  .app-viewport-fit {
+    min-height: 100dvh;
+  }
+}
+
 
