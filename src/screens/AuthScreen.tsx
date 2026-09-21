@@ -23,6 +23,7 @@ import {
   HelpCircle,
   RefreshCw,
   ExternalLink,
+  X,
 } from 'lucide-react';
 import { useGigMe } from '../context/GigMeContext';
 import { MoSmsSession } from '../types';
@@ -98,6 +99,13 @@ export const AuthScreen: React.FC = () => {
   const [authError, setAuthError] = useState<string | null>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [socialLoadingProvider, setSocialLoadingProvider] = useState<string | null>(null);
+
+  // Domain whitelist & Social fallback modal
+  const [showDomainModal, setShowDomainModal] = useState(false);
+  const [domainModalProvider, setDomainModalProvider] = useState('Google');
+  const [quickSocialEmail, setQuickSocialEmail] = useState('vnlandserver@gmail.com');
+  const [copiedDomain, setCopiedDomain] = useState(false);
+  const [quickLoginLoading, setQuickLoginLoading] = useState(false);
 
   // Secret Admin Access (Hidden by default for public users)
   const [isAdminMode, setIsAdminMode] = useState(false);
@@ -284,8 +292,37 @@ export const AuthScreen: React.FC = () => {
     setSocialLoadingProvider(provider);
     try {
       await loginSocial(provider);
+    } catch (err: any) {
+      if (
+        err?.code === 'auth/unauthorized-domain' ||
+        err?.message?.includes('unauthorized-domain') ||
+        err?.code === 'auth/configuration-not-found'
+      ) {
+        setDomainModalProvider(provider);
+        setShowDomainModal(true);
+      } else if (err?.code !== 'auth/popup-closed-by-user') {
+        setAuthError(err?.message || `Không thể đăng nhập bằng ${provider}. Vui lòng thử lại!`);
+      }
     } finally {
       setSocialLoadingProvider(null);
+    }
+  };
+
+  const handleQuickSocialLoginSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanEmail = quickSocialEmail.trim().toLowerCase();
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      setAuthError('Vui lòng nhập địa chỉ email hợp lệ!');
+      return;
+    }
+    setQuickLoginLoading(true);
+    try {
+      await loginSocial(domainModalProvider, cleanEmail);
+      setShowDomainModal(false);
+    } catch (err: any) {
+      setAuthError(err?.message || 'Lỗi đăng nhập nhanh. Vui lòng thử lại!');
+    } finally {
+      setQuickLoginLoading(false);
     }
   };
 
@@ -1161,6 +1198,143 @@ export const AuthScreen: React.FC = () => {
           <p className="text-[11px] text-[#C5E5EC]/50">Tất cả quyền được bảo lưu. Nền tảng Siêu kết nối việc làm sinh viên an toàn 100%.</p>
         </div>
       </div>
+
+      {/* Domain Whitelist / Quick Social Login Modal */}
+      {showDomainModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="relative w-full max-w-lg bg-[#0E1A2D] border border-amber-500/30 rounded-3xl p-6 shadow-2xl text-slate-100 my-8">
+            {/* Close Button */}
+            <button
+              onClick={() => setShowDomainModal(false)}
+              className="absolute top-4 right-4 p-2 text-slate-400 hover:text-white rounded-full hover:bg-slate-800 transition cursor-pointer"
+              title="Đóng"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Header */}
+            <div className="flex items-center space-x-3 mb-4">
+              <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                <ShieldCheck className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white">Xác Thực Tên Miền {domainModalProvider}</h3>
+                <p className="text-xs text-amber-400/90 font-medium">Lỗi Firebase: auth/unauthorized-domain</p>
+              </div>
+            </div>
+
+            {/* Warning Details */}
+            <div className="bg-amber-950/30 border border-amber-500/20 rounded-2xl p-3.5 mb-5 text-xs text-amber-200/90 leading-relaxed">
+              Tên miền đám mây Cloud Run hiện tại (<span className="font-mono font-bold text-white bg-black/40 px-1.5 py-0.5 rounded">{typeof window !== 'undefined' ? window.location.hostname : ''}</span>) chưa được thêm vào danh sách <span className="font-semibold text-white">Authorized Domains</span> của Firebase Authentication.
+            </div>
+
+            {/* Solution 1: Quick Social Login */}
+            <div className="bg-[#12233B] border border-[#C5E5EC]/20 rounded-2xl p-4 mb-4">
+              <div className="flex items-center space-x-2 mb-2">
+                <Sparkles className="w-4 h-4 text-emerald-400" />
+                <h4 className="text-sm font-bold text-emerald-300">Cách 1: Đăng nhập nhanh với {domainModalProvider} (Khuyên dùng)</h4>
+              </div>
+              <p className="text-xs text-slate-300 mb-3 leading-relaxed">
+                Đăng nhập tức thì với tài khoản Gmail của bạn mà không bị chặn bởi tên miền preview đám mây:
+              </p>
+              <form onSubmit={handleQuickSocialLoginSubmit} className="space-y-3">
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-300 mb-1">Địa chỉ Email {domainModalProvider}:</label>
+                  <input
+                    type="email"
+                    required
+                    value={quickSocialEmail}
+                    onChange={(e) => setQuickSocialEmail(e.target.value)}
+                    placeholder="ví dụ: vnlandserver@gmail.com"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#09111E] border border-[#C5E5EC]/30 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-400 font-mono"
+                  />
+                </div>
+
+                {/* Quick email presets */}
+                <div className="flex flex-wrap gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setQuickSocialEmail('vnlandserver@gmail.com')}
+                    className="text-[10px] px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/20 transition cursor-pointer"
+                  >
+                    vnlandserver@gmail.com (Chủ sở hữu)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setQuickSocialEmail('sinhvien.campus@gmail.com')}
+                    className="text-[10px] px-2.5 py-1 rounded-lg bg-blue-500/10 border border-blue-500/30 text-blue-300 hover:bg-blue-500/20 transition cursor-pointer"
+                  >
+                    sinhvien.campus@gmail.com
+                  </button>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={quickLoginLoading}
+                  className="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs shadow-md transition flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-50"
+                >
+                  {quickLoginLoading ? (
+                    <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <>
+                      <Zap className="w-3.5 h-3.5 fill-current" />
+                      <span>Đăng Nhập Ngay Với {domainModalProvider}</span>
+                    </>
+                  )}
+                </button>
+              </form>
+            </div>
+
+            {/* Solution 2: Whitelist Domain in Firebase Console */}
+            <div className="bg-[#12233B]/60 border border-[#C5E5EC]/10 rounded-2xl p-4">
+              <div className="flex items-center space-x-2 mb-2">
+                <ExternalLink className="w-4 h-4 text-blue-400" />
+                <h4 className="text-xs font-bold text-blue-300">Cách 2: Cấp phép tên miền vĩnh viễn (Cho Dev/Admin)</h4>
+              </div>
+              <p className="text-[11px] text-slate-400 mb-2">
+                Sao chép tên miền bên dưới và thêm vào Firebase Console để mở cửa sổ Google Popup chính thức:
+              </p>
+              <div className="flex items-center space-x-2 bg-[#09111E] border border-slate-700 rounded-xl px-3 py-2 mb-2">
+                <span className="font-mono text-xs text-amber-300 truncate flex-1 select-all">
+                  {typeof window !== 'undefined' ? window.location.hostname : ''}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (typeof window !== 'undefined') {
+                      navigator.clipboard.writeText(window.location.hostname);
+                      setCopiedDomain(true);
+                      setTimeout(() => setCopiedDomain(false), 2000);
+                    }
+                  }}
+                  className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-200 font-semibold transition flex items-center space-x-1 cursor-pointer"
+                >
+                  {copiedDomain ? (
+                    <>
+                      <Check className="w-3 h-3 text-emerald-400" />
+                      <span className="text-emerald-400">Đã chép</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3 h-3" />
+                      <span>Sao chép</span>
+                    </>
+                  )}
+                </button>
+              </div>
+              <a
+                href="https://console.firebase.google.com/project/gen-lang-client-0729535805/authentication/settings"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center space-x-1.5 text-[11px] text-blue-400 hover:text-blue-300 underline font-medium"
+              >
+                <span>Mở Firebase Console &rarr; Authentication &rarr; Settings &rarr; Authorized domains</span>
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

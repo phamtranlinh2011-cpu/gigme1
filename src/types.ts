@@ -66,7 +66,7 @@ export interface UserEntity {
   isBusinessAccount: boolean; // GigMe for Business
   businessName: string;
   businessTaxId: string;
-  trustScore: number; // Thang điểm tín dụng 300 - 850
+  trustScore: number; // Thang điểm uy tín 0 - 100 (Tối đa 100, nếu max thì không cộng thêm)
   notificationSound: 'DING_DEFAULT' | 'CASH_COUNT' | 'BANK_TING' | 'SOFT_VIBRATE';
   connectedMoMo: string;
   connectedZaloPay: string;

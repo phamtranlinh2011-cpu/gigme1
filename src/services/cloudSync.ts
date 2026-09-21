@@ -15,6 +15,7 @@ import {
   deleteGigFromCloud,
   subscribeToGigs,
   syncUserToCloud,
+  deleteUserFromCloud,
   subscribeToUsers,
   syncMessageToCloud,
   subscribeToMessages,
@@ -418,6 +419,35 @@ export const cloudService = {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(user),
+        });
+      } catch {
+        // Safe ignore
+      }
+    }
+  },
+
+  async deleteUser(userId: string): Promise<void> {
+    // 1. Xóa trên Firebase Firestore
+    await deleteUserFromCloud(userId).catch((e) => console.warn('Firestore deleteUser error:', e));
+
+    // 2. Gửi Express API nếu có
+    if (this.isExpressAvailable()) {
+      try {
+        await fetch(`/api/users/${userId}`, {
+          method: 'DELETE',
+        });
+      } catch {
+        // Safe ignore
+      }
+    }
+  },
+
+  async purgeNonAdminUsers(adminId: string = '000000000'): Promise<void> {
+    if (this.isExpressAvailable()) {
+      try {
+        await fetch('/api/users/purge-non-admin', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
         });
       } catch {
         // Safe ignore

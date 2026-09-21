@@ -59,6 +59,19 @@ const STORAGE_KEYS = {
   DARK_MODE: 'gigme_dark_mode_real_v4',
 };
 
+// Helper: Điểm uy tín tối đa 100. Nếu max (>= 100) thì không cộng thêm nữa.
+export const clampTrustScore = (current: number, delta: number = 0): number => {
+  const base = Math.min(100, Math.max(0, current ?? 0));
+  if (delta > 0) {
+    if (base >= 100) return 100; // Đã đạt tối đa 100 điểm thì không cộng thêm nữa
+    return Math.min(100, base + delta);
+  }
+  if (delta < 0) {
+    return Math.max(0, base + delta);
+  }
+  return base;
+};
+
 const DEFAULT_ADMIN: UserEntity = {
   id: '000000000', // Tài khoản Admin cố định 9 chữ số 000000000
   name: 'Ban Quản Trị GigMe',
@@ -79,7 +92,7 @@ const DEFAULT_ADMIN: UserEntity = {
   isBusinessAccount: false,
   businessName: '',
   businessTaxId: '',
-  trustScore: 0,
+  trustScore: 100,
   eloRating: 0,
   eloTier: 'BRONZE',
   winStreak: 0,
@@ -299,6 +312,8 @@ interface GigMeContextType {
   adminResolveDispute: (gigId: string, resolution: string, refundToClient: boolean, note: string) => void;
   adminApproveKyc: (userId: string) => void;
   adminToggleLockUser: (userId: string) => void;
+  adminDeleteUser: (userId: string) => Promise<boolean>;
+  adminPurgeAllUsersExceptAdmin: () => Promise<boolean>;
   adminDeleteGig: (gigId: string) => void;
 
   // Chat & AI
@@ -425,10 +440,13 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               !isMockOrFakeName(u.name)
           )
           .map((u: UserEntity) => {
-            if (u.id === 'admin_root' || u.email === 'admin@admin.vn') {
-              return { ...DEFAULT_ADMIN, id: '000000000' };
+            if (u.id === 'admin_root' || u.email === 'admin@admin.vn' || u.id === '000000000') {
+              return { ...DEFAULT_ADMIN, ...u, id: '000000000', trustScore: 100 };
             }
-            return u;
+            return {
+              ...u,
+              trustScore: clampTrustScore(u.trustScore),
+            };
           });
         // Đảm bảo luôn có tài khoản Admin 000000000 duy nhất
         if (!cleaned.some((u) => u.id === '000000000' || u.role === 'ADMIN')) {
@@ -1224,7 +1242,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       isBusinessAccount: false,
       businessName: '',
       businessTaxId: '',
-      trustScore: trimmedCccd ? 550 : 350,
+      trustScore: trimmedCccd ? 80 : 50,
       eloRating: 0,
       eloTier: 'BRONZE',
       winStreak: 0,
@@ -1686,7 +1704,17 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const loginSocial = async (provider: string, emailOrName?: string) => {
     try {
       let authUser: any = null;
-      if (provider === 'Google') {
+      if (emailOrName) {
+        const cleanEmail = emailOrName.trim().toLowerCase();
+        const baseName = cleanEmail.split('@')[0];
+        const formattedName = baseName.charAt(0).toUpperCase() + baseName.slice(1);
+        authUser = {
+          email: cleanEmail,
+          displayName: formattedName,
+          uid: `social_${cleanEmail.replace(/[^a-zA-Z0-9]/g, '_')}`,
+          phoneNumber: '',
+        };
+      } else if (provider === 'Google') {
         const googleProvider = new GoogleAuthProvider();
         googleProvider.setCustomParameters({ prompt: 'select_account' });
         const cred = await signInWithPopup(auth, googleProvider);
@@ -1816,10 +1844,14 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         );
         return;
       }
+      if (err?.code === 'auth/unauthorized-domain' || err?.message?.includes('unauthorized-domain')) {
+        throw err;
+      }
       showNotification(
         `Lỗi đăng nhập ${provider}`,
         err?.message || 'Không thể đăng nhập bằng tài khoản này. Vui lòng thử lại!'
       );
+      throw err;
     }
   };
 
@@ -1904,7 +1936,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       isKycApproved: true,
       isStudentVerified: schoolOrId.includes('.edu.vn') || schoolOrId.trim().length > 0,
       studentSchool: schoolOrId,
-      trustScore: Math.min(850, currentUser.trustScore + 60),
+      trustScore: clampTrustScore(currentUser.trustScore, 10),
     };
 
     setUsers((prev) => prev.map((u) => (u.id === currentUser.id ? updatedUser : u)));
@@ -3656,7 +3688,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       cccdChecksumValid: checksumValid,
       cccdIssueDate: issueDate || '01/01/2023',
       tier: currentUser.tier === 'NEWBIE' ? 'VERIFIED' : currentUser.tier,
-      trustScore: Math.min(850, currentUser.trustScore + 35),
+      trustScore: clampTrustScore(currentUser.trustScore, 10),
     };
     setUsers((prev) => {
       const updated = prev.map((u) => (u.id === currentUser.id ? updatedUser : u));
@@ -3678,7 +3710,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     triggerHaptic('nfc');
     showNotification(
       '✅ Quét NFC CCCD Đạt Chuẩn C06!',
-      `Đã đối soát thành công chíp ICAO 9303 Bộ Công An cho ${fullName.trim().toUpperCase()}. TrustScore +35 điểm!`,
+      `Đã đối soát thành công chíp ICAO 9303 Bộ Công An cho ${fullName.trim().toUpperCase()}. TrustScore +10 điểm (Tối đa 100)!`,
       true,
       true
     );
@@ -3692,7 +3724,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       ...currentUser,
       isFaceLivenessPassed: true,
       tier: currentUser.tier === 'NEWBIE' ? 'VERIFIED' : currentUser.tier,
-      trustScore: Math.min(850, currentUser.trustScore + 25),
+      trustScore: clampTrustScore(currentUser.trustScore, 10),
     };
     setUsers((prev) => {
       const updated = prev.map((u) => (u.id === currentUser.id ? updatedUser : u));
@@ -3705,7 +3737,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     showNotification(
       '👤 Face Liveness Đạt Chuẩn!',
-      'Hệ thống AI đã nhận diện gương mặt sống động. Tăng độ tin cậy TrustScore +25 điểm!',
+      'Hệ thống AI đã nhận diện gương mặt sống động. Tăng độ tin cậy TrustScore +10 điểm (Tối đa 100)!',
       true,
       true
     );
@@ -3730,7 +3762,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       studentSsoProvider: ssoProvider || 'OAuth2 CAS / Microsoft 365 Edu',
       badges: currentUser.badges ? `${currentUser.badges}, Sinh Viên Ưu Tú` : 'Sinh Viên Ưu Tú',
       tier: currentUser.tier === 'NEWBIE' ? 'VERIFIED' : currentUser.tier,
-      trustScore: Math.min(850, currentUser.trustScore + 40),
+      trustScore: clampTrustScore(currentUser.trustScore, 15),
     };
     setUsers((prev) => prev.map((u) => (u.id === currentUser.id ? updatedUser : u)));
     cloudService.saveUser(updatedUser);
@@ -3921,7 +3953,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       businessName: businessName.trim(),
       businessTaxId: taxId.trim(),
       tier: 'PRO',
-      trustScore: Math.min(850, currentUser.trustScore + 50),
+      trustScore: clampTrustScore(currentUser.trustScore, 10),
     };
     setUsers((prev) => prev.map((u) => (u.id === currentUser.id ? updatedUser : u)));
     showNotification(
@@ -4025,7 +4057,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               isNfcVerified: true,
               isFaceLivenessPassed: true,
               tier: u.tier === 'NEWBIE' ? 'VERIFIED' : u.tier,
-              trustScore: Math.min(850, u.trustScore + 50),
+              trustScore: clampTrustScore(u.trustScore, 15),
             }
           : u
       )
@@ -4034,6 +4066,10 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const adminToggleLockUser = (userId: string) => {
+    if (userId === '000000000') {
+      showNotification('Thao Tác Bị Chặn', 'Không thể khóa tài khoản Quản trị viên tối cao (000000000)!', false);
+      return;
+    }
     setUsers((prev) =>
       prev.map((u) => {
         if (u.id === userId) {
@@ -4042,11 +4078,87 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             willLock ? 'Đã Khóa Tài Khoản' : 'Đã Mở Khóa Tài Khoản',
             `${willLock ? 'Tạm đình chỉ hoạt động của' : 'Đã kích hoạt lại tài khoản cho'} ${u.name}.`
           );
-          return { ...u, isLocked: willLock };
+          const updated = { ...u, isLocked: willLock };
+          cloudService.saveUser(updated);
+          return updated;
         }
         return u;
       })
     );
+  };
+
+  const adminDeleteUser = async (userId: string): Promise<boolean> => {
+    if (userId === '000000000') {
+      showNotification('Thao Tác Bị Chặn', 'Không thể xóa tài khoản Quản trị viên tối cao (000000000)!', false);
+      return false;
+    }
+    const targetUser = users.find((u) => u.id === userId);
+    if (!targetUser) return false;
+
+    setUsers((prev) => {
+      const remaining = prev.filter((u) => u.id !== userId);
+      try {
+        localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(remaining));
+      } catch {}
+      return remaining;
+    });
+
+    try {
+      await cloudService.deleteUser(userId);
+    } catch (e) {
+      console.warn('Cloud deleteUser error:', e);
+    }
+
+    if (currentUserId === userId) {
+      setCurrentUserId(null);
+    }
+
+    showNotification(
+      'Đã Xóa Người Dùng',
+      `Đã xóa vĩnh viễn tài khoản ${targetUser.name} (ID: ${targetUser.id}) khỏi toàn bộ hệ thống.`,
+      true
+    );
+    return true;
+  };
+
+  const adminPurgeAllUsersExceptAdmin = async (): Promise<boolean> => {
+    const adminUser = users.find((u) => u.id === '000000000' || u.role === 'ADMIN') || DEFAULT_ADMIN;
+    const sanitizedAdmin: UserEntity = {
+      ...DEFAULT_ADMIN,
+      ...adminUser,
+      id: '000000000',
+      role: 'ADMIN',
+      email: 'admin@admin.vn',
+      phone: '0909120918',
+      name: 'Quản Trị Viên Tối Cao',
+      trustScore: 100,
+      isLocked: false,
+    };
+
+    setUsers([sanitizedAdmin]);
+    try {
+      localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify([sanitizedAdmin]));
+    } catch {}
+
+    // Dọn sạch gigs, bids, chats, transactions của các người dùng khác để hệ thống sạch 100%
+    setGigs((prev) => prev.filter((g) => g.clientId === '000000000'));
+    setBids((prev) => prev.filter((b) => b.freelancerId === '000000000'));
+    setChats([]);
+    setTransactions((prev) => prev.filter((t) => t.userId === '000000000'));
+
+    try {
+      await cloudService.purgeNonAdminUsers('000000000');
+    } catch (e) {
+      console.warn('Cloud purge fallback error:', e);
+    }
+
+    showNotification(
+      'Đã Xóa Toàn Bộ Dữ Liệu!',
+      'Hệ thống đã dọn sạch tất cả dữ liệu người dùng, chỉ giữ lại duy nhất 1 tài khoản Quản trị viên tối cao (000000000).',
+      true,
+      true
+    );
+    return true;
   };
 
   const adminDeleteGig = (gigId: string) => {
@@ -4381,7 +4493,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               studentBadges: badges,
               rating: Number(((u.rating * u.reviewCount + rating) / (u.reviewCount + 1)).toFixed(1)),
               reviewCount: u.reviewCount + 1,
-              trustScore: Math.min(850, u.trustScore + (rating >= 4 ? 8 : -15)),
+              trustScore: clampTrustScore(u.trustScore, rating >= 4 ? 3 : -10),
               reviews: [newReviewItem, ...(u.reviews || [])],
             };
             cloudService.saveUser(updatedUser);
@@ -4461,7 +4573,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             return {
               ...u,
               eloRating: newElo,
-              trustScore: Math.min(850, u.trustScore + (clientScore >= 4 ? 8 : -15)),
+              trustScore: clampTrustScore(u.trustScore, clientScore >= 4 ? 3 : -10),
               rating: Number(((u.rating * u.reviewCount + clientScore) / (u.reviewCount + 1)).toFixed(1)),
               reviewCount: u.reviewCount + 1,
             };
@@ -4469,7 +4581,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           if (u.id === gig.clientId) {
             return {
               ...u,
-              trustScore: Math.min(850, u.trustScore + (freelancerScore >= 4 ? 5 : -10)),
+              trustScore: clampTrustScore(u.trustScore, freelancerScore >= 4 ? 2 : -5),
             };
           }
           return u;

@@ -168,6 +168,15 @@ export async function getUserFromCloud(userId: string): Promise<UserEntity | nul
   }
 }
 
+export async function deleteUserFromCloud(userId: string): Promise<void> {
+  const path = `users/${userId}`;
+  try {
+    await deleteDoc(doc(db, 'users', userId));
+  } catch (err) {
+    handleFirestoreError(err, OperationType.DELETE, path);
+  }
+}
+
 export async function findUserByContact(contact: string): Promise<UserEntity | null> {
   const trimmed = contact.trim().toLowerCase();
   try {
