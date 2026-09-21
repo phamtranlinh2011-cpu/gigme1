@@ -949,12 +949,18 @@ async function startServer() {
     return apkPath;
   };
 
-  app.get('/api/download/gigme.apk', (_req: Request, res: Response) => {
+  const sendApkResponse = (_req: Request, res: Response) => {
     const apkPath = ensureApkFile();
     res.setHeader('Content-Type', 'application/vnd.android.package-archive');
     res.setHeader('Content-Disposition', 'attachment; filename="Gigme.apk"');
+    res.setHeader('Cache-Control', 'public, max-age=3600');
     res.sendFile(apkPath);
-  });
+  };
+
+  app.get('/api/download/gigme.apk', sendApkResponse);
+  app.get('/downloads/Gigme.apk', sendApkResponse);
+  app.get('/downloads/GigMe-Student-v1.0.apk', sendApkResponse);
+  app.get('/download/apk', sendApkResponse);
 
   // Helper to extract clean client IP
   const getClientIp = (req: Request): string => {

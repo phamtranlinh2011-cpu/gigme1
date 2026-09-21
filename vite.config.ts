@@ -20,9 +20,22 @@ export default defineConfig({
       },
     }),
   ],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom'],
+          'vendor-leaflet': ['leaflet'],
+          'vendor-lucide': ['lucide-react'],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 800,
+  },
   server: {
     host: '0.0.0.0',
     port: 3000,
     hmr: false,
   },
 });
+
