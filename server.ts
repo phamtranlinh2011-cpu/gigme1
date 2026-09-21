@@ -950,11 +950,20 @@ async function startServer() {
   };
 
   const sendApkResponse = (_req: Request, res: Response) => {
-    const apkPath = ensureApkFile();
-    res.setHeader('Content-Type', 'application/vnd.android.package-archive');
-    res.setHeader('Content-Disposition', 'attachment; filename="Gigme.apk"');
-    res.setHeader('Cache-Control', 'public, max-age=3600');
-    res.sendFile(apkPath);
+    try {
+      const apkPath = ensureApkFile();
+      if (!fs.existsSync(apkPath)) {
+        return res.status(404).send('APK not found');
+      }
+      const stat = fs.statSync(apkPath);
+      res.setHeader('Content-Type', 'application/vnd.android.package-archive');
+      res.setHeader('Content-Disposition', 'attachment; filename="Gigme.apk"');
+      res.setHeader('Content-Length', stat.size);
+      res.setHeader('Cache-Control', 'no-cache');
+      res.sendFile(apkPath);
+    } catch (err) {
+      res.status(500).send('Error serving APK');
+    }
   };
 
   app.get('/api/download/gigme.apk', sendApkResponse);
@@ -1106,6 +1115,26 @@ async function startServer() {
     const updatedUser = index === -1 ? db.users[db.users.length - 1] : db.users[index];
     broadcastSse('user_updated', updatedUser);
     res.json({ success: true, user: updatedUser });
+  });
+
+  app.delete('/api/users/:id', (req: Request, res: Response) => {
+    const { id } = req.params;
+    if (id === '000000000') {
+      return res.status(403).json({ error: 'Không thể xóa tài khoản Quản trị viên tối cao!' });
+    }
+    const db = ensureDbExists();
+    db.users = db.users.filter((u: any) => u.id !== id);
+    writeDb(db);
+    broadcastSse('user_deleted', { id });
+    res.json({ success: true, id });
+  });
+
+  app.post('/api/users/purge-non-admin', (_req: Request, res: Response) => {
+    const db = ensureDbExists();
+    db.users = db.users.filter((u: any) => u.id === '000000000' || u.role === 'ADMIN');
+    writeDb(db);
+    broadcastSse('users_purged', { remaining: db.users.length });
+    res.json({ success: true, count: db.users.length });
   });
 
   // 4. Gigs Management
@@ -2030,14 +2059,17 @@ Mô tả: ${description}
 Danh mục: ${category}`;
 
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3.6-flash',
         contents: prompt,
       });
 
       const text = response.text || '';
-      const cleanJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
-      const result = JSON.parse(cleanJson);
-      return res.json(result);
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const result = JSON.parse(jsonMatch[0]);
+        return res.json(result);
+      }
+      throw new Error('No valid JSON extracted from Gemini response');
     } catch (err: any) {
       console.warn('Gemini estimation fallback:', err?.message);
       return res.json({
@@ -2083,7 +2115,7 @@ Phân tích hình ảnh thẻ sinh viên được gửi kèm và trích xuất c
 Chỉ trả về JSON thuần túy, không thêm markdown.`;
 
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3.6-flash',
         contents: [
           prompt,
           {
@@ -2096,9 +2128,12 @@ Chỉ trả về JSON thuần túy, không thêm markdown.`;
       });
 
       const text = response.text || '';
-      const cleanJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
-      const parsed = JSON.parse(cleanJson);
-      return res.json({ success: true, data: parsed });
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        return res.json({ success: true, data: parsed });
+      }
+      throw new Error('No valid JSON extracted from Gemini OCR response');
     } catch (err: any) {
       console.warn('Gemini OCR fallback:', err?.message);
       return res.json({
@@ -2207,7 +2242,7 @@ Chỉ trả về JSON thuần túy, không thêm markdown.`;
     if (ai) {
       try {
         const response = await ai.models.generateContent({
-          model: 'gemini-2.5-flash',
+          model: 'gemini-3.6-flash',
           contents: [
             {
               role: 'user',

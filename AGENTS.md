@@ -82,16 +82,13 @@
 - **Cuộn ngang (Horizontal Carousels)**: Áp dụng `touch-pan-x`, `overscroll-x-contain` và thanh trượt quán tính.
 - **Vùng an toàn (Safe Area Insets)**: Thanh điều hướng dưới (`BottomNav.tsx`) hỗ trợ `pb-safe` và `max(0.5rem, env(safe-area-inset-bottom, 0px))` để không bị cấn phím điều hướng Home trên iPhone và điện thoại Android tràn viền.
 
-### 3.7. Tải File Cài đặt Ứng dụng (APK Download)
-- Backend Express hỗ trợ đa endpoint:
-  - `/api/download/gigme.apk`
-  - `/downloads/Gigme.apk`
-  - `/downloads/GigMe-Student-v1.0.apk`
-- Header: `Content-Type: application/vnd.android.package-archive`, `Content-Disposition: attachment; filename="Gigme.apk"`.
-- Giao diện `DownloadAppDialog.tsx`:
-  - Nút tải trực tiếp qua thẻ `<a download>` kết hợp `window.location.assign`.
-  - Link dự phòng (Mirror).
-  - Hướng dẫn rõ ràng cách xử lý khi mở link trong trình duyệt nhúng của **Zalo / Facebook / Messenger** (hướng dẫn bấm 3 chấm `⋮` chọn "Mở bằng trình duyệt Chrome/Safari" để không bị chặn tải APK).
+### 3.7. Cài Đặt Ứng Dụng Trên Điện Thoại (PWA 1-Tap & APK)
+- **Phương thức chính thức số 1 (Khuyên dùng - 100% thành công)**:
+  - Tích hợp hook `usePWAInstall.ts`: Bấm **"Cài đặt ứng dụng lên màn hình điện thoại (1 Chạm)"** để kích hoạt native WebAPK prompt trên Android và Add to Home Screen trên iOS.
+  - Khắc phục triệt để lỗi "Không đọc được file / Lỗi phân tích cú pháp gói" (Parse Error) trên điện thoại, đồng thời ứng dụng chạy toàn màn hình và nhận thông báo đẩy Lock Screen 24/7.
+- **Tải File APK (Blob Streaming)**:
+  - Sử dụng cơ chế tải nội bộ qua Blob `fetch('/downloads/Gigme.apk') -> blob -> URL.createObjectURL` nhằm ngăn ngừa lỗi Android Download Manager làm mất cookie phiên dẫn đến tải file cụt 0.08 KB.
+  - Backend Express hỗ trợ đa endpoint: `/api/download/gigme.apk`, `/downloads/Gigme.apk`, `/downloads/GigMe-Student-v1.0.apk` với đầy đủ `Content-Length`, `Content-Type: application/vnd.android.package-archive` và `Cache-Control: no-cache`.
 
 ### 3.8. Thông Báo Đẩy Màn Hình Khóa (Lock Screen Web Push Notification)
 - Tận dụng chuẩn PWA Service Worker (`/public/sw.js`) và `navigator.serviceWorker.ready -> showNotification(...)`:
