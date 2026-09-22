@@ -288,7 +288,7 @@ function ensureDbExists(): DatabaseSchema {
             isBusinessAccount: false,
             businessName: '',
             businessTaxId: '',
-            trustScore: 780,
+            trustScore: 92,
             eloRating: 1450,
             eloTier: 'SILVER',
             winStreak: 3,
@@ -375,10 +375,10 @@ function ensureDbExists(): DatabaseSchema {
       });
       writeDb(parsed);
     }
-    const adminExists = parsed.users.some((u: any) => u.id === 'admin_root');
+    const adminExists = parsed.users.some((u: any) => u.id === '000000000' || u.id === 'admin_root');
     if (!adminExists) {
       parsed.users.push({
-        id: 'admin_root',
+        id: '000000000',
         name: 'Ban Quản Trị GigMe',
         email: 'admin@admin.vn',
         phone: '0909120918',
@@ -397,7 +397,7 @@ function ensureDbExists(): DatabaseSchema {
         isBusinessAccount: false,
         businessName: '',
         businessTaxId: '',
-        trustScore: 850,
+        trustScore: 100,
         eloRating: 2000,
         eloTier: 'DIAMOND',
         winStreak: 10,
@@ -575,8 +575,99 @@ function getGemini(): GoogleGenAI | null {
   return geminiClient;
 }
 
+// Client IP extractor
+const getClientIp = (req: Request): string => {
+  const forwarded = req.headers['x-forwarded-for'];
+  if (typeof forwarded === 'string') {
+    return forwarded.split(',')[0].trim();
+  }
+  return req.socket.remoteAddress || '127.0.0.1';
+};
+
+// Security: User Data Sanitizer (Strip cleartext passwords & securityPin from responses)
+function sanitizeUser(user: any) {
+  if (!user || typeof user !== 'object') return user;
+  const { password, securityPin, ...safeUser } = user;
+  return safeUser;
+}
+
+function sanitizeUsers(users: any[]) {
+  if (!Array.isArray(users)) return [];
+  return users.map(sanitizeUser);
+}
+
+// In-Memory Sliding-Window Rate Limiting Engine
+interface RateLimitConfig {
+  windowMs: number;
+  max: number;
+  message: string;
+}
+
+const rateLimitBuckets = new Map<string, Map<string, number[]>>();
+
+function createRateLimiter(bucketName: string, config: RateLimitConfig) {
+  if (!rateLimitBuckets.has(bucketName)) {
+    rateLimitBuckets.set(bucketName, new Map<string, number[]>());
+  }
+  const bucket = rateLimitBuckets.get(bucketName)!;
+
+  return (req: Request, res: Response, next: () => void) => {
+    const ip = getClientIp(req);
+    const now = Date.now();
+    const timestamps = bucket.get(ip) || [];
+
+    // Filter timestamps within current sliding window
+    const validTimestamps = timestamps.filter((t) => now - t < config.windowMs);
+
+    if (validTimestamps.length >= config.max) {
+      const oldest = validTimestamps[0];
+      const retryAfterSec = Math.max(1, Math.ceil((oldest + config.windowMs - now) / 1000));
+      res.setHeader('Retry-After', retryAfterSec);
+      return res.status(429).json({
+        error: config.message,
+        retryAfter: retryAfterSec,
+      });
+    }
+
+    validTimestamps.push(now);
+    bucket.set(ip, validTimestamps);
+    next();
+  };
+}
+
+// 1. Rate limiter for login (Max 10 requests per 60s per IP)
+const loginRateLimiter = createRateLimiter('login', {
+  windowMs: 60 * 1000,
+  max: 10,
+  message: 'Bạn đã đăng nhập quá nhiều lần từ IP này. Vui lòng chờ 1 phút trước khi thử lại!',
+});
+
+// 2. Rate limiter for SMS MO / OTP requests (Max 5 requests per 120s per IP)
+const smsRateLimiter = createRateLimiter('sms', {
+  windowMs: 120 * 1000,
+  max: 5,
+  message: 'Bạn đã yêu cầu gửi SMS/OTP quá thường xuyên. Vui lòng chờ 2 phút trước khi gửi lại!',
+});
+
+// 3. Rate limiter for AI chat requests (Max 20 requests per 60s per IP)
+const aiChatRateLimiter = createRateLimiter('aiChat', {
+  windowMs: 60 * 1000,
+  max: 20,
+  message: 'Tần suất gửi tin nhắn tới AI quá nhanh. Vui lòng chậm lại vài giây!',
+});
+
 async function startServer() {
   const app = express();
+
+  // Security Headers Middleware
+  app.use((_req: Request, res: Response, next: () => void) => {
+    res.removeHeader('X-Powered-By');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-XSS-Protection', '1; mode=block');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    next();
+  });
+
   app.use(cors());
   app.use(express.json({ limit: '50mb' }));
   app.use(express.urlencoded({ extended: true, limit: '50mb' }));
@@ -694,8 +785,8 @@ async function startServer() {
     }
   };
 
-  // 1. Tạo yêu cầu xác thực MO SMS
-  app.post('/api/sms/mo-request', (req: Request, res: Response) => {
+  // 1. Tạo yêu cầu xác thực MO SMS (Đã áp dụng Rate Limiting)
+  app.post('/api/sms/mo-request', smsRateLimiter, (req: Request, res: Response) => {
     const { phone, shortcode = '8077', keyword = 'XACTHUC' } = req.body || {};
     const cleanPhone = (phone || '').toString().trim();
     const cleanKeyword = (keyword || 'XACTHUC').toString().trim().toUpperCase();
@@ -826,7 +917,7 @@ async function startServer() {
     });
   });
 
-  app.post('/api/auth/send-otp', (req: Request, res: Response) => {
+  app.post('/api/auth/send-otp', smsRateLimiter, (req: Request, res: Response) => {
     const { contact } = req.body;
     const trimmed = (contact || '').trim().toLowerCase();
     if (!trimmed) {
@@ -992,10 +1083,10 @@ async function startServer() {
     });
   });
 
-  // 3. User Authentication & Profile
+  // 3. User Authentication & Profile (Sanitized responses - No cleartext passwords or PINs)
   app.get('/api/users', (_req: Request, res: Response) => {
     const db = ensureDbExists();
-    res.json(db.users);
+    res.json(sanitizeUsers(db.users));
   });
 
   app.post('/api/users/register', (req: Request, res: Response) => {
@@ -1073,14 +1164,18 @@ async function startServer() {
     newUser.email = email;
     if (phone) newUser.phone = phone;
     if (cccd) newUser.cccdNumber = cccd;
+    // Enforce max 100 trustScore
+    if (newUser.trustScore !== undefined) {
+      newUser.trustScore = Math.min(100, Math.max(0, Number(newUser.trustScore) || 0));
+    }
 
     db.users.push(newUser);
     writeDb(db);
-    broadcastSse('user_registered', newUser);
-    res.json({ success: true, user: newUser });
+    broadcastSse('user_registered', sanitizeUser(newUser));
+    res.json({ success: true, user: sanitizeUser(newUser) });
   });
 
-  app.post('/api/users/login', (req: Request, res: Response) => {
+  app.post('/api/users/login', loginRateLimiter, (req: Request, res: Response) => {
     const { contact, password } = req.body;
     const db = ensureDbExists();
     const trimmedContact = (contact || '').trim().toLowerCase();
@@ -1098,13 +1193,17 @@ async function startServer() {
     if (user.isLocked) {
       return res.status(403).json({ error: 'Tài khoản đã bị tạm khóa' });
     }
-    res.json({ success: true, user });
+    res.json({ success: true, user: sanitizeUser(user) });
   });
 
   app.put('/api/users/:id', (req: Request, res: Response) => {
     const { id } = req.params;
     const updates = req.body;
     const db = ensureDbExists();
+    // Clamp trustScore to max 100 if present
+    if (updates.trustScore !== undefined) {
+      updates.trustScore = Math.min(100, Math.max(0, Number(updates.trustScore) || 0));
+    }
     const index = db.users.findIndex((u: any) => u.id === id);
     if (index === -1) {
       db.users.push({ id, ...updates });
@@ -1113,13 +1212,13 @@ async function startServer() {
     }
     writeDb(db);
     const updatedUser = index === -1 ? db.users[db.users.length - 1] : db.users[index];
-    broadcastSse('user_updated', updatedUser);
-    res.json({ success: true, user: updatedUser });
+    broadcastSse('user_updated', sanitizeUser(updatedUser));
+    res.json({ success: true, user: sanitizeUser(updatedUser) });
   });
 
   app.delete('/api/users/:id', (req: Request, res: Response) => {
     const { id } = req.params;
-    if (id === '000000000') {
+    if (id === '000000000' || id === 'admin_root') {
       return res.status(403).json({ error: 'Không thể xóa tài khoản Quản trị viên tối cao!' });
     }
     const db = ensureDbExists();
@@ -1129,9 +1228,41 @@ async function startServer() {
     res.json({ success: true, id });
   });
 
+  // Xóa sạch toàn bộ dữ liệu người dùng [trừ Admin duy nhất 000000000]
   app.post('/api/users/purge-non-admin', (_req: Request, res: Response) => {
     const db = ensureDbExists();
-    db.users = db.users.filter((u: any) => u.id === '000000000' || u.role === 'ADMIN');
+    // Giữ duy nhất 1 tài khoản Admin tối cao (000000000 / admin@admin.vn)
+    db.users = db.users.filter((u: any) => u.id === '000000000' || u.email === 'admin@admin.vn');
+    if (db.users.length === 0) {
+      db.users.push({
+        id: '000000000',
+        name: 'Ban Quản Trị GigMe',
+        email: 'admin@admin.vn',
+        phone: '0909120918',
+        password: 'admin1507',
+        gender: 'Khác',
+        birthDate: '01/01/2000',
+        role: 'ADMIN',
+        tier: 'PRO',
+        kycName: 'QUẢN TRỊ VIÊN HỆ THỐNG',
+        isKycApproved: true,
+        isNfcVerified: true,
+        isFaceLivenessPassed: true,
+        isStudentVerified: true,
+        trustScore: 100,
+        eloRating: 2000,
+        eloTier: 'DIAMOND',
+        winStreak: 10,
+        walletBalance: 0,
+        escrowLockedBalance: 0,
+        badges: 'Quản Trị Viên Tối Cao',
+        isLocked: false,
+      });
+    }
+    // Xóa sạch dữ liệu liên quan: việc làm không phải của admin, bids, chats
+    db.gigs = db.gigs.filter((g: any) => g.clientId === '000000000' || g.clientId === 'admin_root');
+    db.bids = [];
+    db.chats = [];
     writeDb(db);
     broadcastSse('users_purged', { remaining: db.users.length });
     res.json({ success: true, count: db.users.length });
@@ -1659,7 +1790,7 @@ async function startServer() {
     if (freelancer) {
       freelancer.walletBalance = (Number(freelancer.walletBalance) || 0) + freelancerPayout;
       freelancer.completedGigs = (Number(freelancer.completedGigs) || 0) + 1;
-      freelancer.trustScore = Math.min(850, (Number(freelancer.trustScore) || 0) + 15);
+      freelancer.trustScore = Math.min(100, (Number(freelancer.trustScore) || 0) + 5);
       freelancer.winStreak = (Number(freelancer.winStreak) || 0) + 1;
     }
 
@@ -2059,7 +2190,7 @@ Mô tả: ${description}
 Danh mục: ${category}`;
 
       const response = await ai.models.generateContent({
-        model: 'gemini-3.6-flash',
+        model: 'gemini-3.8-flash',
         contents: prompt,
       });
 
@@ -2115,7 +2246,7 @@ Phân tích hình ảnh thẻ sinh viên được gửi kèm và trích xuất c
 Chỉ trả về JSON thuần túy, không thêm markdown.`;
 
       const response = await ai.models.generateContent({
-        model: 'gemini-3.6-flash',
+        model: 'gemini-3.8-flash',
         contents: [
           prompt,
           {
@@ -2167,8 +2298,61 @@ Chỉ trả về JSON thuần túy, không thêm markdown.`;
 4. Tranh chấp: Có Trọng tài Campus đối soát minh bạch trong 24 giờ.`;
   }
 
-  // 10.2 GigMe 24/7 Smart Campus & Escrow Chat Assistant (Powered by Groq + skill.md + Gemini Fallback)
-  app.post('/api/gemini/chat-assistant', async (req: Request, res: Response) => {
+  // Helper to generate intelligent local response based on skill.md when external APIs are unavailable
+  function generateSmartLocalResponse(msg: string): string {
+    const text = (msg || '').toLowerCase();
+
+    if (text.includes('escrow') || text.includes('ký quỹ') || text.includes('giải ngân') || text.includes('bùng cọc') || text.includes('quỵt') || text.includes('chưa trả tiền') || text.includes('tiền công')) {
+      return `Chào bạn! Về quy chế Smart Escrow & Bảo đảm tiền công:
+1. Tiền công của công việc đã được người thuê ký quỹ khóa an toàn 100% trong quỹ Smart Escrow ngay từ khi tạo việc. Người thuê không thể tự ý rút lại.
+2. Khi bạn hoàn thành công việc: Hãy bấm "Hoàn thành" và tải lên ảnh/video minh chứng nghiệm thu (Proof of Work).
+3. Người thuê kiểm tra và bấm "Nghiệm thu & Giải ngân" -> tiền về ví bạn tức thì.
+4. Cơ chế bảo vệ tự động: Nếu người thuê bận hoặc không phản hồi sau 24 giờ (và không có khiếu nại), hệ thống Smart Escrow sẽ tự động giải ngân toàn bộ 100% tiền vào ví của bạn. Bạn hoàn toàn yên tâm nhé!`;
+    }
+
+    if (text.includes('nạp tiền') || text.includes('rút tiền') || text.includes('vietqr') || text.includes('napas') || text.includes('ngân hàng') || text.includes('ví')) {
+      return `Chào bạn! Về Nạp & Rút tiền trên GigMe:
+• Nạp tiền VietQR: Vào tab "Ví Tiền" -> "Nạp Tiền" -> Quét mã QR ngân hàng hoặc chuyển khoản đúng cú pháp. Tiền vào ví tự động sau 1-3 giây (tối đa 10.000.000đ/lần, giãn cách 1 giờ, tối đa 30.000.000đ/ngày).
+• Rút tiền Napas 24/7: Vào "Ví Tiền" -> "Rút Tiền" -> Nhập số tài khoản ngân hàng và số tiền. Tiền về tài khoản ngay lập tức, hoàn toàn miễn phí 0đ!`;
+    }
+
+    if (text.includes('hủy việc') || text.includes('hủy kèo') || text.includes('bận thi') || text.includes('bỏ việc')) {
+      return `Chào bạn! Về quy định hủy nhận việc:
+• Hủy sớm (trước giờ hẹn > 2 tiếng): Bạn vào chi tiết công việc bấm "Hủy nhận việc" và nhắn tin lịch sự xin lỗi người thuê. Trường hợp hủy sớm có lý do chính đáng sẽ không bị phạt nặng.
+• Hủy gấp (<30 phút) hoặc bỏ hẹn (No-show): Điểm ELO sẽ bị trừ (-50 ELO) và tạm khóa quyền nhận việc hỏa tốc 24 giờ để đảm bảo uy tín trên sàn.`;
+    }
+
+    if (text.includes('tranh chấp') || text.includes('khiếu nại') || text.includes('lừa đảo') || text.includes('báo cáo') || text.includes('trọng tài')) {
+      return `Chào bạn! Về giải quyết khiếu nại & tranh chấp:
+1. Toàn bộ tiền cọc/tiền công hiện vẫn được Smart Escrow khóa an toàn, không bên nào có thể đơn phương rút tiền.
+2. Bạn hãy nhấn nút "Khiếu Nại / Tranh Chấp" tại màn hình công việc, tải lên ảnh màn hình chat và hình ảnh minh chứng.
+3. Trọng tài Campus và Ban Quản Trị GigMe sẽ mở phòng đối soát 3 bên trong vòng tối đa 24 giờ để xem xét công tâm và ra phán quyết hoàn tiền/giải ngân bảo vệ bạn.`;
+    }
+
+    if (text.includes('cccd') || text.includes('nfc') || text.includes('thẻ sinh viên') || text.includes('kyc') || text.includes('xác thực')) {
+      return `Chào bạn! Về xác thực sinh viên & CCCD NFC:
+• Vào mục "Hồ Sơ" -> "Xác thực danh tính" -> Chụp thẻ sinh viên hoặc quét NFC chip CCCD (chuẩn C06 ICAO 9303).
+• Đặt thẻ trên mặt phẳng tối màu, đủ sáng, tránh bóng đèn chói lóa.
+• Xác thực thành công sẽ giúp bạn tăng điểm tín nhiệm (Trust Score lên đến 100) và mở khóa nhận các công việc giá trị cao trên 100.000đ - 1.000.000đ.`;
+    }
+
+    if (text.includes('nhận việc') || text.includes('tìm việc') || text.includes('làm thêm') || text.includes('radar')) {
+      return `Chào bạn! Để tìm việc làm thêm trên GigMe:
+1. Mở "Trang Chủ", bật Radar quét việc quanh bán kính KTX (1km - 5km) hoặc chọn các việc Online/Từ xa.
+2. Bấm vào công việc bạn muốn làm -> chọn "Ứng Tuyển Ngay" (hoặc nhập giá nếu là việc Đấu Thầu Ngược).
+3. Sau khi người thuê chọn bạn và tiền đã được ký quỹ vào Smart Escrow, bạn bắt đầu thực hiện công việc nhé!`;
+    }
+
+    return `Chào bạn! Mình là Trợ Lý AI Thông Minh GigMe 24/7. Mình có thể hỗ trợ bạn về:
+1. 🛡️ Cơ chế ký quỹ Smart Escrow (an toàn 100%, chống bùng cọc).
+2. ⚡ Nạp VietQR (1-3s) và Rút tiền Napas 24/7 tức thì 0đ phí.
+3. 💼 Hướng dẫn nhận việc, đấu thầu ngược và tìm việc quanh KTX.
+4. ⚖️ Quy trình Trọng tài Campus đối soát tranh chấp trong 24 giờ.
+Bạn đang cần hỗ trợ chi tiết về vấn đề gì?`;
+  }
+
+  // 10.2 GigMe 24/7 Smart Campus & Escrow Chat Assistant (Powered by Groq / Gemini with Multi-Model Fallback & Local Knowledge Engine)
+  const handleAiChatAssistant = async (req: Request, res: Response) => {
     const { message, history } = req.body || {};
 
     if (!message) {
@@ -2176,7 +2360,7 @@ Chỉ trả về JSON thuần túy, không thêm markdown.`;
     }
 
     const skillPrompt = getSkillMdPrompt();
-    const GROQ_API_KEY = process.env.GROQ_API_KEY || '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';
+    const GROQ_API_KEY = (process.env.GROQ_API_KEY || '').trim();
 
     // Format chat messages with skill instructions
     const conversationMessages: Array<{ role: string; content: string }> = [
@@ -2202,16 +2386,16 @@ Chỉ trả về JSON thuần túy, không thêm markdown.`;
       content: String(message),
     });
 
-    // 1. Try Groq Cloud with provided API key (model: openai/gpt-oss-120b or openai/gpt-oss-20b)
-    if (GROQ_API_KEY) {
-      const groqModels = ['openai/gpt-oss-120b', 'openai/gpt-oss-20b', 'qwen/qwen3.8-27b'];
+    // 1. Try Groq Cloud ONLY IF a valid non-empty user-supplied GROQ_API_KEY exists (never use hardcoded/revoked keys)
+    if (GROQ_API_KEY && GROQ_API_KEY.startsWith('gsk_') && GROQ_API_KEY.length > 25) {
+      const groqModels = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant'];
       for (const groqModel of groqModels) {
         try {
           const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${GROQ_API_KEY.trim()}`,
+              'Authorization': `Bearer ${GROQ_API_KEY}`,
             },
             body: JSON.stringify({
               model: groqModel,
@@ -2228,8 +2412,13 @@ Chỉ trả về JSON thuần túy, không thêm markdown.`;
               return res.json({ reply: reply.trim(), provider: 'groq', model: groqModel });
             }
           } else {
+            const status = groqRes.status;
             const errText = await groqRes.text();
-            console.warn(`Groq API (${groqModel}) returned error:`, groqRes.status, errText);
+            console.warn(`Groq API (${groqModel}) returned error:`, status, errText);
+            // If API key is rejected (401 or 403), stop trying Groq to avoid spamming errors
+            if (status === 401 || status === 403) {
+              break;
+            }
           }
         } catch (groqErr: any) {
           console.warn(`Groq fetch error (${groqModel}):`, groqErr?.message);
@@ -2237,34 +2426,55 @@ Chỉ trả về JSON thuần túy, không thêm markdown.`;
       }
     }
 
-    // 2. Fallback to Gemini if Groq is unavailable
+    // 2. Try Gemini with official recommended model aliases and automatic fallback on temporary spikes (503/429)
     const ai = getGemini();
     if (ai) {
-      try {
-        const response = await ai.models.generateContent({
-          model: 'gemini-3.6-flash',
-          contents: [
-            {
-              role: 'user',
-              parts: [{ text: `${skillPrompt}\n\nCâu hỏi/tình huống của sinh viên: ${message}` }],
-            },
-          ],
-        });
+      // Use official recommended models from gemini-api skill:
+      // 'gemini-3.8-flash' (standard for text/Q&A), 'gemini-3.1-pro-preview' (advanced text/STEM), and 'gemini-3.1-flash-lite'
+      const geminiCandidateModels = ['gemini-3.8-flash', 'gemini-3.1-pro-preview', 'gemini-3.1-flash-lite', 'gemini-flash-latest'];
+      for (const geminiModel of geminiCandidateModels) {
+        try {
+          const response = await ai.models.generateContent({
+            model: geminiModel,
+            contents: [
+              {
+                role: 'user',
+                parts: [
+                  {
+                    text: `${skillPrompt}\n\nLƯU Ý: Trả lời ngắn gọn, thân thiện, bảo vệ quyền lợi sinh viên.\n\nCâu hỏi của sinh viên: ${message}`,
+                  },
+                ],
+              },
+            ],
+          });
 
-        if (response.text) {
-          return res.json({ reply: response.text, provider: 'gemini' });
+          if (response.text && response.text.trim()) {
+            return res.json({ reply: response.text.trim(), provider: 'gemini', model: geminiModel });
+          }
+        } catch (geminiErr: any) {
+          const errMsg = geminiErr?.message || String(geminiErr);
+          const isDemandSpike = errMsg.includes('503') || errMsg.includes('high demand') || errMsg.includes('UNAVAILABLE') || errMsg.includes('429');
+          if (isDemandSpike) {
+            // High demand on Google's cloud cluster is expected and temporary; silently switch to next model candidate or local knowledge engine
+            console.info(`Gemini (${geminiModel}) temporary cluster high demand, switching to next candidate.`);
+          } else {
+            console.warn(`Gemini (${geminiModel}) error:`, errMsg);
+          }
+          // Continue to next model candidate in case of 503 high demand or temporary spike
         }
-      } catch (geminiErr: any) {
-        console.warn('Gemini Assistant fallback error:', geminiErr?.message);
       }
     }
 
-    // 3. Fallback to default intelligent reply from skill
+    // 3. Robust local knowledge engine fallback based on skill.md
+    const localReply = generateSmartLocalResponse(message);
     return res.json({
-      reply: 'Xin chào bạn! Mình là Trợ lý AI GigMe. Mình luôn sẵn sàng giải đáp mọi câu hỏi của bạn về Gigme. Bạn đang cần hỗ trợ vấn đề gì cụ thể?',
-      provider: 'fallback',
+      reply: localReply,
+      provider: 'local_skill_engine',
     });
-  });
+  };
+
+  app.post('/api/gemini/chat-assistant', aiChatRateLimiter, handleAiChatAssistant);
+  app.post('/api/ai/chat', aiChatRateLimiter, handleAiChatAssistant);
 
   // 10.5 NFC CCCD ICAO 9303 Verification Endpoint
   app.post('/api/kyc/cccd-nfc', (req: Request, res: Response) => {

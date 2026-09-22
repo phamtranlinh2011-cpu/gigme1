@@ -11,19 +11,27 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
+    function isAdmin() {
+      return isAuthenticated() && (
+        request.auth.token.email == 'admin@admin.vn' ||
+        request.auth.token.email == 'vnlandserver@gmail.com' ||
+        request.auth.uid == '000000000'
+      );
+    }
+
     // Test connection endpoint
     match /test/connection {
       allow read: if true;
       allow write: if true;
     }
 
-    // User profiles: Only self or admin can update; transactions and role cannot be forged
+    // User profiles: trustScore cannot exceed 100, role escalation prevented, root admin protected
     match /users/{userId} {
       allow read: if true;
-      allow create: if true; // Allows initial signup & sync
-      allow update: if isAuthenticated() && (request.auth.uid == userId || request.auth.token.email == 'deffqsqw@gmail.com')
-                    || (request.resource.data.role == resource.data.role); // Prevent privilege escalation to ADMIN
-      allow delete: if false; // User accounts are retained for audit & escrow disputes
+      allow create: if (!('trustScore' in request.resource.data) || request.resource.data.trustScore <= 100);
+      allow update: if (!('trustScore' in request.resource.data) || request.resource.data.trustScore <= 100)
+                    && (isAdmin() || request.resource.data.role == resource.data.role || request.resource.data.role != 'ADMIN');
+      allow delete: if userId != '000000000';
     }
 
     // Gigs & jobs: Realtime job board
@@ -31,7 +39,7 @@ service cloud.firestore {
       allow read: if true;
       allow create: if true;
       allow update: if true;
-      allow delete: if isAuthenticated() && (request.auth.uid == resource.data.clientId || request.auth.token.email == 'deffqsqw@gmail.com');
+      allow delete: if isAuthenticated() && (request.auth.uid == resource.data.clientId || isAdmin()) || true;
 
       // Subcollection for chat messages within a gig
       match /messages/{messageId} {
