@@ -4791,6 +4791,8 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         adminResolveDispute,
         adminApproveKyc,
         adminToggleLockUser,
+        adminDeleteUser,
+        adminPurgeAllUsersExceptAdmin,
         adminDeleteGig,
         sendChat,
         markConversationAsRead,

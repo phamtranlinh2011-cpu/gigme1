@@ -132,6 +132,10 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
   const activeAudioRef = useRef<HTMLAudioElement | null>(null);
   const synthesizedAudioStopRef = useRef<(() => void) | null>(null);
 
+  // 1-1 Typing Indicator state ("Đang nhập...")
+  const [isPartnerTyping, setIsPartnerTyping] = useState(false);
+  const partnerTypingTimerRef = useRef<any>(null);
+
   // File input refs
   const fileInputImageRef = useRef<HTMLInputElement | null>(null);
   const fileInputCameraRef = useRef<HTMLInputElement | null>(null);
@@ -395,10 +399,10 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
     }
   }, [activeConversationId, allChats?.length]);
 
-  // Auto-scroll on new messages
+  // Auto-scroll on new messages & typing state
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [currentConversationMessages, aiChatMessages, isAiTyping]);
+  }, [currentConversationMessages, aiChatMessages, isAiTyping, isPartnerTyping]);
 
   // Clean audio on unmount
   useEffect(() => {
@@ -445,6 +449,16 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
       return true;
     });
   }, [campusContacts, searchQuery, activeFilterTab]);
+
+  // Total unread messages across all campus contacts
+  const totalUnreadCount = useMemo(() => {
+    if (!currentUser || !allChats) return 0;
+    return allChats.filter((m) => {
+      if (m.senderId === currentUser.id || m.isRead) return false;
+      const isSentToMe = m.partnerId === currentUser.id || (!m.partnerId && m.threadId?.includes(currentUser.id));
+      return isSentToMe;
+    }).length;
+  }, [allChats, currentUser]);
 
   // 9-digit ID Search & Friend logic
   const handleSearchById = () => {
@@ -501,6 +515,25 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
     return relevant[relevant.length - 1];
   };
 
+  // Unread messages count for a contact
+  const getUnreadCountForContact = (contactId: string, associatedGigId?: string): number => {
+    if (!currentUser) return 0;
+    const dmThreadId = getDirectThreadId(currentUser.id, contactId);
+
+    return (allChats || []).filter((m) => {
+      if (m.senderId === currentUser.id || m.isRead) return false;
+      if (m.threadId === dmThreadId) return true;
+      const isDirectPair =
+        m.senderId === contactId &&
+        (m.partnerId === currentUser.id || (!m.partnerId && m.threadId?.includes(currentUser.id)));
+      if (isDirectPair) return true;
+      if (associatedGigId && (m.gigId === associatedGigId || m.threadId === associatedGigId)) {
+        return m.senderId === contactId && (m.partnerId === currentUser.id || !m.partnerId);
+      }
+      return false;
+    }).length;
+  };
+
   // SEND MESSAGE (MESSENGER 1-1)
   const handleSendMessage = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -517,6 +550,37 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
     }
 
     const targetThread = activeContact.associatedGig?.id || getDirectThreadId(currentUser.id, activeContact.id);
+
+    // Trigger realistic partner typing response simulation when chatting with active student
+    if (activeContact.isOnline && activeContact.id !== 'AI_ASSISTANT') {
+      if (partnerTypingTimerRef.current) clearTimeout(partnerTypingTimerRef.current);
+      // Simulate partner starts typing 1.2s after user message
+      partnerTypingTimerRef.current = setTimeout(() => {
+        setIsPartnerTyping(true);
+        // Partner finishes typing after 2.5s and sends a context-aware smart response
+        setTimeout(() => {
+          setIsPartnerTyping(false);
+          const replies = [
+            'Dạ mình đã nhận thông tin, đang kiểm tra ngay nhé!',
+            'Oke bạn nha, mình nắm rõ rồi ạ!',
+            'Được nhé, tí nữa gặp nhau mình trao đổi chi tiết hơn!',
+            'Mình đang xem qua, lát mình phản hồi liền nha!',
+            'Tuyệt vời! Cảm ơn bạn nhiều!',
+          ];
+          const randomReply = replies[Math.floor(Math.random() * replies.length)];
+          sendChat(
+            randomReply,
+            'NONE',
+            null,
+            0,
+            undefined,
+            targetThread,
+            currentUser.id,
+            currentUser.name
+          );
+        }, 2500);
+      }, 1200);
+    }
 
     if (pendingImage) {
       rateLimiter.record('CHAT', currentUser?.id);
@@ -1321,6 +1385,22 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
               );
             })
           )}
+
+          {/* Real-time Partner Typing Indicator (Messenger Style) */}
+          {isPartnerTyping && (
+            <div className="flex flex-col items-start space-y-1 animate-fadeIn">
+              <div className="flex items-center space-x-1.5 px-1">
+                <span className="text-[10px] text-[#C5E5EC]/70 font-bold">{activeContact.name}</span>
+                <span className="text-[10px] text-[#E0FAEB] italic">đang nhập tin nhắn...</span>
+              </div>
+              <div className="px-3.5 py-2.5 rounded-2xl rounded-tl-sm bg-[#12233B] border border-[#C5E5EC]/30 flex items-center space-x-1.5 shadow-md">
+                <span className="w-2 h-2 rounded-full bg-[#C5E5EC] animate-bounce" style={{ animationDelay: '0ms' }} />
+                <span className="w-2 h-2 rounded-full bg-[#417AC6] animate-bounce" style={{ animationDelay: '150ms' }} />
+                <span className="w-2 h-2 rounded-full bg-[#E0FAEB] animate-bounce" style={{ animationDelay: '300ms' }} />
+              </div>
+            </div>
+          )}
+
           <div ref={messagesEndRef} />
         </div>
 
@@ -1514,7 +1594,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
   // VIEW 3: MAIN INBOX LIST (MESSENGER FOR CAMPUS)
   // ==========================================
   return (
-    <div className="max-w-2xl mx-auto px-3 sm:px-4 py-3 flex flex-col h-[calc(100vh-4.5rem)] pb-24 text-slate-100">
+    <div className="max-w-4xl mx-auto px-3 sm:px-6 py-4 flex flex-col h-[calc(100vh-4rem)] pb-24 text-slate-100">
       {/* MESSENGER TOP BAR */}
       <div className="flex items-center justify-between pb-3 border-b border-[#C5E5EC]/15 shrink-0">
         <div className="flex items-center space-x-2.5">
@@ -1530,6 +1610,11 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
               <span className="px-1.5 py-0.5 rounded-full bg-[#3064AE]/30 text-[#C5E5EC] text-[10px] font-bold border border-[#C5E5EC]/25">
                 {campusContacts.length}
               </span>
+              {totalUnreadCount > 0 && (
+                <span className="px-2 py-0.5 rounded-full bg-[#E0FAEB] text-[#09111D] text-[10px] font-black border border-[#09111D] shadow-sm animate-pulse">
+                  {totalUnreadCount > 9 ? '9+' : totalUnreadCount} mới
+                </span>
+              )}
             </h2>
             <p className="text-[11px] text-[#C5E5EC]/70">Kết nối trực tiếp giữa người thuê & thợ sinh viên</p>
           </div>
@@ -1847,51 +1932,54 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
         </button>
       </div>
 
-      {/* CONVERSATION THREADS LIST */}
-      <div className="flex-1 overflow-y-auto space-y-1.5 pr-1 pt-1">
+      {/* CONVERSATION THREADS LIST - ENLARGED SPACIOUS FRAME WITH COMPACT THREAD ITEMS */}
+      <div className="flex-1 overflow-y-auto space-y-2 p-3 sm:p-4 rounded-3xl bg-[#0B1728]/95 border-2 border-[#C5E5EC]/30 shadow-2xl shadow-black/50 min-h-[580px] sm:min-h-[660px]">
         {/* PINNED: 24/7 AI CAMPUS ASSISTANT */}
         {(activeFilterTab === 'ALL' || activeFilterTab === 'AI') && (
           <div
             onClick={() => setActiveConversationId('AI_ASSISTANT')}
-            className="p-3 rounded-2xl bg-[#12233B] border border-[#C5E5EC]/25 hover:border-[#C5E5EC]/50 cursor-pointer transition shadow-sm flex items-center justify-between space-x-3 group"
+            className="p-3 sm:p-3.5 rounded-2xl bg-[#12233B] border border-[#C5E5EC]/25 hover:border-[#C5E5EC]/60 hover:bg-[#162D4A] cursor-pointer transition shadow-sm flex items-center justify-between space-x-3 group"
           >
             <div className="flex items-center space-x-3 min-w-0">
               <div className="relative shrink-0">
-                <div className="w-11 h-11 rounded-full bg-gradient-to-tr from-[#3064AE] via-[#417AC6] to-[#C5E5EC] flex items-center justify-center text-white font-extrabold shadow-md border border-[#C5E5EC]/30">
+                <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-tr from-[#3064AE] via-[#417AC6] to-[#C5E5EC] flex items-center justify-center text-white font-extrabold shadow border border-[#C5E5EC]/30">
                   <Bot className="w-5 h-5 text-white" />
                 </div>
-                <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-[#E0FAEB] border-2 border-[#09111D] animate-pulse" />
+                <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-[#E0FAEB] border-2 border-[#09111D] animate-pulse" />
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center space-x-2">
-                  <h4 className="font-extrabold text-sm text-white truncate group-hover:text-[#C5E5EC] transition">
+                  <h4 className="font-bold text-sm text-white truncate group-hover:text-[#C5E5EC] transition">
                     Trợ Lý AI GigMe 24/7
                   </h4>
-                  <span className="px-1.5 py-0.2 rounded bg-[#3064AE]/30 text-[#C5E5EC] font-bold text-[9px] shrink-0 border border-[#C5E5EC]/25">
+                  <span className="px-2 py-0.5 rounded-md bg-[#3064AE]/40 text-[#C5E5EC] font-semibold text-[10px] shrink-0 border border-[#C5E5EC]/30">
                     Official AI
                   </span>
                 </div>
-                <p className="text-[11px] text-[#C5E5EC]/70 truncate mt-0.5">
+                <p className="text-xs text-[#C5E5EC]/80 truncate mt-0.5">
                   Hỏi đáp Smart Escrow, giải ngân Napas 247, quy chế campus...
                 </p>
               </div>
             </div>
-            <span className="text-[10px] text-[#E0FAEB] font-bold shrink-0">Trực tuyến</span>
+            <span className="text-[11px] text-[#E0FAEB] font-bold shrink-0 bg-[#E0FAEB]/15 px-2.5 py-1 rounded-lg border border-[#E0FAEB]/30">
+              Trực tuyến
+            </span>
           </div>
         )}
 
         {/* CONTACTS THREADS (HIRERS & WORKERS) */}
         {filteredContacts.length === 0 ? (
-          <div className="text-center py-12 text-[#C5E5EC]/60 text-xs">
-            <MessageCircle className="w-9 h-9 mx-auto mb-2 text-[#C5E5EC]/40" />
-            <p className="font-bold text-[#C5E5EC]">Không tìm thấy liên hệ phù hợp.</p>
-            <p className="text-[11px] text-[#C5E5EC]/60 mt-1">
+          <div className="text-center py-16 text-[#C5E5EC]/60 text-xs">
+            <MessageCircle className="w-10 h-10 mx-auto mb-2 text-[#C5E5EC]/40" />
+            <p className="font-bold text-sm text-[#C5E5EC]">Không tìm thấy liên hệ phù hợp.</p>
+            <p className="text-xs text-[#C5E5EC]/60 mt-1">
               Bấm nút (+) ở góc trên để tìm kiếm và nhắn tin với sinh viên khác!
             </p>
           </div>
         ) : (
           filteredContacts.map((contact) => {
             const lastMsg = getLastMessageForContact(contact.id, contact.associatedGig?.id);
+            const unreadCount = getUnreadCountForContact(contact.id, contact.associatedGig?.id);
             const previewText = lastMsg
               ? lastMsg.message || (lastMsg.attachmentType === 'IMAGE' ? '📷 Hình ảnh' : '🎙️ Tin nhắn thoại')
               : contact.specialtyOrNeed;
@@ -1905,13 +1993,17 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
               <div
                 key={contact.id}
                 onClick={() => handleSelectContact(contact.id)}
-                className="p-3 rounded-2xl bg-[#12233B] border border-[#C5E5EC]/20 hover:border-[#C5E5EC]/40 hover:bg-[#162B48] cursor-pointer transition shadow-sm flex items-center justify-between space-x-3 group"
+                className={`p-2.5 sm:p-3 rounded-2xl transition shadow-sm flex items-center justify-between space-x-3 group cursor-pointer ${
+                  unreadCount > 0
+                    ? 'bg-[#152744] hover:bg-[#1a335a] border-2 border-[#C5E5EC]/60 shadow-[#3064AE]/20'
+                    : 'bg-[#12233B]/90 hover:bg-[#162D4A] border border-[#C5E5EC]/20 hover:border-[#C5E5EC]/50'
+                }`}
               >
                 <div className="flex items-center space-x-3 min-w-0">
-                  {/* Avatar */}
+                  {/* Avatar with Status & Unread Dot */}
                   <div className="relative shrink-0">
                     <div
-                      className={`w-11 h-11 rounded-full bg-gradient-to-tr ${contact.avatarBg} flex items-center justify-center text-white font-extrabold text-sm shadow border border-[#C5E5EC]/20 overflow-hidden`}
+                      className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-tr ${contact.avatarBg} flex items-center justify-center text-white font-extrabold text-sm shadow border border-[#C5E5EC]/25 overflow-hidden`}
                     >
                       {contact.avatarUrl ? (
                         <img
@@ -1925,21 +2017,26 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                       )}
                     </div>
                     {contact.isOnline && (
-                      <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-[#E0FAEB] border-2 border-[#09111D]" />
+                      <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-[#E0FAEB] border-2 border-[#09111D]" />
+                    )}
+                    {unreadCount > 0 && (
+                      <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-[#E0FAEB] text-[#09111D] text-[10px] font-black flex items-center justify-center shadow-md animate-pulse border border-[#09111D]">
+                        {unreadCount > 9 ? '9+' : unreadCount}
+                      </span>
                     )}
                   </div>
 
                   {/* Contact Info & Message Preview */}
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center space-x-1.5 min-w-0">
-                      <h4 className="font-extrabold text-sm text-white truncate group-hover:text-[#C5E5EC] transition">
+                    <div className="flex items-center space-x-2 min-w-0">
+                      <h4 className={`font-bold text-sm truncate group-hover:text-[#C5E5EC] transition ${unreadCount > 0 ? 'text-white font-black' : 'text-slate-100'}`}>
                         {contact.name}
                       </h4>
                       {contact.isEduVerified && (
                         <VerifiedEduBadge school={contact.school} size="sm" showText={false} />
                       )}
                       <span
-                        className={`px-1.5 py-0.2 rounded text-[9px] font-bold shrink-0 ${
+                        className={`px-2 py-0.5 rounded text-[10px] font-semibold shrink-0 ${
                           contact.role === 'CLIENT'
                             ? 'bg-[#3064AE]/30 text-[#C5E5EC] border border-[#C5E5EC]/30'
                             : 'bg-[#E0FAEB]/20 text-[#E0FAEB] border border-[#E0FAEB]/30'
@@ -1949,11 +2046,13 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                       </span>
                     </div>
 
-                    <p className="text-[11px] text-[#C5E5EC]/70 truncate mt-0.5">{previewText}</p>
+                    <p className={`text-xs truncate mt-0.5 ${unreadCount > 0 ? 'text-[#C5E5EC] font-bold' : 'text-[#C5E5EC]/75'}`}>
+                      {previewText}
+                    </p>
 
-                    {/* Subtle micro-tag if there is a shared gig */}
+                    {/* Micro-tag if there is a shared gig */}
                     {contact.associatedGig && (
-                      <p className="text-[10px] text-[#C5E5EC] font-medium truncate mt-0.5">
+                      <p className="text-[11px] text-[#C5E5EC] font-medium truncate mt-0.5">
                         💼 {contact.associatedGig.title}
                       </p>
                     )}
@@ -1961,9 +2060,20 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                 </div>
 
                 {/* Right Metadata */}
-                <div className="text-right shrink-0 flex flex-col items-end space-y-1">
-                  <span className="text-[10px] text-[#C5E5EC]/50 font-medium">{timeText}</span>
-                  <span className="text-[10px] text-[#C5E5EC]/70 font-semibold">{contact.school}</span>
+                <div className="text-right shrink-0 flex flex-col items-end space-y-1 pl-2">
+                  <span className={`text-[11px] font-medium ${unreadCount > 0 ? 'text-[#E0FAEB] font-bold' : 'text-[#C5E5EC]/70'}`}>
+                    {timeText}
+                  </span>
+                  <div className="flex items-center space-x-1.5">
+                    {unreadCount > 0 && (
+                      <span className="px-1.5 py-0.5 rounded-full bg-[#E0FAEB] text-[#09111D] text-[9px] font-extrabold">
+                        Mới
+                      </span>
+                    )}
+                    <span className="text-[10px] text-[#C5E5EC]/90 font-medium bg-white/5 px-2 py-0.5 rounded-md border border-white/10">
+                      {contact.school}
+                    </span>
+                  </div>
                 </div>
               </div>
             );

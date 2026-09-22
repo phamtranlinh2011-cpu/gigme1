@@ -58,6 +58,12 @@ export const AVATAR_PRESETS: AvatarOption[] = [
     category: 'Kinh Doanh',
     url: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='bizBg' x1='0' y1='0' x2='1' y2='1'><stop offset='0%25' stop-color='%231A150D'/><stop offset='100%25' stop-color='%232B2215'/></linearGradient></defs><circle cx='50' cy='50' r='48' fill='url(%23bizBg)' stroke='%23F59E0B' stroke-width='2'/><circle cx='50' cy='40' r='17' fill='%23FED7AA'/><circle cx='44' cy='39' r='2.5' fill='%23451A03'/><circle cx='56' cy='39' r='2.5' fill='%23451A03'/><path d='M46 48 Q50 51 54 48' stroke='%23B45309' stroke-width='2' fill='none'/><path d='M22 88 C22 65 78 65 78 88 Z' fill='%23451A03'/><polygon points='50,65 44,78 50,88 56,78' fill='%23F59E0B'/><circle cx='50' cy='74' r='2' fill='%23FFFFFF'/></svg>",
   },
+  {
+    id: 'admin_gold',
+    name: 'Quản Trị Viên Tối Cao (Master)',
+    category: 'Admin',
+    url: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='admBg' x1='0' y1='0' x2='1' y2='1'><stop offset='0%25' stop-color='%232B0606'/><stop offset='100%25' stop-color='%23450A0A'/></linearGradient></defs><circle cx='50' cy='50' r='48' fill='url(%23admBg)' stroke='%23EF4444' stroke-width='2'/><circle cx='50' cy='43' r='17' fill='%23FEE2E2'/><polygon points='34,22 41,31 50,18 59,31 66,22 64,36 36,36' fill='%23FBBF24' stroke='%23D97706' stroke-width='1.5'/><circle cx='44' cy='42' r='2.5' fill='%237F1D1D'/><circle cx='56' cy='42' r='2.5' fill='%237F1D1D'/><path d='M46 51 Q50 55 54 51' stroke='%23DC2626' stroke-width='2' fill='none'/><path d='M22 88 C22 66 78 66 78 88 Z' fill='%23B91C1C'/><path d='M47 68 L50 72 L57 65' stroke='%23FBBF24' stroke-width='2.5' fill='none' stroke-linecap='round'/></svg>",
+  },
 ];
 
 export const AvatarPickerModal: React.FC<{

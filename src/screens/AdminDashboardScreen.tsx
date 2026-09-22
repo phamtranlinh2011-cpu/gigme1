@@ -27,6 +27,9 @@ import {
   Eye,
   Check,
   Wrench,
+  Trash2,
+  X,
+  AlertOctagon,
 } from 'lucide-react';
 import { useGigMe } from '../context/GigMeContext';
 import { formatVnd, USER_TIERS, UserEntity } from '../types';
@@ -43,6 +46,9 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onBa
     rawGigs,
     adminAllUsers,
     adminResolveDispute,
+    adminToggleLockUser,
+    adminDeleteUser,
+    adminPurgeAllUsersExceptAdmin,
     withdrawEWallet,
     withdrawToBank,
     showNotification,
@@ -51,6 +57,11 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onBa
   } = useGigMe();
 
   const [showMaintenanceModal, setShowMaintenanceModal] = useState(false);
+  const [selectedUserForModal, setSelectedUserForModal] = useState<UserEntity | null>(null);
+  const [showPurgeConfirmModal, setShowPurgeConfirmModal] = useState(false);
+  const [isPurging, setIsPurging] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<UserEntity | null>(null);
+  const [isDeletingUser, setIsDeletingUser] = useState(false);
 
   const allUsers: UserEntity[] = adminAllUsers || [];
   const adminUser = allUsers.find((u) => u.role === 'ADMIN' || u.id === 'admin_root') || currentUser;
@@ -184,12 +195,25 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onBa
     }
   };
 
-  const filteredUsers = allUsers.filter(
-    (u: UserEntity) =>
-      u.name.toLowerCase().includes(userSearch.toLowerCase()) ||
-      u.email.toLowerCase().includes(userSearch.toLowerCase()) ||
-      u.phone.includes(userSearch)
-  );
+  const cleanSearch = (userSearch || '').trim().toLowerCase();
+  const filteredUsers = allUsers.filter((u: UserEntity) => {
+    if (!u) return false;
+    if (!cleanSearch) return true;
+    const name = String(u.name || '').toLowerCase();
+    const email = String(u.email || '').toLowerCase();
+    const phone = String(u.phone || '').toLowerCase();
+    const id = String(u.id || '').toLowerCase();
+    const kycName = String(u.kycName || '').toLowerCase();
+    const cccd = String(u.cccdNumber || '').toLowerCase();
+    return (
+      name.includes(cleanSearch) ||
+      email.includes(cleanSearch) ||
+      phone.includes(cleanSearch) ||
+      id.includes(cleanSearch) ||
+      kycName.includes(cleanSearch) ||
+      cccd.includes(cleanSearch)
+    );
+  });
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-6 pb-28 text-white space-y-6 text-xs">
@@ -601,49 +625,169 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onBa
       {/* TAB 2: USERS & KYC MANAGEMENT */}
       {activeTab === 'USERS' && (
         <div className="space-y-3">
-          <div className="relative">
-            <Search className="w-4 h-4 text-[#C5E5EC]/50 absolute left-3 top-3" />
-            <input
-              type="text"
-              value={userSearch}
-              onChange={(e) => setUserSearch(e.target.value)}
-              className="w-full pl-9 pr-3 py-2.5 rounded-2xl bg-[#0E1B2E] border border-[#C5E5EC]/25 text-white text-xs placeholder:text-[#C5E5EC]/40 focus:border-[#C5E5EC] focus:outline-none"
-              placeholder="Tìm kiếm tài khoản theo tên, email, SĐT..."
-            />
+          {/* Action & Search Bar */}
+          <div className="flex flex-col sm:flex-row gap-2">
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 text-[#C5E5EC]/50 absolute left-3 top-3" />
+              <input
+                type="text"
+                value={userSearch}
+                onChange={(e) => setUserSearch(e.target.value)}
+                className="w-full pl-9 pr-3 py-2.5 rounded-2xl bg-[#0E1B2E] border border-[#C5E5EC]/25 text-white text-xs placeholder:text-[#C5E5EC]/40 focus:border-[#C5E5EC] focus:outline-none"
+                placeholder="Tìm kiếm theo tên, email, SĐT hoặc ID 9 số..."
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowPurgeConfirmModal(true)}
+              className="px-3.5 py-2.5 rounded-2xl bg-rose-950/80 hover:bg-rose-900 border border-rose-500/50 text-rose-200 text-xs font-bold transition flex items-center justify-center space-x-1.5 shrink-0 shadow-lg shadow-rose-950/50 cursor-pointer"
+              title="Xóa toàn bộ người dùng, chỉ giữ lại duy nhất 1 tài khoản Admin 000000000"
+            >
+              <Trash2 className="w-4 h-4 text-rose-400" />
+              <span>Xóa sạch dữ liệu (Trừ Admin)</span>
+            </button>
+          </div>
+
+          {/* Quick Stats Pill */}
+          <div className="p-3 rounded-2xl bg-[#0E1B2E] border border-[#C5E5EC]/20 flex flex-wrap items-center justify-between gap-2 text-xs">
+            <div className="flex items-center space-x-2 text-[#C5E5EC]/80">
+              <Users className="w-4 h-4 text-[#C5E5EC]" />
+              <span>
+                Tổng số: <strong className="text-white font-mono">{allUsers.length}</strong> tài khoản
+              </span>
+              <span className="text-[#C5E5EC]/30">|</span>
+              <span>
+                Bị cấm / khóa:{' '}
+                <strong className="text-rose-400 font-mono">
+                  {allUsers.filter((u) => u.isLocked).length}
+                </strong>
+              </span>
+            </div>
+            <span className="text-[11px] text-[#C5E5EC]/60 italic">
+              💡 Bấm vào tài khoản bất kỳ để xem thông tin chi tiết & quản trị
+            </span>
           </div>
 
           <div className="rounded-3xl bg-[#0E1B2E] border border-[#C5E5EC]/20 overflow-hidden shadow-xl">
             <div className="divide-y divide-[#C5E5EC]/15">
-              {filteredUsers.map((u: UserEntity) => (
-                <div key={u.id} className="p-4 flex items-center justify-between gap-3 hover:bg-[#12233B] transition">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#3064AE] to-[#25735B] flex items-center justify-center font-bold text-white border border-[#E0FAEB]/30">
-                      {u.name.charAt(0).toUpperCase()}
-                    </div>
-                    <div>
-                      <div className="flex items-center space-x-2">
-                        <span className="font-extrabold text-white">{u.name}</span>
-                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-[#3064AE]/30 text-[#C5E5EC] font-bold border border-[#C5E5EC]/30">
-                          {u.tier}
-                        </span>
-                        {u.role === 'ADMIN' && (
-                          <span className="text-[9px] px-1.5 py-0.2 rounded bg-rose-900/60 text-rose-300 font-bold border border-rose-700/50">
-                            ADMIN
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-[11px] text-[#C5E5EC]/70 mt-0.5">{u.email || u.phone}</p>
-                    </div>
-                  </div>
-
-                  <div className="text-right">
-                    <span className="font-mono font-bold text-white text-xs block">
-                      Ví: {formatVnd(u.walletBalance)}
-                    </span>
-                    <span className="text-[10px] text-amber-300">Uy tín: {u.trustScore}/100</span>
-                  </div>
+              {filteredUsers.length === 0 ? (
+                <div className="p-8 text-center text-[#C5E5EC]/60 text-xs">
+                  Không tìm thấy tài khoản nào khớp với từ khóa tìm kiếm.
                 </div>
-              ))}
+              ) : (
+                filteredUsers.map((u: UserEntity) => {
+                  const isRootAdmin = u.id === '000000000';
+                  const trustClamped = Math.min(100, Math.max(0, u.trustScore ?? 0));
+                  const displayName = u.name || `Người dùng (ID: ${u.id})`;
+                  return (
+                    <div
+                      key={u.id}
+                      onClick={() => setSelectedUserForModal(u)}
+                      className={`p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-[#12233B] transition cursor-pointer group ${
+                        u.isLocked ? 'bg-rose-950/20' : ''
+                      }`}
+                    >
+                      <div className="flex items-center space-x-3 min-w-0">
+                        <div
+                          className={`w-11 h-11 rounded-2xl flex items-center justify-center font-bold text-white border shrink-0 ${
+                            isRootAdmin
+                              ? 'bg-gradient-to-tr from-amber-600 to-rose-600 border-amber-400 shadow-md shadow-rose-900/40'
+                              : u.isLocked
+                              ? 'bg-gray-800 border-rose-500/40 text-rose-300'
+                              : 'bg-gradient-to-tr from-[#3064AE] to-[#25735B] border-[#E0FAEB]/30'
+                          }`}
+                        >
+                          {displayName.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="font-extrabold text-white text-sm group-hover:text-[#C5E5EC] transition truncate">
+                              {displayName}
+                            </span>
+                            <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-white/10 text-white/80 border border-white/10">
+                              ID: {u.id}
+                            </span>
+                            <span className="text-[10px] px-1.5 py-0.2 rounded bg-[#3064AE]/30 text-[#C5E5EC] font-bold border border-[#C5E5EC]/30">
+                              {u.tier}
+                            </span>
+                            {isRootAdmin && (
+                              <span className="text-[9px] px-1.5 py-0.2 rounded bg-rose-900/80 text-rose-200 font-extrabold border border-rose-600/70">
+                                ROOT ADMIN
+                              </span>
+                            )}
+                            {u.isLocked && (
+                              <span className="text-[9px] px-1.5 py-0.2 rounded bg-rose-600 text-white font-extrabold animate-pulse">
+                                ĐÃ CẤM / KHÓA
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-[#C5E5EC]/70 mt-0.5 truncate">
+                            {u.email || 'Không có email'} • {u.phone || 'Chưa cập nhật SĐT'}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-[#C5E5EC]/10">
+                        <div className="text-left sm:text-right">
+                          <span className="font-mono font-bold text-white text-xs block">
+                            Ví: {formatVnd(u.walletBalance)}
+                          </span>
+                          <span className="text-[10px] text-amber-300 font-semibold">
+                            Uy tín: {trustClamped}/100
+                          </span>
+                        </div>
+
+                        {/* Quick action buttons */}
+                        <div className="flex items-center space-x-1.5" onClick={(e) => e.stopPropagation()}>
+                          {!isRootAdmin && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => adminToggleLockUser(u.id)}
+                                className={`px-2.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center space-x-1 border cursor-pointer ${
+                                  u.isLocked
+                                    ? 'bg-[#25735B]/40 hover:bg-[#25735B]/60 text-[#E0FAEB] border-[#25735B]'
+                                    : 'bg-amber-950/40 hover:bg-amber-900/60 text-amber-200 border-amber-600/40'
+                                }`}
+                                title={u.isLocked ? 'Mở cấm tài khoản' : 'Cấm / Khóa tài khoản'}
+                              >
+                                {u.isLocked ? (
+                                  <>
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-[#E0FAEB]" />
+                                    <span className="hidden md:inline">Mở cấm</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Ban className="w-3.5 h-3.5 text-amber-300" />
+                                    <span className="hidden md:inline">Cấm</span>
+                                  </>
+                                )}
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => setUserToDelete(u)}
+                                className="p-1.5 rounded-xl bg-rose-950/50 hover:bg-rose-900 text-rose-300 border border-rose-600/40 transition cursor-pointer"
+                                title="Xóa tài khoản"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => setSelectedUserForModal(u)}
+                            className="px-2.5 py-1.5 rounded-xl bg-[#3064AE]/30 hover:bg-[#3064AE]/50 text-[#C5E5EC] border border-[#C5E5EC]/30 text-xs font-bold transition cursor-pointer flex items-center space-x-1"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            <span>Chi tiết</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
         </div>
@@ -979,6 +1123,411 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onBa
                 })}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* User Detail Modal */}
+      {selectedUserForModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
+          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl bg-[#09111D] border border-[#C5E5EC]/30 shadow-2xl p-6 text-white space-y-5">
+            {/* Header */}
+            {(() => {
+              const isModalRootAdmin = selectedUserForModal.id === '000000000';
+              const modalDisplayName = selectedUserForModal.name || `Người dùng (ID: ${selectedUserForModal.id})`;
+              return (
+                <div className="flex items-start justify-between gap-3 pb-4 border-b border-[#C5E5EC]/20">
+                  <div className="flex items-center space-x-3.5">
+                    <div
+                      className={`w-14 h-14 rounded-2xl flex items-center justify-center font-black text-xl border shadow-lg ${
+                        isModalRootAdmin
+                          ? 'bg-gradient-to-tr from-amber-600 to-rose-600 border-amber-400 text-white'
+                          : selectedUserForModal.isLocked
+                          ? 'bg-gray-800 border-rose-500/50 text-rose-300'
+                          : 'bg-gradient-to-tr from-[#3064AE] to-[#25735B] border-[#E0FAEB]/40 text-white'
+                      }`}
+                    >
+                      {modalDisplayName.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="font-black text-lg text-white">{modalDisplayName}</h3>
+                        <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-lg bg-white/10 text-white border border-white/20">
+                          ID: {selectedUserForModal.id}
+                        </span>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-[#3064AE]/40 text-[#C5E5EC] border border-[#C5E5EC]/30">
+                          {selectedUserForModal.tier}
+                        </span>
+                        {isModalRootAdmin ? (
+                          <span className="text-[10px] font-black px-2 py-0.5 rounded bg-rose-900/90 text-rose-200 border border-rose-600">
+                            ROOT ADMIN
+                          </span>
+                        ) : null}
+                        {selectedUserForModal.isLocked && (
+                          <span className="text-[10px] font-black px-2 py-0.5 rounded bg-rose-600 text-white animate-pulse">
+                            ĐÃ BỊ CẤM / KHÓA
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-[#C5E5EC]/70 mt-1">
+                        Họ tên KYC: {selectedUserForModal.kycName || 'Chưa định danh'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setSelectedUserForModal(null)}
+                    className="p-2 rounded-xl bg-white/5 hover:bg-white/15 text-[#C5E5EC] transition cursor-pointer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              );
+            })()}
+
+            {/* Grid Information */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+              {/* Box 1: Thông tin định danh & Liên lạc */}
+              <div className="p-4 rounded-2xl bg-[#0E1B2E] border border-[#C5E5EC]/20 space-y-2.5">
+                <h4 className="font-extrabold text-[#C5E5EC] text-xs flex items-center space-x-1.5 pb-1 border-b border-[#C5E5EC]/15">
+                  <Users className="w-3.5 h-3.5 text-[#C5E5EC]" />
+                  <span>Định Danh & Liên Lạc</span>
+                </h4>
+                <div className="space-y-1.5 text-[#C5E5EC]/85">
+                  <div className="flex justify-between">
+                    <span className="text-[#C5E5EC]/60">Mã ID 9 Số:</span>
+                    <span className="font-mono font-bold text-white">{selectedUserForModal.id}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[#C5E5EC]/60">Email:</span>
+                    <span className="text-white font-medium truncate max-w-[180px]">
+                      {selectedUserForModal.email || 'Chưa cung cấp'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[#C5E5EC]/60">Số điện thoại:</span>
+                    <span className="font-mono text-white">{selectedUserForModal.phone || 'Chưa cung cấp'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[#C5E5EC]/60">Giới tính & Ngày sinh:</span>
+                    <span className="text-white">
+                      {selectedUserForModal.gender || 'Khác'} • {selectedUserForModal.birthDate || '01/01/2000'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[#C5E5EC]/60">Mật khẩu đăng nhập:</span>
+                    <span className="font-mono text-amber-300">
+                      {selectedUserForModal.password || '******'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Box 2: Ví & Tài chính */}
+              <div className="p-4 rounded-2xl bg-[#0E1B2E] border border-[#C5E5EC]/20 space-y-2.5">
+                <h4 className="font-extrabold text-[#C5E5EC] text-xs flex items-center space-x-1.5 pb-1 border-b border-[#C5E5EC]/15">
+                  <DollarSign className="w-3.5 h-3.5 text-[#E0FAEB]" />
+                  <span>Ví Tiền & Ký Quỹ Escrow</span>
+                </h4>
+                <div className="space-y-1.5 text-[#C5E5EC]/85">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[#C5E5EC]/60">Số dư khả dụng:</span>
+                    <span className="font-mono font-bold text-[#E0FAEB] text-sm">
+                      {formatVnd(selectedUserForModal.walletBalance)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-[#C5E5EC]/60">Ký quỹ Escrow khóa:</span>
+                    <span className="font-mono font-bold text-amber-300">
+                      {formatVnd(selectedUserForModal.escrowLockedBalance || 0)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-[#C5E5EC]/60">Tổng đã chi tiêu:</span>
+                    <span className="font-mono text-white">
+                      {formatVnd(selectedUserForModal.totalSpent || 0)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-[#C5E5EC]/60">Ví MoMo liên kết:</span>
+                    <span className="font-mono text-white">
+                      {selectedUserForModal.connectedMoMo || 'Chưa liên kết'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Box 3: Điểm Uy Tín & Hiệu Suất */}
+              <div className="p-4 rounded-2xl bg-[#0E1B2E] border border-[#C5E5EC]/20 space-y-2.5">
+                <h4 className="font-extrabold text-[#C5E5EC] text-xs flex items-center space-x-1.5 pb-1 border-b border-[#C5E5EC]/15">
+                  <TrendingUp className="w-3.5 h-3.5 text-amber-300" />
+                  <span>Uy Tín & Hiệu Suất Campus</span>
+                </h4>
+                <div className="space-y-2">
+                  <div>
+                    <div className="flex justify-between items-center text-xs mb-1">
+                      <span className="text-[#C5E5EC]/70">Điểm uy tín hệ thống:</span>
+                      <span className="font-mono font-extrabold text-amber-300 text-sm">
+                        {Math.min(100, Math.max(0, selectedUserForModal.trustScore ?? 0))} / 100
+                      </span>
+                    </div>
+                    {/* Progress Bar */}
+                    <div className="w-full h-2 rounded-full bg-black/40 overflow-hidden border border-white/10">
+                      <div
+                        className="h-full bg-gradient-to-r from-amber-500 to-[#E0FAEB] rounded-full transition-all duration-300"
+                        style={{
+                          width: `${Math.min(100, Math.max(0, selectedUserForModal.trustScore ?? 0))}%`,
+                        }}
+                      />
+                    </div>
+                    <span className="text-[10px] text-[#C5E5EC]/50 italic block mt-1">
+                      * Tối đa 100 điểm. Khi đạt 100 điểm sẽ không cộng dồn thêm nữa.
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between text-[#C5E5EC]/85 pt-1">
+                    <span className="text-[#C5E5EC]/60">Đánh giá sao:</span>
+                    <span className="font-bold text-amber-300">
+                      {selectedUserForModal.rating || 0} ★ ({selectedUserForModal.reviewCount || 0} đánh giá)
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-[#C5E5EC]/85">
+                    <span className="text-[#C5E5EC]/60">Việc hoàn thành:</span>
+                    <span className="font-bold text-white">
+                      {selectedUserForModal.completedGigs || 0} việc
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-[#C5E5EC]/85">
+                    <span className="text-[#C5E5EC]/60">Điểm ELO / Hạng:</span>
+                    <span className="font-mono text-white">
+                      {selectedUserForModal.eloRating || 1200} ({selectedUserForModal.eloTier || 'BRONZE'})
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Box 4: Xác thực Bảo Mật & KYC */}
+              <div className="p-4 rounded-2xl bg-[#0E1B2E] border border-[#C5E5EC]/20 space-y-2.5">
+                <h4 className="font-extrabold text-[#C5E5EC] text-xs flex items-center space-x-1.5 pb-1 border-b border-[#C5E5EC]/15">
+                  <ShieldCheck className="w-3.5 h-3.5 text-[#E0FAEB]" />
+                  <span>Xác Minh Danh Tính & KYC</span>
+                </h4>
+                <div className="space-y-1.5 text-[#C5E5EC]/85">
+                  <div className="flex justify-between">
+                    <span className="text-[#C5E5EC]/60">Duyệt KYC C06:</span>
+                    <span className={selectedUserForModal.isKycApproved ? 'text-[#E0FAEB] font-bold' : 'text-amber-400'}>
+                      {selectedUserForModal.isKycApproved ? '✅ Đã xác thực' : '⏳ Chưa xác thực'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[#C5E5EC]/60">Quét chip NFC CCCD:</span>
+                    <span className={selectedUserForModal.isNfcVerified ? 'text-[#E0FAEB] font-bold' : 'text-[#C5E5EC]/50'}>
+                      {selectedUserForModal.isNfcVerified ? '✅ Đạt chuẩn C06' : 'Chưa quét NFC'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[#C5E5EC]/60">Nhận diện Face Liveness:</span>
+                    <span className={selectedUserForModal.isFaceLivenessPassed ? 'text-[#E0FAEB] font-bold' : 'text-[#C5E5EC]/50'}>
+                      {selectedUserForModal.isFaceLivenessPassed ? '✅ Khuôn mặt sống động' : 'Chưa quét'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[#C5E5EC]/60">Sinh viên trường:</span>
+                    <span className="text-white truncate max-w-[170px]">
+                      {selectedUserForModal.studentSchool || 'Chưa liên kết trường'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[#C5E5EC]/60">Trạng thái tài khoản:</span>
+                    <span className={selectedUserForModal.isLocked ? 'text-rose-400 font-bold' : 'text-[#E0FAEB] font-bold'}>
+                      {selectedUserForModal.isLocked ? '🔴 BỊ CẤM / KHÓA' : '🟢 HOẠT ĐỘNG BÌNH THƯỜNG'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Action Buttons inside Modal */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-[#C5E5EC]/20">
+              <div className="flex items-center space-x-2 w-full sm:w-auto">
+                {selectedUserForModal.id === '000000000' ? (
+                  <span className="text-xs text-amber-300 italic font-semibold">
+                    🛡️ Tài khoản Quản trị viên tối cao (000000000) được bảo vệ 100%. Không thể cấm hoặc xóa.
+                  </span>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        adminToggleLockUser(selectedUserForModal.id);
+                        setSelectedUserForModal((prev) => (prev ? { ...prev, isLocked: !prev.isLocked } : null));
+                      }}
+                      className={`flex-1 sm:flex-none px-4 py-2.5 rounded-2xl font-bold text-xs transition flex items-center justify-center space-x-1.5 border cursor-pointer ${
+                        selectedUserForModal.isLocked
+                          ? 'bg-[#25735B] hover:bg-[#25735B]/80 text-[#E0FAEB] border-[#25735B]/50'
+                          : 'bg-amber-950/70 hover:bg-amber-900 text-amber-200 border-amber-600/50'
+                      }`}
+                    >
+                      {selectedUserForModal.isLocked ? (
+                        <>
+                          <CheckCircle2 className="w-4 h-4 text-[#E0FAEB]" />
+                          <span>Mở cấm tài khoản</span>
+                        </>
+                      ) : (
+                        <>
+                          <Ban className="w-4 h-4 text-amber-300" />
+                          <span>Cấm / Khóa tài khoản</span>
+                        </>
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setUserToDelete(selectedUserForModal);
+                      }}
+                      className="flex-1 sm:flex-none px-4 py-2.5 rounded-2xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs transition flex items-center justify-center space-x-1.5 shadow-lg shadow-rose-900/40 cursor-pointer"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      <span>Xóa tài khoản này</span>
+                    </button>
+                  </>
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setSelectedUserForModal(null)}
+                className="w-full sm:w-auto px-5 py-2.5 rounded-2xl bg-white/10 hover:bg-white/20 text-[#C5E5EC] font-bold text-xs transition cursor-pointer"
+              >
+                Đóng lại
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Single User Confirmation Modal */}
+      {userToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
+          <div className="w-full max-w-md rounded-3xl bg-[#09111D] border border-rose-500/50 shadow-2xl p-6 text-white space-y-4">
+            <div className="w-12 h-12 rounded-2xl bg-rose-950/80 border border-rose-500/50 flex items-center justify-center text-rose-400 mx-auto">
+              <Trash2 className="w-6 h-6" />
+            </div>
+
+            <div className="text-center space-y-1.5">
+              <h3 className="font-black text-lg text-white">Xác Nhận Xóa Tài Khoản?</h3>
+              <p className="text-xs text-[#C5E5EC]/80 leading-relaxed">
+                Bạn có chắc chắn muốn xóa vĩnh viễn tài khoản của{' '}
+                <strong className="text-white font-bold">{userToDelete.name}</strong> (ID: {userToDelete.id})
+                khỏi toàn bộ hệ thống?
+              </p>
+              <p className="text-[11px] text-rose-300 bg-rose-950/40 p-2.5 rounded-xl border border-rose-900/50 text-left mt-2">
+                ⚠️ Thao tác này sẽ gỡ bỏ tài khoản và dữ liệu người dùng khỏi cả Firestore Cloud và Express DB.
+              </p>
+            </div>
+
+            <div className="flex items-center space-x-3 pt-2">
+              <button
+                type="button"
+                disabled={isDeletingUser}
+                onClick={() => setUserToDelete(null)}
+                className="flex-1 py-2.5 rounded-2xl bg-white/10 hover:bg-white/20 text-[#C5E5EC] font-bold text-xs transition cursor-pointer"
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="button"
+                disabled={isDeletingUser}
+                onClick={async () => {
+                  setIsDeletingUser(true);
+                  try {
+                    await adminDeleteUser(userToDelete.id);
+                    setUserToDelete(null);
+                    setSelectedUserForModal(null);
+                  } finally {
+                    setIsDeletingUser(false);
+                  }
+                }}
+                className="flex-1 py-2.5 rounded-2xl bg-rose-600 hover:bg-rose-500 text-white font-extrabold text-xs transition flex items-center justify-center space-x-1.5 shadow-lg shadow-rose-900/50 cursor-pointer"
+              >
+                {isDeletingUser ? (
+                  <span>Đang xóa...</span>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    <span>Xác nhận xóa</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mass Purge All Non-Admin Users Confirmation Modal */}
+      {showPurgeConfirmModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
+          <div className="w-full max-w-lg rounded-3xl bg-[#09111D] border-2 border-rose-500 shadow-2xl shadow-rose-950/60 p-6 text-white space-y-4">
+            <div className="w-14 h-14 rounded-2xl bg-rose-950/90 border border-rose-500 flex items-center justify-center text-rose-400 mx-auto animate-bounce">
+              <AlertOctagon className="w-7 h-7" />
+            </div>
+
+            <div className="text-center space-y-2">
+              <h3 className="font-black text-xl text-white">XÓA SẠCH DỮ LIỆU NGƯỜI DÙNG?</h3>
+              <p className="text-xs text-[#C5E5EC]/90 leading-relaxed">
+                Hệ thống sẽ thực hiện dọn sạch <strong className="text-rose-400">TOÀN BỘ</strong> tài khoản người
+                dùng, công việc, tin nhắn, và lịch sử giao dịch.
+              </p>
+              <div className="p-3.5 rounded-2xl bg-rose-950/50 border border-rose-700/60 text-left space-y-1.5 text-xs text-rose-200">
+                <div className="flex items-center space-x-2 font-bold text-white">
+                  <CheckCircle2 className="w-4 h-4 text-[#E0FAEB]" />
+                  <span>Duy nhất 1 tài khoản được giữ lại an toàn tuyệt đối:</span>
+                </div>
+                <div className="ml-6 font-mono text-[11px] text-[#E0FAEB] space-y-0.5">
+                  <p>• ID: <strong>000000000</strong></p>
+                  <p>• Email: <strong>admin@admin.vn</strong></p>
+                  <p>• Số điện thoại: <strong>0909120918</strong></p>
+                  <p>• Mật khẩu: <strong>admin1507</strong></p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-3 pt-2">
+              <button
+                type="button"
+                disabled={isPurging}
+                onClick={() => setShowPurgeConfirmModal(false)}
+                className="flex-1 py-3 rounded-2xl bg-white/10 hover:bg-white/20 text-[#C5E5EC] font-bold text-xs transition cursor-pointer"
+              >
+                Hủy bỏ (Giữ nguyên)
+              </button>
+              <button
+                type="button"
+                disabled={isPurging}
+                onClick={async () => {
+                  setIsPurging(true);
+                  try {
+                    await adminPurgeAllUsersExceptAdmin();
+                    setShowPurgeConfirmModal(false);
+                    setSelectedUserForModal(null);
+                  } finally {
+                    setIsPurging(false);
+                  }
+                }}
+                className="flex-1 py-3 rounded-2xl bg-rose-600 hover:bg-rose-500 text-white font-black text-xs transition flex items-center justify-center space-x-2 shadow-xl shadow-rose-900/60 cursor-pointer"
+              >
+                {isPurging ? (
+                  <span>Đang dọn sạch hệ thống...</span>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    <span>Xác nhận xóa sạch (Chỉ giữ lại Admin)</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}
