@@ -70,6 +70,58 @@
         "isSuccess": { "type": "boolean" }
       },
       "required": ["id", "userId", "type", "amount", "timestamp"]
+    },
+    "MarketplaceItem": {
+      "title": "MarketplaceItem",
+      "description": "Flea market used textbooks and campus housing items",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string", "maxLength": 200 },
+        "description": { "type": "string", "maxLength": 2000 },
+        "category": { "type": "string", "maxLength": 50 },
+        "price": { "type": "number" },
+        "condition": { "type": "string", "maxLength": 50 },
+        "schoolName": { "type": "string", "maxLength": 150 },
+        "sellerId": { "type": "string", "maxLength": 100 },
+        "sellerName": { "type": "string", "maxLength": 100 },
+        "status": { "type": "string", "enum": ["AVAILABLE", "RESERVED", "SOLD"] },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["id", "title", "price", "sellerId", "status"]
+    },
+    "Bid": {
+      "title": "Bid",
+      "description": "Reverse auction proposal submitted by campus workers",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "gigId": { "type": "string", "maxLength": 100 },
+        "freelancerId": { "type": "string", "maxLength": 100 },
+        "freelancerName": { "type": "string", "maxLength": 100 },
+        "offeredPrice": { "type": "number" },
+        "estimatedMinutes": { "type": "number" },
+        "proposalNote": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["id", "gigId", "freelancerId", "offeredPrice", "createdAt"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "Real-time notification for new gigs and status updates",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string", "maxLength": 200 },
+        "message": { "type": "string", "maxLength": 1000 },
+        "type": { "type": "string", "enum": ["NEW_GIG", "STATUS_UPDATE", "INFO"] },
+        "gigId": { "type": "string", "maxLength": 100 },
+        "gigTitle": { "type": "string", "maxLength": 200 },
+        "status": { "type": "string", "maxLength": 50 },
+        "userId": { "type": "string", "maxLength": 100 },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["id", "title", "message", "type", "createdAt"]
     }
   },
   "firestore": {
@@ -85,9 +137,25 @@
       "schema": "ChatMessage",
       "description": "Chat messages within a gig"
     },
+    "/messages/{messageId}": {
+      "schema": "ChatMessage",
+      "description": "Global direct and support chat messages"
+    },
     "/transactions/{transactionId}": {
       "schema": "WalletTransaction",
       "description": "User wallet transaction histories"
+    },
+    "/marketplace/{itemId}": {
+      "schema": "MarketplaceItem",
+      "description": "Campus flea market second-hand listings"
+    },
+    "/bids/{bidId}": {
+      "schema": "Bid",
+      "description": "Job bids and proposals"
+    },
+    "/notifications/{notificationId}": {
+      "schema": "Notification",
+      "description": "Real-time notifications collection for new gigs and status updates"
     }
   }
 }

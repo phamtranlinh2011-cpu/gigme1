@@ -87,6 +87,13 @@ service cloud.firestore {
       allow read: if true;
       allow write: if true;
     }
+
+    // Real-time notifications for new gigs & status updates
+    match /notifications/{notificationId} {
+      allow read: if true;
+      allow create, update: if true;
+      allow delete: if isAdmin();
+    }
   }
 }
 

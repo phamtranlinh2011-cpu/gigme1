@@ -71,6 +71,15 @@
           }
         }, true);
       })();
+
+      // Global Dark Theme Enforcer (Giao diện tối mặc định 100%)
+      (function() {
+        try {
+          localStorage.setItem('gigme_theme_mode', 'CYBER_DARK');
+          document.documentElement.classList.add('dark', 'theme-cyber');
+          document.documentElement.classList.remove('light', 'theme-daylight', 'theme-amoled');
+        } catch (e) {}
+      })();
     </script>
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />

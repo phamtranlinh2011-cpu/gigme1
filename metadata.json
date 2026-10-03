@@ -1,6 +1,12 @@
 {
-  "name": "GigMe - Việc Làm Sinh Viên",
-  "description": "Nền tảng Siêu kết nối việc làm sinh viên campus với bảo chứng ký quỹ Smart Escrow an toàn 100%.",
-  "requestFramePermissions": ["camera", "microphone", "geolocation"],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "name": "gigme4",
+  "description": "Imported from GitHub: vnlandserver-netizen/gigme3",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }
