@@ -33,6 +33,7 @@ import {
   DEFAULT_USER_LOCATION,
 } from '../utils/geo';
 import { inspectGpsIntegrity, GpsIntegrityReport } from '../utils/mockGpsDetector';
+import { useGigMe } from '../context/GigMeContext';
 
 interface InteractiveRadarProps {
   gigs: GigEntity[];
@@ -89,6 +90,7 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
   userCoords: propUserCoords,
   onUserCoordsChange,
 }) => {
+  const { language } = useGigMe();
   // Current user GPS coordinates
   const [currentUserCoords, setCurrentUserCoords] = useState<GeoLocation>(
     propUserCoords || DEFAULT_USER_LOCATION
@@ -244,7 +246,7 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
   // Request actual real GPS location
   const handleGetLiveGps = () => {
     if (!navigator.geolocation) {
-      setGpsError('Thiết bị không hỗ trợ định vị GPS');
+      setGpsError(language === 'vi' ? 'Thiết bị không hỗ trợ định vị GPS' : 'Device does not support GPS geolocation');
       return;
     }
     setIsGpsLoading(true);
@@ -259,7 +261,9 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
         const newCoords: GeoLocation = {
           latitude: pos.coords.latitude,
           longitude: pos.coords.longitude,
-          label: report.isMock ? 'Cảnh báo: GPS có dấu hiệu giả lập' : 'Vị trí GPS thực tế của bạn',
+          label: report.isMock
+            ? (language === 'vi' ? 'Cảnh báo: GPS có dấu hiệu giả lập' : 'Warning: Mock GPS detected')
+            : (language === 'vi' ? 'Vị trí GPS thực tế của bạn' : 'Your real GPS location'),
         };
         setCurrentUserCoords(newCoords);
         if (onUserCoordsChange) {
@@ -274,7 +278,11 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
       },
       (err) => {
         setIsGpsLoading(false);
-        setGpsError('Không thể lấy GPS (vui lòng cấp quyền vị trí hoặc chọn điểm trường mẫu)');
+        setGpsError(
+          language === 'vi'
+            ? 'Không thể lấy GPS (vui lòng cấp quyền vị trí hoặc chọn điểm trường mẫu)'
+            : 'Could not obtain GPS (please grant location permission or select a campus hub)'
+        );
         setTimeout(() => setGpsError(null), 4000);
       },
       { enableHighAccuracy: true, timeout: 8000 }
@@ -317,7 +325,9 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
         const newCoords: GeoLocation = {
           latitude: pos.coords.latitude,
           longitude: pos.coords.longitude,
-          label: report.isMock ? 'Cảnh báo: GPS có dấu hiệu giả lập' : 'Vị trí GPS thực tế của bạn',
+          label: report.isMock
+            ? (language === 'vi' ? 'Cảnh báo: GPS có dấu hiệu giả lập' : 'Warning: Mock GPS detected')
+            : (language === 'vi' ? 'Vị trí GPS thực tế của bạn' : 'Your real GPS location'),
         };
         setCurrentUserCoords(newCoords);
         if (onUserCoordsChange) {
@@ -334,7 +344,7 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
       },
       { enableHighAccuracy: true, timeout: 7000, maximumAge: 0 }
     );
-  }, []);
+  }, [onUserCoordsChange, language]);
 
   // ==========================================
   // LEAFLET MAP INITIALIZATION & UPDATE
@@ -466,8 +476,8 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
       .addTo(map)
       .bindPopup(
         `<div class="text-black font-sans text-xs p-1">
-          <strong class="text-[#00E5FF] font-black">Vị trí của bạn</strong><br/>
-          ${currentUserCoords.label || 'Đang sẵn sàng kết nối việc'}
+          <strong class="text-[#00E5FF] font-black">${language === 'vi' ? 'Vị trí của bạn' : 'Your location'}</strong><br/>
+          ${currentUserCoords.label || (language === 'vi' ? 'Đang sẵn sàng kết nối việc' : 'Ready to connect')}
         </div>`
       );
 
@@ -680,12 +690,13 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
           <div className="min-w-0">
             <div className="flex items-center space-x-1.5">
               <h3 className="text-xs sm:text-sm font-black text-white tracking-wide truncate">
-                Bản Đồ Google Maps
+                {language === 'vi' ? 'Bản Đồ Google Maps' : 'Google Maps Live Radar'}
               </h3>
               <span className="w-2 h-2 rounded-full bg-[#E0FAEB] animate-ping shrink-0" />
             </div>
             <p className="text-[10px] sm:text-[11px] text-[#C5E5EC]/80 font-medium truncate">
-              {currentUserCoords.label || 'Vị trí của bạn'} • {gigs.length} công việc
+              {currentUserCoords.label || (language === 'vi' ? 'Vị trí của bạn' : 'Your location')} • {gigs.length}{' '}
+              {language === 'vi' ? 'công việc' : 'gigs'}
             </p>
           </div>
         </div>
@@ -696,22 +707,28 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
           <div
             onClick={() => setShowMockDetectorDialog(true)}
             className="cursor-pointer px-2.5 py-1 rounded-xl bg-[#3064AE]/20 hover:bg-[#3064AE]/35 border border-[#C5E5EC]/25 text-[11px] font-bold flex items-center space-x-1.5 transition text-[#E0FAEB] shadow-2xs"
-            title="Định vị GPS tự động & Bảo mật vị trí"
+            title={language === 'vi' ? 'Định vị GPS tự động & Bảo mật vị trí' : 'Automatic GPS & Location Security'}
           >
             {isGpsLoading ? (
               <>
                 <Crosshair className="w-3 h-3 text-[#C5E5EC] animate-spin" />
-                <span className="text-[#C5E5EC]">GPS Tự Động...</span>
+                <span className="text-[#C5E5EC]">
+                  {language === 'vi' ? 'GPS Tự Động...' : 'Auto GPS...'}
+                </span>
               </>
             ) : gpsReport?.isMock ? (
               <>
                 <ShieldAlert className="w-3.5 h-3.5 text-amber-400 animate-bounce" />
-                <span className="text-amber-300">GPS Tự Động (Cảnh báo)</span>
+                <span className="text-amber-300">
+                  {language === 'vi' ? 'GPS Tự Động (Cảnh báo)' : 'Auto GPS (Warning)'}
+                </span>
               </>
             ) : (
               <>
                 <span className="w-2 h-2 rounded-full bg-[#E0FAEB] animate-pulse" />
-                <span className="text-[#E0FAEB] font-extrabold">GPS Tự Động</span>
+                <span className="text-[#E0FAEB] font-extrabold">
+                  {language === 'vi' ? 'GPS Tự Động' : 'Auto GPS'}
+                </span>
               </>
             )}
           </div>
@@ -720,7 +737,7 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
           <button
             onClick={() => setIsFullscreen((prev) => !prev)}
             className="p-1.5 sm:p-2 rounded-xl bg-[#12233B] hover:bg-[#162B48] border border-[#C5E5EC]/25 text-[#C5E5EC] transition active:scale-95 shadow-2xs cursor-pointer"
-            title={isFullscreen ? 'Thu nhỏ' : 'Toàn màn hình'}
+            title={isFullscreen ? (language === 'vi' ? 'Thu nhỏ' : 'Exit fullscreen') : (language === 'vi' ? 'Toàn màn hình' : 'Fullscreen')}
           >
             {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
           </button>
@@ -731,8 +748,18 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
       <div className="flex items-center space-x-2 overflow-x-auto pb-2 mb-2 text-xs scrollbar-none w-full">
         {/* Radius chips */}
         <div className="flex items-center space-x-1 shrink-0">
-          <span className="text-[#C5E5EC] text-[10px] font-extrabold">Bán kính:</span>
-          {RADIUS_OPTIONS.map((opt) => (
+          <span className="text-[#C5E5EC] text-[10px] font-extrabold">
+            {language === 'vi' ? 'Bán kính:' : 'Radius:'}
+          </span>
+          {[
+            { label: language === 'vi' ? '100m (KTX)' : '100m (Dorm)', value: 100 },
+            { label: language === 'vi' ? '500m (Campus)' : '500m (Campus)', value: 500 },
+            { label: '1km', value: 1000 },
+            { label: '3km', value: 3000 },
+            { label: '5km', value: 5000 },
+            { label: language === 'vi' ? '15km (Thành phố)' : '15km (City)', value: 15000 },
+            { label: language === 'vi' ? '🌐 Toàn quốc' : '🌐 Nationwide', value: 2500000 },
+          ].map((opt) => (
             <button
               key={opt.value}
               onClick={() => onRadiusChange(opt.value)}
@@ -753,7 +780,9 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
 
         {/* Campus Hubs chips */}
         <div className="flex items-center space-x-1 shrink-0">
-          <span className="text-[#C5E5EC] text-[10px] font-extrabold">Khu vực:</span>
+          <span className="text-[#C5E5EC] text-[10px] font-extrabold">
+            {language === 'vi' ? 'Khu vực:' : 'Region:'}
+          </span>
           {Object.entries(VIETNAM_HUBS).map(([key, hub]) => {
             const isCurrent =
               currentUserCoords.latitude === hub.latitude &&
@@ -777,7 +806,9 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
         {/* Map Layers */}
         <span className="text-[#C5E5EC]/30 shrink-0">|</span>
         <div className="flex items-center space-x-1 shrink-0">
-          <span className="text-[#C5E5EC]/80 text-[10px] font-bold">Lớp nền:</span>
+          <span className="text-[#C5E5EC]/80 text-[10px] font-bold">
+            {language === 'vi' ? 'Lớp nền:' : 'Layers:'}
+          </span>
           <button
             onClick={() => setMapLayer('GOOGLE_STREETS')}
             className={`px-2 py-0.5 rounded-lg text-[10px] font-bold whitespace-nowrap transition border active:scale-95 cursor-pointer ${
@@ -786,7 +817,7 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
                 : 'bg-[#12233B] text-[#C5E5EC]/80 border-[#C5E5EC]/20 hover:text-white hover:bg-[#162B48]'
             }`}
           >
-            Chuẩn
+            {language === 'vi' ? 'Chuẩn' : 'Standard'}
           </button>
           <button
             onClick={() => setMapLayer('GOOGLE_SATELLITE')}
@@ -796,7 +827,7 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
                 : 'bg-[#12233B] text-[#C5E5EC]/80 border-[#C5E5EC]/20 hover:text-white hover:bg-[#162B48]'
             }`}
           >
-            Vệ Tinh
+            {language === 'vi' ? 'Vệ Tinh' : 'Satellite'}
           </button>
           <button
             onClick={() => setMapLayer('DARK_CYBER')}
@@ -818,15 +849,22 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
           <div className="flex items-center space-x-2">
             <ShieldAlert className="w-4 h-4 text-red-400 shrink-0 animate-bounce" />
             <div>
-              <strong className="text-red-300 font-extrabold">Cảnh Báo Chống Fake GPS:</strong>{' '}
-              <span>{gpsReport.reason || 'Phát hiện vị trí giả lập / Mock Location'}</span>
+              <strong className="text-red-300 font-extrabold">
+                {language === 'vi' ? 'Cảnh Báo Chống Fake GPS:' : 'Anti-Mock GPS Alert:'}
+              </strong>{' '}
+              <span>
+                {gpsReport.reason ||
+                  (language === 'vi'
+                    ? 'Phát hiện vị trí giả lập / Mock Location'
+                    : 'Mock location detected')}
+              </span>
             </div>
           </div>
           <button
             onClick={() => setShowMockDetectorDialog(true)}
             className="px-2 py-0.5 rounded-lg bg-red-500/30 hover:bg-red-500/40 border border-red-500/40 text-white font-bold text-[10px] shrink-0"
           >
-            Chi tiết
+            {language === 'vi' ? 'Chi tiết' : 'Details'}
           </button>
         </div>
       )}
@@ -854,21 +892,21 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
           <button
             onClick={handleZoomIn}
             className="p-2.5 rounded-xl bg-[#0E1B2E]/95 hover:bg-[#13243C] text-[#C5E5EC] hover:text-white border border-[#C5E5EC]/30 shadow-lg transition backdrop-blur-sm active:scale-95 cursor-pointer"
-            title="Phóng to"
+            title={language === 'vi' ? 'Phóng to' : 'Zoom in'}
           >
             <ZoomIn className="w-4 h-4" />
           </button>
           <button
             onClick={handleZoomOut}
             className="p-2.5 rounded-xl bg-[#0E1B2E]/95 hover:bg-[#13243C] text-[#C5E5EC] hover:text-white border border-[#C5E5EC]/30 shadow-lg transition backdrop-blur-sm active:scale-95 cursor-pointer"
-            title="Thu nhỏ"
+            title={language === 'vi' ? 'Thu nhỏ' : 'Zoom out'}
           >
             <ZoomOut className="w-4 h-4" />
           </button>
           <button
             onClick={handleRecenter}
             className="p-2.5 rounded-xl bg-[#0E1B2E]/95 hover:bg-[#13243C] text-[#E0FAEB] border border-[#C5E5EC]/30 shadow-lg transition backdrop-blur-sm active:scale-95 cursor-pointer"
-            title="Tâm vị trí của tôi"
+            title={language === 'vi' ? 'Tâm vị trí của tôi' : 'Recenter my location'}
           >
             <Crosshair className="w-4 h-4" />
           </button>
@@ -877,12 +915,18 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
         {/* Compass Badge in Corner */}
         <div className="absolute top-4 left-4 z-20 pointer-events-none flex items-center space-x-1.5 bg-[#0E1B2E]/90 backdrop-blur-md px-3 py-1 rounded-xl text-[10px] text-[#C5E5EC] border border-[#C5E5EC]/30 shadow-md">
           <Compass className="w-3.5 h-3.5 text-[#E0FAEB] animate-spin-slow" />
-          <span className="font-bold">ĐỊNH VỊ THỜI GIAN THỰC</span>
+          <span className="font-bold">
+            {language === 'vi' ? 'ĐỊNH VỊ THỜI GIAN THỰC' : 'REAL-TIME GPS TELEMETRY'}
+          </span>
         </div>
 
         {/* Map Drag / Zoom Hint overlay */}
         <div className="absolute bottom-3 left-4 z-20 pointer-events-none hidden sm:flex items-center space-x-2 bg-[#0E1B2E]/90 backdrop-blur-md px-2.5 py-1 rounded-xl text-[10px] text-[#C5E5EC]/80 border border-[#C5E5EC]/20 shadow-xs">
-          <span>💡 Kéo bản đồ để di chuyển • Lăn chuột / chụm tay để phóng to thu nhỏ</span>
+          <span>
+            {language === 'vi'
+              ? '💡 Kéo bản đồ để di chuyển • Lăn chuột / chụm tay để phóng to thu nhỏ'
+              : '💡 Drag map to pan • Pinch / scroll to zoom'}
+          </span>
         </div>
       </div>
 
@@ -900,7 +944,8 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
                 <div className="flex items-center space-x-2">
                   {selectedGig.isFlash && (
                     <span className="flex items-center text-[10px] font-black text-amber-200 bg-amber-950/60 px-2 py-0.5 rounded border border-amber-400/30">
-                      <Zap className="w-3 h-3 mr-0.5 fill-current text-amber-300" /> HỎA TỐC
+                      <Zap className="w-3 h-3 mr-0.5 fill-current text-amber-300" />{' '}
+                      {language === 'vi' ? 'HỎA TỐC' : 'FLASH'}
                     </span>
                   )}
                   <span className="text-[10px] px-2 py-0.5 rounded bg-[#3064AE]/30 text-[#C5E5EC] font-bold border border-[#C5E5EC]/25">
@@ -921,7 +966,13 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
                 {formatVnd(selectedGig.price)}
               </span>
               <span className="text-[10px] text-[#C5E5EC]/60">
-                {selectedGig.isReverseAuction ? 'Đấu giá ngược' : 'Đã khóa Smart Escrow'}
+                {selectedGig.isReverseAuction
+                  ? language === 'vi'
+                    ? 'Đấu giá ngược'
+                    : 'Reverse auction'
+                  : language === 'vi'
+                  ? 'Đã khóa Smart Escrow'
+                  : 'Smart Escrow locked'}
               </span>
             </div>
           </div>
@@ -936,7 +987,8 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
                 <div className="min-w-0">
                   <div className="flex items-center space-x-1.5">
                     <span className="text-white font-black text-xs truncate">
-                      {selectedGig.category === 'Đưa đón & SafeWalk' ? '🚶‍♂️' : selectedGig.isFlash || selectedGig.category === 'Vận chuyển & Ship' ? '🛵' : '🚴‍♂️'} Người làm đang cách bạn{' '}
+                      {selectedGig.category === 'Đưa đón & SafeWalk' ? '🚶‍♂️' : selectedGig.isFlash || selectedGig.category === 'Vận chuyển & Ship' ? '🛵' : '🚴‍♂️'}{' '}
+                      {language === 'vi' ? 'Người làm đang cách bạn ' : 'Worker is away from you '}
                       <strong className="text-[#E0FAEB]">
                         {(() => {
                           const totalD = osrmRouteDetails?.distanceMeters ?? routeStats.distanceMeters ?? 450;
@@ -948,14 +1000,16 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
                     <span className="w-2 h-2 rounded-full bg-[#E0FAEB] animate-ping shrink-0" />
                   </div>
                   <p className="text-[11px] text-[#C5E5EC]/80 font-semibold truncate">
-                    Khoảng ~
+                    {language === 'vi' ? 'Khoảng ~' : 'Approx ~'}
                     {(() => {
                       const totalD = osrmRouteDetails?.distanceMeters ?? routeStats.distanceMeters ?? 450;
                       const rem = Math.max(30, Math.round(totalD * (1 - trackingProgress)));
                       const isWalk = selectedGig.category === 'Đưa đón & SafeWalk';
                       return Math.max(1, Math.ceil(rem / (isWalk ? 75 : 350)));
                     })()}
-                    {' '}phút tới nơi • Cập nhật chuyển động GPS thời gian thực
+                    {language === 'vi'
+                      ? ' phút tới nơi • Cập nhật chuyển động GPS thời gian thực'
+                      : ' mins away • Realtime GPS telemetry updates'}
                   </p>
                 </div>
               </div>
@@ -968,7 +1022,7 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
                     const isWalk = selectedGig.category === 'Đưa đón & SafeWalk';
                     return Math.max(1, Math.ceil(rem / (isWalk ? 75 : 350)));
                   })()}{' '}
-                  PHÚT
+                  {language === 'vi' ? 'PHÚT' : 'MINS'}
                 </span>
               </div>
             </div>
@@ -980,22 +1034,41 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
               <div className="flex items-center space-x-1.5 text-[#C5E5EC] font-bold">
                 <Navigation className="w-4 h-4 text-[#C5E5EC]" />
                 <span>
-                  Cách bạn: <strong className="text-white">{osrmRouteDetails ? (osrmRouteDetails.distanceMeters >= 1000 ? `${(osrmRouteDetails.distanceMeters / 1000).toFixed(1)} km` : `${osrmRouteDetails.distanceMeters}m`) : routeStats.formattedDistance}</strong>
+                  {language === 'vi' ? 'Cách bạn: ' : 'Distance: '}
+                  <strong className="text-white">
+                    {osrmRouteDetails
+                      ? osrmRouteDetails.distanceMeters >= 1000
+                        ? `${(osrmRouteDetails.distanceMeters / 1000).toFixed(1)} km`
+                        : `${osrmRouteDetails.distanceMeters}m`
+                      : routeStats.formattedDistance}
+                  </strong>
                 </span>
               </div>
 
               <div className="flex items-center space-x-1 text-[#C5E5EC]/80 font-medium">
                 <Footprints className="w-3.5 h-3.5 text-[#E0FAEB]" />
-                <span>~{osrmRouteDetails?.walkMinutes ?? routeStats.walkMinutes}p đi bộ</span>
+                <span>
+                  ~{osrmRouteDetails?.walkMinutes ?? routeStats.walkMinutes}{' '}
+                  {language === 'vi' ? 'p đi bộ' : 'm walk'}
+                </span>
               </div>
 
               <div className="flex items-center space-x-1 text-[#C5E5EC]/80 font-medium">
                 <Bike className="w-3.5 h-3.5 text-amber-300" />
-                <span>~{osrmRouteDetails?.motoMinutes ?? routeStats.motoMinutes}p xe máy</span>
+                <span>
+                  ~{osrmRouteDetails?.motoMinutes ?? routeStats.motoMinutes}{' '}
+                  {language === 'vi' ? 'p xe máy' : 'm bike'}
+                </span>
               </div>
 
               <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-[#3064AE]/30 text-[#C5E5EC] border border-[#C5E5EC]/25">
-                {osrmRouteDetails?.routeSource === 'OSRM_REAL_ROAD' ? '🗺️ Google/OSRM Lộ trình thực' : '🧭 Lộ trình nội khu'}
+                {osrmRouteDetails?.routeSource === 'OSRM_REAL_ROAD'
+                  ? language === 'vi'
+                    ? '🗺️ Google/OSRM Lộ trình thực'
+                    : '🗺️ OSRM Real Road Route'
+                  : language === 'vi'
+                  ? '🧭 Lộ trình nội khu'
+                  : '🧭 Campus Internal Route'}
               </span>
             </div>
 
@@ -1011,7 +1084,13 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
                 }`}
               >
                 <span className={`w-2 h-2 rounded-full ${isLiveTracking ? 'bg-[#E0FAEB] animate-ping' : 'bg-slate-400'}`} />
-                <span>{isLiveTracking ? 'Live Tracking 🛵' : 'Bật Theo Dõi'}</span>
+                <span>
+                  {isLiveTracking
+                    ? 'Live Tracking 🛵'
+                    : language === 'vi'
+                    ? 'Bật Theo Dõi'
+                    : 'Track Route'}
+                </span>
               </button>
 
               {/* Direct Google Maps Direction CTA */}
@@ -1066,10 +1145,12 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
               </div>
               <div>
                 <h3 className="text-sm font-extrabold text-white">
-                  Kiểm Định Chống Fake GPS (Anti-Mock)
+                  {language === 'vi' ? 'Kiểm Định Chống Fake GPS (Anti-Mock)' : 'Anti-Mock GPS Integrity Check'}
                 </h3>
                 <p className="text-[#C5E5EC]/70 text-[11px]">
-                  Bảo vệ xác thực vị trí nhận kèo và check-in Escrow
+                  {language === 'vi'
+                    ? 'Bảo vệ xác thực vị trí nhận kèo và check-in Escrow'
+                    : 'Validating real location for gig claims & Escrow check-ins'}
                 </p>
               </div>
             </div>
@@ -1083,46 +1164,60 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
               }`}
             >
               <div className="flex items-center justify-between font-bold mb-1">
-                <span>Trạng thái định vị:</span>
+                <span>{language === 'vi' ? 'Trạng thái định vị:' : 'Location status:'}</span>
                 <span className="uppercase font-black tracking-wider">
-                  {gpsReport?.isMock ? 'PHÁT HIỆN FAKE GPS' : 'VỊ TRÍ THỰC HỢP LỆ'}
+                  {gpsReport?.isMock
+                    ? (language === 'vi' ? 'PHÁT HIỆN FAKE GPS' : 'MOCK GPS DETECTED')
+                    : (language === 'vi' ? 'VỊ TRÍ THỰC HỢP LỆ' : 'VALID REAL LOCATION')}
                 </span>
               </div>
               <p className="text-[11px] text-[#C5E5EC]/80">
                 {gpsReport?.reason ||
-                  'Tín hiệu GPS có độ dao động tự nhiên, không phát hiện phần mềm giả lập Mock Location.'}
+                  (language === 'vi'
+                    ? 'Tín hiệu GPS có độ dao động tự nhiên, không phát hiện phần mềm giả lập Mock Location.'
+                    : 'GPS signal exhibits natural variance; no mock location provider detected.')}
               </p>
             </div>
 
             {/* Technical telemetry inspection */}
             <div className="p-3.5 rounded-2xl bg-[#12233B] border border-[#C5E5EC]/20 space-y-2 text-[11px]">
               <div className="flex justify-between items-center text-[#C5E5EC]/80">
-                <span>Sai số GPS thực tế:</span>
+                <span>{language === 'vi' ? 'Sai số GPS thực tế:' : 'Real GPS Accuracy:'}</span>
                 <strong className="font-mono text-[#E0FAEB]">
-                  {gpsReport ? `~${gpsReport.accuracyMeters} mét` : '15 mét'}
+                  {gpsReport
+                    ? (language === 'vi' ? `~${gpsReport.accuracyMeters} mét` : `~${gpsReport.accuracyMeters} meters`)
+                    : (language === 'vi' ? '15 mét' : '15 meters')}
                 </strong>
               </div>
               <div className="flex justify-between items-center text-[#C5E5EC]/80">
-                <span>Vệ tinh GNSS kết nối:</span>
+                <span>{language === 'vi' ? 'Vệ tinh GNSS kết nối:' : 'Connected GNSS Satellites:'}</span>
                 <strong className="font-mono text-[#E0FAEB]">
-                  {gpsReport ? `${gpsReport.satellitesEstimated} vệ tinh` : '9 vệ tinh'}
+                  {gpsReport
+                    ? (language === 'vi' ? `${gpsReport.satellitesEstimated} vệ tinh` : `${gpsReport.satellitesEstimated} satellites`)
+                    : (language === 'vi' ? '9 vệ tinh' : '9 satellites')}
                 </strong>
               </div>
               <div className="flex justify-between items-center text-[#C5E5EC]/80">
-                <span>Kiểm tra dao động Jitter:</span>
+                <span>{language === 'vi' ? 'Kiểm tra dao động Jitter:' : 'Jitter Variance Check:'}</span>
                 <strong className="text-white">
-                  {gpsReport?.isMock ? 'Bị khóa cứng (0.000m)' : 'Tự nhiên (Đạt chuẩn)'}
+                  {gpsReport?.isMock
+                    ? (language === 'vi' ? 'Bị khóa cứng (0.000m)' : 'Frozen lock (0.000m)')
+                    : (language === 'vi' ? 'Tự nhiên (Đạt chuẩn)' : 'Natural (Passed)')}
                 </strong>
               </div>
               <div className="flex justify-between items-center text-[#C5E5EC]/80">
-                <span>Cờ Mock Provider:</span>
+                <span>{language === 'vi' ? 'Cờ Mock Provider:' : 'Mock Provider Flag:'}</span>
                 <strong className={gpsReport?.isMock ? 'text-red-400' : 'text-[#E0FAEB]'}>
-                  {gpsReport?.isMock ? 'Phát hiện (isMock=true)' : 'Không (An toàn)'}
+                  {gpsReport?.isMock
+                    ? (language === 'vi' ? 'Phát hiện (isMock=true)' : 'Detected (isMock=true)')
+                    : (language === 'vi' ? 'Không (An toàn)' : 'None (Secure)')}
                 </strong>
               </div>
               <div className="flex justify-between items-center text-[#C5E5EC]/80">
-                <span>Quy chế Escrow:</span>
-                <strong className="text-[#C5E5EC]">Bắt buộc GPS thực để nhận tiền</strong>
+                <span>{language === 'vi' ? 'Quy chế Escrow:' : 'Escrow Policy:'}</span>
+                <strong className="text-[#C5E5EC]">
+                  {language === 'vi' ? 'Bắt buộc GPS thực để nhận tiền' : 'Real GPS required for disbursement'}
+                </strong>
               </div>
             </div>
 
@@ -1135,7 +1230,9 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
                 className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#3064AE] via-[#417AC6] to-[#C5E5EC] hover:brightness-110 text-white font-extrabold transition flex items-center justify-center space-x-1.5 shadow-md active:scale-95 border border-[#E0FAEB]/30 cursor-pointer"
               >
                 <Crosshair className="w-3.5 h-3.5" />
-                <span>Quét Cập Nhật Tọa Độ GPS Thực Tế</span>
+                <span>
+                  {language === 'vi' ? 'Quét Cập Nhật Tọa Độ GPS Thực Tế' : 'Scan & Update Real GPS Coordinates'}
+                </span>
               </button>
             </div>
           </div>

@@ -39,7 +39,7 @@ export const EduEmailVerificationModal: React.FC<EduEmailVerificationModalProps>
   isOpen,
   onClose,
 }) => {
-  const { currentUser, updateUserProfile, showNotification } = useGigMe();
+  const { currentUser, updateUserProfile, showNotification, language } = useGigMe();
 
   const [step, setStep] = useState<'INPUT_EMAIL' | 'ENTER_OTP' | 'SUCCESS'>('INPUT_EMAIL');
   const [email, setEmail] = useState('');
@@ -62,9 +62,13 @@ export const EduEmailVerificationModal: React.FC<EduEmailVerificationModalProps>
         setDetectedSchool(UNIVERSITY_MAP[domain]);
       } else if (domain.endsWith('.edu.vn')) {
         const schoolCode = domain.replace('.edu.vn', '').toUpperCase();
-        setDetectedSchool(`Đại Học ${schoolCode}`);
+        setDetectedSchool(
+          language === 'vi' ? `Đại Học ${schoolCode}` : `${schoolCode} University`
+        );
       } else if (domain.endsWith('.edu')) {
-        setDetectedSchool('Đại Học Quốc Tế (.edu)');
+        setDetectedSchool(
+          language === 'vi' ? 'Đại Học Quốc Tế (.edu)' : 'International University (.edu)'
+        );
       } else {
         setDetectedSchool('');
       }
@@ -77,7 +81,11 @@ export const EduEmailVerificationModal: React.FC<EduEmailVerificationModalProps>
     const clean = email.trim().toLowerCase();
     const isEdu = clean.endsWith('.edu.vn') || clean.endsWith('.edu');
     if (!isEdu || !clean.includes('@')) {
-      setErrorMsg('Vui lòng nhập địa chỉ email có đuôi trường học (.edu.vn hoặc .edu)');
+      setErrorMsg(
+        language === 'vi'
+          ? 'Vui lòng nhập địa chỉ email có đuôi trường học (.edu.vn hoặc .edu)'
+          : 'Please enter a valid educational domain email (.edu.vn or .edu)'
+      );
       return;
     }
 
@@ -94,8 +102,10 @@ export const EduEmailVerificationModal: React.FC<EduEmailVerificationModalProps>
       setCountdown(60);
       playNotificationSound('DING_DEFAULT');
       showNotification(
-        'Mã Xác Thực Sinh Viên Đã Gửi',
-        `Mã OTP của bạn: ${otpCode} (Gửi đến ${clean})`
+        language === 'vi' ? 'Mã Xác Thực Sinh Viên Đã Gửi' : 'Student Verification Code Sent',
+        language === 'vi'
+          ? `Mã OTP của bạn: ${otpCode} (Gửi đến ${clean})`
+          : `Your OTP code: ${otpCode} (Sent to ${clean})`
       );
 
       // Countdown interval
@@ -113,12 +123,16 @@ export const EduEmailVerificationModal: React.FC<EduEmailVerificationModalProps>
 
   const handleVerifyOtp = () => {
     if (!otpInput || otpInput.trim() !== generatedOtp) {
-      setErrorMsg('Mã OTP không chính xác. Vui lòng kiểm tra lại mã gồm 6 số.');
+      setErrorMsg(
+        language === 'vi'
+          ? 'Mã OTP không chính xác. Vui lòng kiểm tra lại mã gồm 6 số.'
+          : 'Incorrect OTP code. Please enter the valid 6-digit code.'
+      );
       return;
     }
 
     setErrorMsg('');
-    const schoolName = detectedSchool || 'Đại Học Chính Quy';
+    const schoolName = detectedSchool || (language === 'vi' ? 'Đại Học Chính Quy' : 'Accredited University');
 
     // Update currentUser with verified edu status & trust score
     if (currentUser) {
@@ -136,8 +150,10 @@ export const EduEmailVerificationModal: React.FC<EduEmailVerificationModalProps>
     playNotificationSound('LEVEL_UP');
     setStep('SUCCESS');
     showNotification(
-      '🎉 Xác Thực Thành Công!',
-      `Đã cấp Tích Xanh Sinh Viên ${schoolName} và cộng +50 TrustScore.`
+      language === 'vi' ? '🎉 Xác Thực Thành Công!' : '🎉 Verification Successful!',
+      language === 'vi'
+        ? `Đã cấp Tích Xanh Sinh Viên ${schoolName} và cộng +50 TrustScore.`
+        : `Verified badge granted for ${schoolName} with +50 TrustScore.`
     );
   };
 
@@ -146,7 +162,7 @@ export const EduEmailVerificationModal: React.FC<EduEmailVerificationModalProps>
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm p-4 animate-fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-xs p-4 animate-fade-in"
     >
       <div
         onClick={(e) => e.stopPropagation()}
@@ -163,13 +179,17 @@ export const EduEmailVerificationModal: React.FC<EduEmailVerificationModalProps>
             </div>
             <div>
               <h3 className="font-black text-sm sm:text-base text-white flex items-center space-x-1.5">
-                <span>Xác Thực Email Trường (.edu.vn)</span>
+                <span>
+                  {language === 'vi' ? 'Xác Thực Email Trường (.edu.vn)' : 'University Email Verification (.edu)'}
+                </span>
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-400/30 font-bold">
-                  Tích Xanh Chính Quy
+                  {language === 'vi' ? 'Tích Xanh Chính Quy' : 'Official Blue Badge'}
                 </span>
               </h3>
               <p className="text-[11px] text-[#C5E5EC]/70">
-                Nhận huy hiệu vinh danh, gia tăng 100% độ tin cậy và mở khóa gói thầu lớn
+                {language === 'vi'
+                  ? 'Nhận huy hiệu vinh danh, gia tăng 100% độ tin cậy và mở khóa gói thầu lớn'
+                  : 'Earn honorary badge, boost credibility 100% & unlock high-value gigs'}
               </p>
             </div>
           </div>
@@ -187,18 +207,38 @@ export const EduEmailVerificationModal: React.FC<EduEmailVerificationModalProps>
             <div className="p-3.5 rounded-2xl bg-[#12233B] border border-[#C5E5EC]/20 text-xs space-y-2">
               <div className="flex items-center space-x-2 text-sky-300 font-bold">
                 <ShieldCheck className="w-4 h-4 text-sky-400" />
-                <span>Đặc quyền khi xác thực email .edu.vn:</span>
+                <span>
+                  {language === 'vi'
+                    ? 'Đặc quyền khi xác thực email .edu.vn:'
+                    : 'Benefits of .edu university email verification:'}
+                </span>
               </div>
               <ul className="space-y-1 text-[#C5E5EC]/80 text-[11px] list-disc list-inside">
-                <li>Huy hiệu Tích Xanh & Tên trường hiển thị tại Chat, Xếp Hạng & Bài Đăng</li>
-                <li>Cộng ngay <strong>+50 Điểm Tín Nhiệm (TrustScore)</strong></li>
-                <li>Được ưu tiên chọn khi nộp đơn vào các dự án trợ giảng, đồ án học thuật</li>
+                <li>
+                  {language === 'vi'
+                    ? 'Huy hiệu Tích Xanh & Tên trường hiển thị tại Chat, Xếp Hạng & Bài Đăng'
+                    : 'Blue Checkmark & School Name shown in Chat, Profile & Postings'}
+                </li>
+                <li>
+                  {language === 'vi' ? (
+                    <>Cộng ngay <strong>+50 Điểm Tín Nhiệm (TrustScore)</strong></>
+                  ) : (
+                    <>Instant <strong>+50 TrustScore bonus</strong></>
+                  )}
+                </li>
+                <li>
+                  {language === 'vi'
+                    ? 'Được ưu tiên chọn khi nộp đơn vào các dự án trợ giảng, đồ án học thuật'
+                    : 'Preferred candidate for tutoring, research and academic gigs'}
+                </li>
               </ul>
             </div>
 
             <div className="space-y-1.5">
               <label className="block text-xs font-bold text-[#C5E5EC]/90">
-                Nhập địa chỉ Email do trường Đại học cấp:
+                {language === 'vi'
+                  ? 'Nhập địa chỉ Email do trường Đại học cấp:'
+                  : 'Enter your official university-issued email:'}
               </label>
               <div className="relative">
                 <Mail className="w-4 h-4 text-[#C5E5EC]/50 absolute left-3.5 top-3" />
@@ -206,7 +246,11 @@ export const EduEmailVerificationModal: React.FC<EduEmailVerificationModalProps>
                   type="email"
                   value={email}
                   onChange={(e) => handleEmailChange(e.target.value)}
-                  placeholder="ví dụ: sinhvien@hcmut.edu.vn, ten@tdtu.edu.vn..."
+                  placeholder={
+                    language === 'vi'
+                      ? 'ví dụ: sinhvien@hcmut.edu.vn, ten@tdtu.edu.vn...'
+                      : 'e.g. student@hcmut.edu.vn, name@university.edu...'
+                  }
                   className="w-full pl-10 pr-3.5 py-2.5 rounded-xl bg-[#12233B] border border-[#C5E5EC]/30 text-white placeholder:text-[#C5E5EC]/40 text-xs focus:border-sky-400 focus:outline-none transition"
                 />
               </div>
@@ -215,7 +259,8 @@ export const EduEmailVerificationModal: React.FC<EduEmailVerificationModalProps>
                 <div className="flex items-center space-x-2 p-2 rounded-xl bg-sky-950/40 border border-sky-500/30 text-sky-300 text-xs mt-1">
                   <CheckCircle2 className="w-4 h-4 text-sky-400 shrink-0" />
                   <span>
-                    Trường nhận diện: <strong>{detectedSchool}</strong>
+                    {language === 'vi' ? 'Trường nhận diện: ' : 'Detected Institution: '}
+                    <strong>{detectedSchool}</strong>
                   </span>
                 </div>
               )}
@@ -230,7 +275,9 @@ export const EduEmailVerificationModal: React.FC<EduEmailVerificationModalProps>
 
             {/* Quick Demo Selector */}
             <div className="space-y-1 pt-1">
-              <span className="text-[10px] text-[#C5E5EC]/60 block">Chọn nhanh trường mẫu để thử nghiệm:</span>
+              <span className="text-[10px] text-[#C5E5EC]/60 block">
+                {language === 'vi' ? 'Chọn nhanh trường mẫu để thử nghiệm:' : 'Quick test with campus presets:'}
+              </span>
               <div className="flex flex-wrap gap-1.5">
                 {[
                   { domain: 'hcmut.edu.vn', label: 'BK TP.HCM' },
@@ -257,11 +304,13 @@ export const EduEmailVerificationModal: React.FC<EduEmailVerificationModalProps>
               className="w-full py-2.5 rounded-xl bg-gradient-to-r from-sky-500 via-blue-600 to-cyan-500 text-white font-extrabold text-xs sm:text-sm hover:brightness-110 shadow-lg shadow-sky-500/20 transition flex items-center justify-center space-x-1.5 cursor-pointer disabled:opacity-50"
             >
               {isSending ? (
-                <span>Đang tạo mã OTP...</span>
+                <span>{language === 'vi' ? 'Đang tạo mã OTP...' : 'Generating OTP code...'}</span>
               ) : (
                 <>
                   <Send className="w-4 h-4" />
-                  <span>Gửi Mã Xác Thực OTP 6 Số &rarr;</span>
+                  <span>
+                    {language === 'vi' ? 'Gửi Mã Xác Thực OTP 6 Số →' : 'Send 6-Digit OTP Code →'}
+                  </span>
                 </>
               )}
             </button>
@@ -273,25 +322,30 @@ export const EduEmailVerificationModal: React.FC<EduEmailVerificationModalProps>
           <div className="py-4 space-y-4">
             <div className="p-3.5 rounded-2xl bg-sky-950/40 border border-sky-400/30 text-xs space-y-1.5">
               <div className="flex items-center justify-between">
-                <span className="text-sky-300 font-bold">Mã OTP đã được gửi đến:</span>
+                <span className="text-sky-300 font-bold">
+                  {language === 'vi' ? 'Mã OTP đã được gửi đến:' : 'OTP code sent to:'}
+                </span>
                 <span className="font-mono text-white font-bold">{email}</span>
               </div>
-              {/* Simulation Banner for Easy Verification */}
+              {/* Simulation Banner */}
               <div className="p-2 rounded-xl bg-sky-500/20 border border-sky-400/40 flex items-center justify-between text-xs">
-                <span className="text-sky-200">Mã OTP kiểm thử: <strong className="font-mono text-white text-sm tracking-widest">{generatedOtp}</strong></span>
+                <span className="text-sky-200">
+                  {language === 'vi' ? 'Mã OTP kiểm thử: ' : 'Test OTP code: '}
+                  <strong className="font-mono text-white text-sm tracking-widest">{generatedOtp}</strong>
+                </span>
                 <button
                   type="button"
                   onClick={() => setOtpInput(generatedOtp)}
                   className="px-2 py-0.5 rounded bg-sky-500 hover:bg-sky-400 text-white font-bold text-[10px] transition cursor-pointer"
                 >
-                  Tự động điền
+                  {language === 'vi' ? 'Tự động điền' : 'Auto-fill'}
                 </button>
               </div>
             </div>
 
             <div className="space-y-1.5">
               <label className="block text-xs font-bold text-[#C5E5EC]/90">
-                Nhập mã OTP 6 chữ số:
+                {language === 'vi' ? 'Nhập mã OTP 6 chữ số:' : 'Enter 6-digit OTP code:'}
               </label>
               <div className="relative">
                 <KeyRound className="w-4 h-4 text-[#C5E5EC]/50 absolute left-3.5 top-3" />
@@ -303,7 +357,7 @@ export const EduEmailVerificationModal: React.FC<EduEmailVerificationModalProps>
                     setOtpInput(e.target.value.replace(/\D/g, ''));
                     setErrorMsg('');
                   }}
-                  placeholder="ví dụ: 682914"
+                  placeholder={language === 'vi' ? 'ví dụ: 682914' : 'e.g. 682914'}
                   className="w-full pl-10 pr-3.5 py-2.5 rounded-xl bg-[#12233B] border border-[#C5E5EC]/30 text-white placeholder:text-[#C5E5EC]/40 text-sm font-mono tracking-widest text-center font-black focus:border-sky-400 focus:outline-none transition"
                 />
               </div>
@@ -322,18 +376,20 @@ export const EduEmailVerificationModal: React.FC<EduEmailVerificationModalProps>
                 onClick={() => setStep('INPUT_EMAIL')}
                 className="text-[#C5E5EC]/70 hover:text-white underline text-[11px] cursor-pointer"
               >
-                &larr; Đổi địa chỉ email khác
+                {language === 'vi' ? '← Đổi địa chỉ email khác' : '← Change email address'}
               </button>
 
               {countdown > 0 ? (
-                <span className="text-[11px] text-[#C5E5EC]/60">Gửi lại mã sau: {countdown}s</span>
+                <span className="text-[11px] text-[#C5E5EC]/60">
+                  {language === 'vi' ? `Gửi lại mã sau: ${countdown}s` : `Resend in: ${countdown}s`}
+                </span>
               ) : (
                 <button
                   type="button"
                   onClick={handleSendOtp}
                   className="text-sky-300 hover:text-sky-200 font-bold text-[11px] underline cursor-pointer"
                 >
-                  Gửi lại mã OTP
+                  {language === 'vi' ? 'Gửi lại mã OTP' : 'Resend OTP'}
                 </button>
               )}
             </div>
@@ -343,7 +399,9 @@ export const EduEmailVerificationModal: React.FC<EduEmailVerificationModalProps>
               className="w-full py-2.5 rounded-xl bg-gradient-to-r from-sky-500 via-blue-600 to-cyan-500 text-white font-extrabold text-xs sm:text-sm hover:brightness-110 shadow-lg shadow-sky-500/20 transition flex items-center justify-center space-x-1.5 cursor-pointer"
             >
               <CheckCircle2 className="w-4 h-4" />
-              <span>Xác Thực Tích Xanh Sinh Viên</span>
+              <span>
+                {language === 'vi' ? 'Xác Thực Tích Xanh Sinh Viên' : 'Verify Student Blue Badge'}
+              </span>
             </button>
           </div>
         )}
@@ -357,24 +415,37 @@ export const EduEmailVerificationModal: React.FC<EduEmailVerificationModalProps>
 
             <div className="space-y-1">
               <h4 className="text-base sm:text-lg font-black text-white">
-                Chúc Mừng Bạn Đã Nhận Tích Xanh!
+                {language === 'vi' ? 'Chúc Mừng Bạn Đã Nhận Tích Xanh!' : 'Congratulations on Your Blue Badge!'}
               </h4>
               <p className="text-xs text-[#C5E5EC]/80 max-w-xs mx-auto">
-                Tài khoản của bạn đã được liên kết chính thức với trường{' '}
-                <strong className="text-sky-300">{detectedSchool || 'Đại Học Chính Quy'}</strong>
+                {language === 'vi' ? (
+                  <>
+                    Tài khoản của bạn đã được liên kết chính thức với trường{' '}
+                    <strong className="text-sky-300">{detectedSchool || 'Đại Học Chính Quy'}</strong>
+                  </>
+                ) : (
+                  <>
+                    Your account is now officially verified with{' '}
+                    <strong className="text-sky-300">{detectedSchool || 'Accredited University'}</strong>
+                  </>
+                )}
               </p>
             </div>
 
             <div className="p-3.5 rounded-2xl bg-[#12233B] border border-sky-400/30 max-w-sm mx-auto flex items-center justify-around text-xs">
               <div>
-                <span className="text-[10px] text-[#C5E5EC]/70 block">Huy Hiệu Cấp</span>
+                <span className="text-[10px] text-[#C5E5EC]/70 block">
+                  {language === 'vi' ? 'Huy Hiệu Cấp' : 'Badge Awarded'}
+                </span>
                 <span className="font-extrabold text-sky-300 flex items-center space-x-1">
                   <Sparkles className="w-3.5 h-3.5 text-sky-400" />
-                  <span>Tích Xanh .edu.vn</span>
+                  <span>{language === 'vi' ? 'Tích Xanh .edu.vn' : 'Verified .edu Badge'}</span>
                 </span>
               </div>
               <div className="border-l border-[#C5E5EC]/20 pl-4">
-                <span className="text-[10px] text-[#C5E5EC]/70 block">Thưởng Tín Nhiệm</span>
+                <span className="text-[10px] text-[#C5E5EC]/70 block">
+                  {language === 'vi' ? 'Thưởng Tín Nhiệm' : 'Trust Bonus'}
+                </span>
                 <span className="font-extrabold text-emerald-400 font-mono text-sm">+50 Trust</span>
               </div>
             </div>
@@ -383,7 +454,7 @@ export const EduEmailVerificationModal: React.FC<EduEmailVerificationModalProps>
               onClick={onClose}
               className="px-6 py-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-white font-extrabold text-xs sm:text-sm shadow-md transition cursor-pointer"
             >
-              Hoàn Tất & Xem Hồ Sơ
+              {language === 'vi' ? 'Hoàn Tất & Xem Hồ Sơ' : 'Finish & View Profile'}
             </button>
           </div>
         )}

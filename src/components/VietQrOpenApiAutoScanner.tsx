@@ -31,7 +31,7 @@ export const VietQrOpenApiAutoScanner: React.FC<VietQrOpenApiAutoScannerProps> =
   onClose,
   defaultAmount = 100000,
 }) => {
-  const { currentUser, depositVietQr, showNotification, checkDepositEligibility } = useGigMe();
+  const { currentUser, depositVietQr, showNotification, checkDepositEligibility, language } = useGigMe();
   const [amount, setAmount] = useState(defaultAmount);
   const [selectedBank, setSelectedBank] = useState(VIETNAMESE_BANKS[2]); // Techcombank
   const [copiedField, setCopiedField] = useState<'account' | 'syntax' | null>(null);
@@ -185,7 +185,9 @@ export const VietQrOpenApiAutoScanner: React.FC<VietQrOpenApiAutoScannerProps> =
             <div>
               <div className="flex items-center space-x-2">
                 <h3 className="font-extrabold text-sm sm:text-base text-white">
-                  VietQR Tự Động Quét Biến Động Số Dư
+                  {language === 'vi'
+                    ? 'VietQR Tự Động Quét Biến Động Số Dư'
+                    : 'VietQR Auto Balance Top-Up'}
                 </h3>
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 font-extrabold border border-emerald-500/30 flex items-center space-x-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
@@ -193,7 +195,9 @@ export const VietQrOpenApiAutoScanner: React.FC<VietQrOpenApiAutoScannerProps> =
                 </span>
               </div>
               <p className="text-xs text-slate-400 mt-0.5">
-                Tích hợp Webhook Casso / SePAY • Cộng tiền tự động trong 3 giây
+                {language === 'vi'
+                  ? 'Tích hợp Webhook Casso / SePAY • Cộng tiền tự động trong 3 giây'
+                  : 'Casso / SePAY Webhook integrated • Instant 3-second credit'}
               </p>
             </div>
           </div>
@@ -211,42 +215,46 @@ export const VietQrOpenApiAutoScanner: React.FC<VietQrOpenApiAutoScannerProps> =
               <CheckCircle2 className="w-9 h-9" />
             </div>
             <div>
-              <h4 className="text-lg font-black text-white">Nạp Tiền Thành Công!</h4>
+              <h4 className="text-lg font-black text-white">
+                {language === 'vi' ? 'Nạp Tiền Thành Công!' : 'Deposit Successful!'}
+              </h4>
               <p className="text-xs text-emerald-400 font-bold mt-1">
-                Webhook Open API đã nhận diện biến động số dư
+                {language === 'vi'
+                  ? 'Webhook Open API đã nhận diện biến động số dư'
+                  : 'Open API Webhook verified transaction match'}
               </p>
             </div>
 
             <div className="p-4 rounded-2xl bg-[#131E30] border border-slate-700 text-left text-xs space-y-2 max-w-sm mx-auto">
               <div className="flex justify-between">
-                <span className="text-slate-400">Mã giao dịch:</span>
+                <span className="text-slate-400">{language === 'vi' ? 'Mã giao dịch:' : 'Tx ID:'}</span>
                 <span className="font-mono font-bold text-[#00E5FF]">{detectedTx.id}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-400">Số tiền nạp:</span>
+                <span className="text-slate-400">{language === 'vi' ? 'Số tiền nạp:' : 'Amount:'}</span>
                 <span className="font-mono font-black text-emerald-400 text-sm">
                   +{formatVnd(detectedTx.amount)}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-400">Người chuyển:</span>
+                <span className="text-slate-400">{language === 'vi' ? 'Người chuyển:' : 'Sender:'}</span>
                 <span className="font-bold text-white">{detectedTx.sender}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-400">Ngân hàng:</span>
+                <span className="text-slate-400">{language === 'vi' ? 'Ngân hàng:' : 'Bank:'}</span>
                 <span className="text-slate-200">{detectedTx.bank}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-400">Thời gian:</span>
+                <span className="text-slate-400">{language === 'vi' ? 'Thời gian:' : 'Timestamp:'}</span>
                 <span className="text-slate-300">{detectedTx.time}</span>
               </div>
             </div>
 
             <button
               onClick={onClose}
-              className="w-full py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-cyan-500 text-black font-extrabold text-sm hover:brightness-110 shadow-lg shadow-emerald-500/25 transition"
+              className="w-full py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-cyan-500 text-black font-extrabold text-sm hover:brightness-110 shadow-lg shadow-emerald-500/25 transition cursor-pointer"
             >
-              Hoàn Tất & Xem Số Dư Ví
+              {language === 'vi' ? 'Hoàn Tất & Xem Số Dư Ví' : 'Done & View Balance'}
             </button>
           </div>
         ) : (
@@ -256,22 +264,28 @@ export const VietQrOpenApiAutoScanner: React.FC<VietQrOpenApiAutoScannerProps> =
               <div className="flex items-center justify-between font-bold text-cyan-300">
                 <span className="flex items-center space-x-1">
                   <ShieldAlert className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>Quy định nạp an toàn</span>
+                  <span>{language === 'vi' ? 'Quy định nạp an toàn' : 'Safety Deposit Rules'}</span>
                 </span>
                 <span className="text-[10px] bg-cyan-500/15 px-2 py-0.5 rounded-full border border-cyan-500/30 text-cyan-300">
-                  Tối đa 10M/lần • Cách 1h • Max 30M/ngày
+                  {language === 'vi'
+                    ? 'Tối đa 10M/lần • Cách 1h • Max 30M/ngày'
+                    : 'Max 10M/tx • 1h cooldown • Max 30M/day'}
                 </span>
               </div>
               <div className="flex justify-between text-slate-400 text-[10px]">
-                <span>Đã nạp hôm nay:</span>
+                <span>{language === 'vi' ? 'Đã nạp hôm nay:' : 'Deposited today:'}</span>
                 <span className="font-mono font-bold text-slate-200">
-                  {formatVnd(eligibility.todayDeposited)} / 30.000.000đ (còn lại: {formatVnd(eligibility.remainingDailyQuota)})
+                  {formatVnd(eligibility.todayDeposited)} / 30.000.000đ ({language === 'vi' ? 'còn lại:' : 'remaining:'} {formatVnd(eligibility.remainingDailyQuota)})
                 </span>
               </div>
               {eligibility.cooldownMinutesLeft > 0 && (
                 <div className="p-2 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-300 flex items-center space-x-2 text-[11px] font-bold">
                   <Clock className="w-4 h-4 shrink-0 text-amber-400 animate-pulse" />
-                  <span>Giãn cách bảo mật: Vui lòng đợi {eligibility.cooldownMinutesLeft} phút nữa để thực hiện lần nạp tiếp theo.</span>
+                  <span>
+                    {language === 'vi'
+                      ? `Giãn cách bảo mật: Vui lòng đợi ${eligibility.cooldownMinutesLeft} phút nữa để thực hiện lần nạp tiếp theo.`
+                      : `Security cooldown: Please wait ${eligibility.cooldownMinutesLeft} more minutes before next deposit.`}
+                  </span>
                 </div>
               )}
               {!eligibility.allowed && eligibility.cooldownMinutesLeft === 0 && eligibility.reason && (
@@ -286,7 +300,9 @@ export const VietQrOpenApiAutoScanner: React.FC<VietQrOpenApiAutoScannerProps> =
             <div>
               <div className="flex justify-between items-center mb-1.5">
                 <label className="block text-slate-300 font-semibold">
-                  Chọn số tiền cần nạp (Tối đa 10.000.000đ/lần)
+                  {language === 'vi'
+                    ? 'Chọn số tiền cần nạp (Tối đa 10.000.000đ/lần)'
+                    : 'Select deposit amount (Max 10,000,000 VND/tx)'}
                 </label>
                 <span className="text-[10px] text-[#00E5FF] font-mono font-bold">
                   {formatVnd(amount)}
@@ -298,7 +314,7 @@ export const VietQrOpenApiAutoScanner: React.FC<VietQrOpenApiAutoScannerProps> =
                     key={val}
                     type="button"
                     onClick={() => setAmount(val)}
-                    className={`py-2 rounded-xl border font-bold text-xs transition ${
+                    className={`py-2 rounded-xl border font-bold text-xs transition cursor-pointer ${
                       amount === val
                         ? 'bg-[#00E5FF] text-black border-[#00E5FF] shadow-sm shadow-cyan-500/30'
                         : 'bg-[#131E30] text-slate-300 border-slate-700 hover:border-slate-600'
@@ -327,7 +343,7 @@ export const VietQrOpenApiAutoScanner: React.FC<VietQrOpenApiAutoScannerProps> =
             {/* Bank Select */}
             <div>
               <label className="block text-slate-300 font-semibold mb-1.5">
-                Ngân hàng nhận thụ hưởng
+                {language === 'vi' ? 'Ngân hàng nhận thụ hưởng' : 'Beneficiary Bank'}
               </label>
               <div className="grid grid-cols-4 gap-1.5">
                 {VIETNAMESE_BANKS.slice(0, 4).map((b) => (
@@ -335,7 +351,7 @@ export const VietQrOpenApiAutoScanner: React.FC<VietQrOpenApiAutoScannerProps> =
                     key={b.code}
                     type="button"
                     onClick={() => setSelectedBank(b)}
-                    className={`p-2 rounded-xl border text-[11px] font-bold text-center transition ${
+                    className={`p-2 rounded-xl border text-[11px] font-bold text-center transition cursor-pointer ${
                       selectedBank.code === b.code
                         ? 'bg-cyan-500/20 border-[#00E5FF] text-[#00E5FF]'
                         : 'bg-[#131E30] border-slate-700 text-slate-400 hover:text-white'
@@ -358,7 +374,7 @@ export const VietQrOpenApiAutoScanner: React.FC<VietQrOpenApiAutoScannerProps> =
                 />
                 <div className="absolute inset-0 bg-black/40 rounded-2xl opacity-0 group-hover:opacity-100 flex items-center justify-center transition">
                   <span className="text-[10px] text-white font-bold bg-black/80 px-2 py-1 rounded-md">
-                    Quét bằng app ngân hàng
+                    {language === 'vi' ? 'Quét bằng app ngân hàng' : 'Scan via banking app'}
                   </span>
                 </div>
               </div>
@@ -366,14 +382,14 @@ export const VietQrOpenApiAutoScanner: React.FC<VietQrOpenApiAutoScannerProps> =
               {/* Transfer Details */}
               <div className="flex-1 space-y-2 w-full text-[11px]">
                 <div className="flex justify-between items-center pb-1 border-b border-slate-800">
-                  <span className="text-slate-400">Số tài khoản:</span>
+                  <span className="text-slate-400">{language === 'vi' ? 'Số tài khoản:' : 'Account Number:'}</span>
                   <div className="flex items-center space-x-1">
                     <span className="font-mono font-black text-white">{accountNumber}</span>
                     <button
                       type="button"
                       onClick={() => handleCopy(accountNumber, 'account')}
                       className="p-1 text-[#00E5FF] hover:text-white transition cursor-pointer"
-                      title="Sao chép số tài khoản"
+                      title={language === 'vi' ? 'Sao chép số tài khoản' : 'Copy account number'}
                     >
                       {copiedField === 'account' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                     </button>
@@ -381,7 +397,9 @@ export const VietQrOpenApiAutoScanner: React.FC<VietQrOpenApiAutoScannerProps> =
                 </div>
 
                 <div className="flex justify-between items-center pb-1 border-b border-slate-800">
-                  <span className="text-slate-400">Nội dung CK (Bắt buộc):</span>
+                  <span className="text-slate-400">
+                    {language === 'vi' ? 'Nội dung CK (Bắt buộc):' : 'Transfer Memo (Required):'}
+                  </span>
                   <div className="flex items-center space-x-1">
                     <span className="font-mono font-extrabold text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/30">
                       {transferSyntax}
@@ -390,7 +408,7 @@ export const VietQrOpenApiAutoScanner: React.FC<VietQrOpenApiAutoScannerProps> =
                       type="button"
                       onClick={() => handleCopy(transferSyntax, 'syntax')}
                       className="p-1 text-amber-400 hover:text-white transition cursor-pointer"
-                      title="Sao chép cú pháp"
+                      title={language === 'vi' ? 'Sao chép cú pháp' : 'Copy transfer memo'}
                     >
                       {copiedField === 'syntax' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                     </button>
@@ -398,7 +416,7 @@ export const VietQrOpenApiAutoScanner: React.FC<VietQrOpenApiAutoScannerProps> =
                 </div>
 
                 <div className="flex justify-between items-center">
-                  <span className="text-slate-400">Chủ tài khoản:</span>
+                  <span className="text-slate-400">{language === 'vi' ? 'Chủ tài khoản:' : 'Account Holder:'}</span>
                   <span className="font-bold text-slate-200">{accountHolder}</span>
                 </div>
 
@@ -408,8 +426,12 @@ export const VietQrOpenApiAutoScanner: React.FC<VietQrOpenApiAutoScannerProps> =
                     <Radio className="w-3.5 h-3.5 animate-pulse text-cyan-400" />
                     <span className="text-[10px] font-bold">
                       {isProcessing
-                        ? 'Đang nhận diện Webhook Open API...'
-                        : 'Webhook Open API đang quét tự động'}
+                        ? language === 'vi'
+                          ? 'Đang nhận diện Webhook Open API...'
+                          : 'Recognizing Open API Webhook...'
+                        : language === 'vi'
+                        ? 'Webhook Open API đang quét tự động'
+                        : 'Open API Webhook scanning automatically'}
                     </span>
                   </div>
                   <span className="text-[9px] text-cyan-300 font-mono">Casso/SePAY Engine</span>
@@ -423,33 +445,51 @@ export const VietQrOpenApiAutoScanner: React.FC<VietQrOpenApiAutoScannerProps> =
                 type="button"
                 disabled={isProcessing || !eligibility.allowed}
                 onClick={triggerOpenApiWebhook}
-                className="w-full py-3 rounded-2xl bg-gradient-to-r from-[#00E5FF] via-cyan-400 to-blue-500 text-black font-extrabold text-sm hover:brightness-110 shadow-lg shadow-cyan-500/30 transition flex items-center justify-center space-x-2 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="w-full py-3 rounded-2xl bg-gradient-to-r from-[#00E5FF] via-cyan-400 to-blue-500 text-black font-extrabold text-sm hover:brightness-110 shadow-lg shadow-cyan-500/30 transition flex items-center justify-center space-x-2 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
               >
                 {isProcessing ? (
                   <>
                     <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span>Đang Khớp Lệnh Biến Động Ngân Hàng...</span>
+                    <span>
+                      {language === 'vi'
+                        ? 'Đang Khớp Lệnh Biến Động Ngân Hàng...'
+                        : 'Matching Bank Transaction...'}
+                    </span>
                   </>
                 ) : eligibility.cooldownMinutesLeft > 0 ? (
                   <>
                     <Clock className="w-4 h-4" />
-                    <span>Đang Giãn Cách (Đợi {eligibility.cooldownMinutesLeft} phút)</span>
+                    <span>
+                      {language === 'vi'
+                        ? `Đang Giãn Cách (Đợi ${eligibility.cooldownMinutesLeft} phút)`
+                        : `Cooldown Active (Wait ${eligibility.cooldownMinutesLeft}m)`}
+                    </span>
                   </>
                 ) : !eligibility.allowed ? (
                   <>
                     <ShieldAlert className="w-4 h-4" />
-                    <span>Không Thể Nạp (Vượt Hạn Mức)</span>
+                    <span>
+                      {language === 'vi'
+                        ? 'Không Thể Nạp (Vượt Hạn Mức)'
+                        : 'Cannot Deposit (Exceeds Limits)'}
+                    </span>
                   </>
                 ) : (
                   <>
                     <Zap className="w-4 h-4 fill-current" />
-                    <span>Khớp Lệnh Biến Động Số Dư Ngay (Open API)</span>
+                    <span>
+                      {language === 'vi'
+                        ? 'Khớp Lệnh Biến Động Số Dư Ngay (Open API)'
+                        : 'Verify & Settle Balance Now (Open API)'}
+                    </span>
                   </>
                 )}
               </button>
 
               <p className="text-[10px] text-slate-400 text-center">
-                💡 Hệ thống ngân hàng kết nối Webhook trực tiếp vào máy chủ GigMe và tiền sẽ tự động cộng sau 1-3 giây mà không cần người duyệt thủ công.
+                {language === 'vi'
+                  ? '💡 Hệ thống ngân hàng kết nối Webhook trực tiếp vào máy chủ GigMe và tiền sẽ tự động cộng sau 1-3 giây mà không cần người duyệt thủ công.'
+                  : '💡 Banking systems connect Webhooks directly to the GigMe server and balance credits automatically in 1-3 seconds without manual review.'}
               </p>
             </div>
           </div>

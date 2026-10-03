@@ -888,7 +888,10 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
         {
           id: `ai_r_${Date.now()}`,
           sender: 'AI' as const,
-          text: '🛡️ Smart Escrow GigMe: Tiền của người thuê được khóa an toàn. Người làm hoàn tất công việc thì người thuê mới bấm giải ngân. Rút tiền Napas 247 tức thì 0đ phí!',
+          text:
+            language === 'vi'
+              ? '🛡️ Smart Escrow GigMe: Tiền của người thuê được khóa an toàn. Người làm hoàn tất công việc thì người thuê mới bấm giải ngân. Rút tiền Napas 247 tức thì 0đ phí!'
+              : '🛡️ GigMe Smart Escrow: Client funds are securely locked. Once the worker finishes the task, client releases payment. Instant Napas 247 withdrawal with 0 fee!',
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         },
       ]);
@@ -1578,7 +1581,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                             <div className="mt-1.5 rounded-xl overflow-hidden border border-black/20">
                               <img
                                 src={msg.attachmentData}
-                                alt="Ảnh đính kèm"
+                                alt={language === 'vi' ? 'Ảnh đính kèm' : 'Attachment image'}
                                 className="max-h-56 rounded-xl object-cover cursor-pointer hover:opacity-95 transition"
                                 onClick={() => {
                                   setPreviewImageRotation(0);
@@ -2390,7 +2393,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
               <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-[#E0FAEB] border-2 border-[#09111D]" />
             </div>
             <span className="text-[10px] text-[#C5E5EC] font-bold max-w-[60px] truncate text-center">
-              Trợ lý AI
+              {language === 'vi' ? 'Trợ lý AI' : 'AI Assistant'}
             </span>
           </div>
 
@@ -2440,7 +2443,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
               : 'bg-[#12233B] text-[#C5E5EC] border border-[#C5E5EC]/20 hover:bg-[#162B48]'
           }`}
         >
-          Tất cả ({campusContacts.length + 1})
+          {language === 'vi' ? 'Tất cả' : 'All'} ({campusContacts.length + 1})
         </button>
         <button
           onClick={() => setActiveFilterTab('CLIENTS')}
@@ -2450,7 +2453,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
               : 'bg-[#12233B] text-[#C5E5EC] border border-[#C5E5EC]/20 hover:bg-[#162B48]'
           }`}
         >
-          💼 Người thuê ({campusContacts.filter((c) => c.role === 'CLIENT').length})
+          💼 {language === 'vi' ? 'Người thuê' : 'Clients'} ({campusContacts.filter((c) => c.role === 'CLIENT').length})
         </button>
         <button
           onClick={() => setActiveFilterTab('WORKERS')}
@@ -2460,14 +2463,14 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
               : 'bg-[#12233B] text-[#C5E5EC] border border-[#C5E5EC]/20 hover:bg-[#162B48]'
           }`}
         >
-          ⚡ Người làm ({campusContacts.filter((c) => c.role === 'WORKER').length})
+          ⚡ {language === 'vi' ? 'Người làm' : 'Workers'} ({campusContacts.filter((c) => c.role === 'WORKER').length})
         </button>
         <button
           onClick={() => setActiveConversationId('AI_ASSISTANT')}
           className="px-3 py-1 rounded-xl text-xs font-bold bg-[#3064AE]/20 text-[#C5E5EC] border border-[#C5E5EC]/30 hover:bg-[#3064AE]/30 transition flex items-center space-x-1 whitespace-nowrap shrink-0 cursor-pointer"
         >
           <Bot className="w-3.5 h-3.5 text-[#C5E5EC]" />
-          <span>Trợ lý AI 24/7</span>
+          <span>{language === 'vi' ? 'Trợ lý AI 24/7' : '24/7 AI Assistant'}</span>
         </button>
       </div>
 
@@ -2489,19 +2492,21 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
               <div className="min-w-0 flex-1">
                 <div className="flex items-center space-x-2">
                   <h4 className="font-bold text-sm text-white truncate group-hover:text-[#C5E5EC] transition">
-                    Trợ Lý AI GigMe 24/7
+                    {language === 'vi' ? 'Trợ Lý AI GigMe 24/7' : 'GigMe 24/7 AI Assistant'}
                   </h4>
                   <span className="px-2 py-0.5 rounded-md bg-[#3064AE]/40 text-[#C5E5EC] font-semibold text-[10px] shrink-0 border border-[#C5E5EC]/30">
                     Official AI
                   </span>
                 </div>
                 <p className="text-xs text-[#C5E5EC]/80 truncate mt-0.5">
-                  Hỏi đáp Smart Escrow, giải ngân Napas 247, quy chế campus...
+                  {language === 'vi'
+                    ? 'Hỏi đáp Smart Escrow, giải ngân Napas 247, quy chế campus...'
+                    : 'Smart Escrow Q&A, Napas 247 disbursement, campus rules...'}
                 </p>
               </div>
             </div>
             <span className="text-[11px] text-[#E0FAEB] font-bold shrink-0 bg-[#E0FAEB]/15 px-2.5 py-1 rounded-lg border border-[#E0FAEB]/30">
-              Trực tuyến
+              {language === 'vi' ? 'Trực tuyến' : 'Online'}
             </span>
           </div>
         )}
@@ -2510,9 +2515,13 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
         {filteredContacts.length === 0 ? (
           <div className="text-center py-16 text-[#C5E5EC]/60 text-xs">
             <MessageCircle className="w-10 h-10 mx-auto mb-2 text-[#C5E5EC]/40" />
-            <p className="font-bold text-sm text-[#C5E5EC]">Không tìm thấy liên hệ phù hợp.</p>
+            <p className="font-bold text-sm text-[#C5E5EC]">
+              {language === 'vi' ? 'Không tìm thấy liên hệ phù hợp.' : 'No matching contacts found.'}
+            </p>
             <p className="text-xs text-[#C5E5EC]/60 mt-1">
-              Bấm nút (+) ở góc trên để tìm kiếm và nhắn tin với sinh viên khác!
+              {language === 'vi'
+                ? 'Bấm nút (+) ở góc trên để tìm kiếm và nhắn tin với sinh viên khác!'
+                : 'Tap (+) button above to find and message other students!'}
             </p>
           </div>
         ) : (
@@ -2520,12 +2529,15 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
             const lastMsg = getLastMessageForContact(contact.id, contact.associatedGig?.id);
             const unreadCount = getUnreadCountForContact(contact.id, contact.associatedGig?.id);
             const previewText = lastMsg
-              ? lastMsg.message || (lastMsg.attachmentType === 'IMAGE' ? '📷 Hình ảnh' : '🎙️ Tin nhắn thoại')
+              ? lastMsg.message ||
+                (lastMsg.attachmentType === 'IMAGE'
+                  ? (language === 'vi' ? '📷 Hình ảnh' : '📷 Photo')
+                  : (language === 'vi' ? '🎙️ Tin nhắn thoại' : '🎙️ Voice message'))
               : contact.specialtyOrNeed;
             const timeText = lastMsg
               ? new Date(lastMsg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
               : contact.isOnline
-              ? 'Vừa xong'
+              ? (language === 'vi' ? 'Vừa xong' : 'Just now')
               : '';
 
             return (
@@ -2612,7 +2624,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                   <div className="flex items-center space-x-1.5">
                     {unreadCount > 0 && (
                       <span className="px-1.5 py-0.5 rounded-full bg-[#E0FAEB] text-[#09111D] text-[9px] font-extrabold">
-                        Mới
+                        {language === 'vi' ? 'Mới' : 'New'}
                       </span>
                     )}
                     <span className="text-[10px] text-[#C5E5EC]/90 font-medium bg-white/5 px-2 py-0.5 rounded-md border border-white/10">
@@ -2641,7 +2653,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
             <div className="flex items-center justify-between pb-3 border-b border-[#C5E5EC]/15 shrink-0">
               <h4 className="font-extrabold text-sm text-white flex items-center space-x-1.5">
                 <MessageCircle className="w-4 h-4 text-[#C5E5EC]" />
-                <span>Soạn tin nhắn mới</span>
+                <span>{language === 'vi' ? 'Soạn tin nhắn mới' : 'Compose New Message'}</span>
               </h4>
               <button
                 onClick={() => setShowNewChatModal(false)}
@@ -2652,7 +2664,9 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
             </div>
 
             <p className="text-xs text-[#C5E5EC]/70 my-2 shrink-0">
-              Chọn người thuê hoặc người làm để bắt đầu cuộc trò chuyện trực tiếp:
+              {language === 'vi'
+                ? 'Chọn người thuê hoặc người làm để bắt đầu cuộc trò chuyện trực tiếp:'
+                : 'Select a client or worker to start a direct conversation:'}
             </p>
 
             <div className="flex-1 overflow-y-auto space-y-2 pr-1">

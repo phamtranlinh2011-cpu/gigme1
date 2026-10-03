@@ -4,16 +4,11 @@ import {
   X,
   Clock,
   TrendingDown,
-  ShieldCheck,
-  Award,
   Zap,
-  Check,
   AlertTriangle,
   Play,
-  StopCircle,
   Sparkles,
   ArrowDownRight,
-  DollarSign,
   UserCheck,
 } from 'lucide-react';
 import { GigEntity, BidEntity } from '../types';
@@ -37,6 +32,7 @@ export const LiveReverseBiddingModal: React.FC<LiveReverseBiddingModalProps> = (
     openReverseAuctionRoom,
     closeReverseAuctionRoom,
     showNotification,
+    language,
   } = useGigMe();
 
   const [durationMinutes, setDurationMinutes] = useState<number>(15);
@@ -52,7 +48,6 @@ export const LiveReverseBiddingModal: React.FC<LiveReverseBiddingModalProps> = (
   // Lọc danh sách thầu cho đơn này và sắp xếp giá thấp nhất lên đầu
   const sortedBids = [...currentGigBids].sort((a, b) => a.offeredPrice - b.offeredPrice);
   const lowestCurrentPrice = sortedBids.length > 0 ? sortedBids[0].offeredPrice : (gig.lowestBidPrice || gig.price);
-  const bestBid = sortedBids.length > 0 ? sortedBids[0] : null;
 
   // Đếm ngược thời gian phòng đấu giá
   useEffect(() => {
@@ -93,7 +88,12 @@ export const LiveReverseBiddingModal: React.FC<LiveReverseBiddingModalProps> = (
 
   const handleStartAuction = () => {
     if (!isOwner) {
-      showNotification('Từ chối thao tác', 'Chỉ người thuê mới có quyền mở phòng đấu giá!');
+      showNotification(
+        language === 'vi' ? 'Từ chối thao tác' : 'Permission Denied',
+        language === 'vi'
+          ? 'Chỉ người thuê mới có quyền mở phòng đấu giá!'
+          : 'Only the gig client has authority to open an auction room!'
+      );
       return;
     }
     openReverseAuctionRoom(gig.id, durationMinutes, ceilingPrice);
@@ -102,18 +102,30 @@ export const LiveReverseBiddingModal: React.FC<LiveReverseBiddingModalProps> = (
   const handlePlaceBid = () => {
     if (!currentUser) return;
     if (isOwner) {
-      showNotification('Không hợp lệ', 'Bạn là chủ đơn nên không thể tự đặt giá thầu!');
+      showNotification(
+        language === 'vi' ? 'Không hợp lệ' : 'Invalid Action',
+        language === 'vi'
+          ? 'Bạn là chủ đơn nên không thể tự đặt giá thầu!'
+          : 'As the gig creator, you cannot bid on your own gig!'
+      );
       return;
     }
     if (customBidAmount >= lowestCurrentPrice) {
       showNotification(
-        'Giá chưa hợp lệ',
-        `Trong đấu giá ngược, mức giá của bạn phải thấp hơn giá hiện tại (${lowestCurrentPrice.toLocaleString()}đ)!`
+        language === 'vi' ? 'Giá chưa hợp lệ' : 'Invalid Bid',
+        language === 'vi'
+          ? `Trong đấu giá ngược, mức giá của bạn phải thấp hơn giá hiện tại (${lowestCurrentPrice.toLocaleString()}đ)!`
+          : `In a reverse auction, your bid must undercut the current lowest (${lowestCurrentPrice.toLocaleString()} VND)!`
       );
       return;
     }
     if (customBidAmount < 10000) {
-      showNotification('Giá quá thấp', 'Mức giá tối thiểu của một công việc là 10.000đ.');
+      showNotification(
+        language === 'vi' ? 'Giá quá thấp' : 'Price Too Low',
+        language === 'vi'
+          ? 'Mức giá tối thiểu của một công việc là 10.000đ.'
+          : 'Minimum allowable bid is 10,000 VND.'
+      );
       return;
     }
 
@@ -121,7 +133,10 @@ export const LiveReverseBiddingModal: React.FC<LiveReverseBiddingModalProps> = (
       gig.id,
       customBidAmount,
       proposalMinutes,
-      proposalNote || `Chào giá ${customBidAmount.toLocaleString()}đ cam kết làm nhanh trong ${proposalMinutes} phút`
+      proposalNote ||
+        (language === 'vi'
+          ? `Chào giá ${customBidAmount.toLocaleString()}đ cam kết làm nhanh trong ${proposalMinutes} phút`
+          : `Bid ${customBidAmount.toLocaleString()} VND with ${proposalMinutes}-minute delivery commitment`)
     );
     setProposalNote('');
   };
@@ -152,26 +167,32 @@ export const LiveReverseBiddingModal: React.FC<LiveReverseBiddingModalProps> = (
               </div>
               <div>
                 <div className="flex items-center space-x-2">
-                  <h2 className="text-xl font-bold">Phòng Đấu Giá Ngược Thời Gian Thực</h2>
+                  <h2 className="text-xl font-bold">
+                    {language === 'vi'
+                      ? 'Phòng Đấu Giá Ngược Thời Gian Thực'
+                      : 'Real-Time Reverse Auction Room'}
+                  </h2>
                   {isRoomOpen ? (
-                    <span className="flex items-center space-x-1 px-2.5 py-0.5 text-xs font-black bg-red-500 text-white rounded-full animate-pulse shadow">
+                    <span className="flex items-center space-x-1 px-2.5 py-0.5 text-xs font-black bg-red-500 text-white rounded-full animate-pulse shadow-xs">
                       <span className="w-2 h-2 rounded-full bg-white animate-ping" />
                       <span>LIVE</span>
                     </span>
                   ) : (
                     <span className="px-2 py-0.5 text-xs font-semibold bg-white/20 text-white rounded-full">
-                      CHƯA KÍCH HOẠT
+                      {language === 'vi' ? 'CHƯA KÍCH HOẠT' : 'INACTIVE'}
                     </span>
                   )}
                 </div>
                 <p className="text-xs text-amber-100 mt-0.5">
-                  Freelancer trả giá giảm dần • Người thuê chọn mức giá tốt nhất để tiết kiệm chi phí
+                  {language === 'vi'
+                    ? 'Freelancer trả giá giảm dần • Người thuê chọn mức giá tốt nhất để tiết kiệm chi phí'
+                    : 'Freelancers bid downwards • Client awards the best value to maximize savings'}
                 </p>
               </div>
             </div>
             <button
               onClick={onClose}
-              className="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-full transition-colors"
+              className="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-full transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -193,8 +214,10 @@ export const LiveReverseBiddingModal: React.FC<LiveReverseBiddingModalProps> = (
                   {gig.description}
                 </p>
               </div>
-              <div className="text-right flex-shrink-0 ml-4">
-                <span className="text-[11px] text-slate-400 block">Ngân sách gốc:</span>
+              <div className="text-right shrink-0 ml-4">
+                <span className="text-[11px] text-slate-400 block">
+                  {language === 'vi' ? 'Ngân sách gốc:' : 'Original budget:'}
+                </span>
                 <span className="text-sm font-extrabold text-slate-700 dark:text-slate-200 line-through">
                   {gig.price.toLocaleString()}đ
                 </span>
@@ -213,32 +236,36 @@ export const LiveReverseBiddingModal: React.FC<LiveReverseBiddingModalProps> = (
                   </div>
                   <div>
                     <h4 className="text-base font-bold text-slate-900 dark:text-white">
-                      Bạn là Người Thuê: Hãy Mở Phòng Đấu Giá Ngược!
+                      {language === 'vi'
+                        ? 'Bạn là Người Thuê: Hãy Mở Phòng Đấu Giá Ngược!'
+                        : 'You are the Client: Open the Reverse Auction Room!'}
                     </h4>
                     <p className="text-xs text-slate-600 dark:text-slate-400 max-w-md mx-auto mt-1">
-                      Khi mở phòng, các Freelancer sẽ cạnh tranh giảm giá để nhận việc. Phần tiền chênh lệch tiết kiệm được sẽ được hoàn trả thẳng vào ví của bạn ngay sau khi chốt!
+                      {language === 'vi'
+                        ? 'Khi mở phòng, các Freelancer sẽ cạnh tranh giảm giá để nhận việc. Phần tiền chênh lệch tiết kiệm được sẽ được hoàn trả thẳng vào ví của bạn ngay sau khi chốt!'
+                        : 'When opened, freelancers compete downwards to win your gig. All savings will be refunded directly into your wallet upon confirmation!'}
                     </p>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3 max-w-md mx-auto text-left">
                     <div>
                       <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                        Thời gian mở phòng:
+                        {language === 'vi' ? 'Thời gian mở phòng:' : 'Auction duration:'}
                       </label>
                       <select
                         value={durationMinutes}
                         onChange={(e) => setDurationMinutes(Number(e.target.value))}
                         className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold"
                       >
-                        <option value={10}>10 Phút (Siêu Tốc)</option>
-                        <option value={15}>15 Phút (Chuẩn)</option>
-                        <option value={30}>30 Phút (Thư Thả)</option>
+                        <option value={10}>{language === 'vi' ? '10 Phút (Siêu Tốc)' : '10 Mins (Express)'}</option>
+                        <option value={15}>{language === 'vi' ? '15 Phút (Chuẩn)' : '15 Mins (Standard)'}</option>
+                        <option value={30}>{language === 'vi' ? '30 Phút (Thư Thả)' : '30 Mins (Extended)'}</option>
                       </select>
                     </div>
 
                     <div>
                       <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                        Giá trần xuất phát:
+                        {language === 'vi' ? 'Giá trần xuất phát:' : 'Starting ceiling price:'}
                       </label>
                       <input
                         type="number"
@@ -251,28 +278,54 @@ export const LiveReverseBiddingModal: React.FC<LiveReverseBiddingModalProps> = (
 
                   <button
                     onClick={handleStartAuction}
-                    className="w-full max-w-md mx-auto py-3 px-6 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-bold rounded-2xl shadow-lg shadow-amber-500/30 flex items-center justify-center space-x-2 transition-transform active:scale-95"
+                    className="w-full max-w-md mx-auto py-3 px-6 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-bold rounded-2xl shadow-lg shadow-amber-500/30 flex items-center justify-center space-x-2 transition-transform active:scale-95 cursor-pointer"
                   >
                     <Play className="w-4 h-4 fill-white" />
-                    <span>Kích Hoạt Phòng Đấu Giá Ngay ({durationMinutes} Phút)</span>
+                    <span>
+                      {language === 'vi'
+                        ? `Kích Hoạt Phòng Đấu Giá Ngay (${durationMinutes} Phút)`
+                        : `Activate Auction Room Now (${durationMinutes} Mins)`}
+                    </span>
                   </button>
                 </div>
               ) : (
-                /* GIAO DIỆN DÀNH CHO FREELANCER KHI CHỦ VIỆC CHƯA MỞ PHÒNG (Đúng yêu cầu: k có quyền tự tạo phòng) */
+                /* GIAO DIỆN DÀNH CHO FREELANCER KHI CHỦ VIỆC CHƯA MỞ PHÒNG */
                 <div className="p-6 rounded-3xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-center space-y-3">
                   <div className="w-12 h-12 rounded-2xl bg-slate-200 dark:bg-slate-700 text-slate-500 mx-auto flex items-center justify-center">
                     <AlertTriangle className="w-6 h-6 text-amber-500" />
                   </div>
                   <h4 className="text-base font-bold text-slate-900 dark:text-white">
-                    Chủ Việc Chưa Mở Phòng Đấu Giá Ngược
+                    {language === 'vi'
+                      ? 'Chủ Việc Chưa Mở Phòng Đấu Giá Ngược'
+                      : 'Client Has Not Opened Reverse Auction'}
                   </h4>
                   <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto leading-relaxed">
-                    Theo quy chế của GigMe, <strong className="text-amber-600 dark:text-amber-400">chỉ người thuê (Client)</strong> mới có quyền quyết định mở phòng đấu giá ngược trực tiếp. Freelancer không thể tự tạo phòng.
+                    {language === 'vi' ? (
+                      <>
+                        Theo quy chế của GigMe,{' '}
+                        <strong className="text-amber-600 dark:text-amber-400">chỉ người thuê (Client)</strong> mới có quyền quyết định mở phòng đấu giá ngược trực tiếp. Freelancer không thể tự tạo phòng.
+                      </>
+                    ) : (
+                      <>
+                        Under GigMe policy,{' '}
+                        <strong className="text-amber-600 dark:text-amber-400">only the Client</strong> has authority to initiate a reverse auction. Freelancers cannot create rooms.
+                      </>
+                    )}
                   </p>
                   <div className="p-3 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 max-w-md mx-auto text-xs text-slate-600 dark:text-slate-300">
-                    💡 Bạn có thể nhận đơn trực tiếp với mức thù lao gốc{' '}
-                    <strong className="text-emerald-600 font-bold">{gig.price.toLocaleString()}đ</strong>{' '}
-                    ở màn hình chi tiết hoặc chờ chủ việc kích hoạt phòng đấu giá.
+                    {language === 'vi' ? (
+                      <>
+                        💡 Bạn có thể nhận đơn trực tiếp với mức thù lao gốc{' '}
+                        <strong className="text-emerald-600 font-bold">{gig.price.toLocaleString()}đ</strong>{' '}
+                        ở màn hình chi tiết hoặc chờ chủ việc kích hoạt phòng đấu giá.
+                      </>
+                    ) : (
+                      <>
+                        💡 You can claim the gig directly at the base rate of{' '}
+                        <strong className="text-emerald-600 font-bold">{gig.price.toLocaleString()} VND</strong>{' '}
+                        on the gig details screen, or wait for the client to open this room.
+                      </>
+                    )}
                   </div>
                 </div>
               )}
@@ -291,7 +344,7 @@ export const LiveReverseBiddingModal: React.FC<LiveReverseBiddingModalProps> = (
                   </div>
                   <div>
                     <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block">
-                      Thời gian còn lại:
+                      {language === 'vi' ? 'Thời gian còn lại:' : 'Time remaining:'}
                     </span>
                     <div className="text-2xl font-black text-rose-600 dark:text-rose-400 tracking-tight">
                       {formatTime(timeLeftSeconds)}
@@ -306,7 +359,7 @@ export const LiveReverseBiddingModal: React.FC<LiveReverseBiddingModalProps> = (
                   </div>
                   <div>
                     <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block">
-                      Giá thấp nhất hiện tại:
+                      {language === 'vi' ? 'Giá thấp nhất hiện tại:' : 'Lowest current bid:'}
                     </span>
                     <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400 tracking-tight">
                       {lowestCurrentPrice.toLocaleString()}đ
@@ -321,11 +374,23 @@ export const LiveReverseBiddingModal: React.FC<LiveReverseBiddingModalProps> = (
                   <span className="text-emerald-800 dark:text-emerald-300 flex items-center space-x-1.5 font-semibold">
                     <Sparkles className="w-4 h-4 text-emerald-600" />
                     <span>
-                      Bạn đang tiết kiệm được{' '}
-                      <strong className="font-black text-emerald-600 dark:text-emerald-400">
-                        {(gig.price - lowestCurrentPrice).toLocaleString()}đ
-                      </strong>{' '}
-                      từ phòng đấu giá ngược!
+                      {language === 'vi' ? (
+                        <>
+                          Bạn đang tiết kiệm được{' '}
+                          <strong className="font-black text-emerald-600 dark:text-emerald-400">
+                            {(gig.price - lowestCurrentPrice).toLocaleString()}đ
+                          </strong>{' '}
+                          từ phòng đấu giá ngược!
+                        </>
+                      ) : (
+                        <>
+                          You are saving{' '}
+                          <strong className="font-black text-emerald-600 dark:text-emerald-400">
+                            {(gig.price - lowestCurrentPrice).toLocaleString()} VND
+                          </strong>{' '}
+                          from this reverse auction!
+                        </>
+                      )}
                     </span>
                   </span>
                 </div>
@@ -337,10 +402,16 @@ export const LiveReverseBiddingModal: React.FC<LiveReverseBiddingModalProps> = (
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-slate-900 dark:text-white flex items-center space-x-1.5">
                       <Zap className="w-4 h-4 text-amber-500" />
-                      <span>Đưa Ra Mức Giá Cạnh Tranh Của Bạn:</span>
+                      <span>
+                        {language === 'vi'
+                          ? 'Đưa Ra Mức Giá Cạnh Tranh Của Bạn:'
+                          : 'Submit Your Competitive Bid:'}
+                      </span>
                     </span>
                     <span className="text-xs text-slate-400">
-                      Phải nhỏ hơn {lowestCurrentPrice.toLocaleString()}đ
+                      {language === 'vi'
+                        ? `Phải nhỏ hơn ${lowestCurrentPrice.toLocaleString()}đ`
+                        : `Must be lower than ${lowestCurrentPrice.toLocaleString()} VND`}
                     </span>
                   </div>
 
@@ -353,7 +424,7 @@ export const LiveReverseBiddingModal: React.FC<LiveReverseBiddingModalProps> = (
                           key={step}
                           type="button"
                           onClick={() => setCustomBidAmount(suggestedVal)}
-                          className="flex-1 py-1.5 px-2 bg-white dark:bg-slate-700 hover:bg-amber-50 dark:hover:bg-amber-950/30 border border-slate-200 dark:border-slate-600 rounded-xl text-xs font-bold text-amber-700 dark:text-amber-400 transition-colors"
+                          className="flex-1 py-1.5 px-2 bg-white dark:bg-slate-700 hover:bg-amber-50 dark:hover:bg-amber-950/30 border border-slate-200 dark:border-slate-600 rounded-xl text-xs font-bold text-amber-700 dark:text-amber-400 transition-colors cursor-pointer"
                         >
                           -{step.toLocaleString()}đ ({suggestedVal.toLocaleString()}đ)
                         </button>
@@ -363,7 +434,9 @@ export const LiveReverseBiddingModal: React.FC<LiveReverseBiddingModalProps> = (
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-[11px] text-slate-500 block mb-1">Mức giá bạn nhận (VNĐ):</label>
+                      <label className="text-[11px] text-slate-500 block mb-1">
+                        {language === 'vi' ? 'Mức giá bạn nhận (VNĐ):' : 'Your offered price (VND):'}
+                      </label>
                       <input
                         type="number"
                         value={customBidAmount}
@@ -372,7 +445,9 @@ export const LiveReverseBiddingModal: React.FC<LiveReverseBiddingModalProps> = (
                       />
                     </div>
                     <div>
-                      <label className="text-[11px] text-slate-500 block mb-1">Thời gian cam kết (Phút):</label>
+                      <label className="text-[11px] text-slate-500 block mb-1">
+                        {language === 'vi' ? 'Thời gian cam kết (Phút):' : 'Committed time (Mins):'}
+                      </label>
                       <input
                         type="number"
                         value={proposalMinutes}
@@ -386,16 +461,24 @@ export const LiveReverseBiddingModal: React.FC<LiveReverseBiddingModalProps> = (
                     type="text"
                     value={proposalNote}
                     onChange={(e) => setProposalNote(e.target.value)}
-                    placeholder="Ghi chú kinh nghiệm hoặc cam kết giao bài..."
+                    placeholder={
+                      language === 'vi'
+                        ? 'Ghi chú kinh nghiệm hoặc cam kết giao bài...'
+                        : 'Notes on your skill, delivery guarantee...'
+                    }
                     className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-white"
                   />
 
                   <button
                     onClick={handlePlaceBid}
-                    className="w-full py-2.5 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white text-xs font-bold rounded-xl shadow-md flex items-center justify-center space-x-1.5 transition-transform active:scale-98"
+                    className="w-full py-2.5 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white text-xs font-bold rounded-xl shadow-md flex items-center justify-center space-x-1.5 transition-transform active:scale-98 cursor-pointer"
                   >
                     <ArrowDownRight className="w-4 h-4" />
-                    <span>Gửi Mức Giá Thầu: {customBidAmount.toLocaleString()}đ</span>
+                    <span>
+                      {language === 'vi'
+                        ? `Gửi Mức Giá Thầu: ${customBidAmount.toLocaleString()}đ`
+                        : `Place Bid: ${customBidAmount.toLocaleString()} VND`}
+                    </span>
                   </button>
                 </div>
               )}
@@ -404,15 +487,21 @@ export const LiveReverseBiddingModal: React.FC<LiveReverseBiddingModalProps> = (
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                    Diễn biến đặt giá ({sortedBids.length} lượt thầu):
+                    {language === 'vi'
+                      ? `Diễn biến đặt giá (${sortedBids.length} lượt thầu):`
+                      : `Bidding Activity (${sortedBids.length} bids):`}
                   </span>
-                  <span className="text-[11px] text-slate-400">Sắp xếp: Giá thấp nhất ở trên</span>
+                  <span className="text-[11px] text-slate-400">
+                    {language === 'vi' ? 'Sắp xếp: Giá thấp nhất ở trên' : 'Sorted: Lowest price first'}
+                  </span>
                 </div>
 
                 {sortedBids.length === 0 ? (
                   <div className="p-8 text-center bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-700">
                     <p className="text-xs text-slate-400">
-                      Chưa có lượt đặt giá nào. Hãy là người đầu tiên đưa ra mức giá tốt nhất!
+                      {language === 'vi'
+                        ? 'Chưa có lượt đặt giá nào. Hãy là người đầu tiên đưa ra mức giá tốt nhất!'
+                        : 'No bids yet. Be the first to place the best offer!'}
                     </p>
                   </div>
                 ) : (
@@ -424,7 +513,7 @@ export const LiveReverseBiddingModal: React.FC<LiveReverseBiddingModalProps> = (
                           key={bid.id}
                           className={`p-3.5 rounded-2xl border transition-all flex items-center justify-between ${
                             isBest
-                              ? 'bg-emerald-50/80 dark:bg-emerald-950/30 border-emerald-400 dark:border-emerald-700 ring-2 ring-emerald-500/20 shadow-sm'
+                              ? 'bg-emerald-50/80 dark:bg-emerald-950/30 border-emerald-400 dark:border-emerald-700 ring-2 ring-emerald-500/20 shadow-xs'
                               : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700/60'
                           }`}
                         >
@@ -445,12 +534,14 @@ export const LiveReverseBiddingModal: React.FC<LiveReverseBiddingModalProps> = (
                                 </span>
                                 {isBest && (
                                   <span className="px-1.5 py-0.5 bg-emerald-500 text-white text-[10px] font-bold rounded">
-                                    TOP 1 GIÁ TỐT
+                                    {language === 'vi' ? 'TOP 1 GIÁ TỐT' : 'TOP 1 BEST BID'}
                                   </span>
                                 )}
                               </div>
                               <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                                Cam kết {bid.estimatedMinutes} phút • {bid.proposalNote}
+                                {language === 'vi'
+                                  ? `Cam kết ${bid.estimatedMinutes} phút • ${bid.proposalNote}`
+                                  : `Committed ${bid.estimatedMinutes} mins • ${bid.proposalNote}`}
                               </p>
                             </div>
                           </div>
@@ -461,7 +552,8 @@ export const LiveReverseBiddingModal: React.FC<LiveReverseBiddingModalProps> = (
                                 {bid.offeredPrice.toLocaleString()}đ
                               </div>
                               <span className="text-[10px] text-slate-400">
-                                Tiết kiệm {(gig.price - bid.offeredPrice).toLocaleString()}đ
+                                {language === 'vi' ? 'Tiết kiệm ' : 'Save '}
+                                {(gig.price - bid.offeredPrice).toLocaleString()}đ
                               </span>
                             </div>
 
@@ -469,10 +561,10 @@ export const LiveReverseBiddingModal: React.FC<LiveReverseBiddingModalProps> = (
                             {isOwner && (
                               <button
                                 onClick={() => handleSelectWinner(bid)}
-                                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-md transition-transform active:scale-95 flex items-center space-x-1"
+                                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-md transition-transform active:scale-95 flex items-center space-x-1 cursor-pointer"
                               >
                                 <UserCheck className="w-3.5 h-3.5" />
-                                <span>Chốt Kèo Này</span>
+                                <span>{language === 'vi' ? 'Chốt Kèo Này' : 'Award Gig'}</span>
                               </button>
                             )}
                           </div>
@@ -489,13 +581,15 @@ export const LiveReverseBiddingModal: React.FC<LiveReverseBiddingModalProps> = (
         {/* Footer */}
         <div className="p-4 sm:p-5 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between">
           <span className="text-xs text-slate-500 dark:text-slate-400">
-            🔒 Được bảo chứng bởi GigMe Smart Escrow
+            {language === 'vi'
+              ? '🔒 Được bảo chứng bởi GigMe Smart Escrow'
+              : '🔒 Secured by GigMe Smart Escrow'}
           </span>
           <button
             onClick={onClose}
-            className="px-5 py-2 rounded-xl bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-xs font-bold text-slate-700 dark:text-slate-200 transition-colors"
+            className="px-5 py-2 rounded-xl bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-xs font-bold text-slate-700 dark:text-slate-200 transition-colors cursor-pointer"
           >
-            Đóng
+            {language === 'vi' ? 'Đóng' : 'Close'}
           </button>
         </div>
       </div>

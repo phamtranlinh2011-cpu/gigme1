@@ -7,16 +7,13 @@ import {
   TrendingDown,
   ShieldAlert,
   Volume2,
-  CheckCircle2,
   X,
-  Send,
   Smartphone,
   Copy,
   Check,
   Radio,
   Lock,
   Timer,
-  Sparkles,
 } from 'lucide-react';
 import { useGigMe } from '../context/GigMeContext';
 import { playNotificationSound } from '../utils/audio';
@@ -30,7 +27,14 @@ export const FcmPushNotificationModal: React.FC<FcmPushNotificationModalProps> =
   isOpen,
   onClose,
 }) => {
-  const { currentUser, toggleFcm, sendTestFcmPush, setNotificationSound, sendWebPushNotification } = useGigMe();
+  const {
+    currentUser,
+    toggleFcm,
+    sendTestFcmPush,
+    setNotificationSound,
+    sendWebPushNotification,
+    language,
+  } = useGigMe();
 
   const isEnabled = currentUser?.fcmEnabled ?? false;
   const fcmToken = currentUser?.fcmToken || 'web_push_device_token_live_ready';
@@ -44,32 +48,57 @@ export const FcmPushNotificationModal: React.FC<FcmPushNotificationModalProps> =
   const [subReverseAuction, setSubReverseAuction] = useState(true);
   const [subSafeWalk, setSubSafeWalk] = useState(true);
 
-
   const [history, setHistory] = useState<
     Array<{ id: string; title: string; body: string; time: string; type: string }>
-  >([
-    {
-      id: 'fcm_1',
-      title: '⚡ Kèo hỏa tốc 50m quanh bạn!',
-      body: 'Giao tài liệu KTX Khu B - Thù lao: 45.000đ (Smart Escrow đã khóa)',
-      time: 'Vừa xong',
-      type: 'FLASH',
-    },
-    {
-      id: 'fcm_2',
-      title: '💰 Giải ngân thù lao thành công',
-      body: 'Bạn đã nhận 120.000đ cho đơn việc "Gia sư Giải tích 2".',
-      time: '15 phút trước',
-      type: 'ESCROW',
-    },
-    {
-      id: 'fcm_3',
-      title: '📉 Phòng Đấu Giá Ngược có giá mới',
-      body: 'Một sinh viên vừa hạ giá chào đơn "Vẽ poster Canva" xuống 80.000đ!',
-      time: '1 giờ trước',
-      type: 'BID',
-    },
-  ]);
+  >(
+    language === 'vi'
+      ? [
+          {
+            id: 'fcm_1',
+            title: '⚡ Kèo hỏa tốc 50m quanh bạn!',
+            body: 'Giao tài liệu KTX Khu B - Thù lao: 45.000đ (Smart Escrow đã khóa)',
+            time: 'Vừa xong',
+            type: 'FLASH',
+          },
+          {
+            id: 'fcm_2',
+            title: '💰 Giải ngân thù lao thành công',
+            body: 'Bạn đã nhận 120.000đ cho đơn việc "Gia sư Giải tích 2".',
+            time: '15 phút trước',
+            type: 'ESCROW',
+          },
+          {
+            id: 'fcm_3',
+            title: '📉 Phòng Đấu Giá Ngược có giá mới',
+            body: 'Một sinh viên vừa hạ giá chào đơn "Vẽ poster Canva" xuống 80.000đ!',
+            time: '1 giờ trước',
+            type: 'BID',
+          },
+        ]
+      : [
+          {
+            id: 'fcm_1',
+            title: '⚡ 50m Flash gig near you!',
+            body: 'Deliver notes at Dorm B - Reward: 45,000 VND (Escrow locked)',
+            time: 'Just now',
+            type: 'FLASH',
+          },
+          {
+            id: 'fcm_2',
+            title: '💰 Escrow payout released',
+            body: 'Received 120,000 VND for Calculus 2 tutoring.',
+            time: '15 mins ago',
+            type: 'ESCROW',
+          },
+          {
+            id: 'fcm_3',
+            title: '📉 Reverse auction new low bid',
+            body: 'A student lowered their bid for Canva Poster to 80,000 VND!',
+            time: '1 hour ago',
+            type: 'BID',
+          },
+        ]
+  );
 
   useEffect(() => {
     if (typeof window !== 'undefined' && 'Notification' in window) {
@@ -121,16 +150,26 @@ export const FcmPushNotificationModal: React.FC<FcmPushNotificationModalProps> =
         setLockScreenCountdown(null);
         // Dispatch lockscreen push notification via Service Worker
         sendWebPushNotification(
-          '⚡ KÈO HỎA TỐC 50M: GIAO TRÀ SỮA KTX!',
-          'Thù lao 40.000đ • Smart Escrow đã khóa bảo chứng 100% • Mở máy nhận ngay!',
+          language === 'vi'
+            ? '⚡ KÈO HỎA TỐC 50M: GIAO TRÀ SỮA KTX!'
+            : '⚡ 50M FLASH GIG: DORM BOBA RUN!',
+          language === 'vi'
+            ? 'Thù lao 40.000đ • Smart Escrow đã khóa bảo chứng 100% • Mở máy nhận ngay!'
+            : 'Reward 40,000 VND • Smart Escrow 100% guaranteed • Unlock to claim now!',
           '/pwa-192x192.png'
         );
         setHistory((prev) => [
           {
             id: `fcm_${Date.now()}`,
-            title: '⚡ KÈO HỎA TỐC 50M: GIAO TRÀ SỮA KTX!',
-            body: 'Thù lao 40.000đ • Đã bắn thông báo ra Màn hình khóa',
-            time: 'Vừa xong',
+            title:
+              language === 'vi'
+                ? '⚡ KÈO HỎA TỐC 50M: GIAO TRÀ SỮA KTX!'
+                : '⚡ 50M FLASH GIG: DORM BOBA RUN!',
+            body:
+              language === 'vi'
+                ? 'Thù lao 40.000đ • Đã bắn thông báo ra Màn hình khóa'
+                : 'Reward 40,000 VND • Pushed alert to Lock Screen',
+            time: language === 'vi' ? 'Vừa xong' : 'Just now',
             type: 'FLASH',
           },
           ...prev,
@@ -140,27 +179,47 @@ export const FcmPushNotificationModal: React.FC<FcmPushNotificationModalProps> =
   };
 
   const triggerTestNotification = (type: 'FLASH' | 'ESCROW' | 'AUCTION' | 'SOS') => {
-
     let title = '';
     let body = '';
 
-    switch (type) {
-      case 'FLASH':
-        title = '⚡ KÈO HỎA TỐC GẦN BẠN (50M)!';
-        body = 'Ship trà sữa KTX Nhà H2 qua Cổng 1 • Thù lao 35.000đ • Nhận ngay kẻo lỡ!';
-        break;
-      case 'ESCROW':
-        title = '💰 SMART ESCROW ĐÃ GIẢI NGÂN!';
-        body = 'Số dư ví khả dụng của bạn vừa cộng thêm 150.000đ. Nhấn để kiểm tra ví.';
-        break;
-      case 'AUCTION':
-        title = '📉 ĐẤU GIÁ NGƯỢC: GIÁ MỚI SIÊU HẤP DẪN';
-        body = 'Freelancer Minh Tuấn vừa giảm giá chào thầu đơn còn 95.000đ!';
-        break;
-      case 'SOS':
-        title = '🚨 SOS SAFEWALK BẢO VỆ ĐÊM';
-        body = 'Bạn cùng phòng báo đã về đến phòng KTX an toàn lúc 23:45.';
-        break;
+    if (language === 'vi') {
+      switch (type) {
+        case 'FLASH':
+          title = '⚡ KÈO HỎA TỐC GẦN BẠN (50M)!';
+          body = 'Ship trà sữa KTX Nhà H2 qua Cổng 1 • Thù lao 35.000đ • Nhận ngay kẻo lỡ!';
+          break;
+        case 'ESCROW':
+          title = '💰 SMART ESCROW ĐÃ GIẢI NGÂN!';
+          body = 'Số dư ví khả dụng của bạn vừa cộng thêm 150.000đ. Nhấn để kiểm tra ví.';
+          break;
+        case 'AUCTION':
+          title = '📉 ĐẤU GIÁ NGƯỢC: GIÁ MỚI SIÊU HẤP DẪN';
+          body = 'Freelancer Minh Tuấn vừa giảm giá chào thầu đơn còn 95.000đ!';
+          break;
+        case 'SOS':
+          title = '🚨 SOS SAFEWALK BẢO VỆ ĐÊM';
+          body = 'Bạn cùng phòng báo đã về đến phòng KTX an toàn lúc 23:45.';
+          break;
+      }
+    } else {
+      switch (type) {
+        case 'FLASH':
+          title = '⚡ FLASH GIG NEARBY (50M)!';
+          body = 'Courier boba from Dorm H2 to Gate 1 • 35,000 VND • Claim now!';
+          break;
+        case 'ESCROW':
+          title = '💰 SMART ESCROW DISBURSED!';
+          body = 'Your available wallet balance credited +150,000 VND. Tap to check.';
+          break;
+        case 'AUCTION':
+          title = '📉 REVERSE AUCTION: ATTRACTIVE NEW BID';
+          body = 'Freelancer Minh Tuan undercut current bid to 95,000 VND!';
+          break;
+        case 'SOS':
+          title = '🚨 SOS SAFEWALK NIGHT SHIELD';
+          body = 'Your roommate arrived safely at dorm at 23:45.';
+          break;
+      }
     }
 
     sendTestFcmPush(title, body, type);
@@ -169,7 +228,7 @@ export const FcmPushNotificationModal: React.FC<FcmPushNotificationModalProps> =
         id: `fcm_${Date.now()}`,
         title,
         body,
-        time: 'Vừa xong',
+        time: language === 'vi' ? 'Vừa xong' : 'Just now',
         type,
       },
       ...prev,
@@ -197,17 +256,19 @@ export const FcmPushNotificationModal: React.FC<FcmPushNotificationModalProps> =
               <div className="flex items-center space-x-2">
                 <h3 className="text-lg font-black tracking-tight">FCM Push Notification</h3>
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/25 text-white font-extrabold uppercase tracking-wider">
-                  Hỏa Tốc 24/7
+                  {language === 'vi' ? 'Hỏa Tốc 24/7' : '24/7 Instant'}
                 </span>
               </div>
               <p className="text-xs text-orange-100 mt-0.5">
-                Bắn thông báo đẩy tức thì theo bán kính định vị & sự kiện Escrow
+                {language === 'vi'
+                  ? 'Bắn thông báo đẩy tức thì theo bán kính định vị & sự kiện Escrow'
+                  : 'Real-time push alerts by GPS radius & Escrow milestones'}
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-colors"
+            className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -229,7 +290,13 @@ export const FcmPushNotificationModal: React.FC<FcmPushNotificationModalProps> =
               <div>
                 <div className="flex items-center space-x-2">
                   <h4 className="font-extrabold text-sm">
-                    {isEnabled ? 'Trạng thái: Đang Lắng Nghe FCM' : 'Trạng thái: Đang Tắt FCM'}
+                    {isEnabled
+                      ? language === 'vi'
+                        ? 'Trạng thái: Đang Lắng Nghe FCM'
+                        : 'Status: Listening to FCM Push'
+                      : language === 'vi'
+                      ? 'Trạng thái: Đang Tắt FCM'
+                      : 'Status: FCM Push Disabled'}
                   </h4>
                   <span
                     className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
@@ -242,20 +309,27 @@ export const FcmPushNotificationModal: React.FC<FcmPushNotificationModalProps> =
                   </span>
                 </div>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  Quyền trình duyệt Web: <span className="font-bold text-orange-500">{browserPermission}</span>
+                  {language === 'vi' ? 'Quyền trình duyệt Web: ' : 'Browser Permission: '}
+                  <span className="font-bold text-orange-500">{browserPermission}</span>
                 </p>
               </div>
             </div>
 
             <button
               onClick={handleToggle}
-              className={`px-4 py-2 rounded-xl font-extrabold text-xs transition shadow-md ${
+              className={`px-4 py-2 rounded-xl font-extrabold text-xs transition shadow-md cursor-pointer ${
                 isEnabled
                   ? 'bg-red-500 hover:bg-red-600 text-white shadow-red-500/20'
                   : 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-500/20'
               }`}
             >
-              {isEnabled ? 'Tắt Thông Báo' : 'Bật FCM Ngay'}
+              {isEnabled
+                ? language === 'vi'
+                  ? 'Tắt Thông Báo'
+                  : 'Disable Push'
+                : language === 'vi'
+                ? 'Bật FCM Ngay'
+                : 'Enable FCM Now'}
             </button>
           </div>
 
@@ -264,7 +338,9 @@ export const FcmPushNotificationModal: React.FC<FcmPushNotificationModalProps> =
             <div className="flex items-center justify-between mb-1.5">
               <span className="font-bold text-slate-600 dark:text-slate-300 flex items-center space-x-1.5">
                 <Smartphone className="w-4 h-4 text-orange-500" />
-                <span>Mã Thiết Bị Firebase FCM Token:</span>
+                <span>
+                  {language === 'vi' ? 'Mã Thiết Bị Firebase FCM Token:' : 'Firebase Device FCM Token:'}
+                </span>
               </span>
               <button
                 onClick={handleCopyToken}
@@ -273,12 +349,14 @@ export const FcmPushNotificationModal: React.FC<FcmPushNotificationModalProps> =
                 {copiedToken ? (
                   <>
                     <Check className="w-3.5 h-3.5 text-emerald-500" />
-                    <span className="text-emerald-500">Đã chép</span>
+                    <span className="text-emerald-500">
+                      {language === 'vi' ? 'Đã chép' : 'Copied'}
+                    </span>
                   </>
                 ) : (
                   <>
                     <Copy className="w-3.5 h-3.5" />
-                    <span>Sao chép token</span>
+                    <span>{language === 'vi' ? 'Sao chép token' : 'Copy token'}</span>
                   </>
                 )}
               </button>
@@ -297,13 +375,17 @@ export const FcmPushNotificationModal: React.FC<FcmPushNotificationModalProps> =
                 </div>
                 <div>
                   <div className="flex items-center space-x-2">
-                    <h4 className="font-extrabold text-sm text-white">Thông Báo Đẩy Màn Hình Khóa</h4>
+                    <h4 className="font-extrabold text-sm text-white">
+                      {language === 'vi' ? 'Thông Báo Đẩy Màn Hình Khóa' : 'Lock Screen Push Notifications'}
+                    </h4>
                     <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#3064AE]/40 text-[#E0FAEB] font-black uppercase tracking-wider">
                       PWA 24/7
                     </span>
                   </div>
                   <p className="text-xs text-[#C5E5EC]/80 mt-0.5">
-                    Rung chuông & đẩy banner lên màn hình khóa điện thoại cả khi khóa màn hình
+                    {language === 'vi'
+                      ? 'Rung chuông & đẩy banner lên màn hình khóa điện thoại cả khi khóa màn hình'
+                      : 'Vibrates & displays push banner on phone lock screen even when locked'}
                   </p>
                 </div>
               </div>
@@ -311,17 +393,29 @@ export const FcmPushNotificationModal: React.FC<FcmPushNotificationModalProps> =
 
             <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800 text-xs space-y-1.5">
               <div className="flex items-center justify-between text-slate-300">
-                <span>Quyền hệ thống Lock Screen:</span>
-                <span className={`font-bold ${browserPermission === 'granted' ? 'text-emerald-400' : 'text-amber-400'}`}>
-                  {browserPermission === 'granted' ? '✓ Đã Bật (Cho Phép)' : 'Chưa Cấp Quyền'}
+                <span>{language === 'vi' ? 'Quyền hệ thống Lock Screen:' : 'Lock Screen Permission:'}</span>
+                <span
+                  className={`font-bold ${
+                    browserPermission === 'granted' ? 'text-emerald-400' : 'text-amber-400'
+                  }`}
+                >
+                  {browserPermission === 'granted'
+                    ? language === 'vi'
+                      ? '✓ Đã Bật (Cho Phép)'
+                      : '✓ Granted (Allowed)'
+                    : language === 'vi'
+                    ? 'Chưa Cấp Quyền'
+                    : 'Not Granted'}
                 </span>
               </div>
               <div className="flex items-center justify-between text-slate-300">
                 <span>Service Worker Lock Screen:</span>
-                <span className="font-bold text-emerald-400">✓ Sẵn sàng (sw.js)</span>
+                <span className="font-bold text-emerald-400">
+                  {language === 'vi' ? '✓ Sẵn sàng (sw.js)' : '✓ Ready (sw.js)'}
+                </span>
               </div>
               <div className="flex items-center justify-between text-slate-300">
-                <span>Nhịp rung cảm ứng (Haptic):</span>
+                <span>{language === 'vi' ? 'Nhịp rung cảm ứng (Haptic):' : 'Haptic Vibration Pattern:'}</span>
                 <span className="font-mono text-[11px] text-[#C5E5EC]">[200ms, 100ms, 200ms]</span>
               </div>
             </div>
@@ -338,26 +432,35 @@ export const FcmPushNotificationModal: React.FC<FcmPushNotificationModalProps> =
               {lockScreenCountdown !== null ? (
                 <>
                   <Timer className="w-4 h-4 animate-spin" />
-                  <span>Khóa màn hình điện thoại ngay! ({lockScreenCountdown}s...)</span>
+                  <span>
+                    {language === 'vi'
+                      ? `Khóa màn hình điện thoại ngay! (${lockScreenCountdown}s...)`
+                      : `Lock your phone screen now! (${lockScreenCountdown}s...)`}
+                  </span>
                 </>
               ) : (
                 <>
                   <Lock className="w-4 h-4" />
-                  <span>📲 Bắn Thử Ra Màn Hình Khóa Ngay (Đếm ngược 3s)</span>
+                  <span>
+                    {language === 'vi'
+                      ? '📲 Bắn Thử Ra Màn Hình Khóa Ngay (Đếm ngược 3s)'
+                      : '📲 Test Lock Screen Notification (3s Countdown)'}
+                  </span>
                 </>
               )}
             </button>
 
             <p className="text-[11px] text-slate-400 italic">
-              *Hướng dẫn: Bấm nút trên, lập tức bấm nút Nguồn khóa màn hình điện thoại hoặc về màn hình chính. Sau 3 giây máy sẽ rung và bắn thông báo GigMe trực tiếp ngoài màn hình khóa.
+              {language === 'vi'
+                ? '*Hướng dẫn: Bấm nút trên, lập tức bấm nút Nguồn khóa màn hình điện thoại hoặc về màn hình chính. Sau 3 giây máy sẽ rung và bắn thông báo GigMe trực tiếp ngoài màn hình khóa.'
+                : '*Instructions: Tap button above, then immediately lock your phone screen or go to home screen. In 3s, your phone will vibrate and pop the notification onto your lock screen.'}
             </p>
           </div>
-
 
           {/* Notification Channels Selection */}
           <div className="space-y-2">
             <h5 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              Kênh thông báo đăng ký:
+              {language === 'vi' ? 'Kênh thông báo đăng ký:' : 'Subscribed Channels:'}
             </h5>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
               <label className="flex items-center space-x-2.5 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/60 cursor-pointer">
@@ -369,7 +472,9 @@ export const FcmPushNotificationModal: React.FC<FcmPushNotificationModalProps> =
                 />
                 <div className="flex items-center space-x-2">
                   <Zap className="w-4 h-4 text-amber-500" />
-                  <span className="font-bold">Kèo hỏa tốc &lt; 50m</span>
+                  <span className="font-bold">
+                    {language === 'vi' ? 'Kèo hỏa tốc < 50m' : 'Flash gigs < 50m'}
+                  </span>
                 </div>
               </label>
 
@@ -382,7 +487,9 @@ export const FcmPushNotificationModal: React.FC<FcmPushNotificationModalProps> =
                 />
                 <div className="flex items-center space-x-2">
                   <DollarSign className="w-4 h-4 text-emerald-500" />
-                  <span className="font-bold">Biến động Smart Escrow</span>
+                  <span className="font-bold">
+                    {language === 'vi' ? 'Biến động Smart Escrow' : 'Smart Escrow updates'}
+                  </span>
                 </div>
               </label>
 
@@ -395,7 +502,9 @@ export const FcmPushNotificationModal: React.FC<FcmPushNotificationModalProps> =
                 />
                 <div className="flex items-center space-x-2">
                   <TrendingDown className="w-4 h-4 text-blue-500" />
-                  <span className="font-bold">Phòng đấu giá ngược</span>
+                  <span className="font-bold">
+                    {language === 'vi' ? 'Phòng đấu giá ngược' : 'Reverse auction room'}
+                  </span>
                 </div>
               </label>
 
@@ -408,7 +517,9 @@ export const FcmPushNotificationModal: React.FC<FcmPushNotificationModalProps> =
                 />
                 <div className="flex items-center space-x-2">
                   <ShieldAlert className="w-4 h-4 text-red-500" />
-                  <span className="font-bold">Cảnh báo SOS SafeWalk</span>
+                  <span className="font-bold">
+                    {language === 'vi' ? 'Cảnh báo SOS SafeWalk' : 'SOS SafeWalk alerts'}
+                  </span>
                 </div>
               </label>
             </div>
@@ -419,15 +530,29 @@ export const FcmPushNotificationModal: React.FC<FcmPushNotificationModalProps> =
             <div className="flex items-center justify-between text-xs">
               <span className="font-bold flex items-center space-x-1.5">
                 <Volume2 className="w-4 h-4 text-orange-500" />
-                <span>Âm thanh thông báo ting ting:</span>
+                <span>
+                  {language === 'vi' ? 'Âm thanh thông báo ting ting:' : 'Chime & Alert Sounds:'}
+                </span>
               </span>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
               {[
-                { key: 'BANK_TING', label: 'Ting Ngân Hàng' },
-                { key: 'CASH_COUNT', label: 'Tiền Rào Rạt' },
-                { key: 'DING_DEFAULT', label: 'Chuông Kép' },
-                { key: 'SOFT_VIBRATE', label: 'Rung Nhẹ' },
+                {
+                  key: 'BANK_TING',
+                  label: language === 'vi' ? 'Ting Ngân Hàng' : 'Bank Chime',
+                },
+                {
+                  key: 'CASH_COUNT',
+                  label: language === 'vi' ? 'Tiền Rào Rạt' : 'Cash Count',
+                },
+                {
+                  key: 'DING_DEFAULT',
+                  label: language === 'vi' ? 'Chuông Kép' : 'Dual Chime',
+                },
+                {
+                  key: 'SOFT_VIBRATE',
+                  label: language === 'vi' ? 'Rung Nhẹ' : 'Gentle Haptic',
+                },
               ].map((s) => (
                 <button
                   key={s.key}
@@ -435,7 +560,7 @@ export const FcmPushNotificationModal: React.FC<FcmPushNotificationModalProps> =
                     setNotificationSound(s.key as any);
                     playNotificationSound(s.key as any);
                   }}
-                  className="p-2 rounded-xl bg-white dark:bg-slate-900 hover:bg-orange-500/10 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold transition text-center"
+                  className="p-2 rounded-xl bg-white dark:bg-slate-900 hover:bg-orange-500/10 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold transition text-center cursor-pointer"
                 >
                   {s.label}
                 </button>
@@ -446,36 +571,38 @@ export const FcmPushNotificationModal: React.FC<FcmPushNotificationModalProps> =
           {/* Dispatch Quick Notification Samples */}
           <div className="space-y-2">
             <h5 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              Mẫu thông báo đẩy hỏa tốc hệ thống:
+              {language === 'vi'
+                ? 'Mẫu thông báo đẩy hỏa tốc hệ thống:'
+                : 'Sample System Push Triggers:'}
             </h5>
             <div className="grid grid-cols-2 gap-2 text-xs">
               <button
                 onClick={() => triggerTestNotification('FLASH')}
-                className="p-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-500/30 font-bold flex items-center justify-center space-x-1.5 transition"
+                className="p-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-500/30 font-bold flex items-center justify-center space-x-1.5 transition cursor-pointer"
               >
                 <Zap className="w-3.5 h-3.5" />
-                <span>Kèo Gấp 50m</span>
+                <span>{language === 'vi' ? 'Kèo Gấp 50m' : '50m Flash Gig'}</span>
               </button>
               <button
                 onClick={() => triggerTestNotification('ESCROW')}
-                className="p-2.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 font-bold flex items-center justify-center space-x-1.5 transition"
+                className="p-2.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 font-bold flex items-center justify-center space-x-1.5 transition cursor-pointer"
               >
                 <DollarSign className="w-3.5 h-3.5" />
                 <span>Smart Escrow</span>
               </button>
               <button
                 onClick={() => triggerTestNotification('AUCTION')}
-                className="p-2.5 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 text-blue-700 dark:text-blue-400 border border-blue-500/30 font-bold flex items-center justify-center space-x-1.5 transition"
+                className="p-2.5 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 text-blue-700 dark:text-blue-400 border border-blue-500/30 font-bold flex items-center justify-center space-x-1.5 transition cursor-pointer"
               >
                 <TrendingDown className="w-3.5 h-3.5" />
-                <span>Đấu Giá Ngược</span>
+                <span>{language === 'vi' ? 'Đấu Giá Ngược' : 'Reverse Auction'}</span>
               </button>
               <button
                 onClick={() => triggerTestNotification('SOS')}
-                className="p-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-700 dark:text-red-400 border border-red-500/30 font-bold flex items-center justify-center space-x-1.5 transition"
+                className="p-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-700 dark:text-red-400 border border-red-500/30 font-bold flex items-center justify-center space-x-1.5 transition cursor-pointer"
               >
                 <ShieldAlert className="w-3.5 h-3.5" />
-                <span>Cảnh Báo SafeWalk</span>
+                <span>{language === 'vi' ? 'Cảnh Báo SafeWalk' : 'SafeWalk SOS'}</span>
               </button>
             </div>
           </div>
@@ -483,7 +610,7 @@ export const FcmPushNotificationModal: React.FC<FcmPushNotificationModalProps> =
           {/* FCM Push History */}
           <div className="space-y-2">
             <h5 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              Lịch sử thông báo đẩy vừa nhận:
+              {language === 'vi' ? 'Lịch sử thông báo đẩy vừa nhận:' : 'Recent Push Notifications:'}
             </h5>
             <div className="space-y-1.5">
               {history.map((h) => (
@@ -525,9 +652,9 @@ export const FcmPushNotificationModal: React.FC<FcmPushNotificationModalProps> =
         <div className="p-4 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-200 dark:border-slate-700/60 flex items-center justify-end">
           <button
             onClick={onClose}
-            className="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-extrabold text-xs shadow-md transition"
+            className="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-extrabold text-xs shadow-md transition cursor-pointer"
           >
-            Đã Hiểu & Đóng
+            {language === 'vi' ? 'Đã Hiểu & Đóng' : 'Understood & Close'}
           </button>
         </div>
       </div>

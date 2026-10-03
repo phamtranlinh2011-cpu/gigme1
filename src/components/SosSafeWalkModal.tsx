@@ -6,17 +6,11 @@ import {
   Navigation,
   PhoneCall,
   Volume2,
-  VolumeX,
-  Clock,
   CheckCircle2,
   Users,
-  AlertTriangle,
   X,
   Phone,
   Radio,
-  ArrowRight,
-  Sparkles,
-  RefreshCw,
   Compass,
 } from 'lucide-react';
 import { useGigMe } from '../context/GigMeContext';
@@ -35,13 +29,20 @@ export const SosSafeWalkModal: React.FC<SosSafeWalkModalProps> = ({ isOpen, onCl
     checkInSafeWalk,
     triggerSafeWalkAlarm,
     stopSafeWalk,
+    language,
   } = useGigMe();
 
   // Setup Form
-  const [origin, setOrigin] = useState('Thư viện Trung Tâm Campus');
-  const [destination, setDestination] = useState('Ký Túc Xá Nhà H6 - Cổng 3');
+  const [origin, setOrigin] = useState(
+    language === 'vi' ? 'Thư viện Trung Tâm Campus' : 'Campus Central Library'
+  );
+  const [destination, setDestination] = useState(
+    language === 'vi' ? 'Ký Túc Xá Nhà H6 - Cổng 3' : 'Dormitory Building H6 - Gate 3'
+  );
   const [durationMinutes, setDurationMinutes] = useState(15);
-  const [emergencyName, setEmergencyName] = useState('Bạn cùng phòng (Bảo Anh)');
+  const [emergencyName, setEmergencyName] = useState(
+    language === 'vi' ? 'Bạn cùng phòng (Bảo Anh)' : 'Roommate (Alex)'
+  );
   const [emergencyPhone, setEmergencyPhone] = useState('0909999888');
 
   // Countdown & Timer
@@ -57,17 +58,17 @@ export const SosSafeWalkModal: React.FC<SosSafeWalkModalProps> = ({ isOpen, onCl
   const [buddies] = useState([
     {
       id: 'buddy_1',
-      name: 'Trần Minh Tuấn (K21 CNTT)',
-      route: 'Thư viện -> KTX Khu B',
-      eta: 'Khởi hành sau 5 phút',
-      status: 'Đang chờ ghép đôi',
+      name: language === 'vi' ? 'Trần Minh Tuấn (K21 CNTT)' : 'Minh Tuan (CS Year 3)',
+      route: language === 'vi' ? 'Thư viện -> KTX Khu B' : 'Library -> Dorm Area B',
+      eta: language === 'vi' ? 'Khởi hành sau 5 phút' : 'Departing in 5 mins',
+      status: language === 'vi' ? 'Đang chờ ghép đôi' : 'Awaiting buddy',
     },
     {
       id: 'buddy_2',
-      name: 'Nguyễn Thảo Vy (K22 QTKD)',
-      route: 'Giảng đường A -> KTX Nhà H3',
-      eta: 'Khởi hành ngay bây giờ',
-      status: 'Đang di chuyển',
+      name: language === 'vi' ? 'Nguyễn Thảo Vy (K22 QTKD)' : 'Thao Vy (Biz Year 2)',
+      route: language === 'vi' ? 'Giảng đường A -> KTX Nhà H3' : 'Hall A -> Dorm H3',
+      eta: language === 'vi' ? 'Khởi hành ngay bây giờ' : 'Departing now',
+      status: language === 'vi' ? 'Đang di chuyển' : 'En route',
     },
   ]);
 
@@ -160,11 +161,15 @@ export const SosSafeWalkModal: React.FC<SosSafeWalkModalProps> = ({ isOpen, onCl
               <div className="w-24 h-24 mx-auto rounded-full bg-gradient-to-tr from-rose-500 to-amber-500 flex items-center justify-center text-4xl shadow-xl shadow-rose-500/30 animate-pulse">
                 👩
               </div>
-              <h3 className="text-xl font-black">Mẹ (Cuộc Gọi Giải Cứu)</h3>
+              <h3 className="text-xl font-black">
+                {language === 'vi' ? 'Mẹ (Cuộc Gọi Giải Cứu)' : 'Mom (Rescue Call)'}
+              </h3>
               <p className="text-xs text-slate-400">
                 {fakeCallAnswered
-                  ? `Đang kết nối... ${formatTime(fakeCallDuration)}`
-                  : 'Cuộc gọi thoại đến...'}
+                  ? `${language === 'vi' ? 'Đang kết nối...' : 'Connected...'} ${formatTime(fakeCallDuration)}`
+                  : language === 'vi'
+                  ? 'Cuộc gọi thoại đến...'
+                  : 'Incoming voice call...'}
               </p>
             </div>
 
@@ -172,12 +177,14 @@ export const SosSafeWalkModal: React.FC<SosSafeWalkModalProps> = ({ isOpen, onCl
               <div className="text-center space-y-4">
                 <div className="p-4 rounded-2xl bg-slate-800/80 border border-slate-700 text-xs text-slate-300">
                   <p className="italic">
-                    "Mẹ đang ở đầu hẻm rồi con ơi, con đi đến đâu rồi mẹ đón? Đứng yên chỗ đông người mẹ tới liền nhé!"
+                    {language === 'vi'
+                      ? '"Mẹ đang ở đầu hẻm rồi con ơi, con đi đến đâu rồi mẹ đón? Đứng yên chỗ đông người mẹ tới liền nhé!"'
+                      : '"Honey, I am at the entrance of the alley. Where are you? Stay in a well-lit spot, I am picking you up right now!"'}
                   </p>
                 </div>
                 <button
                   onClick={() => setIsFakeCalling(false)}
-                  className="w-16 h-16 mx-auto rounded-full bg-red-600 hover:bg-red-700 flex items-center justify-center shadow-lg shadow-red-600/40 transition-transform hover:scale-105"
+                  className="w-16 h-16 mx-auto rounded-full bg-red-600 hover:bg-red-700 flex items-center justify-center shadow-lg shadow-red-600/40 transition-transform hover:scale-105 cursor-pointer"
                 >
                   <Phone className="w-7 h-7 text-white rotate-[135deg]" />
                 </button>
@@ -186,22 +193,26 @@ export const SosSafeWalkModal: React.FC<SosSafeWalkModalProps> = ({ isOpen, onCl
               <div className="flex items-center justify-around pb-10">
                 <button
                   onClick={() => setIsFakeCalling(false)}
-                  className="flex flex-col items-center space-y-1.5 group"
+                  className="flex flex-col items-center space-y-1.5 group cursor-pointer"
                 >
                   <div className="w-16 h-16 rounded-full bg-red-600 group-hover:bg-red-700 flex items-center justify-center shadow-lg shadow-red-600/40">
                     <Phone className="w-7 h-7 text-white rotate-[135deg]" />
                   </div>
-                  <span className="text-xs font-bold text-slate-400">Từ chối</span>
+                  <span className="text-xs font-bold text-slate-400">
+                    {language === 'vi' ? 'Từ chối' : 'Decline'}
+                  </span>
                 </button>
 
                 <button
                   onClick={() => setFakeCallAnswered(true)}
-                  className="flex flex-col items-center space-y-1.5 group"
+                  className="flex flex-col items-center space-y-1.5 group cursor-pointer"
                 >
                   <div className="w-16 h-16 rounded-full bg-emerald-500 group-hover:bg-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/40 animate-bounce">
                     <Phone className="w-7 h-7 text-white" />
                   </div>
-                  <span className="text-xs font-bold text-emerald-400">Trả lời</span>
+                  <span className="text-xs font-bold text-emerald-400">
+                    {language === 'vi' ? 'Trả lời' : 'Answer'}
+                  </span>
                 </button>
               </div>
             )}
@@ -222,19 +233,23 @@ export const SosSafeWalkModal: React.FC<SosSafeWalkModalProps> = ({ isOpen, onCl
             </div>
             <div>
               <div className="flex items-center space-x-2">
-                <h3 className="text-lg font-black tracking-tight">SOS SafeWalk Sinh Viên</h3>
+                <h3 className="text-lg font-black tracking-tight">
+                  {language === 'vi' ? 'SOS SafeWalk Sinh Viên' : 'Student SOS SafeWalk'}
+                </h3>
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/25 text-white font-extrabold uppercase">
-                  Bảo Vệ Đêm
+                  {language === 'vi' ? 'Bảo Vệ Đêm' : 'Night Patrol'}
                 </span>
               </div>
               <p className="text-xs text-rose-100 mt-0.5">
-                Giám sát lộ trình, check-in an toàn & còi báo động khẩn cấp
+                {language === 'vi'
+                  ? 'Giám sát lộ trình, check-in an toàn & còi báo động khẩn cấp'
+                  : 'Route telemetry, safety check-in & SOS emergency siren'}
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-colors"
+            className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -256,15 +271,21 @@ export const SosSafeWalkModal: React.FC<SosSafeWalkModalProps> = ({ isOpen, onCl
                   <Radio className="w-4 h-4 animate-ping" />
                   <span>
                     {safeWalkSession.isAlarmTriggered
-                      ? '🚨 ĐANG PHÁT CÒI HÚ BÁO ĐỘNG SOS!'
-                      : 'Đang Giám Sát SafeWalk Theo Thời Gian Thực'}
+                      ? language === 'vi'
+                        ? '🚨 ĐANG PHÁT CÒI HÚ BÁO ĐỘNG SOS!'
+                        : '🚨 SOS EMERGENCY SIREN ACTIVE!'
+                      : language === 'vi'
+                      ? 'Đang Giám Sát SafeWalk Theo Thời Gian Thực'
+                      : 'Live SafeWalk Route Telemetry Active'}
                   </span>
                 </div>
                 <div className="text-3xl font-black font-mono tracking-wider text-slate-900 dark:text-white">
                   {formatTime(secondsRemaining)}
                 </div>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Thời gian dự kiến còn lại để về đến đích an toàn
+                  {language === 'vi'
+                    ? 'Thời gian dự kiến còn lại để về đến đích an toàn'
+                    : 'Estimated remaining time to arrive safely'}
                 </p>
               </div>
 
@@ -273,7 +294,9 @@ export const SosSafeWalkModal: React.FC<SosSafeWalkModalProps> = ({ isOpen, onCl
                 <div className="flex items-start space-x-2.5">
                   <MapPin className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
                   <div>
-                    <span className="text-[10px] uppercase font-bold text-slate-400">Điểm đi:</span>
+                    <span className="text-[10px] uppercase font-bold text-slate-400">
+                      {language === 'vi' ? 'Điểm đi:' : 'Origin:'}
+                    </span>
                     <p className="font-extrabold text-slate-800 dark:text-slate-200">
                       {safeWalkSession.originName}
                     </p>
@@ -283,14 +306,17 @@ export const SosSafeWalkModal: React.FC<SosSafeWalkModalProps> = ({ isOpen, onCl
                 <div className="border-l-2 border-dashed border-slate-300 dark:border-slate-700 ml-2 pl-4 py-1 flex items-center space-x-2 text-slate-400 text-[11px]">
                   <Navigation className="w-3.5 h-3.5 text-blue-500 animate-spin" />
                   <span>
-                    Tọa độ GPS: {userCoords.latitude.toFixed(5)}, {userCoords.longitude.toFixed(5)}
+                    {language === 'vi' ? 'Tọa độ GPS: ' : 'GPS Telemetry: '}
+                    {userCoords.latitude.toFixed(5)}, {userCoords.longitude.toFixed(5)}
                   </span>
                 </div>
 
                 <div className="flex items-start space-x-2.5">
                   <Compass className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
                   <div>
-                    <span className="text-[10px] uppercase font-bold text-slate-400">Điểm đến:</span>
+                    <span className="text-[10px] uppercase font-bold text-slate-400">
+                      {language === 'vi' ? 'Điểm đến:' : 'Destination:'}
+                    </span>
                     <p className="font-extrabold text-slate-800 dark:text-slate-200">
                       {safeWalkSession.destinationName}
                     </p>
@@ -316,9 +342,9 @@ export const SosSafeWalkModal: React.FC<SosSafeWalkModalProps> = ({ isOpen, onCl
 
                 <a
                   href={`tel:${safeWalkSession.emergencyContactPhone}`}
-                  className="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold text-xs shadow-sm transition"
+                  className="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold text-xs shadow-xs transition"
                 >
-                  Gọi Ngay
+                  {language === 'vi' ? 'Gọi Ngay' : 'Call'}
                 </a>
               </div>
 
@@ -326,36 +352,42 @@ export const SosSafeWalkModal: React.FC<SosSafeWalkModalProps> = ({ isOpen, onCl
               <div className="grid grid-cols-2 gap-3 pt-2">
                 <button
                   onClick={handleCheckIn}
-                  className="py-3.5 px-4 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold text-xs shadow-lg shadow-emerald-500/20 flex items-center justify-center space-x-2 transition"
+                  className="py-3.5 px-4 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold text-xs shadow-lg shadow-emerald-500/20 flex items-center justify-center space-x-2 transition cursor-pointer"
                 >
                   <CheckCircle2 className="w-4 h-4" />
-                  <span>Tôi Vẫn An Toàn</span>
+                  <span>{language === 'vi' ? 'Tôi Vẫn An Toàn' : 'I Am Safe'}</span>
                 </button>
 
                 <button
                   onClick={handleTriggerAlarm}
-                  className="py-3.5 px-4 rounded-2xl bg-red-600 hover:bg-red-700 text-white font-extrabold text-xs shadow-lg shadow-red-600/30 flex items-center justify-center space-x-2 transition animate-pulse"
+                  className="py-3.5 px-4 rounded-2xl bg-red-600 hover:bg-red-700 text-white font-extrabold text-xs shadow-lg shadow-red-600/30 flex items-center justify-center space-x-2 transition animate-pulse cursor-pointer"
                 >
                   <Volume2 className="w-4 h-4" />
-                  <span>CÒI HÚ SOS BÁO ĐỘNG</span>
+                  <span>{language === 'vi' ? 'CÒI HÚ SOS BÁO ĐỘNG' : 'TRIGGER SOS SIREN'}</span>
                 </button>
               </div>
 
               {/* Fake Call Trigger */}
               <button
                 onClick={startFakeCall}
-                className="w-full py-2.5 px-4 rounded-2xl bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 text-indigo-700 dark:text-indigo-400 font-extrabold text-xs flex items-center justify-center space-x-2 transition"
+                className="w-full py-2.5 px-4 rounded-2xl bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 text-indigo-700 dark:text-indigo-400 font-extrabold text-xs flex items-center justify-center space-x-2 transition cursor-pointer"
               >
                 <Phone className="w-4 h-4" />
-                <span>Kích Hoạt "Cuộc Gọi Cứu Nguy Giả Vờ" (Fake Call)</span>
+                <span>
+                  {language === 'vi'
+                    ? 'Kích Hoạt "Cuộc Gọi Cứu Nguy Giả Vờ" (Fake Call)'
+                    : 'Trigger "Fake Rescue Call" (Escape Call)'}
+                </span>
               </button>
 
               {/* Stop Walk */}
               <button
                 onClick={handleStop}
-                className="w-full py-2.5 px-4 rounded-2xl bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 font-extrabold text-xs transition"
+                className="w-full py-2.5 px-4 rounded-2xl bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 font-extrabold text-xs transition cursor-pointer"
               >
-                Đã Về Đến Phòng • Kết Thúc SafeWalk
+                {language === 'vi'
+                  ? 'Đã Về Đến Phòng • Kết Thúc SafeWalk'
+                  : 'Arrived Safely • End SafeWalk'}
               </button>
             </div>
           ) : (
@@ -364,17 +396,23 @@ export const SosSafeWalkModal: React.FC<SosSafeWalkModalProps> = ({ isOpen, onCl
               <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/20 border border-rose-500/30 text-xs text-rose-800 dark:text-rose-200 space-y-1">
                 <div className="flex items-center space-x-2 font-bold">
                   <ShieldCheck className="w-4 h-4 text-rose-500" />
-                  <span>Tính năng bảo vệ sinh viên khi đi lại ban đêm:</span>
+                  <span>
+                    {language === 'vi'
+                      ? 'Tính năng bảo vệ sinh viên khi đi lại ban đêm:'
+                      : 'Nighttime campus safety protection for students:'}
+                  </span>
                 </div>
                 <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
-                  Tự động đếm ngược hành trình từ thư viện/lab về phòng. Nếu có nguy hiểm, chỉ cần 1 chạm để phát còi hú âm lượng cực đại và gửi SMS tọa độ cho người thân & Đội Bảo Vệ KTX.
+                  {language === 'vi'
+                    ? 'Tự động đếm ngược hành trình từ thư viện/lab về phòng. Nếu có nguy hiểm, chỉ cần 1 chạm để phát còi hú âm lượng cực đại và gửi SMS tọa độ cho người thân & Đội Bảo Vệ KTX.'
+                    : 'Auto-monitors your journey from library/lab to dorm. In danger, 1 tap activates max-volume siren and broadcasts live coordinates to emergency contacts & campus security.'}
                 </p>
               </div>
 
               <div className="space-y-3">
                 <div>
                   <label className="text-xs font-bold text-slate-600 dark:text-slate-400 block mb-1">
-                    Điểm xuất phát:
+                    {language === 'vi' ? 'Điểm xuất phát:' : 'Starting location:'}
                   </label>
                   <input
                     type="text"
@@ -386,7 +424,7 @@ export const SosSafeWalkModal: React.FC<SosSafeWalkModalProps> = ({ isOpen, onCl
 
                 <div>
                   <label className="text-xs font-bold text-slate-600 dark:text-slate-400 block mb-1">
-                    Điểm đến an toàn (Phòng / KTX):
+                    {language === 'vi' ? 'Điểm đến an toàn (Phòng / KTX):' : 'Safe destination (Dorm / Room):'}
                   </label>
                   <input
                     type="text"
@@ -398,7 +436,7 @@ export const SosSafeWalkModal: React.FC<SosSafeWalkModalProps> = ({ isOpen, onCl
 
                 <div>
                   <label className="text-xs font-bold text-slate-600 dark:text-slate-400 block mb-1">
-                    Thời gian đi bộ dự kiến (phút):
+                    {language === 'vi' ? 'Thời gian đi bộ dự kiến (phút):' : 'Estimated walking time (mins):'}
                   </label>
                   <div className="grid grid-cols-4 gap-2">
                     {[10, 15, 20, 30].map((mins) => (
@@ -406,13 +444,13 @@ export const SosSafeWalkModal: React.FC<SosSafeWalkModalProps> = ({ isOpen, onCl
                         key={mins}
                         type="button"
                         onClick={() => setDurationMinutes(mins)}
-                        className={`py-2 rounded-xl text-xs font-extrabold border transition ${
+                        className={`py-2 rounded-xl text-xs font-extrabold border transition cursor-pointer ${
                           durationMinutes === mins
                             ? 'bg-rose-500 text-white border-rose-600'
                             : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
                         }`}
                       >
-                        {mins} phút
+                        {mins} {language === 'vi' ? 'phút' : 'mins'}
                       </button>
                     ))}
                   </div>
@@ -421,7 +459,7 @@ export const SosSafeWalkModal: React.FC<SosSafeWalkModalProps> = ({ isOpen, onCl
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <div>
                     <label className="text-xs font-bold text-slate-600 dark:text-slate-400 block mb-1">
-                      Tên người nhận tin SOS:
+                      {language === 'vi' ? 'Tên người nhận tin SOS:' : 'Emergency contact name:'}
                     </label>
                     <input
                       type="text"
@@ -432,7 +470,7 @@ export const SosSafeWalkModal: React.FC<SosSafeWalkModalProps> = ({ isOpen, onCl
                   </div>
                   <div>
                     <label className="text-xs font-bold text-slate-600 dark:text-slate-400 block mb-1">
-                      Số điện thoại khẩn cấp:
+                      {language === 'vi' ? 'Số điện thoại khẩn cấp:' : 'Emergency phone number:'}
                     </label>
                     <input
                       type="text"
@@ -447,17 +485,25 @@ export const SosSafeWalkModal: React.FC<SosSafeWalkModalProps> = ({ isOpen, onCl
               {/* Start SafeWalk Button */}
               <button
                 onClick={handleStart}
-                className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-rose-600 via-pink-600 to-rose-700 hover:from-rose-700 hover:to-pink-700 text-white font-extrabold text-xs shadow-lg shadow-rose-600/30 flex items-center justify-center space-x-2 transition"
+                className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-rose-600 via-pink-600 to-rose-700 hover:from-rose-700 hover:to-pink-700 text-white font-extrabold text-xs shadow-lg shadow-rose-600/30 flex items-center justify-center space-x-2 transition cursor-pointer"
               >
                 <ShieldCheck className="w-4 h-4" />
-                <span>Bắt Đầu Giám Sát SafeWalk An Toàn Ngay</span>
+                <span>
+                  {language === 'vi'
+                    ? 'Bắt Đầu Giám Sát SafeWalk An Toàn Ngay'
+                    : 'Start SafeWalk Route Monitoring'}
+                </span>
               </button>
 
-              {/* SafeWalk Buddies (Bạn Đồng Hành Cùng Tuyến Đường) */}
+              {/* SafeWalk Buddies */}
               <div className="space-y-2 pt-2">
                 <h5 className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider flex items-center space-x-1.5">
                   <Users className="w-4 h-4 text-indigo-500" />
-                  <span>Bạn sinh viên đang tìm người đi bộ cùng:</span>
+                  <span>
+                    {language === 'vi'
+                      ? 'Bạn sinh viên đang tìm người đi bộ cùng:'
+                      : 'Students looking for walk buddies:'}
+                  </span>
                 </h5>
                 <div className="space-y-2">
                   {buddies.map((b) => (
@@ -476,10 +522,16 @@ export const SosSafeWalkModal: React.FC<SosSafeWalkModalProps> = ({ isOpen, onCl
                         </div>
                       </div>
                       <button
-                        onClick={() => alert(`Đã gửi yêu cầu ghép đôi đi chung với ${b.name}!`)}
-                        className="px-3 py-1.5 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white font-bold text-[11px] transition shadow-sm"
+                        onClick={() =>
+                          alert(
+                            language === 'vi'
+                              ? `Đã gửi yêu cầu ghép đôi đi chung với ${b.name}!`
+                              : `Pairing request sent to ${b.name}!`
+                          )
+                        }
+                        className="px-3 py-1.5 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white font-bold text-[11px] transition shadow-xs cursor-pointer"
                       >
-                        Ghép Đôi
+                        {language === 'vi' ? 'Ghép Đôi' : 'Pair Up'}
                       </button>
                     </div>
                   ))}
@@ -492,13 +544,14 @@ export const SosSafeWalkModal: React.FC<SosSafeWalkModalProps> = ({ isOpen, onCl
         {/* Footer */}
         <div className="p-4 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-200 dark:border-slate-700/60 flex items-center justify-between">
           <span className="text-[11px] text-slate-400">
-            Tổng đài an ninh Campus khẩn cấp: <span className="font-bold text-rose-500">1900-9889</span>
+            {language === 'vi' ? 'Tổng đài an ninh Campus khẩn cấp: ' : 'Campus Emergency Security: '}
+            <span className="font-bold text-rose-500">1900-9889</span>
           </span>
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold text-xs hover:bg-slate-300 dark:hover:bg-slate-600 transition"
+            className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold text-xs hover:bg-slate-300 dark:hover:bg-slate-600 transition cursor-pointer"
           >
-            Đóng Lại
+            {language === 'vi' ? 'Đóng Lại' : 'Close'}
           </button>
         </div>
       </div>

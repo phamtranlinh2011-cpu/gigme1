@@ -58,6 +58,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
     rawGigs,
     markConversationAsRead,
     toggleFcm,
+    language,
   } = useGigMe();
 
   const [isOpen, setIsOpen] = useState(false);
@@ -379,13 +380,13 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
 
   const formatRelativeTime = (timestamp: number) => {
     const diffSeconds = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
-    if (diffSeconds < 60) return 'Vừa xong';
+    if (diffSeconds < 60) return language === 'vi' ? 'Vừa xong' : 'Just now';
     const diffMinutes = Math.floor(diffSeconds / 60);
-    if (diffMinutes < 60) return `${diffMinutes} phút trước`;
+    if (diffMinutes < 60) return language === 'vi' ? `${diffMinutes} phút trước` : `${diffMinutes}m ago`;
     const diffHours = Math.floor(diffMinutes / 60);
-    if (diffHours < 24) return `${diffHours} giờ trước`;
+    if (diffHours < 24) return language === 'vi' ? `${diffHours} giờ trước` : `${diffHours}h ago`;
     const diffDays = Math.floor(diffHours / 24);
-    return `${diffDays} ngày trước`;
+    return language === 'vi' ? `${diffDays} ngày trước` : `${diffDays}d ago`;
   };
 
   return (
@@ -395,8 +396,8 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
         id="notification-center-trigger-btn"
         onClick={() => setIsOpen((prev) => !prev)}
         className="relative p-2 rounded-xl bg-[#12233B] hover:bg-[#162B48] border border-[#C5E5EC]/30 text-[#C5E5EC] hover:text-white transition active:scale-95 shadow-sm cursor-pointer group"
-        title="Trung tâm thông báo Realtime (Firestore & Lock Screen)"
-        aria-label="Thông báo"
+        title={language === 'vi' ? 'Trung tâm thông báo Realtime (Firestore & Lock Screen)' : 'Realtime Notification Center (Firestore & Lock Screen)'}
+        aria-label={language === 'vi' ? 'Thông báo' : 'Notifications'}
       >
         {unreadCount > 0 ? (
           <BellRing className="w-4 h-4 text-amber-300 animate-wiggle" />
@@ -409,7 +410,15 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
           className={`absolute top-1.5 left-1.5 w-1.5 h-1.5 rounded-full ${
             isFirestoreLive ? 'bg-emerald-400 animate-pulse' : 'bg-slate-400'
           }`}
-          title={isFirestoreLive ? 'Firestore Realtime đang kết nối trực tiếp' : 'Chế độ đồng bộ cục bộ'}
+          title={
+            isFirestoreLive
+              ? language === 'vi'
+                ? 'Firestore Realtime đang kết nối trực tiếp'
+                : 'Firestore Realtime directly connected'
+              : language === 'vi'
+              ? 'Chế độ đồng bộ cục bộ'
+              : 'Local sync mode'
+          }
         />
 
         {/* Unread Badge Counter */}
@@ -431,14 +440,22 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
               </div>
               <div>
                 <div className="flex items-center space-x-1.5">
-                  <h3 className="text-xs font-black text-white tracking-wide uppercase">Thông Báo</h3>
+                  <h3 className="text-xs font-black text-white tracking-wide uppercase">
+                    {language === 'vi' ? 'Thông Báo' : 'Notifications'}
+                  </h3>
                   <span className="flex items-center space-x-1 text-[9px] px-1.5 py-0.5 rounded-md bg-[#3064AE]/40 text-[#C5E5EC] font-semibold border border-[#C5E5EC]/20">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping inline-block" />
                     <span>Realtime</span>
                   </span>
                 </div>
                 <p className="text-[10px] text-[#C5E5EC]/70">
-                  {unreadCount > 0 ? `${unreadCount} thông báo chưa đọc` : 'Bạn đã đọc hết thông báo'}
+                  {unreadCount > 0
+                    ? language === 'vi'
+                      ? `${unreadCount} thông báo chưa đọc`
+                      : `${unreadCount} unread notifications`
+                    : language === 'vi'
+                    ? 'Bạn đã đọc hết thông báo'
+                    : 'All notifications caught up'}
                 </p>
               </div>
             </div>
@@ -448,7 +465,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
                 <button
                   onClick={handleMarkAllAsRead}
                   className="p-1.5 rounded-lg hover:bg-[#162B48] text-[#C5E5EC] hover:text-[#E0FAEB] transition text-[11px] flex items-center space-x-1 cursor-pointer"
-                  title="Đánh dấu tất cả đã đọc"
+                  title={language === 'vi' ? 'Đánh dấu tất cả đã đọc' : 'Mark all as read'}
                 >
                   <CheckCheck className="w-3.5 h-3.5" />
                 </button>
@@ -457,7 +474,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
                 <button
                   onClick={handleClearAll}
                   className="p-1.5 rounded-lg hover:bg-red-950/40 text-slate-400 hover:text-red-300 transition cursor-pointer"
-                  title="Xóa danh sách thông báo"
+                  title={language === 'vi' ? 'Xóa danh sách thông báo' : 'Clear all notifications'}
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
@@ -476,7 +493,13 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
             <div className="flex items-center space-x-2">
               <Smartphone className="w-3.5 h-3.5 text-cyan-300 shrink-0" />
               <span className="text-[#C5E5EC] truncate font-medium">
-                {currentUser?.fcmEnabled ? 'Đẩy Màn hình khóa: BẬT 24/7' : 'Màn hình khóa: Chưa kích hoạt'}
+                {currentUser?.fcmEnabled
+                  ? language === 'vi'
+                    ? 'Đẩy Màn hình khóa: BẬT 24/7'
+                    : 'Lock Screen Push: ON 24/7'
+                  : language === 'vi'
+                  ? 'Màn hình khóa: Chưa kích hoạt'
+                  : 'Lock Screen: Inactive'}
               </span>
             </div>
             {onOpenFcmPush && (
@@ -487,7 +510,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
                 }}
                 className="px-2 py-0.5 rounded-md bg-[#3064AE] hover:bg-[#417AC6] text-[#E0FAEB] font-bold text-[10px] transition cursor-pointer shrink-0 border border-[#C5E5EC]/30"
               >
-                Cài đặt FCM &rarr;
+                {language === 'vi' ? 'Cài đặt FCM →' : 'FCM Setup →'}
               </button>
             )}
           </div>
@@ -502,7 +525,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
                   : 'text-[#C5E5EC]/70 hover:text-white hover:bg-[#12233B]'
               }`}
             >
-              Tất cả ({notifications.length})
+              {language === 'vi' ? 'Tất cả' : 'All'} ({notifications.length})
             </button>
             <button
               onClick={() => setFilterTab('MESSAGE')}
@@ -512,7 +535,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
                   : 'text-[#C5E5EC]/70 hover:text-white hover:bg-[#12233B]'
               }`}
             >
-              Tin nhắn Gig
+              {language === 'vi' ? 'Tin nhắn Gig' : 'Messages'}
             </button>
             <button
               onClick={() => setFilterTab('PAYMENT')}
@@ -522,7 +545,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
                   : 'text-[#C5E5EC]/70 hover:text-white hover:bg-[#12233B]'
               }`}
             >
-              Thanh toán & Ví
+              {language === 'vi' ? 'Thanh toán & Ví' : 'Wallet & Escrow'}
             </button>
           </div>
 
@@ -533,9 +556,13 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
                 <div className="w-10 h-10 mx-auto rounded-full bg-[#12233B] flex items-center justify-center text-slate-400 border border-[#C5E5EC]/20">
                   <CheckCircle2 className="w-5 h-5 text-emerald-400" />
                 </div>
-                <p className="text-xs font-bold text-white">Chưa có thông báo nào</p>
+                <p className="text-xs font-bold text-white">
+                  {language === 'vi' ? 'Chưa có thông báo nào' : 'No notifications yet'}
+                </p>
                 <p className="text-[11px] text-[#C5E5EC]/60">
-                  Các thông báo tin nhắn và thanh toán mới từ Firestore sẽ hiển thị trực tiếp tại đây!
+                  {language === 'vi'
+                    ? 'Các thông báo tin nhắn và thanh toán mới từ Firestore sẽ hiển thị trực tiếp tại đây!'
+                    : 'New message and payment alerts from Firestore will appear here in real time!'}
                 </p>
               </div>
             ) : (
@@ -597,10 +624,16 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
                           <span className="text-cyan-300 group-hover:underline font-bold flex items-center space-x-0.5">
                             <span>
                               {item.linkAction === 'CHAT'
-                                ? 'Vào chat'
+                                ? language === 'vi'
+                                  ? 'Vào chat'
+                                  : 'Open chat'
                                 : item.linkAction === 'WALLET'
-                                ? 'Mở ví'
-                                : 'Xem việc'}
+                                ? language === 'vi'
+                                  ? 'Mở ví'
+                                  : 'Open wallet'
+                                : language === 'vi'
+                                ? 'Xem việc'
+                                : 'View gig'}
                             </span>
                             <ChevronRight className="w-3 h-3 inline" />
                           </span>
@@ -618,15 +651,17 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
             <button
               onClick={() => {
                 sendWebPushNotification(
-                  '⚡ TEST THÔNG BÁO GIGME',
-                  'Thông báo màn hình khóa thời gian thực đã sẵn sàng!',
+                  language === 'vi' ? '⚡ TEST THÔNG BÁO GIGME' : '⚡ GIGME NOTIFICATION TEST',
+                  language === 'vi'
+                    ? 'Thông báo màn hình khóa thời gian thực đã sẵn sàng!'
+                    : 'Realtime lock screen push notification is active!',
                   '/pwa-192x192.png'
                 );
               }}
               className="text-[#C5E5EC] hover:text-white font-bold transition flex items-center space-x-1 cursor-pointer"
             >
               <Radio className="w-3 h-3 text-emerald-400" />
-              <span>Bắn thử 1 thông báo</span>
+              <span>{language === 'vi' ? 'Bắn thử 1 thông báo' : 'Send test alert'}</span>
             </button>
 
             {onOpenFcmPush && (
@@ -637,7 +672,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
                 }}
                 className="text-cyan-300 hover:text-cyan-200 font-bold transition flex items-center space-x-1 cursor-pointer"
               >
-                <span>Hạ tầng FCM</span>
+                <span>{language === 'vi' ? 'Hạ tầng FCM' : 'FCM Config'}</span>
                 <ExternalLink className="w-3 h-3" />
               </button>
             )}
