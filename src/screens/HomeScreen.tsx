@@ -509,9 +509,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               <div className="flex flex-wrap gap-1.5">
                 {[
                   { label: language === 'vi' ? 'Tất cả mức giá' : 'All budgets', value: 'ALL' },
-                  { label: '< 50.000đ', value: '<50K' },
-                  { label: '50.000đ - 200.000đ', value: '50K-200K' },
-                  { label: '> 200.000đ', value: '>200K' },
+                  { label: language === 'vi' ? '< 50.000đ' : '< 50,000 VND', value: '<50K' },
+                  { label: language === 'vi' ? '50.000đ - 200.000đ' : '50,000 - 200,000 VND', value: '50K-200K' },
+                  { label: language === 'vi' ? '> 200.000đ' : '> 200,000 VND', value: '>200K' },
                 ].map((p) => (
                   <button
                     key={p.value}

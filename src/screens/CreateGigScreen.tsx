@@ -98,8 +98,39 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
   const [isRecurringWeekly, setIsRecurringWeekly] = useState(false);
   const [totalWorkersNeeded, setTotalWorkersNeeded] = useState(1);
   const [estimatedDurationMinutes, setEstimatedDurationMinutes] = useState(30);
-  const [locationName, setLocationName] = useState('Ký túc xá Bách Khoa B7, Hai Bà Trưng, Hà Nội');
+  const [locationName, setLocationName] = useState(
+    language === 'vi' ? 'Ký túc xá Bách Khoa B7, Hai Bà Trưng, Hà Nội' : 'HUST Campus Dorm B7, Hanoi'
+  );
   const [distanceMeters, setDistanceMeters] = useState(150);
+
+  const getTranslatedCategory = (cat: string) => {
+    if (language === 'vi') return cat;
+    switch (cat) {
+      case 'Mua đồ ăn, cà phê, trà sữa hộ': return 'Food & Beverage Delivery';
+      case 'Giao nhận & Ship hàng tận phòng KTX': return 'Dorm Package Delivery';
+      case 'Giặt ủi & Phơi quần áo KTX': return 'Dorm Laundry & Drying';
+      case 'Dọn phòng & Vệ sinh KTX / Nhà trọ': return 'Dorm Room Cleaning';
+      case 'Giữ chỗ thư viện / Xếp hàng hộ': return 'Library Seat & Line Holding';
+      case 'Gia sư & Kèm môn đại cương (Toán, Lý, Xác suất)': return 'General Math & Physics Tutoring';
+      case 'Gia sư Ngoại ngữ (IELTS, TOEIC, HSK, N3)': return 'Language Tutoring (IELTS, TOEIC)';
+      case 'Hướng dẫn Đồ án / Bài tập lớn / Khóa luận': return 'Project & Thesis Mentoring';
+      case 'Thiết kế Slide Powerpoint & Thuyết trình': return 'PowerPoint Slide & Pitch Deck Design';
+      case 'Soạn thảo văn bản & Định dạng chuẩn đồ án': return 'Document Formatting & Typesetting';
+      case 'Cắt ghép Video CapCut / TikTok / Reels': return 'CapCut & TikTok Video Editing';
+      case 'Thiết kế Poster, Banner Canva & Photoshop': return 'Canva & Photoshop Banner Design';
+      case 'Lập trình Web / Mobile / Fix Bug Code': return 'Web / Mobile / Code Bug Fix';
+      case 'Cài Win, Vệ sinh Laptop & Cài đặt phần mềm': return 'OS Install & Laptop Maintenance';
+      case 'Chụp ảnh kỷ yếu / Quay phim sự kiện trường': return 'Graduation Photo & Campus Event Filming';
+      case 'Cày Rank & Kéo Rank Game (Liên Quân, LMHT, Valorant)': return 'Game Rank Boosting (LoL, Valorant)';
+      case 'Trông thú cưng KTX / Dắt cún đi dạo': return 'Pet Sitting & Dog Walking';
+      case 'Chở xe máy / Đi chung xe campus / Về quê': return 'Bike Ride & Campus Carpooling';
+      case 'Tham gia khảo sát nghiên cứu khoa học': return 'Scientific Survey Participation';
+      case 'Hỗ trợ sự kiện, Tiếp tân, Hậu cần CLB': return 'Club Event Support & Logistics';
+      case 'Dịch thuật tài liệu Anh - Việt, Trung - Việt': return 'English - Vietnamese Translation';
+      case 'Khác (Nhập cụ thể bên dưới)': return 'Other (Specify below)';
+      default: return cat;
+    }
+  };
 
   // Apply AI result
   const handleApplyAiResult = () => {
@@ -114,7 +145,7 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
     if (step === 1) {
       if (!title.trim() || !description.trim()) return;
       if (category.startsWith('Khác') && !customCategory.trim()) {
-        setCategoryError('Vui lòng nhập cụ thể loại công việc của bạn khi chọn Khác!');
+        setCategoryError(language === 'vi' ? 'Vui lòng nhập cụ thể loại công việc của bạn khi chọn Khác!' : 'Please specify your job category when selecting Other!');
         return;
       }
       setCategoryError('');
@@ -129,8 +160,8 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
     const rateCheck = rateLimiter.check('POST_GIG', currentUser?.id);
     if (!rateCheck.allowed) {
       showNotification(
-        '⚠️ Giới hạn tốc độ đăng việc',
-        rateCheck.errorMsg || 'Vui lòng chờ ít giây để chống spam tạo đơn.',
+        language === 'vi' ? '⚠️ Giới hạn tốc độ đăng việc' : '⚠️ Posting Rate Limit',
+        rateCheck.errorMsg || (language === 'vi' ? 'Vui lòng chờ ít giây để chống spam tạo đơn.' : 'Please wait a few seconds before creating another gig.'),
         false
       );
       return;
@@ -242,32 +273,36 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center space-x-2">
                 <Sparkles className="w-4 h-4 text-[#C5E5EC] animate-spin-slow" />
-                <h4 className="font-extrabold text-white text-xs">Trợ Lý Nhận Diện AI Thông Minh</h4>
+                <h4 className="font-extrabold text-white text-xs">
+                  {language === 'vi' ? 'Trợ Lý Nhận Diện AI Thông Minh' : 'Smart AI Recognition Assistant'}
+                </h4>
               </div>
               <span className="text-[10px] text-[#E0FAEB] font-bold bg-[#3064AE]/40 px-2 py-0.5 rounded border border-[#C5E5EC]/30">
                 Auto Fill
               </span>
             </div>
             <p className="text-[11px] text-[#C5E5EC]/80 mb-3">
-              Chụp ảnh bài tập, màn hình game, hoặc kịch bản video để AI tự điền tiêu đề & định giá tự động:
+              {language === 'vi'
+                ? 'Chụp ảnh bài tập, màn hình game, hoặc kịch bản video để AI tự điền tiêu đề & định giá tự động:'
+                : 'Snap a homework sheet, game victory screen, or video script for AI to auto-fill title & price:'}
             </p>
 
             {/* Presets */}
             <div className="grid grid-cols-2 gap-2">
               {[
-                'Sách giáo trình & Bài tập',
-                'Màn hình Game (Liên Quân / LOL)',
-                'Bản thảo Video TikTok / Reels',
-                'Đồ dùng học tập KTX',
+                { vi: 'Sách giáo trình & Bài tập', en: 'Textbooks & Homework' },
+                { vi: 'Màn hình Game (Liên Quân / LOL)', en: 'Game Screen (LoL / Mobile)' },
+                { vi: 'Bản thảo Video TikTok / Reels', en: 'TikTok / Reels Video Draft' },
+                { vi: 'Đồ dùng học tập KTX', en: 'Dorm Study Supplies' },
               ].map((preset) => (
                 <button
-                  key={preset}
+                  key={preset.vi}
                   type="button"
-                  onClick={() => analyzePhotoWithAi(preset)}
+                  onClick={() => analyzePhotoWithAi(language === 'vi' ? preset.vi : preset.en)}
                   className="p-2 rounded-xl bg-[#0E1B2E] hover:bg-[#162C4E] border border-[#C5E5EC]/20 text-left font-semibold text-[11px] text-[#C5E5EC] transition flex items-center space-x-1.5 shadow-sm active:scale-95 cursor-pointer"
                 >
                   <Camera className="w-3.5 h-3.5 text-[#C5E5EC] shrink-0" />
-                  <span className="truncate">{preset}</span>
+                  <span className="truncate">{language === 'vi' ? preset.vi : preset.en}</span>
                 </button>
               ))}
             </div>
@@ -277,20 +312,20 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
               <div className="mt-3 p-3 rounded-xl bg-[#0E1B2E] border border-[#C5E5EC]/30 space-y-1.5 animate-fade-in shadow-sm">
                 <div className="flex justify-between items-center">
                   <span className="text-[10px] text-[#E0FAEB] font-bold">
-                    ✓ Độ tin cậy: {aiDetectedResult.confidence}
+                    ✓ {language === 'vi' ? 'Độ tin cậy:' : 'Confidence:'} {aiDetectedResult.confidence}
                   </span>
                   <button
                     onClick={handleApplyAiResult}
                     className="px-2.5 py-1 rounded-lg bg-[#3064AE] hover:bg-[#255294] text-white font-extrabold text-[10px] border border-[#C5E5EC]/30 cursor-pointer"
                   >
-                    Áp dụng ngay
+                    {language === 'vi' ? 'Áp dụng ngay' : 'Apply Now'}
                   </button>
                 </div>
                 <p className="font-bold text-white text-xs">{aiDetectedResult.suggestedTitle}</p>
                 <p className="text-[11px] text-[#C5E5EC]/80">{aiDetectedResult.suggestedDescription}</p>
                 <p className="text-[11px] text-[#E0FAEB] font-semibold">
-                  Giá gợi ý: {formatVnd(aiDetectedResult.suggestedPrice)} • Danh mục:{' '}
-                  {aiDetectedResult.suggestedCategory}
+                  {language === 'vi' ? 'Giá gợi ý:' : 'Suggested Price:'} {formatVnd(aiDetectedResult.suggestedPrice)} • {language === 'vi' ? 'Danh mục:' : 'Category:'}{' '}
+                  {getTranslatedCategory(aiDetectedResult.suggestedCategory)}
                 </p>
               </div>
             )}
@@ -300,10 +335,15 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <label className="block text-[#C5E5EC] font-bold text-xs">
-                Danh mục công việc ({PREDEFINED_CATEGORIES.length} nhóm ngành)
+                {language === 'vi'
+                  ? `Danh mục công việc (${PREDEFINED_CATEGORIES.length} nhóm ngành)`
+                  : `Job Category (${PREDEFINED_CATEGORIES.length} options)`}
               </label>
               <span className="text-[10px] text-[#E0FAEB] font-semibold truncate max-w-[200px]">
-                Đã chọn: {category.startsWith('Khác') ? (customCategory ? `Khác: ${customCategory}` : 'Khác') : category}
+                {language === 'vi' ? 'Đã chọn: ' : 'Selected: '}
+                {category.startsWith('Khác')
+                  ? (customCategory ? `${language === 'vi' ? 'Khác' : 'Other'}: ${customCategory}` : (language === 'vi' ? 'Khác' : 'Other'))
+                  : getTranslatedCategory(category)}
               </span>
             </div>
 
@@ -314,7 +354,7 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
                 type="text"
                 value={categorySearch}
                 onChange={(e) => setCategorySearch(e.target.value)}
-                placeholder="Tìm danh mục (ship đồ, gia sư, cày rank, dọn phòng, thiết kế...)"
+                placeholder={language === 'vi' ? 'Tìm danh mục (ship đồ, gia sư, cày rank, dọn phòng, thiết kế...)' : 'Search categories (delivery, tutor, rank boosting, cleaning, design...)'}
                 className="w-full pl-9 pr-8 py-2.5 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-white text-xs placeholder:text-[#C5E5EC]/40 focus:border-[#3064AE] focus:outline-none shadow-sm"
               />
               {categorySearch && (
@@ -330,11 +370,16 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
 
             {/* Category Options List */}
             <div className="max-h-48 overflow-y-auto p-1.5 rounded-2xl bg-[#12233B] border border-[#C5E5EC]/20 space-y-1">
-              {PREDEFINED_CATEGORIES.filter((c) =>
-                c.toLowerCase().includes(categorySearch.toLowerCase())
-              ).map((c) => {
+              {PREDEFINED_CATEGORIES.filter((c) => {
+                const label = getTranslatedCategory(c);
+                return (
+                  c.toLowerCase().includes(categorySearch.toLowerCase()) ||
+                  label.toLowerCase().includes(categorySearch.toLowerCase())
+                );
+              }).map((c) => {
                 const isSelected = category === c;
                 const isOther = c.startsWith('Khác');
+                const displayLabel = getTranslatedCategory(c);
                 return (
                   <button
                     key={c}
@@ -351,16 +396,24 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
                         : 'text-[#C5E5EC]/80 hover:bg-[#162C4E] hover:text-white border border-transparent'
                     }`}
                   >
-                    <span className="truncate">{c}</span>
+                    <span className="truncate">{displayLabel}</span>
                     {isSelected && <Check className="w-4 h-4 text-[#E0FAEB] shrink-0 ml-2" />}
                   </button>
                 );
               })}
-              {PREDEFINED_CATEGORIES.filter((c) =>
-                c.toLowerCase().includes(categorySearch.toLowerCase())
-              ).length === 0 && (
+              {PREDEFINED_CATEGORIES.filter((c) => {
+                const label = getTranslatedCategory(c);
+                return (
+                  c.toLowerCase().includes(categorySearch.toLowerCase()) ||
+                  label.toLowerCase().includes(categorySearch.toLowerCase())
+                );
+              }).length === 0 && (
                 <div className="p-3 text-center text-xs text-[#C5E5EC]/60">
-                  <p>Không tìm thấy danh mục khớp với &quot;{categorySearch}&quot;</p>
+                  <p>
+                    {language === 'vi'
+                      ? `Không tìm thấy danh mục khớp với "${categorySearch}"`
+                      : `No categories match "${categorySearch}"`}
+                  </p>
                   <button
                     type="button"
                     onClick={() => {
@@ -370,7 +423,9 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
                     }}
                     className="mt-1.5 text-[#E0FAEB] font-bold underline hover:text-white block mx-auto cursor-pointer"
                   >
-                    Chọn &quot;Khác&quot; và đặt tên: &quot;{categorySearch}&quot;
+                    {language === 'vi'
+                      ? `Chọn "Khác" và đặt tên: "${categorySearch}"`
+                      : `Select "Other" with name: "${categorySearch}"`}
                   </button>
                 </div>
               )}
@@ -381,7 +436,7 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
               <div className="p-3.5 rounded-2xl bg-[#12233B] border border-[#C5E5EC]/30 space-y-2 animate-fade-in">
                 <label className="block text-[#E0FAEB] font-bold text-xs flex items-center space-x-1.5">
                   <Sparkles className="w-4 h-4 text-[#C5E5EC]" />
-                  <span>Vui lòng nhập cụ thể đó là việc gì:</span>
+                  <span>{language === 'vi' ? 'Vui lòng nhập cụ thể đó là việc gì:' : 'Please specify what the job is:'}</span>
                 </label>
                 <input
                   type="text"
@@ -391,7 +446,7 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
                     setCustomCategory(e.target.value);
                     setCategoryError('');
                   }}
-                  placeholder="VD: Cầm hộ đồ bưu điện về phòng, hỗ trợ bưng bê chuyển phòng KTX..."
+                  placeholder={language === 'vi' ? 'VD: Cầm hộ đồ bưu điện về phòng, hỗ trợ bưng bê chuyển phòng KTX...' : 'e.g. Pick up post package, help move dorm room luggage...'}
                   className="w-full px-3 py-2.5 rounded-xl bg-[#0E1B2E] border border-[#C5E5EC]/30 text-white font-medium text-xs focus:border-[#3064AE] focus:outline-none placeholder:text-[#C5E5EC]/40"
                 />
                 {categoryError && (
@@ -402,26 +457,30 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
           </div>
 
           <div>
-            <label className="block text-[#C5E5EC] mb-1 font-bold">Tiêu đề công việc ngắn gọn</label>
+            <label className="block text-[#C5E5EC] mb-1 font-bold">
+              {language === 'vi' ? 'Tiêu đề công việc ngắn gọn' : 'Concise job title'}
+            </label>
             <input
               type="text"
               required
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               className="w-full px-3 py-2.5 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-white font-semibold focus:border-[#3064AE] focus:outline-none placeholder:text-[#C5E5EC]/40"
-              placeholder="VD: Kéo rank Liên Quân từ KC1 lên Tinh Anh..."
+              placeholder={language === 'vi' ? 'VD: Kéo rank Liên Quân từ KC1 lên Tinh Anh...' : 'e.g. Help carry packages to Dorm B7 Room 302...'}
             />
           </div>
 
           <div>
-            <label className="block text-[#C5E5EC] mb-1 font-bold">Mô tả chi tiết yêu cầu & sản phẩm bàn giao</label>
+            <label className="block text-[#C5E5EC] mb-1 font-bold">
+              {language === 'vi' ? 'Mô tả chi tiết yêu cầu & sản phẩm bàn giao' : 'Detailed requirements & deliverables'}
+            </label>
             <textarea
               rows={3}
               required
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               className="w-full px-3 py-2 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-white focus:border-[#3064AE] focus:outline-none placeholder:text-[#C5E5EC]/40"
-              placeholder="Nêu rõ khung giờ, yêu cầu trình độ, link tài liệu hoặc yêu cầu chụp màn hình nghiệm thu..."
+              placeholder={language === 'vi' ? 'Nêu rõ khung giờ, yêu cầu trình độ, link tài liệu hoặc yêu cầu chụp màn hình nghiệm thu...' : 'State time slot, skill level, reference links or photo proof requirements...'}
             />
           </div>
 
@@ -431,7 +490,7 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
             disabled={!title.trim() || !description.trim()}
             className="w-full py-3 rounded-xl bg-gradient-to-r from-[#3064AE] to-[#417AC6] hover:from-[#255294] hover:to-[#356ab0] text-white font-extrabold text-sm shadow-md shadow-[#3064AE]/20 disabled:opacity-40 disabled:cursor-not-allowed transition active:scale-95 border border-[#C5E5EC]/30 cursor-pointer"
           >
-            Tiếp Tục: Thiết Lập Thù Lao & Đấu Giá &rarr;
+            {language === 'vi' ? 'Tiếp Tục: Thiết Lập Thù Lao & Đấu Giá →' : 'Continue: Set Pricing & Auction →'}
           </button>
         </div>
       )}
@@ -442,7 +501,9 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
           <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-[#3064AE] via-[#C5E5EC] to-[#E0FAEB]" />
 
           <div>
-            <label className="block text-[#C5E5EC] mb-1 font-bold">Thù lao thanh toán (VND)</label>
+            <label className="block text-[#C5E5EC] mb-1 font-bold">
+              {language === 'vi' ? 'Thù lao thanh toán (VND)' : 'Payment Bounty (VND)'}
+            </label>
             <input
               type="number"
               step="5000"
@@ -453,8 +514,11 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
               placeholder="50000"
             />
             <span className="text-[11px] text-[#C5E5EC]/70 mt-1 block">
-              Khoản tiền này sẽ được khóa an toàn trong <strong>Smart Escrow Vault</strong> và chỉ giải ngân khi bạn bấm
-              nghiệm thu hài lòng.
+              {language === 'vi' ? (
+                <>Khoản tiền này sẽ được khóa an toàn trong <strong>Smart Escrow Vault</strong> và chỉ giải ngân khi bạn bấm nghiệm thu hài lòng.</>
+              ) : (
+                <>This amount will be securely locked in the <strong>Smart Escrow Vault</strong> and disbursed only when you approve the delivered work.</>
+              )}
             </span>
           </div>
 
@@ -474,7 +538,9 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
                     </div>
                     <div>
                       <div className="flex items-center space-x-2">
-                        <span className="font-bold text-white text-xs">Giá Linh Hoạt Theo Cung - Cầu</span>
+                        <span className="font-bold text-white text-xs">
+                          {language === 'vi' ? 'Giá Linh Hoạt Theo Cung - Cầu' : 'Dynamic Supply & Demand Pricing'}
+                        </span>
                         <span className="px-1.5 py-0.5 rounded bg-[#3064AE]/40 text-[#E0FAEB] font-mono font-bold text-[10px] border border-[#C5E5EC]/30">
                           {surgeResult.multiplier.toFixed(2)}x
                         </span>
@@ -489,21 +555,24 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
                       ? 'bg-rose-950/70 text-rose-300 border border-rose-500/40'
                       : 'bg-[#3064AE]/40 text-[#E0FAEB] border border-[#C5E5EC]/30'
                   }`}>
-                    {surgeResult.campusDemandLevel === 'PEAK' ? 'Cao Điểm KTX' : 'Nhu Cầu Cao'}
+                    {surgeResult.campusDemandLevel === 'PEAK'
+                      ? (language === 'vi' ? 'Cao Điểm KTX' : 'Dorm Peak Hour')
+                      : (language === 'vi' ? 'Nhu Cầu Cao' : 'High Demand')}
                   </span>
                 </div>
 
                 {price < surgeResult.surgePrice && (
                   <div className="flex items-center justify-between pt-2 border-t border-[#C5E5EC]/15">
                     <span className="text-[11px] text-[#C5E5EC]">
-                      Gợi ý thù lao đẩy nhanh: <strong className="text-[#E0FAEB] font-mono">{formatVnd(surgeResult.surgePrice)}</strong>
+                      {language === 'vi' ? 'Gợi ý thù lao đẩy nhanh:' : 'Suggested fast bounty:'}{' '}
+                      <strong className="text-[#E0FAEB] font-mono">{formatVnd(surgeResult.surgePrice)}</strong>
                     </span>
                     <button
                       type="button"
                       onClick={() => setPrice(surgeResult.surgePrice)}
                       className="px-2.5 py-1 rounded-xl bg-gradient-to-r from-[#3064AE] to-[#417AC6] text-white font-extrabold text-[10px] hover:brightness-110 shadow-sm transition border border-[#C5E5EC]/30 cursor-pointer"
                     >
-                      Áp Dụng (+{formatVnd(surgeResult.bonusAmount)})
+                      {language === 'vi' ? 'Áp Dụng' : 'Apply'} (+{formatVnd(surgeResult.bonusAmount)})
                     </button>
                   </div>
                 )}
@@ -515,13 +584,17 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
           <div className="p-3.5 rounded-2xl bg-[#12233B] border border-[#C5E5EC]/25 flex items-start justify-between gap-3">
             <div>
               <h4 className="font-bold text-white flex items-center space-x-1.5">
-                <span>Bật Đấu Giá Ngược (Reverse Auction)</span>
+                <span>{language === 'vi' ? 'Bật Đấu Giá Ngược (Reverse Auction)' : 'Enable Reverse Auction'}</span>
                 <span className="text-[10px] px-1.5 py-0.2 rounded bg-[#3064AE]/40 text-[#E0FAEB] font-bold border border-[#C5E5EC]/30">
-                  Tiết kiệm
+                  {language === 'vi' ? 'Tiết kiệm' : 'Save Money'}
                 </span>
               </h4>
               <p className="text-[#C5E5EC]/70 mt-0.5 text-[11px] leading-relaxed">
-                Cho phép Freelancer trả giá giảm dần. <strong>Chỉ bạn (chủ việc)</strong> mới có quyền tạo và mở phòng đấu giá trực tiếp sau khi đăng đơn.
+                {language === 'vi' ? (
+                  <>Cho phép Freelancer trả giá giảm dần. <strong>Chỉ bạn (chủ việc)</strong> mới có quyền tạo và mở phòng đấu giá trực tiếp sau khi đăng đơn.</>
+                ) : (
+                  <>Allow students to bid downwards. <strong>Only you (gig owner)</strong> can host live real-time bidding rounds after posting.</>
+                )}
               </p>
             </div>
             <input
@@ -552,14 +625,16 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
                 <div>
                   <div className="flex items-center space-x-2">
                     <span className="font-extrabold text-white text-xs">
-                      🚀 Đẩy Bài & Ghim Top 1 Hỏa Tốc (Flash Boost)
+                      {language === 'vi' ? '🚀 Đẩy Bài & Ghim Top 1 Hỏa Tốc (Flash Boost)' : '🚀 Flash Boost & Pin #1 on Campus'}
                     </span>
                     <span className="px-2 py-0.5 bg-[#3064AE]/40 border border-[#C5E5EC]/30 text-[#E0FAEB] font-extrabold text-[10px] rounded-full">
-                      +10.000đ
+                      {language === 'vi' ? '+10.000đ' : '+10,000 VND'}
                     </span>
                   </div>
                   <p className="text-[11px] text-[#C5E5EC]/75 mt-1 leading-relaxed">
-                    Ghim bài viết lên vị trí đầu tiên trang chủ với khung viền nổi bật trong 2 giờ. Thu hút hàng trăm sinh viên xung quanh nhận việc ngay!
+                    {language === 'vi'
+                      ? 'Ghim bài viết lên vị trí đầu tiên trang chủ với khung viền nổi bật trong 2 giờ. Thu hút hàng trăm sinh viên xung quanh nhận việc ngay!'
+                      : 'Pin your job at the top of the feed with highlighted borders for 2 hours. Attract campus peers instantly!'}
                   </p>
                 </div>
               </div>
@@ -581,9 +656,11 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
               <div>
                 <span className="font-bold text-white flex items-center space-x-1">
                   <Zap className="w-3.5 h-3.5 text-[#E0FAEB]" />
-                  <span>Kèo Hỏa Tốc (Flash)</span>
+                  <span>{language === 'vi' ? 'Kèo Hỏa Tốc (Flash)' : 'Flash Gig (Urgent)'}</span>
                 </span>
-                <span className="text-[10px] text-[#C5E5EC]/60">Ưu tiên quét radar beam</span>
+                <span className="text-[10px] text-[#C5E5EC]/60">
+                  {language === 'vi' ? 'Ưu tiên quét radar beam' : 'Priority radar beam scan'}
+                </span>
               </div>
               <input
                 type="checkbox"
@@ -597,9 +674,11 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
               <div>
                 <span className="font-bold text-white flex items-center space-x-1">
                   <Repeat className="w-3.5 h-3.5 text-[#C5E5EC]" />
-                  <span>Kèo Định Kỳ Tuần</span>
+                  <span>{language === 'vi' ? 'Kèo Định Kỳ Tuần' : 'Weekly Recurring'}</span>
                 </span>
-                <span className="text-[10px] text-[#C5E5EC]/60">Thuê định kỳ nhiều tuần</span>
+                <span className="text-[10px] text-[#C5E5EC]/60">
+                  {language === 'vi' ? 'Thuê định kỳ nhiều tuần' : 'Multi-week recurring'}
+                </span>
               </div>
               <input
                 type="checkbox"
@@ -613,32 +692,36 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
           {/* Workers needed & Estimated Duration */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-[#C5E5EC] mb-1 font-bold">Số lượng người cần (Ghép nhóm)</label>
+              <label className="block text-[#C5E5EC] mb-1 font-bold">
+                {language === 'vi' ? 'Số lượng người cần (Ghép nhóm)' : 'Workers needed (Team size)'}
+              </label>
               <select
                 value={totalWorkersNeeded}
                 onChange={(e) => setTotalWorkersNeeded(Number(e.target.value))}
                 className="w-full px-3 py-2 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-white font-medium focus:border-[#3064AE] focus:outline-none"
               >
-                <option value={1} className="bg-[#12233B] text-white">1 người (Đơn lẻ)</option>
-                <option value={2} className="bg-[#12233B] text-white">2 người</option>
-                <option value={3} className="bg-[#12233B] text-white">3 người</option>
-                <option value={5} className="bg-[#12233B] text-white">5 người (Nhóm nhỏ)</option>
-                <option value={10} className="bg-[#12233B] text-white">10 người (Sự kiện)</option>
+                <option value={1} className="bg-[#12233B] text-white">{language === 'vi' ? '1 người (Đơn lẻ)' : '1 student (Solo)'}</option>
+                <option value={2} className="bg-[#12233B] text-white">{language === 'vi' ? '2 người' : '2 students'}</option>
+                <option value={3} className="bg-[#12233B] text-white">{language === 'vi' ? '3 người' : '3 students'}</option>
+                <option value={5} className="bg-[#12233B] text-white">{language === 'vi' ? '5 người (Nhóm nhỏ)' : '5 students (Small team)'}</option>
+                <option value={10} className="bg-[#12233B] text-white">{language === 'vi' ? '10 người (Sự kiện)' : '10 students (Campus event)'}</option>
               </select>
             </div>
 
             <div>
-              <label className="block text-[#C5E5EC] mb-1 font-bold">Thời gian ước tính</label>
+              <label className="block text-[#C5E5EC] mb-1 font-bold">
+                {language === 'vi' ? 'Thời gian ước tính' : 'Estimated duration'}
+              </label>
               <select
                 value={estimatedDurationMinutes}
                 onChange={(e) => setEstimatedDurationMinutes(Number(e.target.value))}
                 className="w-full px-3 py-2 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-white font-medium focus:border-[#3064AE] focus:outline-none"
               >
-                <option value={15} className="bg-[#12233B] text-white">15 phút (Siêu tốc)</option>
-                <option value={30} className="bg-[#12233B] text-white">30 phút</option>
-                <option value={45} className="bg-[#12233B] text-white">45 phút</option>
-                <option value={60} className="bg-[#12233B] text-white">1 tiếng</option>
-                <option value={120} className="bg-[#12233B] text-white">2 tiếng</option>
+                <option value={15} className="bg-[#12233B] text-white">{language === 'vi' ? '15 phút (Siêu tốc)' : '15 mins (Speedy)'}</option>
+                <option value={30} className="bg-[#12233B] text-white">{language === 'vi' ? '30 phút' : '30 mins'}</option>
+                <option value={45} className="bg-[#12233B] text-white">{language === 'vi' ? '45 phút' : '45 mins'}</option>
+                <option value={60} className="bg-[#12233B] text-white">{language === 'vi' ? '1 tiếng' : '1 hour'}</option>
+                <option value={120} className="bg-[#12233B] text-white">{language === 'vi' ? '2 tiếng' : '2 hours'}</option>
               </select>
             </div>
           </div>
@@ -649,14 +732,14 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
               onClick={() => setStep(1)}
               className="w-1/3 py-2.5 rounded-xl bg-[#12233B] border border-[#C5E5EC]/20 text-[#C5E5EC] font-bold hover:bg-[#162C4E] transition active:scale-95 cursor-pointer"
             >
-              Quay lại
+              {language === 'vi' ? 'Quay lại' : 'Back'}
             </button>
             <button
               type="button"
               onClick={handleNext}
               className="w-2/3 py-2.5 rounded-xl bg-gradient-to-r from-[#3064AE] to-[#417AC6] hover:from-[#255294] hover:to-[#356ab0] text-white font-extrabold text-sm shadow-md shadow-[#3064AE]/20 transition active:scale-95 border border-[#C5E5EC]/30 cursor-pointer"
             >
-              Tiếp: Địa Điểm & Khóa Escrow &rarr;
+              {language === 'vi' ? 'Tiếp: Địa Điểm & Khóa Escrow →' : 'Next: Location & Escrow →'}
             </button>
           </div>
         </div>
@@ -669,7 +752,9 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
 
           {/* Location field */}
           <div>
-            <label className="block text-[#C5E5EC] mb-1 font-bold">Địa điểm & Khu vực làm việc</label>
+            <label className="block text-[#C5E5EC] mb-1 font-bold">
+              {language === 'vi' ? 'Địa điểm & Khu vực làm việc' : 'Location & Workplace Area'}
+            </label>
             <div className="relative">
               <MapPin className="w-4 h-4 text-[#C5E5EC]/60 absolute left-3 top-2.5" />
               <input
@@ -678,45 +763,45 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
                 value={locationName}
                 onChange={(e) => setLocationName(e.target.value)}
                 className="w-full pl-9 pr-3 py-2 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-white focus:border-[#3064AE] focus:outline-none"
-                placeholder="Ký túc xá Bách Khoa B7, Hai Bà Trưng..."
+                placeholder={language === 'vi' ? 'Ký túc xá Bách Khoa B7, Hai Bà Trưng...' : 'Campus Dorm B7, Library...'}
               />
             </div>
             {/* Quick Location Chips */}
             <div className="flex flex-wrap gap-1.5 mt-2">
               <button
                 type="button"
-                onClick={() => setLocationName('KTX Bách Khoa B7, Hai Bà Trưng, Hà Nội')}
+                onClick={() => setLocationName(language === 'vi' ? 'KTX Bách Khoa B7, Hai Bà Trưng, Hà Nội' : 'HUST Campus Dorm B7, Hanoi')}
                 className="px-2 py-0.5 rounded-lg bg-[#12233B] hover:bg-[#162C4E] border border-[#C5E5EC]/20 text-[10px] text-[#C5E5EC] font-bold transition cursor-pointer"
               >
-                🏢 KTX Bách Khoa (Hà Nội)
+                🏢 {language === 'vi' ? 'KTX Bách Khoa (Hà Nội)' : 'HUST Dorm (Hanoi)'}
               </button>
               <button
                 type="button"
-                onClick={() => setLocationName('ĐH Tôn Đức Thắng, Quận 7, TP.HCM')}
+                onClick={() => setLocationName(language === 'vi' ? 'ĐH Tôn Đức Thắng, Quận 7, TP.HCM' : 'Ton Duc Thang Univ, Dist 7, HCMC')}
                 className="px-2 py-0.5 rounded-lg bg-[#12233B] hover:bg-[#162C4E] border border-[#C5E5EC]/20 text-[10px] text-[#C5E5EC] font-bold transition cursor-pointer"
               >
-                🏫 ĐH Tôn Đức Thắng (TP.HCM)
+                🏫 {language === 'vi' ? 'ĐH Tôn Đức Thắng (TP.HCM)' : 'TDTU Campus (HCMC)'}
               </button>
               <button
                 type="button"
-                onClick={() => setLocationName('KTX ĐHQG Khu B, Dĩ An / TP.Thủ Đức')}
+                onClick={() => setLocationName(language === 'vi' ? 'KTX ĐHQG Khu B, Dĩ An / TP.Thủ Đức' : 'VNU Dorm Area B, Thu Duc / HCMC')}
                 className="px-2 py-0.5 rounded-lg bg-[#12233B] hover:bg-[#162C4E] border border-[#C5E5EC]/20 text-[10px] text-[#C5E5EC] font-bold transition cursor-pointer"
               >
-                🏛️ KTX ĐHQG Khu B (TP.HCM)
+                🏛️ {language === 'vi' ? 'KTX ĐHQG Khu B (TP.HCM)' : 'VNU Dorm Area B (HCMC)'}
               </button>
               <button
                 type="button"
-                onClick={() => setLocationName('ĐH Bách Khoa, Liên Chiểu, Đà Nẵng')}
+                onClick={() => setLocationName(language === 'vi' ? 'ĐH Bách Khoa, Liên Chiểu, Đà Nẵng' : 'DUT Campus, Da Nang')}
                 className="px-2 py-0.5 rounded-lg bg-[#12233B] hover:bg-[#162C4E] border border-[#C5E5EC]/20 text-[10px] text-[#C5E5EC] font-bold transition cursor-pointer"
               >
-                🌊 ĐH Bách Khoa (Đà Nẵng)
+                🌊 {language === 'vi' ? 'ĐH Bách Khoa (Đà Nẵng)' : 'DUT Campus (Da Nang)'}
               </button>
               <button
                 type="button"
-                onClick={() => setLocationName('🌐 Online / Làm việc từ xa (Toàn quốc)')}
+                onClick={() => setLocationName(language === 'vi' ? '🌐 Online / Làm việc từ xa (Toàn quốc)' : '🌐 Online / Remote (Nationwide)')}
                 className="px-2 py-0.5 rounded-lg bg-[#3064AE]/30 hover:bg-[#3064AE]/50 border border-[#C5E5EC]/30 text-[10px] text-[#E0FAEB] font-extrabold transition cursor-pointer"
               >
-                🌐 Online / Remote (Toàn quốc)
+                {language === 'vi' ? '🌐 Online / Remote (Toàn quốc)' : '🌐 Online / Remote (Nationwide)'}
               </button>
             </div>
           </div>
@@ -725,42 +810,66 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
           <div className="p-4 rounded-2xl bg-[#12233B] border border-[#C5E5EC]/25 space-y-3">
             <div className="flex items-center space-x-2 text-[#C5E5EC]">
               <Lock className="w-5 h-5 text-[#E0FAEB]" />
-              <h4 className="font-extrabold text-sm text-white">Cơ Chế Khóa Tiền Smart Escrow Vault</h4>
+              <h4 className="font-extrabold text-sm text-white">
+                {language === 'vi' ? 'Cơ Chế Khóa Tiền Smart Escrow Vault' : 'Smart Escrow Vault Protection'}
+              </h4>
             </div>
             <p className="text-[11px] text-[#C5E5EC]/80 leading-relaxed">
-              Để bảo vệ uy tín và đảm bảo Freelancer hoàn thành đúng hạn:
+              {language === 'vi'
+                ? 'Để bảo vệ uy tín và đảm bảo Freelancer hoàn thành đúng hạn:'
+                : 'To protect integrity and ensure freelancers complete tasks on time:'}
             </p>
             <ul className="text-[11px] text-[#C5E5EC]/80 space-y-1 list-disc pl-4">
               <li>
-                Số tiền <strong>{formatVnd(price)}</strong> sẽ tạm giữ trong quỹ Smart Escrow.
+                {language === 'vi' ? (
+                  <>Số tiền <strong>{formatVnd(price)}</strong> sẽ tạm giữ trong quỹ Smart Escrow.</>
+                ) : (
+                  <>The amount <strong>{formatVnd(price)}</strong> will be locked in the Smart Escrow vault.</>
+                )}
               </li>
-              <li>Freelancer không thể rút tiền cho đến khi nộp bài nghiệm thu và được bạn duyệt.</li>
-              <li>Nếu hủy kèo hoặc có tranh chấp, Trọng tài AI & Admin sẽ hoàn tiền 100%.</li>
+              <li>
+                {language === 'vi'
+                  ? 'Freelancer không thể rút tiền cho đến khi nộp bài nghiệm thu và được bạn duyệt.'
+                  : 'Freelancers cannot withdraw funds until deliverables are submitted and approved by you.'}
+              </li>
+              <li>
+                {language === 'vi'
+                  ? 'Nếu hủy kèo hoặc có tranh chấp, Trọng tài AI & Admin sẽ hoàn tiền 100%.'
+                  : 'If cancelled or disputed, AI Arbiter & Admin will refund 100% per platform policy.'}
+              </li>
             </ul>
 
             {/* Wallet check */}
             <div className="pt-2 border-t border-[#C5E5EC]/15 space-y-2">
               <div className="flex items-center justify-between text-[11px]">
-                <span className="text-[#C5E5EC]/70">Thù lao công việc:</span>
+                <span className="text-[#C5E5EC]/70">
+                  {language === 'vi' ? 'Thù lao công việc:' : 'Task Bounty:'}
+                </span>
                 <span className="font-bold text-white">{formatVnd(price)}</span>
               </div>
               {isBoosted && (
                 <div className="flex items-center justify-between text-[11px]">
                   <span className="text-[#E0FAEB] font-bold flex items-center space-x-1">
                     <Rocket className="w-3.5 h-3.5 text-[#E0FAEB]" />
-                    <span>Phí Đẩy Bài & Ghim Top 1:</span>
+                    <span>{language === 'vi' ? 'Phí Đẩy Bài & Ghim Top 1:' : 'Flash Boost & Top #1 Fee:'}</span>
                   </span>
-                  <span className="font-bold text-[#E0FAEB]">+10.000đ</span>
+                  <span className="font-bold text-[#E0FAEB]">
+                    {language === 'vi' ? '+10.000đ' : '+10,000 VND'}
+                  </span>
                 </div>
               )}
               <div className="flex items-center justify-between text-xs pt-1 border-t border-[#C5E5EC]/15">
-                <span className="text-white font-bold">Tổng thanh toán:</span>
+                <span className="text-white font-bold">
+                  {language === 'vi' ? 'Tổng thanh toán:' : 'Total Payable:'}
+                </span>
                 <span className="font-black text-[#E0FAEB] text-sm">{formatVnd(totalRequired)}</span>
               </div>
 
               <div className="pt-1 flex items-center justify-between">
                 <div>
-                  <span className="text-[#C5E5EC]/60 block text-[10px]">Số dư ví hiện tại:</span>
+                  <span className="text-[#C5E5EC]/60 block text-[10px]">
+                    {language === 'vi' ? 'Số dư ví hiện tại:' : 'Current Wallet Balance:'}
+                  </span>
                   <span className="text-xs font-bold text-white">{formatVnd(walletBalance)}</span>
                 </div>
 
@@ -770,11 +879,12 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
                     onClick={() => setIsVietQrOpen(true)}
                     className="px-3 py-1.5 rounded-xl bg-amber-500 text-white font-extrabold text-xs hover:brightness-105 shadow-sm transition active:scale-95 cursor-pointer"
                   >
-                    Nạp thêm qua VietQR &rarr;
+                    {language === 'vi' ? 'Nạp thêm qua VietQR →' : 'Top up with VietQR →'}
                   </button>
                 ) : (
                   <span className="text-[#E0FAEB] font-bold flex items-center text-xs">
-                    <CheckCircle2 className="w-4 h-4 mr-1 text-[#E0FAEB]" /> Đủ số dư
+                    <CheckCircle2 className="w-4 h-4 mr-1 text-[#E0FAEB]" />{' '}
+                    {language === 'vi' ? 'Đủ số dư' : 'Sufficient Balance'}
                   </span>
                 )}
               </div>
@@ -787,7 +897,7 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
               onClick={() => setStep(2)}
               className="w-1/3 py-2.5 rounded-xl bg-[#12233B] border border-[#C5E5EC]/20 text-[#C5E5EC] font-bold hover:bg-[#162C4E] transition active:scale-95 cursor-pointer"
             >
-              Quay lại
+              {language === 'vi' ? 'Quay lại' : 'Back'}
             </button>
 
             <button
@@ -798,7 +908,7 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
               className="w-2/3 py-3 rounded-xl bg-gradient-to-r from-[#3064AE] via-[#2A5594] to-[#25735B] text-white font-extrabold text-sm hover:brightness-110 shadow-lg shadow-[#3064AE]/20 disabled:opacity-40 disabled:cursor-not-allowed transition flex items-center justify-center space-x-1.5 active:scale-95 border border-[#E0FAEB]/30 cursor-pointer"
             >
               <CheckCircle2 className="w-4 h-4 text-[#E0FAEB]" />
-              <span>Khóa Escrow & Đăng Việc Ngay</span>
+              <span>{language === 'vi' ? 'Khóa Escrow & Đăng Việc Ngay' : 'Lock Escrow & Post Gig Now'}</span>
             </button>
           </div>
         </div>

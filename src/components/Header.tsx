@@ -13,6 +13,7 @@ import {
   ChevronDown,
   Globe,
   Check,
+  X,
 } from 'lucide-react';
 import { useGigMe } from '../context/GigMeContext';
 import { formatVnd } from '../types';
@@ -213,7 +214,9 @@ export const Header: React.FC<HeaderProps> = ({
                     <span className="text-base">🇻🇳</span>
                     <div className="text-left">
                       <p className="font-bold leading-tight">Tiếng Việt</p>
-                      <p className="text-[10px] text-slate-400 dark:text-[#C5E5EC]/60 leading-tight">Mặc định Campus</p>
+                      <p className="text-[10px] text-slate-400 dark:text-[#C5E5EC]/60 leading-tight">
+                        {language === 'vi' ? 'Mặc định Campus' : 'Campus Default'}
+                      </p>
                     </div>
                   </div>
                   {language === 'vi' && <Check className="w-4 h-4 text-[#3064AE] dark:text-[#E0FAEB] shrink-0" />}
@@ -317,7 +320,7 @@ export const Header: React.FC<HeaderProps> = ({
                     </div>
                     <div className="min-w-0 leading-tight">
                       <p className="font-extrabold text-xs text-slate-900 dark:text-white truncate">
-                        {currentUser?.name || 'Sinh viên Campus'}
+                        {currentUser?.name || (language === 'vi' ? 'Sinh viên Campus' : 'Campus Student')}
                       </p>
                       <div className="text-[10px] text-slate-500 dark:text-[#C5E5EC]/80 mt-0.5 space-y-0.5">
                         <p className="truncate">

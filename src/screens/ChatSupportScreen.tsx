@@ -162,8 +162,11 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
     {
       id: 'ai_welcome',
       sender: 'AI',
-      text: 'Xin chào bạn! Mình là Trợ lý AI GigMe. Mình luôn sẵn sàng giải đáp mọi câu hỏi của bạn về Gigme',
-      time: 'Trực tuyến',
+      text:
+        language === 'vi'
+          ? 'Xin chào bạn! Mình là Trợ lý AI GigMe. Mình luôn sẵn sàng giải đáp mọi câu hỏi của bạn về GigMe'
+          : 'Hello! I am GigMe AI Assistant. I am always ready to help you with any questions about GigMe!',
+      time: language === 'vi' ? 'Trực tuyến' : 'Online',
     },
   ]);
 
@@ -195,14 +198,17 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
     if (currentUser?.id !== '000000000') {
       list.push({
         id: '000000000',
-        name: 'Ban Quản Trị GigMe (Admin Support)',
+        name: language === 'vi' ? 'Ban Quản Trị GigMe (Admin Support)' : 'GigMe Administration (Admin Support)',
         role: 'ADMIN',
         roleLabel: 'Admin 000000000',
-        school: 'Tổng Đài Hỗ Trợ Sinh Viên GigMe',
+        school: language === 'vi' ? 'Tổng Đài Hỗ Trợ Sinh Viên GigMe' : 'GigMe Campus Support Center',
         avatarBg: 'from-[#3064AE] via-[#2A5594] to-[#25735B]',
         isOnline: true,
-        lastActiveText: 'Trực tuyến 24/7 (ID: 000000000)',
-        specialtyOrNeed: 'Hỗ trợ giải quyết sự cố, mở khóa ví, xác minh CCCD & tranh chấp ký quỹ',
+        lastActiveText: language === 'vi' ? 'Trực tuyến 24/7 (ID: 000000000)' : 'Online 24/7 (ID: 000000000)',
+        specialtyOrNeed:
+          language === 'vi'
+            ? 'Hỗ trợ giải quyết sự cố, mở khóa ví, xác minh CCCD & tranh chấp ký quỹ'
+            : 'Support with account issues, wallet unlock, identity verification & escrow disputes',
       });
     }
 
@@ -214,15 +220,18 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
         if (friendUser && !list.find((c) => c.id === friendUser.id)) {
           list.push({
             id: friendUser.id,
-            name: friendUser.name || `Tài khoản ${friendUser.id}`,
+            name: friendUser.name || (language === 'vi' ? `Tài khoản ${friendUser.id}` : `Account ${friendUser.id}`),
             role: friendUser.role === 'ADMIN' ? 'ADMIN' : 'WORKER',
-            roleLabel: `Bạn bè (ID: ${friendUser.id})`,
-            school: friendUser.studentSchool || 'Sinh viên Campus',
+            roleLabel: language === 'vi' ? `Bạn bè (ID: ${friendUser.id})` : `Friend (ID: ${friendUser.id})`,
+            school: friendUser.studentSchool || (language === 'vi' ? 'Sinh viên Campus' : 'Campus Student'),
             avatarBg: 'from-blue-600 to-indigo-600',
             avatarUrl: (friendUser as any).avatarUrl || (friendUser as any).photoURL || undefined,
             isOnline: true,
-            lastActiveText: 'Đang online',
-            specialtyOrNeed: `Bạn bè kết nối qua ID 9 số: ${friendUser.id}`,
+            lastActiveText: language === 'vi' ? 'Đang online' : 'Online now',
+            specialtyOrNeed:
+              language === 'vi'
+                ? `Bạn bè kết nối qua ID 9 số: ${friendUser.id}`
+                : `Friend connected via 9-digit ID: ${friendUser.id}`,
             isEduVerified: !!friendUser.isEduVerified || !!friendUser.isStudentVerified,
             isCccdVerified: !!friendUser.isNfcVerified || friendUser.tier === 'CCCD_VERIFIED' || friendUser.tier === 'PRO',
           });
@@ -250,15 +259,15 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
             if (!existing) {
               list.push({
                 id: gig.clientId,
-                name: gig.clientName || clientUser?.name || `Người thuê (ID ${gig.clientId})`,
+                name: gig.clientName || clientUser?.name || (language === 'vi' ? `Người thuê (ID ${gig.clientId})` : `Client (ID ${gig.clientId})`),
                 role: 'CLIENT',
-                roleLabel: 'Người thuê',
+                roleLabel: language === 'vi' ? 'Người thuê' : 'Client',
                 school: clientUser?.studentSchool || (gig.locationName?.includes('Hà Nội') ? 'ĐH Bách Khoa HN' : 'ĐHQG TP.HCM'),
                 avatarBg: 'from-blue-600 to-indigo-600',
                 avatarUrl: (clientUser as any)?.avatarUrl || (clientUser as any)?.photoURL || undefined,
                 isOnline: true,
-                lastActiveText: 'Đang online',
-                specialtyOrNeed: `Đơn: ${gig.title}`,
+                lastActiveText: language === 'vi' ? 'Đang online' : 'Online now',
+                specialtyOrNeed: language === 'vi' ? `Đơn: ${gig.title}` : `Gig: ${gig.title}`,
                 isEduVerified: !!clientUser?.isEduVerified || !!clientUser?.isStudentVerified || gig.clientTier === 'STUDENT',
                 isCccdVerified: !!clientUser?.isNfcVerified || gig.clientTier === 'CCCD_VERIFIED' || gig.clientTier === 'PRO',
                 associatedGig: {
@@ -295,15 +304,15 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
             if (!existing) {
               list.push({
                 id: gig.freelancerId,
-                name: gig.freelancerName || freelancerUser?.name || `Người làm (ID ${gig.freelancerId})`,
+                name: gig.freelancerName || freelancerUser?.name || (language === 'vi' ? `Người làm (ID ${gig.freelancerId})` : `Worker (ID ${gig.freelancerId})`),
                 role: 'WORKER',
-                roleLabel: 'Người làm',
-                school: freelancerUser?.studentSchool || 'Sinh viên Campus',
+                roleLabel: language === 'vi' ? 'Người làm' : 'Worker',
+                school: freelancerUser?.studentSchool || (language === 'vi' ? 'Sinh viên Campus' : 'Campus Student'),
                 avatarBg: 'from-emerald-600 to-cyan-600',
                 avatarUrl: (freelancerUser as any)?.avatarUrl || (freelancerUser as any)?.photoURL || undefined,
                 isOnline: true,
-                lastActiveText: 'Đang online',
-                specialtyOrNeed: `Đang làm: ${gig.title}`,
+                lastActiveText: language === 'vi' ? 'Đang online' : 'Online now',
+                specialtyOrNeed: language === 'vi' ? `Đang làm: ${gig.title}` : `Working on: ${gig.title}`,
                 isEduVerified: !!freelancerUser?.isEduVerified || !!freelancerUser?.isStudentVerified,
                 isCccdVerified: !!freelancerUser?.isNfcVerified || freelancerUser?.tier === 'CCCD_VERIFIED' || freelancerUser?.tier === 'PRO',
                 associatedGig: {
@@ -349,15 +358,15 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
           }
           list.push({
             id: partnerId,
-            name: u?.name || `Tài khoản ${partnerId}`,
+            name: u?.name || (language === 'vi' ? `Tài khoản ${partnerId}` : `Account ${partnerId}`),
             role: 'WORKER',
             roleLabel: `ID ${partnerId}`,
             school: u?.studentSchool || 'Campus Hub',
             avatarBg: 'from-teal-600 to-blue-600',
             avatarUrl: (u as any)?.avatarUrl || (u as any)?.photoURL || undefined,
             isOnline: true,
-            lastActiveText: 'Hoạt động gần đây',
-            specialtyOrNeed: `ID 9 số: ${partnerId}`,
+            lastActiveText: language === 'vi' ? 'Hoạt động gần đây' : 'Recently active',
+            specialtyOrNeed: `ID: ${partnerId}`,
           });
         }
       });
@@ -369,12 +378,12 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
       if (c.id === 'admin_root') return false;
       const isBanQuanTriName = c.name?.toLowerCase().includes('ban quản trị') || c.name?.toLowerCase().includes('admin support');
       // Duy nhất chỉ 1 tài khoản Ban Quản Trị chính thức ID 000000000 với role ADMIN được hiển thị
-      if (isBanQuanTriName && (c.id !== '000000000' || c.role === 'CLIENT' || c.roleLabel === 'Người thuê')) {
+      if (isBanQuanTriName && (c.id !== '000000000' || c.role === 'CLIENT' || c.roleLabel === 'Người thuê' || c.roleLabel === 'Client')) {
         return false;
       }
       return true;
     });
-  }, [rawGigs, currentUser, users, allChats]);
+  }, [rawGigs, currentUser, users, allChats, language]);
 
   // Active contact details with foolproof fallback (so clicking any contact ALWAYS opens chat room)
   const activeContact = useMemo<MessengerContact | null>(() => {
@@ -387,15 +396,15 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
     if (u) {
       return {
         id: u.id,
-        name: u.name || `Tài khoản ${u.id}`,
+        name: u.name || (language === 'vi' ? `Tài khoản ${u.id}` : `Account ${u.id}`),
         role: (u.role === 'ADMIN' ? 'ADMIN' : 'WORKER') as 'CLIENT' | 'WORKER' | 'ADMIN',
         roleLabel: u.role === 'ADMIN' ? 'Admin 000000000' : `ID: ${u.id}`,
         school: u.studentSchool || 'Campus Hub',
         avatarBg: 'from-blue-600 to-indigo-600',
         avatarUrl: (u as any)?.avatarUrl || (u as any)?.photoURL || undefined,
         isOnline: true,
-        lastActiveText: 'Đang online',
-        specialtyOrNeed: `ID 9 số: ${u.id}`,
+        lastActiveText: language === 'vi' ? 'Đang online' : 'Online now',
+        specialtyOrNeed: `ID: ${u.id}`,
         isEduVerified: !!u.isEduVerified || !!u.isStudentVerified,
         associatedGig: undefined,
       };
@@ -404,17 +413,20 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
     // Default fallback
     return {
       id: activeConversationId,
-      name: activeConversationId === '000000000' ? 'Ban Quản Trị GigMe (Admin Support)' : `Người dùng (${activeConversationId})`,
+      name:
+        activeConversationId === '000000000'
+          ? (language === 'vi' ? 'Ban Quản Trị GigMe (Admin Support)' : 'GigMe Administration (Admin Support)')
+          : (language === 'vi' ? `Người dùng (${activeConversationId})` : `User (${activeConversationId})`),
       role: (activeConversationId === '000000000' ? 'ADMIN' : 'WORKER') as 'CLIENT' | 'WORKER' | 'ADMIN',
       roleLabel: activeConversationId === '000000000' ? 'Admin 000000000' : `ID ${activeConversationId}`,
       school: 'Campus Hub',
       avatarBg: 'from-[#3064AE] to-[#25735B]',
       isOnline: true,
-      lastActiveText: 'Đang hoạt động',
+      lastActiveText: language === 'vi' ? 'Đang hoạt động' : 'Active now',
       specialtyOrNeed: `ID: ${activeConversationId}`,
       associatedGig: undefined,
     };
-  }, [activeConversationId, campusContacts, users]);
+  }, [activeConversationId, campusContacts, users, language]);
 
   // Messages for active conversation with strict 2-party isolation (prevents multi-user cross-talk leak)
   const currentConversationMessages = useMemo(() => {
@@ -563,13 +575,16 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
   const handleSearchById = () => {
     const rateCheck = rateLimiter.check('SEARCH_ID', currentUser?.id);
     if (!rateCheck.allowed) {
-      setSearchIdError(rateCheck.errorMsg || 'Vui lòng chờ ít giây để chống spam tìm kiếm.');
+      setSearchIdError(
+        rateCheck.errorMsg ||
+          (language === 'vi' ? 'Vui lòng chờ ít giây để chống spam tìm kiếm.' : 'Please wait a few seconds before searching again.')
+      );
       return;
     }
 
     const cleanId = searchIdInput.trim();
     if (!cleanId) {
-      setSearchIdError('Vui lòng nhập ID 9 số để tìm kiếm.');
+      setSearchIdError(language === 'vi' ? 'Vui lòng nhập ID 9 số để tìm kiếm.' : 'Please enter 9-digit ID to search.');
       return;
     }
     setSearchIdError('');
@@ -581,14 +596,18 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
 
     if (found) {
       if (found.id === currentUser?.id) {
-        setSearchIdError('Đây là ID của chính bạn.');
+        setSearchIdError(language === 'vi' ? 'Đây là ID của chính bạn.' : 'This is your own ID.');
         setFoundUserResult(null);
         return;
       }
       setFoundUserResult(found);
     } else {
       setFoundUserResult(null);
-      setSearchIdError(`Không tìm thấy tài khoản với ID "${cleanId}". Hãy chắc chắn ID gồm các chữ số hợp lệ.`);
+      setSearchIdError(
+        language === 'vi'
+          ? `Không tìm thấy tài khoản với ID "${cleanId}". Hãy chắc chắn ID gồm các chữ số hợp lệ.`
+          : `Account with ID "${cleanId}" not found. Please make sure the ID contains valid digits.`
+      );
     }
   };
 
@@ -643,8 +662,9 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
     const rateCheck = rateLimiter.check('CHAT', currentUser?.id);
     if (!rateCheck.allowed) {
       showNotification(
-        '⚠️ Giới hạn tốc độ gửi tin nhắn',
-        rateCheck.errorMsg || 'Vui lòng chờ ít giây để chống spam tin nhắn.',
+        language === 'vi' ? '⚠️ Giới hạn tốc độ gửi tin nhắn' : '⚠️ Message rate limit',
+        rateCheck.errorMsg ||
+          (language === 'vi' ? 'Vui lòng chờ ít giây để chống spam tin nhắn.' : 'Please wait a few seconds before sending another message.'),
         false
       );
       return;
@@ -661,13 +681,22 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
         // Partner finishes typing after 2.5s and sends a context-aware smart response
         setTimeout(() => {
           setIsPartnerTyping(false);
-          const replies = [
-            'Dạ mình đã nhận thông tin, đang kiểm tra ngay nhé!',
-            'Oke bạn nha, mình nắm rõ rồi ạ!',
-            'Được nhé, tí nữa gặp nhau mình trao đổi chi tiết hơn!',
-            'Mình đang xem qua, lát mình phản hồi liền nha!',
-            'Tuyệt vời! Cảm ơn bạn nhiều!',
-          ];
+          const replies =
+            language === 'vi'
+              ? [
+                  'Dạ mình đã nhận thông tin, đang kiểm tra ngay nhé!',
+                  'Oke bạn nha, mình nắm rõ rồi ạ!',
+                  'Được nhé, tí nữa gặp nhau mình trao đổi chi tiết hơn!',
+                  'Mình đang xem qua, lát mình phản hồi liền nha!',
+                  'Tuyệt vời! Cảm ơn bạn nhiều!',
+                ]
+              : [
+                  'Got your message, checking it right away!',
+                  'Sounds good, noted!',
+                  'Sure, let us discuss details when we meet shortly!',
+                  'Looking over it now, will reply in a moment!',
+                  'Awesome! Thank you so much!',
+                ];
           const randomReply = replies[Math.floor(Math.random() * replies.length)];
           sendChat(
             randomReply,
@@ -689,7 +718,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
       rateLimiter.record('CHAT', currentUser?.id);
       triggerHaptic('medium');
       sendChat(
-        messageInput.trim() || 'Đã gửi một hình ảnh',
+        messageInput.trim() || (language === 'vi' ? 'Đã gửi một hình ảnh' : 'Sent an image'),
         'IMAGE',
         pendingImage,
         0,
@@ -708,7 +737,8 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
       rateLimiter.record('CHAT', currentUser?.id);
       triggerHaptic('medium');
       sendChat(
-        messageInput.trim() || `Đã gửi video: ${pendingVideo.name}`,
+        messageInput.trim() ||
+          (language === 'vi' ? `Đã gửi video: ${pendingVideo.name}` : `Sent video: ${pendingVideo.name}`),
         'VIDEO',
         pendingVideo.url,
         0,
@@ -747,8 +777,8 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
     const rateCheck = rateLimiter.check('CHAT', currentUser?.id);
     if (!rateCheck.allowed) {
       showNotification(
-        '⚠️ Giới hạn tốc độ gửi tin nhắn',
-        rateCheck.errorMsg || 'Vui lòng chờ ít giây.',
+        language === 'vi' ? '⚠️ Giới hạn tốc độ gửi tin nhắn' : '⚠️ Message rate limit',
+        rateCheck.errorMsg || (language === 'vi' ? 'Vui lòng chờ ít giây.' : 'Please wait a few seconds.'),
         false
       );
       return;
@@ -776,8 +806,8 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
     const rateCheck = rateLimiter.check('CHAT', currentUser?.id);
     if (!rateCheck.allowed) {
       showNotification(
-        '⚠️ Giới hạn tốc độ gửi tin nhắn',
-        rateCheck.errorMsg || 'Vui lòng chờ ít giây.',
+        language === 'vi' ? '⚠️ Giới hạn tốc độ gửi tin nhắn' : '⚠️ Message rate limit',
+        rateCheck.errorMsg || (language === 'vi' ? 'Vui lòng chờ ít giây.' : 'Please wait a few seconds.'),
         false
       );
       return;
@@ -806,8 +836,8 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
     const rateCheck = rateLimiter.check('AI_QUERY', currentUser?.id);
     if (!rateCheck.allowed) {
       showNotification(
-        '⚠️ Giới hạn tốc độ hỏi AI',
-        rateCheck.errorMsg || 'Vui lòng chờ ít giây trước khi đặt câu hỏi tiếp.',
+        language === 'vi' ? '⚠️ Giới hạn tốc độ hỏi AI' : '⚠️ AI query rate limit',
+        rateCheck.errorMsg || (language === 'vi' ? 'Vui lòng chờ ít giây trước khi đặt câu hỏi tiếp.' : 'Please wait a few seconds before asking another question.'),
         false
       );
       return;
@@ -837,7 +867,11 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
         body: JSON.stringify({ message: query, history: historyPayload }),
       });
       const data = await response.json();
-      const reply = data.reply || 'Hệ thống Smart Escrow của GigMe luôn bảo vệ 100% quyền lợi của bạn!';
+      const reply =
+        data.reply ||
+        (language === 'vi'
+          ? 'Hệ thống Smart Escrow của GigMe luôn bảo vệ 100% quyền lợi của bạn!'
+          : 'GigMe Smart Escrow always protects 100% of your interests!');
 
       setAiChatMessages((prev) => [
         ...prev,
@@ -873,8 +907,10 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
       setPendingImage(compressed.dataUrl);
       setShowAttachmentMenu(false);
       showNotification(
-        '⚡ Nén Ảnh WebP Tự Động',
-        `Đã nén tiết kiệm ${compressed.savedPercent}% dữ liệu 4G (${compressed.originalSizeFormatted} ➔ ${compressed.compressedSizeFormatted}).`
+        language === 'vi' ? '⚡ Nén Ảnh WebP Tự Động' : '⚡ Auto WebP Compression',
+        language === 'vi'
+          ? `Đã nén tiết kiệm ${compressed.savedPercent}% dữ liệu 4G (${compressed.originalSizeFormatted} ➔ ${compressed.compressedSizeFormatted}).`
+          : `Saved ${compressed.savedPercent}% cellular data (${compressed.originalSizeFormatted} ➔ ${compressed.compressedSizeFormatted}).`
       );
     } catch {
       const reader = new FileReader();
@@ -893,7 +929,10 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
   const startVoiceRecording = async () => {
     if (isRecordingVoice) return;
     if (!activeContact) {
-      showNotification('Nhắc nhở', 'Vui lòng chọn một cuộc trò chuyện để gửi tin nhắn thoại!');
+      showNotification(
+        language === 'vi' ? 'Nhắc nhở' : 'Notice',
+        language === 'vi' ? 'Vui lòng chọn một cuộc trò chuyện để gửi tin nhắn thoại!' : 'Please select a conversation to send voice message!'
+      );
       return;
     }
 
@@ -939,7 +978,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
               if (typeof reader.result === 'string' && activeContact) {
                 const targetThread = activeContact.associatedGig?.id || getDirectThreadId(currentUser?.id || '000000000', activeContact.id);
                 sendChat(
-                  `🎙️ Tin nhắn thoại (${actualDuration}s)`,
+                  language === 'vi' ? `🎙️ Tin nhắn thoại (${actualDuration}s)` : `🎙️ Voice message (${actualDuration}s)`,
                   'VOICE',
                   reader.result,
                   actualDuration,
@@ -948,7 +987,10 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                   activeContact.id,
                   activeContact.name
                 );
-                showNotification('Tin nhắn thoại 🎙️', `Đã gửi bản ghi âm (${actualDuration} giây)!`);
+                showNotification(
+                  language === 'vi' ? 'Tin nhắn thoại 🎙️' : 'Voice Message 🎙️',
+                  language === 'vi' ? `Đã gửi bản ghi âm (${actualDuration} giây)!` : `Sent voice recording (${actualDuration}s)!`
+                );
               }
             };
             reader.readAsDataURL(audioBlob);
@@ -1000,7 +1042,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
     setIsRecordingVoice(false);
     setRecordingDuration(0);
     recordingDurationRef.current = 0;
-    showNotification('Đã hủy', 'Đã hủy đoạn ghi âm.');
+    showNotification(language === 'vi' ? 'Đã hủy' : 'Cancelled', language === 'vi' ? 'Đã hủy đoạn ghi âm.' : 'Voice recording discarded.');
   };
 
   const stopVoiceRecording = () => {
@@ -1034,7 +1076,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
     const targetThread = activeContact.associatedGig?.id || getDirectThreadId(currentUser?.id || '000000000', activeContact.id);
 
     sendChat(
-      `🎙️ Tin nhắn thoại (${actualDuration}s)`,
+      language === 'vi' ? `🎙️ Tin nhắn thoại (${actualDuration}s)` : `🎙️ Voice message (${actualDuration}s)`,
       'VOICE',
       audioDataUrl,
       actualDuration,
@@ -1043,7 +1085,10 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
       activeContact.id,
       activeContact.name
     );
-    showNotification('Tin nhắn thoại 🎙️', `Đã gửi bản ghi âm (${actualDuration} giây)!`);
+    showNotification(
+      language === 'vi' ? 'Tin nhắn thoại 🎙️' : 'Voice Message 🎙️',
+      language === 'vi' ? `Đã gửi bản ghi âm (${actualDuration} giây)!` : `Sent voice recording (${actualDuration}s)!`
+    );
   };
 
   // Play / Pause Voice Note
@@ -1130,7 +1175,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
             <button
               onClick={() => setActiveConversationId(null)}
               className="p-2 rounded-xl bg-[#12233B] hover:bg-[#162B48] text-[#C5E5EC] border border-[#C5E5EC]/20 transition cursor-pointer"
-              title="Quay lại danh sách chat"
+              title={language === 'vi' ? 'Quay lại danh sách chat' : 'Back to chat list'}
             >
               <ArrowLeft className="w-5 h-5 text-[#C5E5EC]" />
             </button>
@@ -1142,30 +1187,42 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
             </div>
             <div>
               <div className="flex items-center space-x-1.5">
-                <h3 className="font-extrabold text-sm text-white">Trợ Lý AI GigMe 24/7</h3>
+                <h3 className="font-extrabold text-sm text-white">
+                  {language === 'vi' ? 'Trợ Lý AI GigMe 24/7' : 'GigMe AI Assistant 24/7'}
+                </h3>
                 <span className="px-1.5 py-0.5 rounded bg-[#3064AE]/30 text-[#C5E5EC] text-[9px] font-bold border border-[#C5E5EC]/25">
                   Gemini 2.5
                 </span>
               </div>
-              <p className="text-[11px] text-[#E0FAEB] font-medium">Đang trực tuyến • Sẵn sàng hỗ trợ 24/7</p>
+              <p className="text-[11px] text-[#E0FAEB] font-medium">
+                {language === 'vi' ? 'Đang trực tuyến • Sẵn sàng hỗ trợ 24/7' : 'Online • Ready to assist 24/7'}
+              </p>
             </div>
           </div>
           <button
             onClick={() => setActiveConversationId(null)}
             className="text-xs text-[#C5E5EC]/80 hover:text-white px-2.5 py-1 rounded-lg bg-[#12233B] border border-[#C5E5EC]/20 transition cursor-pointer"
           >
-            Đóng
+            {language === 'vi' ? 'Đóng' : 'Close'}
           </button>
         </div>
 
         {/* Quick FAQ Suggestion Chips */}
         <div className="flex items-center gap-1.5 overflow-x-auto py-2.5 no-scrollbar shrink-0 text-[11px]">
-          {[
-            '🛡️ Smart Escrow hoạt động ra sao?',
-            '⚡ Rút tiền Napas 247 bao lâu?',
-            '⭐ Mẹo tăng điểm ELO sinh viên?',
-            '⚠️ Khiếu nại khi đối tác trễ hẹn?',
-          ].map((chip, idx) => (
+          {(language === 'vi'
+            ? [
+                '🛡️ Smart Escrow hoạt động ra sao?',
+                '⚡ Rút tiền Napas 247 bao lâu?',
+                '⭐ Mẹo tăng điểm ELO sinh viên?',
+                '⚠️ Khiếu nại khi đối tác trễ hẹn?',
+              ]
+            : [
+                '🛡️ How does Smart Escrow work?',
+                '⚡ How fast is 24/7 Napas payout?',
+                '⭐ Tips to boost Student ELO?',
+                '⚠️ How to dispute late delivery?',
+              ]
+          ).map((chip, idx) => (
             <button
               key={idx}
               onClick={() => handleSendAiMessage(chip)}
@@ -1233,7 +1290,11 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
             type="text"
             value={messageInput}
             onChange={(e) => setMessageInput(e.target.value)}
-            placeholder="Hỏi về tiền cọc, rút tiền Napas, mẹo nhận việc..."
+            placeholder={
+              language === 'vi'
+                ? 'Hỏi về tiền cọc, rút tiền Napas, mẹo nhận việc...'
+                : 'Ask about escrow, payouts, gig tips...'
+            }
             className="flex-1 py-2 px-3.5 rounded-full bg-[#1e2c3d] border border-white/10 text-white text-[13px] placeholder:text-[#C5E5EC]/40 focus:border-[#0084FF] focus:bg-[#1a2636] transition outline-none"
           />
           <button
@@ -1263,7 +1324,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
             <button
               onClick={() => setActiveConversationId(null)}
               className="p-2 rounded-xl bg-[#12233B] hover:bg-[#162B48] text-[#C5E5EC] border border-[#C5E5EC]/20 transition shrink-0 cursor-pointer"
-              title="Quay lại danh sách"
+              title={language === 'vi' ? 'Quay lại danh sách' : 'Back to chat list'}
             >
               <ArrowLeft className="w-5 h-5 text-[#C5E5EC]" />
             </button>
@@ -1314,7 +1375,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
               </div>
               <p className="text-[11px] text-[#C5E5EC]/70 truncate">
                 {isPartnerOnline ? (
-                  <span className="text-[#E0FAEB] font-medium">Đang hoạt động</span>
+                  <span className="text-[#E0FAEB] font-medium">{language === 'vi' ? 'Đang hoạt động' : 'Active now'}</span>
                 ) : (
                   activeContact.lastActiveText
                 )}{' '}
@@ -1328,21 +1389,21 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
             <button
               onClick={() => startVoipCall(activeContact.name, activeContact.roleLabel, associatedGig?.id)}
               className="p-2 rounded-xl bg-[#12233B] hover:bg-[#162B48] text-[#C5E5EC] border border-[#C5E5EC]/20 transition cursor-pointer"
-              title="Gọi thoại VoIP miễn phí qua mạng Campus"
+              title={language === 'vi' ? 'Gọi thoại VoIP miễn phí qua mạng Campus' : 'Free campus VoIP call'}
             >
               <PhoneCall className="w-4 h-4" />
             </button>
             <button
               onClick={() => startVoipCall(activeContact.name, `${activeContact.roleLabel} (Video)`, associatedGig?.id)}
               className="p-2 rounded-xl bg-[#12233B] hover:bg-[#162B48] text-[#C5E5EC] border border-[#C5E5EC]/20 transition cursor-pointer"
-              title="Gọi video trực tuyến"
+              title={language === 'vi' ? 'Gọi video trực tuyến' : 'Live video call'}
             >
               <Video className="w-4 h-4" />
             </button>
             <button
               onClick={() => setShowContactInfoModal(true)}
               className="p-2 rounded-xl bg-[#12233B] hover:bg-[#162B48] text-[#C5E5EC]/80 hover:text-white border border-[#C5E5EC]/20 transition cursor-pointer"
-              title="Xem thông tin chi tiết"
+              title={language === 'vi' ? 'Xem thông tin chi tiết' : 'View contact info'}
             >
               <Info className="w-4 h-4" />
             </button>
@@ -1355,24 +1416,29 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
             <div className="flex items-center space-x-2 truncate">
               <Briefcase className="w-3.5 h-3.5 text-[#C5E5EC] shrink-0" />
               <span className="truncate">
-                <span className="text-[#C5E5EC] font-bold">Kèo chung:</span> {associatedGig.title} (
-                {formatVnd(associatedGig.price)})
+                <span className="text-[#C5E5EC] font-bold">
+                  {language === 'vi' ? 'Kèo chung:' : 'Related Gig:'}
+                </span>{' '}
+                {associatedGig.title} ({formatVnd(associatedGig.price)})
               </span>
             </div>
             <div className="flex items-center space-x-2 shrink-0 ml-2">
               <button
                 onClick={() => {
                   selectGig(associatedGig.id);
-                  showNotification('Thông tin việc làm', `Đã chọn kèo "${associatedGig.title}"`);
+                  showNotification(
+                    language === 'vi' ? 'Thông tin việc làm' : 'Gig Info',
+                    language === 'vi' ? `Đã chọn kèo "${associatedGig.title}"` : `Selected gig "${associatedGig.title}"`
+                  );
                 }}
                 className="text-[11px] text-[#C5E5EC] hover:underline font-bold cursor-pointer"
               >
-                Chi tiết
+                {language === 'vi' ? 'Chi tiết' : 'Details'}
               </button>
               <button
                 onClick={() => setBannerDismissed(true)}
                 className="text-[#C5E5EC]/60 hover:text-white p-0.5 cursor-pointer"
-                title="Ẩn thông báo này"
+                title={language === 'vi' ? 'Ẩn thông báo này' : 'Dismiss this notice'}
               >
                 <X className="w-3 h-3" />
               </button>
@@ -1382,13 +1448,22 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
 
         {/* QUICK REPLIES BAR (MESSENGER CHIPS) */}
         <div className="flex items-center gap-1.5 overflow-x-auto py-2 no-scrollbar shrink-0 text-[11px]">
-          {[
-            '👋 Chào bạn nha!',
-            '👌 Mình nhận kèo nhé!',
-            '📁 Bạn gửi file qua đây nha!',
-            '🏃 Mình đang qua sảnh A nè!',
-            '🙏 Cảm ơn bạn nhiều!',
-          ].map((chip, idx) => (
+          {(language === 'vi'
+            ? [
+                '👋 Chào bạn nha!',
+                '👌 Mình nhận kèo nhé!',
+                '📁 Bạn gửi file qua đây nha!',
+                '🏃 Mình đang qua sảnh A nè!',
+                '🙏 Cảm ơn bạn nhiều!',
+              ]
+            : [
+                '👋 Hello there!',
+                '👌 I accept the gig!',
+                '📁 Please send the files here!',
+                '🏃 Heading to hall A now!',
+                '🙏 Thank you very much!',
+              ]
+          ).map((chip, idx) => (
             <button
               key={idx}
               onClick={() => handleSendQuickReply(chip)}
@@ -1415,7 +1490,9 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
               <h4 className="font-extrabold text-sm text-white">{activeContact.name}</h4>
               <p className="text-[#C5E5EC]/80 text-xs mt-0.5">{activeContact.specialtyOrNeed}</p>
               <p className="text-[11px] text-[#C5E5EC]/60 mt-2">
-                Hãy gửi tin nhắn đầu tiên để kết nối và trao đổi công việc trực tiếp!
+                {language === 'vi'
+                  ? 'Hãy gửi tin nhắn đầu tiên để kết nối và trao đổi công việc trực tiếp!'
+                  : 'Send the first message to connect and discuss the gig directly!'}
               </p>
             </div>
           ) : (
@@ -1518,7 +1595,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                                 type="button"
                                 onClick={() => handleTogglePlayAudio(msg.id, msg.attachmentData, msg.attachmentDuration)}
                                 className="w-7 h-7 rounded-full bg-[#00E5FF] text-black hover:scale-105 active:scale-95 flex items-center justify-center shrink-0 shadow transition cursor-pointer"
-                                title={playingAudioId === msg.id ? 'Tạm dừng' : 'Phát'}
+                                title={playingAudioId === msg.id ? (language === 'vi' ? 'Tạm dừng' : 'Pause') : (language === 'vi' ? 'Phát' : 'Play')}
                               >
                                 {playingAudioId === msg.id ? (
                                   <Pause className="w-3.5 h-3.5 fill-current" />
@@ -1528,7 +1605,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                               </button>
                               <div className="flex-1 flex flex-col justify-center">
                                 <div className="flex items-center justify-between text-[10px] mb-1">
-                                  <span className="font-bold text-white">Thoại</span>
+                                  <span className="font-bold text-white">{language === 'vi' ? 'Thoại' : 'Voice'}</span>
                                   <span className="font-mono text-[9px] text-cyan-200">
                                     {msg.attachmentDuration || 3}s
                                   </span>
@@ -1569,7 +1646,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                               setActiveReactionPickerMsgId(activeReactionPickerMsgId === msg.id ? null : msg.id);
                             }}
                             className="w-6 h-6 rounded-full bg-[#12233B] border border-[#C5E5EC]/30 text-[#C5E5EC] hover:text-white flex items-center justify-center text-xs shadow hover:scale-110 active:scale-95 transition cursor-pointer"
-                            title="Thả cảm xúc"
+                            title={language === 'vi' ? 'Thả cảm xúc' : 'Add reaction'}
                           >
                             <Smile className="w-3.5 h-3.5" />
                           </button>
@@ -1668,7 +1745,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                 className="pointer-events-auto px-3.5 py-1.5 rounded-full bg-[#122E54]/95 backdrop-blur-md border border-[#00E5FF]/40 text-[#00E5FF] hover:text-white shadow-xl flex items-center space-x-1.5 text-xs font-bold transition hover:scale-105 active:scale-95 cursor-pointer"
               >
                 <ChevronDown className="w-4 h-4 animate-bounce" />
-                <span>Cuộn xuống tin mới</span>
+                <span>{language === 'vi' ? 'Cuộn xuống tin mới' : 'Scroll to newest'}</span>
               </button>
             </div>
           )}
@@ -1679,7 +1756,9 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
           <div className="relative mb-2 p-2 rounded-2xl bg-[#131E30] border border-cyan-500/40 shrink-0 flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <img src={pendingImage} alt="Pending" className="w-12 h-12 rounded-xl object-cover border" />
-              <span className="text-xs text-cyan-300 font-semibold">Sẵn sàng gửi hình ảnh</span>
+              <span className="text-xs text-cyan-300 font-semibold">
+                {language === 'vi' ? 'Sẵn sàng gửi hình ảnh' : 'Ready to send image'}
+              </span>
             </div>
             <button onClick={() => setPendingImage(null)} className="p-1 rounded-full bg-slate-800 text-slate-400 hover:text-white">
               <X className="w-4 h-4" />
@@ -1702,7 +1781,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
               <div className="w-6 h-6 rounded-lg bg-blue-500/20 text-[#0084FF] flex items-center justify-center">
                 <ImageIcon className="w-4 h-4" />
               </div>
-              <span>Chọn từ thư viện</span>
+              <span>{language === 'vi' ? 'Chọn từ thư viện' : 'Photo Library'}</span>
             </button>
             <button
               type="button"
@@ -1716,13 +1795,13 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
               <div className="w-6 h-6 rounded-lg bg-purple-500/20 text-purple-400 flex items-center justify-center">
                 <Camera className="w-4 h-4" />
               </div>
-              <span>Chụp ảnh nhanh</span>
+              <span>{language === 'vi' ? 'Chụp ảnh nhanh' : 'Take Photo'}</span>
             </button>
             <button
               type="button"
               onClick={() => setShowAttachmentMenu(false)}
               className="p-2 ml-auto rounded-full text-slate-400 hover:text-white transition cursor-pointer"
-              title="Đóng menu đính kèm"
+              title={language === 'vi' ? 'Đóng menu đính kèm' : 'Close attachment menu'}
             >
               <X className="w-4 h-4" />
             </button>
@@ -1752,7 +1831,9 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
             <div className="flex items-center space-x-2.5 px-3 py-2 rounded-full bg-red-950/70 border border-red-500/40 text-red-200 flex-1">
               <span className="w-3 h-3 rounded-full bg-red-500 animate-ping" />
               <Mic className="w-4 h-4 text-red-400 animate-pulse" />
-              <span className="text-xs font-bold font-mono">Đang ghi âm: {recordingDuration}s</span>
+              <span className="text-xs font-bold font-mono">
+                {language === 'vi' ? 'Đang ghi âm:' : 'Recording:'} {recordingDuration}s
+              </span>
               <div className="flex items-center space-x-0.5 ml-2 h-3">
                 {[40, 80, 50, 100, 75, 90, 45, 85].map((h, i) => (
                   <div
@@ -1772,7 +1853,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                   cancelVoiceRecording();
                 }}
                 className="p-2 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition active:scale-95 cursor-pointer"
-                title="Hủy ghi âm"
+                title={language === 'vi' ? 'Hủy ghi âm' : 'Cancel recording'}
               >
                 <X className="w-4 h-4" />
               </button>
@@ -1783,10 +1864,10 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                   stopVoiceRecording();
                 }}
                 className="px-3.5 py-1.5 rounded-full bg-gradient-to-r from-red-600 to-rose-600 hover:brightness-110 active:scale-95 text-white font-bold text-xs flex items-center space-x-1 shadow-lg shadow-red-600/30 transition cursor-pointer"
-                title="Gửi bản ghi âm"
+                title={language === 'vi' ? 'Gửi bản ghi âm' : 'Send voice message'}
               >
                 <Send className="w-3.5 h-3.5" />
-                <span>Gửi Thoại</span>
+                <span>{language === 'vi' ? 'Gửi Thoại' : 'Send Audio'}</span>
               </button>
             </div>
           </div>
@@ -1805,7 +1886,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                   ? 'bg-[#0084FF] text-white shadow-md shadow-[#0084FF]/30'
                   : 'hover:bg-white/10 text-[#0084FF]'
               }`}
-              title="Đính kèm tệp, ảnh hoặc chụp ảnh"
+              title={language === 'vi' ? 'Đính kèm tệp, ảnh hoặc chụp ảnh' : 'Attach file, photo or take photo'}
             >
               <Paperclip className="w-5 h-5 text-[#0084FF]" />
             </button>
@@ -1818,7 +1899,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                 fileInputImageRef.current?.click();
               }}
               className="p-2 rounded-full hover:bg-white/10 text-[#0084FF] transition shrink-0 cursor-pointer"
-              title="Chọn ảnh từ thư viện"
+              title={language === 'vi' ? 'Chọn ảnh từ thư viện' : 'Choose photo from gallery'}
             >
               <ImageIcon className="w-5 h-5 text-[#0084FF]" />
             </button>
@@ -1831,7 +1912,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                 fileInputCameraRef.current?.click();
               }}
               className="p-2 rounded-full hover:bg-white/10 text-[#0084FF] transition shrink-0 cursor-pointer"
-              title="Chụp ảnh nhanh"
+              title={language === 'vi' ? 'Chụp ảnh nhanh' : 'Take photo'}
             >
               <Camera className="w-5 h-5 text-[#0084FF]" />
             </button>
@@ -1854,7 +1935,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                   startVoiceRecording();
                 }}
                 className="p-2 rounded-full hover:bg-white/10 text-[#00E5FF] hover:scale-105 active:scale-95 transition shrink-0 cursor-pointer flex items-center justify-center"
-                title="Ghi âm tin nhắn thoại"
+                title={language === 'vi' ? 'Ghi âm tin nhắn thoại' : 'Record voice message'}
               >
                 <Mic className="w-5 h-5 text-[#00E5FF]" />
               </button>
@@ -1865,7 +1946,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
               <button
                 type="submit"
                 className="p-2 rounded-full bg-[#0084FF] hover:bg-[#0073e6] active:scale-95 text-white transition shadow-md shadow-[#0084FF]/30 shrink-0 cursor-pointer flex items-center justify-center"
-                title="Gửi tin nhắn"
+                title={language === 'vi' ? 'Gửi tin nhắn' : 'Send message'}
               >
                 <Send className="w-4 h-4 ml-0.5" />
               </button>
@@ -1874,7 +1955,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                 type="button"
                 onClick={handleSendThumbsUp}
                 className="p-2 rounded-full hover:bg-white/10 text-[#0084FF] hover:scale-110 active:scale-90 transition shrink-0 cursor-pointer flex items-center justify-center text-xl"
-                title="Gửi nút Thích (Like)"
+                title={language === 'vi' ? 'Gửi nút Thích (Like)' : 'Send thumbs-up (Like)'}
               >
                 👍
               </button>
@@ -1895,7 +1976,9 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
               className="w-full max-w-sm rounded-3xl bg-[#0B1528] border border-slate-700 p-5 shadow-2xl text-slate-200"
             >
               <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-                <h4 className="font-extrabold text-sm text-white">Hồ sơ Campus Messenger</h4>
+                <h4 className="font-extrabold text-sm text-white">
+                  {language === 'vi' ? 'Hồ sơ Campus Messenger' : 'Campus Messenger Profile'}
+                </h4>
                 <button
                   onClick={() => setShowContactInfoModal(false)}
                   className="p-1 rounded-full text-slate-400 hover:text-white"
@@ -1927,14 +2010,14 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
 
               <div className="space-y-2 pt-2 border-t border-[#C5E5EC]/15 text-xs">
                 <div className="flex items-center justify-between text-[#C5E5EC]/70">
-                  <span>Trạng thái:</span>
+                  <span>{language === 'vi' ? 'Trạng thái:' : 'Status:'}</span>
                   <span className="text-[#E0FAEB] font-bold">{activeContact.lastActiveText}</span>
                 </div>
                 <div className="flex items-center justify-between text-[#C5E5EC]/70">
-                  <span>Bảo chứng GigMe:</span>
+                  <span>{language === 'vi' ? 'Bảo chứng GigMe:' : 'GigMe Verified:'}</span>
                   <span className="text-[#C5E5EC] font-bold flex items-center space-x-1">
                     <ShieldCheck className="w-3.5 h-3.5" />
-                    <span>Đã định danh sinh viên</span>
+                    <span>{language === 'vi' ? 'Đã định danh sinh viên' : 'Verified Student'}</span>
                   </span>
                 </div>
               </div>
@@ -1947,7 +2030,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                 className="w-full mt-4 py-2.5 rounded-2xl bg-gradient-to-r from-[#3064AE] via-[#417AC6] to-[#C5E5EC] hover:brightness-110 text-white font-extrabold text-xs flex items-center justify-center space-x-2 transition shadow-lg shadow-[#3064AE]/30 border border-[#E0FAEB]/30 cursor-pointer"
               >
                 <PhoneCall className="w-4 h-4" />
-                <span>Gọi Thoại Miễn Phí</span>
+                <span>{language === 'vi' ? 'Gọi Thoại Miễn Phí' : 'Free Voice Call'}</span>
               </button>
             </div>
           </div>
@@ -1972,7 +2055,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                     setPreviewImageRotation((prev) => (prev + 90) % 360);
                   }}
                   className="p-2 rounded-full bg-slate-900/80 hover:bg-slate-800 text-white border border-white/20 transition hover:scale-105 cursor-pointer shadow"
-                  title="Xoay ảnh 90°"
+                  title={language === 'vi' ? 'Xoay ảnh 90°' : 'Rotate 90°'}
                 >
                   <RotateCw className="w-4 h-4 text-[#00E5FF]" />
                 </button>
@@ -1981,7 +2064,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                   download="gigme-chat-photo.jpg"
                   onClick={() => triggerHaptic('success')}
                   className="p-2 rounded-full bg-slate-900/80 hover:bg-slate-800 text-white border border-white/20 transition hover:scale-105 cursor-pointer shadow"
-                  title="Tải ảnh về máy"
+                  title={language === 'vi' ? 'Tải ảnh về máy' : 'Download Photo'}
                 >
                   <Download className="w-4 h-4 text-emerald-400" />
                 </a>
@@ -1992,7 +2075,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                     setPreviewZoomImage(null);
                   }}
                   className="p-2 rounded-full bg-slate-900/80 hover:bg-red-500/80 text-white border border-white/20 transition hover:scale-105 cursor-pointer shadow"
-                  title="Đóng xem ảnh"
+                  title={language === 'vi' ? 'Đóng xem ảnh' : 'Close preview'}
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -2028,17 +2111,19 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
           </div>
           <div>
             <h2 className="text-lg font-black text-white flex items-center space-x-1.5">
-              <span>Đoạn chat</span>
+              <span>{language === 'vi' ? 'Đoạn chat' : 'Chats'}</span>
               <span className="px-1.5 py-0.5 rounded-full bg-[#3064AE]/30 text-[#C5E5EC] text-[10px] font-bold border border-[#C5E5EC]/25">
                 {campusContacts.length}
               </span>
               {totalUnreadCount > 0 && (
                 <span className="px-2 py-0.5 rounded-full bg-[#E0FAEB] text-[#09111D] text-[10px] font-black border border-[#09111D] shadow-sm animate-pulse">
-                  {totalUnreadCount > 9 ? '9+' : totalUnreadCount} mới
+                  {totalUnreadCount > 9 ? '9+' : totalUnreadCount} {language === 'vi' ? 'mới' : 'new'}
                 </span>
               )}
             </h2>
-            <p className="text-[11px] text-[#C5E5EC]/70">Kết nối trực tiếp giữa người thuê & thợ sinh viên</p>
+            <p className="text-[11px] text-[#C5E5EC]/70">
+              {language === 'vi' ? 'Kết nối trực tiếp giữa người thuê & thợ sinh viên' : 'Direct connection between clients & student peers'}
+            </p>
           </div>
         </div>
 
@@ -2048,7 +2133,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
           <button
             onClick={() => setShowAddFriendModal(true)}
             className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#3064AE] to-[#255294] hover:from-[#255294] hover:to-[#1d3d6b] text-white border border-[#C5E5EC]/30 font-bold text-xs transition flex items-center space-x-1.5 shadow-md cursor-pointer"
-            title="Thêm bạn bè qua ID 9 số"
+            title={language === 'vi' ? 'Thêm bạn bè qua ID 9 số' : 'Add friend via 9-digit ID'}
           >
             <UserPlus className="w-4 h-4 text-[#E0FAEB]" />
             <span>{t('addFriendBtn')}</span>
@@ -2056,7 +2141,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
           <button
             onClick={() => setShowNewChatModal(true)}
             className="p-2 rounded-xl bg-[#12233B] hover:bg-[#162B48] text-[#C5E5EC] border border-[#C5E5EC]/20 transition cursor-pointer"
-            title="Nhắn tin với sinh viên mới"
+            title={language === 'vi' ? 'Nhắn tin với sinh viên mới' : 'Message new campus student'}
           >
             <Plus className="w-4 h-4" />
           </button>
@@ -2091,7 +2176,9 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                 <div className="w-8 h-8 rounded-xl bg-[#3064AE]/30 border border-[#C5E5EC]/30 flex items-center justify-center text-[#E0FAEB]">
                   <UserPlus className="w-4 h-4" />
                 </div>
-                <h3 className="font-extrabold text-sm text-white">Kết Bạn Qua ID 9 Số</h3>
+                <h3 className="font-extrabold text-sm text-white">
+                  {language === 'vi' ? 'Kết Bạn Qua ID 9 Số' : 'Add Friend via 9-Digit ID'}
+                </h3>
               </div>
               <button
                 onClick={() => {
@@ -2108,7 +2195,9 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
             {/* User's Own ID & Admin Badge */}
             <div className="p-3 rounded-2xl bg-[#12233B] border border-[#C5E5EC]/25 flex items-center justify-between">
               <div className="flex items-center space-x-2">
-                <span className="text-xs text-[#C5E5EC]/80 font-bold">ID 9 Số Của Bạn:</span>
+                <span className="text-xs text-[#C5E5EC]/80 font-bold">
+                  {language === 'vi' ? 'ID 9 Số Của Bạn:' : 'Your 9-Digit ID:'}
+                </span>
                 <span className="px-2.5 py-0.5 rounded-lg bg-[#3064AE]/40 border border-[#C5E5EC]/30 text-white font-mono font-black text-sm tracking-wider">
                   {currentUser?.id || '000000000'}
                 </span>
@@ -2124,21 +2213,28 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                   if (currentUser?.id) {
                     navigator.clipboard.writeText(currentUser.id);
                     setCopiedMyId(true);
-                    showNotification('Đã sao chép ID', `ID ${currentUser.id} đã được lưu vào bộ nhớ tạm.`);
+                    showNotification(
+                      language === 'vi' ? 'Đã sao chép ID' : 'ID Copied',
+                      language === 'vi' ? `ID ${currentUser.id} đã được lưu vào bộ nhớ tạm.` : `ID ${currentUser.id} copied to clipboard.`
+                    );
                     setTimeout(() => setCopiedMyId(false), 2000);
                   }
                 }}
                 className="flex items-center space-x-1 text-xs font-bold text-[#E0FAEB] hover:text-white bg-[#0E1B2E] px-2.5 py-1 rounded-xl border border-[#E0FAEB]/30 transition cursor-pointer"
               >
                 <Copy className="w-3.5 h-3.5" />
-                <span>{copiedMyId ? 'Đã sao chép!' : 'Sao chép ID'}</span>
+                <span>
+                  {copiedMyId
+                    ? (language === 'vi' ? 'Đã sao chép!' : 'Copied!')
+                    : (language === 'vi' ? 'Sao chép ID' : 'Copy ID')}
+                </span>
               </button>
             </div>
 
             {/* Search Friend By 9-digit ID Input */}
             <div className="space-y-2 pt-1">
               <label className="text-xs font-bold text-[#C5E5EC]/90 block">
-                Tìm bạn mới bằng mã ID:
+                {language === 'vi' ? 'Tìm bạn mới bằng mã ID:' : 'Find friend by ID code:'}
               </label>
               <div className="flex items-center space-x-2">
                 <input
@@ -2152,7 +2248,11 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') handleSearchById();
                   }}
-                  placeholder="Nhập ID 9 số để tìm bạn (000000000 -> 999999999)..."
+                  placeholder={
+                    language === 'vi'
+                      ? 'Nhập ID 9 số để tìm bạn (000000000 -> 999999999)...'
+                      : 'Enter 9-digit ID to find peers (000000000 -> 999999999)...'
+                  }
                   className="flex-1 px-3 py-2.5 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-xs text-white placeholder:text-[#C5E5EC]/40 focus:border-[#3064AE] outline-none font-mono"
                 />
                 <button
@@ -2160,7 +2260,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                   className="px-3.5 py-2.5 rounded-xl bg-[#3064AE] hover:bg-[#255294] text-white font-bold text-xs border border-[#C5E5EC]/30 transition flex items-center space-x-1 cursor-pointer shrink-0"
                 >
                   <Search className="w-3.5 h-3.5" />
-                  <span>Tìm ID</span>
+                  <span>{language === 'vi' ? 'Tìm ID' : 'Search ID'}</span>
                 </button>
               </div>
 
@@ -2180,25 +2280,30 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                         <span className="font-extrabold text-xs text-white truncate">{foundUserResult.name}</span>
                         <span className="text-[10px] text-[#C5E5EC] font-mono font-bold">({foundUserResult.id})</span>
                       </div>
-                      <p className="text-[10px] text-[#C5E5EC]/70 truncate">{foundUserResult.studentSchool || 'Sinh viên Campus'}</p>
+                      <p className="text-[10px] text-[#C5E5EC]/70 truncate">
+                        {foundUserResult.studentSchool || (language === 'vi' ? 'Sinh viên Campus' : 'Campus Student')}
+                      </p>
                     </div>
                   </div>
 
                   <div className="flex items-center space-x-1.5 shrink-0">
                     {currentUser?.friendIds?.includes(foundUserResult.id) ? (
                       <span className="text-[11px] text-emerald-400 font-bold px-2 py-1 rounded bg-emerald-500/15 border border-emerald-500/30">
-                        ✓ Bạn bè
+                        ✓ {language === 'vi' ? 'Bạn bè' : 'Friend'}
                       </span>
                     ) : (
                       <button
                         onClick={() => {
                           if (addFriendById) addFriendById(foundUserResult.id);
-                          showNotification('Kết bạn', `Đã thêm ${foundUserResult.name} vào danh bạ.`);
+                          showNotification(
+                            language === 'vi' ? 'Kết bạn' : 'Add Friend',
+                            language === 'vi' ? `Đã thêm ${foundUserResult.name} vào danh bạ.` : `Added ${foundUserResult.name} to contacts.`
+                          );
                         }}
                         className="px-2.5 py-1 rounded-lg bg-emerald-600/30 hover:bg-emerald-600/50 text-[#E0FAEB] border border-emerald-500/40 text-[11px] font-bold transition flex items-center space-x-1 cursor-pointer"
                       >
                         <UserPlus className="w-3 h-3" />
-                        <span>Kết bạn</span>
+                        <span>{language === 'vi' ? 'Kết bạn' : 'Add Friend'}</span>
                       </button>
                     )}
                     <button
@@ -2211,7 +2316,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                       className="px-2.5 py-1 rounded-lg bg-[#3064AE] hover:bg-[#255294] text-white border border-[#C5E5EC]/30 text-[11px] font-bold transition flex items-center space-x-1 cursor-pointer"
                     >
                       <MessageCircle className="w-3 h-3" />
-                      <span>Nhắn</span>
+                      <span>{language === 'vi' ? 'Nhắn' : 'Chat'}</span>
                     </button>
                   </div>
                 </div>
@@ -2228,7 +2333,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                 className="flex-1 py-2 px-2.5 rounded-xl bg-[#12233B] hover:bg-[#162B48] border border-[#C5E5EC]/25 text-[#C5E5EC] hover:text-white text-[11px] font-bold transition flex items-center justify-center space-x-1.5 cursor-pointer"
               >
                 <Cloud className="w-3.5 h-3.5 text-[#C5E5EC]" />
-                <span>Sao lưu danh bạ Cloud</span>
+                <span>{language === 'vi' ? 'Sao lưu danh bạ Cloud' : 'Cloud Backup Contacts'}</span>
               </button>
               <button
                 onClick={() => {
@@ -2238,7 +2343,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                 className="py-2 px-2.5 rounded-xl bg-[#12233B] hover:bg-[#162B48] border border-[#C5E5EC]/25 text-[#E0FAEB] hover:text-white text-[11px] font-bold transition flex items-center justify-center space-x-1.5 cursor-pointer shrink-0"
               >
                 <ShieldCheck className="w-3.5 h-3.5 text-[#E0FAEB]" />
-                <span>Điều khoản & Hoàn tiền</span>
+                <span>{language === 'vi' ? 'Điều khoản & Hoàn tiền' : 'Terms & Refunds'}</span>
               </button>
             </div>
           </div>

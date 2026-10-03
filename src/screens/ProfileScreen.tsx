@@ -145,13 +145,13 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   );
 
   let maxSkills = 1;
-  let skillTierLabel = 'Tài khoản mới (Tối đa 1 kỹ năng)';
+  let skillTierLabel = language === 'vi' ? 'Tài khoản mới (Tối đa 1 kỹ năng)' : 'New Account (Max 1 skill)';
   if (hasDeposited) {
     maxSkills = 5;
-    skillTierLabel = 'Tài khoản đã nạp tiền (Mở khóa 5 kỹ năng)';
+    skillTierLabel = language === 'vi' ? 'Tài khoản đã nạp tiền (Mở khóa 5 kỹ năng)' : 'Funded Account (Unlocked 5 skills)';
   } else if (hasKycCccd) {
     maxSkills = 3;
-    skillTierLabel = 'Tài khoản xác thực CCCD (Mở khóa 3 kỹ năng)';
+    skillTierLabel = language === 'vi' ? 'Tài khoản xác thực CCCD (Mở khóa 3 kỹ năng)' : 'ID Verified Account (Unlocked 3 skills)';
   }
 
   // Open Edit Profile modal with split name
@@ -176,17 +176,28 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
 
     if (!lastName) {
       triggerHaptic('error');
-      showNotification('Lỗi', 'Vui lòng nhập họ và tên đệm (VD: Lý Hoàng Gia).');
+      showNotification(
+        language === 'vi' ? 'Lỗi' : 'Error',
+        language === 'vi' ? 'Vui lòng nhập họ và tên đệm (VD: Lý Hoàng Gia).' : 'Please enter your last and middle name (e.g. Smith).'
+      );
       return;
     }
     if (!firstName) {
       triggerHaptic('error');
-      showNotification('Lỗi', 'Vui lòng nhập tên (VD: Bảo).');
+      showNotification(
+        language === 'vi' ? 'Lỗi' : 'Error',
+        language === 'vi' ? 'Vui lòng nhập tên (VD: Bảo).' : 'Please enter your first name (e.g. John).'
+      );
       return;
     }
     if (combinedName.length > 30) {
       triggerHaptic('error');
-      showNotification('Lỗi', `Họ tên đệm và tên ghi gộp lại không được quá 30 ký tự (hiện tại: ${combinedName.length} ký tự).`);
+      showNotification(
+        language === 'vi' ? 'Lỗi' : 'Error',
+        language === 'vi'
+          ? `Họ tên đệm và tên ghi gộp lại không được quá 30 ký tự (hiện tại: ${combinedName.length} ký tự).`
+          : `Combined full name cannot exceed 30 characters (currently: ${combinedName.length} characters).`
+      );
       return;
     }
 
@@ -199,7 +210,10 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
       studentSchool: editSchool.trim(),
       bio: editBio.trim(),
     });
-    showNotification('Cập nhật thành công! ✨', 'Hồ sơ cá nhân của bạn đã được lưu.');
+    showNotification(
+      language === 'vi' ? 'Cập nhật thành công! ✨' : 'Updated Successfully! ✨',
+      language === 'vi' ? 'Hồ sơ cá nhân của bạn đã được lưu.' : 'Your profile has been saved.'
+    );
     setShowEditProfileModal(false);
   };
 
@@ -210,25 +224,37 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
     if (!trimmed) return;
 
     if (skills.includes(trimmed)) {
-      showNotification('Thông báo', 'Kỹ năng này đã có trong hồ sơ của bạn.');
+      showNotification(
+        language === 'vi' ? 'Thông báo' : 'Notice',
+        language === 'vi' ? 'Kỹ năng này đã có trong hồ sơ của bạn.' : 'This skill is already in your profile.'
+      );
       return;
     }
 
     if (trimmed.length > 30) {
       triggerHaptic('error');
-      showNotification('Vượt quá độ dài', 'Mỗi thẻ kỹ năng không được quá 30 ký tự!');
+      showNotification(
+        language === 'vi' ? 'Vượt quá độ dài' : 'Length Exceeded',
+        language === 'vi' ? 'Mỗi thẻ kỹ năng không được quá 30 ký tự!' : 'Each skill tag cannot exceed 30 characters!'
+      );
       return;
     }
 
     if (skills.length >= maxSkills) {
       triggerHaptic('error');
-      let reason = 'Tài khoản mới chỉ add tối đa 1 kỹ năng. Hãy xác thực CCCD để mở khóa 3 kỹ năng hoặc thực hiện nạp tiền để mở khóa tối đa 5 kỹ năng!';
+      let reason = language === 'vi'
+        ? 'Tài khoản mới chỉ add tối đa 1 kỹ năng. Hãy xác thực CCCD để mở khóa 3 kỹ năng hoặc thực hiện nạp tiền để mở khóa tối đa 5 kỹ năng!'
+        : 'New accounts can add max 1 skill. Verify ID to unlock 3 skills or deposit funds to unlock 5 skills!';
       if (maxSkills === 3) {
-        reason = 'Tài khoản xác thực CCCD add tối đa 3 kỹ năng. Hãy nạp tiền vào ví để mở khóa tối đa 5 kỹ năng!';
+        reason = language === 'vi'
+          ? 'Tài khoản xác thực CCCD add tối đa 3 kỹ năng. Hãy nạp tiền vào ví để mở khóa tối đa 5 kỹ năng!'
+          : 'ID-verified accounts can add max 3 skills. Deposit funds to unlock up to 5 skills!';
       } else if (maxSkills === 5) {
-        reason = 'Bạn đã đạt giới hạn tối đa 5 kỹ năng cho tài khoản của mình.';
+        reason = language === 'vi'
+          ? 'Bạn đã đạt giới hạn tối đa 5 kỹ năng cho tài khoản của mình.'
+          : 'You have reached the maximum limit of 5 skills for your account.';
       }
-      showNotification('Giới hạn thẻ kỹ năng', reason);
+      showNotification(language === 'vi' ? 'Giới hạn thẻ kỹ năng' : 'Skill Tag Limit', reason);
       return;
     }
 
@@ -237,7 +263,10 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
     setSkills(updated);
     setNewSkill('');
     updateUserProfile({ skills: updated });
-    showNotification('Đã thêm kỹ năng ✨', `Đã lưu thẻ "${trimmed}" vào hồ sơ.`);
+    showNotification(
+      language === 'vi' ? 'Đã thêm kỹ năng ✨' : 'Skill Added ✨',
+      language === 'vi' ? `Đã lưu thẻ "${trimmed}" vào hồ sơ.` : `Saved skill "${trimmed}" to profile.`
+    );
   };
 
   const handleRemoveSkill = (skillToRemove: string) => {
@@ -253,24 +282,40 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
     setPinError(null);
 
     if (!pinAccountPassword.trim()) {
-      setPinError('Vui lòng nhập mật khẩu tài khoản để xác nhận trước!');
+      setPinError(
+        language === 'vi'
+          ? 'Vui lòng nhập mật khẩu tài khoản để xác nhận trước!'
+          : 'Please enter your account password to confirm first!'
+      );
       return;
     }
 
     if (hasExistingPin) {
       if (!oldPin.trim() || oldPin.trim().length !== 6) {
-        setPinError('Vui lòng nhập đúng mã PIN 6 số cũ!');
+        setPinError(
+          language === 'vi'
+            ? 'Vui lòng nhập đúng mã PIN 6 số cũ!'
+            : 'Please enter your current 6-digit PIN correctly!'
+        );
         return;
       }
     }
 
     if (!/^\d{6}$/.test(newPin.trim())) {
-      setPinError('Mã PIN 6 số mới phải gồm đúng 6 chữ số!');
+      setPinError(
+        language === 'vi'
+          ? 'Mã PIN 6 số mới phải gồm đúng 6 chữ số!'
+          : 'New 6-digit PIN must contain exactly 6 digits!'
+      );
       return;
     }
 
     if (newPin.trim() !== confirmPin.trim()) {
-      setPinError('Mã PIN mới và xác nhận mã PIN không trùng khớp!');
+      setPinError(
+        language === 'vi'
+          ? 'Mã PIN mới và xác nhận mã PIN không trùng khớp!'
+          : 'New PIN and confirmation PIN do not match!'
+      );
       return;
     }
 
@@ -285,7 +330,12 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
         setConfirmPin('');
         setPinError(null);
       } else {
-        setPinError(res.error || 'Thao tác không thành công. Vui lòng kiểm tra lại mật khẩu!');
+        setPinError(
+          res.error ||
+            (language === 'vi'
+              ? 'Thao tác không thành công. Vui lòng kiểm tra lại mật khẩu!'
+              : 'Operation failed. Please check your password!')
+        );
       }
     } finally {
       setIsSubmittingPin(false);
@@ -300,7 +350,10 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
       await new Promise((resolve) => setTimeout(resolve, 800));
       setBioScanned(true);
       triggerHaptic('success');
-      showNotification('Đã quét vân tay! 👆', 'Xác thực cảm biến vân tay thành công.');
+      showNotification(
+        language === 'vi' ? 'Đã quét vân tay! 👆' : 'Fingerprint Scanned! 👆',
+        language === 'vi' ? 'Xác thực cảm biến vân tay thành công.' : 'Fingerprint sensor verification successful.'
+      );
     } finally {
       setIsScanningBio(false);
     }
@@ -312,12 +365,20 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
     setBioError(null);
 
     if (!bioAccountPassword.trim()) {
-      setBioError('Vui lòng nhập mật khẩu tài khoản để xác nhận danh tính trước!');
+      setBioError(
+        language === 'vi'
+          ? 'Vui lòng nhập mật khẩu tài khoản để xác nhận danh tính trước!'
+          : 'Please enter account password to verify identity first!'
+      );
       return;
     }
 
     if (!bioScanned) {
-      setBioError('Vui lòng chạm vào nút cảm biến để quét xác thực vân tay trước!');
+      setBioError(
+        language === 'vi'
+          ? 'Vui lòng chạm vào nút cảm biến để quét xác thực vân tay trước!'
+          : 'Please tap the sensor button to scan fingerprint first!'
+      );
       return;
     }
 
@@ -331,7 +392,10 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
         setBioScanned(false);
         setBioError(null);
       } else {
-        setBioError(res.error || 'Mật khẩu tài khoản không chính xác!');
+        setBioError(
+          res.error ||
+            (language === 'vi' ? 'Mật khẩu tài khoản không chính xác!' : 'Account password is incorrect!')
+        );
       }
     } finally {
       setIsSubmittingBio(false);
@@ -348,11 +412,30 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
 
   const trustScore = currentUser.trustScore ?? 0;
   const getTrustRating = (score: number) => {
-    if (score >= 800) return { label: 'Hạng AAA - Xuất Sắc', badge: 'bg-[#E0FAEB]/20 text-[#E0FAEB] border border-[#E0FAEB]/30' };
-    if (score >= 740) return { label: 'Hạng AA - Rất Tốt', badge: 'bg-[#C5E5EC]/20 text-[#C5E5EC] border border-[#C5E5EC]/30' };
-    if (score >= 670) return { label: 'Hạng A - Uy Tín', badge: 'bg-[#3064AE]/30 text-[#C5E5EC] border border-[#C5E5EC]/30' };
-    if (score >= 300) return { label: 'Hạng B - Đang Cải Thiện', badge: 'bg-amber-500/20 text-amber-300 border border-amber-500/30' };
-    return { label: 'Chưa Tích Lũy Điểm', badge: 'bg-slate-500/20 text-slate-300 border border-slate-500/30' };
+    if (score >= 800)
+      return {
+        label: language === 'vi' ? 'Hạng AAA - Xuất Sắc' : 'Tier AAA - Excellent',
+        badge: 'bg-[#E0FAEB]/20 text-[#E0FAEB] border border-[#E0FAEB]/30',
+      };
+    if (score >= 740)
+      return {
+        label: language === 'vi' ? 'Hạng AA - Rất Tốt' : 'Tier AA - Very Good',
+        badge: 'bg-[#C5E5EC]/20 text-[#C5E5EC] border border-[#C5E5EC]/30',
+      };
+    if (score >= 670)
+      return {
+        label: language === 'vi' ? 'Hạng A - Uy Tín' : 'Tier A - Reputable',
+        badge: 'bg-[#3064AE]/30 text-[#C5E5EC] border border-[#C5E5EC]/30',
+      };
+    if (score >= 300)
+      return {
+        label: language === 'vi' ? 'Hạng B - Đang Cải Thiện' : 'Tier B - Improving',
+        badge: 'bg-amber-500/20 text-amber-300 border border-amber-500/30',
+      };
+    return {
+      label: language === 'vi' ? 'Chưa Tích Lũy Điểm' : 'No Score Accumulated',
+      badge: 'bg-slate-500/20 text-slate-300 border border-slate-500/30',
+    };
   };
   const trustInfo = getTrustRating(trustScore);
 
@@ -364,14 +447,18 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
           <Wrench className="w-5 h-5 text-amber-400 shrink-0 mt-0.5 animate-pulse" />
           <div className="space-y-1 flex-1">
             <div className="font-extrabold text-amber-300 text-xs flex items-center space-x-2">
-              <span>HỆ THỐNG ĐANG BẢO TRÌ NÂNG CẤP</span>
+              <span>{language === 'vi' ? 'HỆ THỐNG ĐANG BẢO TRÌ NÂNG CẤP' : 'SYSTEM UNDER UPGRADE MAINTENANCE'}</span>
               <span className="text-[10px] px-2 py-0.5 bg-amber-500/20 text-amber-300 rounded font-mono">
-                Chế độ xem hồ sơ được phép
+                {language === 'vi' ? 'Chế độ xem hồ sơ được phép' : 'Profile view allowed'}
               </span>
             </div>
             <p className="text-[11px] text-slate-300 leading-relaxed">
-              Bạn đang xem thông tin cá nhân của mình. Các tính năng nạp rút tiền và giao dịch tạm thời khóa đến{' '}
-              <span className="text-white font-bold">{new Date(maintenanceConfig.endTime).toLocaleTimeString('vi-VN')}</span>.
+              {language === 'vi'
+                ? 'Bạn đang xem thông tin cá nhân của mình. Các tính năng nạp rút tiền và giao dịch tạm thời khóa đến '
+                : 'You are viewing your personal profile. Deposits, withdrawals, and transactions are locked until '}
+              <span className="text-white font-bold">
+                {new Date(maintenanceConfig.endTime).toLocaleTimeString(language === 'vi' ? 'vi-VN' : 'en-US')}
+              </span>.
             </p>
           </div>
         </div>
@@ -388,7 +475,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                 type="button"
                 onClick={() => setShowAvatarModal(true)}
                 className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl overflow-hidden border-2 border-[#C5E5EC]/60 group-hover:border-[#E0FAEB] shadow-lg shadow-[#3064AE]/30 transition-transform active:scale-95 bg-[#09111D] flex items-center justify-center relative cursor-pointer"
-                title="Bấm để thay đổi ảnh đại diện"
+                title={language === 'vi' ? 'Bấm để thay đổi ảnh đại diện' : 'Click to change avatar'}
               >
                 {currentUser.avatarUrl ? (
                   <img
@@ -410,7 +497,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                 type="button"
                 onClick={() => setShowAvatarModal(true)}
                 className="absolute -bottom-1 -right-1 p-1.5 rounded-full bg-[#3064AE] text-white hover:bg-[#255294] shadow-md transition border-2 border-[#0E1B2E] cursor-pointer"
-                title="Thay đổi ảnh đại diện"
+                title={language === 'vi' ? 'Thay đổi ảnh đại diện' : 'Change avatar'}
               >
                 <Camera className="w-3.5 h-3.5" />
               </button>
@@ -443,7 +530,9 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                   ID: {currentUser.id}
                 </span>
                 <span>•</span>
-                <span className="truncate">{currentUser.studentSchool || 'Chưa cập nhật trường'}</span>
+                <span className="truncate">
+                  {currentUser.studentSchool || (language === 'vi' ? 'Chưa cập nhật trường' : 'School not updated')}
+                </span>
               </div>
 
               {currentUser.bio && (
@@ -645,7 +734,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                   type="button"
                   onClick={() => handleRemoveSkill(skill)}
                   className="text-[#C5E5EC]/60 hover:text-rose-400 cursor-pointer transition"
-                  title="Xóa kỹ năng"
+                  title={language === 'vi' ? 'Xóa kỹ năng' : 'Remove skill'}
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -654,7 +743,9 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
           </div>
         ) : (
           <div className="p-3 rounded-xl bg-[#12233B]/50 border border-[#C5E5EC]/15 text-center text-[11px] text-[#C5E5EC]/60 italic">
-            Chưa có thẻ kỹ năng nào. Hãy thêm kỹ năng để bắt đầu nhận việc phù hợp!
+            {language === 'vi'
+              ? 'Chưa có thẻ kỹ năng nào. Hãy thêm kỹ năng để bắt đầu nhận việc phù hợp!'
+              : 'No skill tags added yet. Add your skills to start matching gigs!'}
           </div>
         )}
 
@@ -670,8 +761,12 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
               className="flex-1 px-3.5 py-2 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-white text-xs placeholder:text-[#C5E5EC]/40 focus:outline-none focus:border-[#3064AE] disabled:opacity-50"
               placeholder={
                 skills.length >= maxSkills
-                  ? `Đã đạt tối đa ${maxSkills} kỹ năng`
-                  : 'Thêm kỹ năng mới (VD: Thiết kế Canva, Lập trình C++...)'
+                  ? language === 'vi'
+                    ? `Đã đạt tối đa ${maxSkills} kỹ năng`
+                    : `Reached max ${maxSkills} skills`
+                  : language === 'vi'
+                  ? 'Thêm kỹ năng mới (VD: Thiết kế Canva, Lập trình C++...)'
+                  : 'Add new skill (e.g. Canva Design, Python...)'
               }
             />
             <button
@@ -680,11 +775,11 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
               className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#3064AE] to-[#255294] text-white font-extrabold text-xs transition border border-[#C5E5EC]/30 flex items-center space-x-1 cursor-pointer disabled:opacity-50 active:scale-95"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>Thêm</span>
+              <span>{language === 'vi' ? 'Thêm' : 'Add'}</span>
             </button>
           </div>
           <div className="flex justify-between items-center text-[10px] text-[#C5E5EC]/60 px-1">
-            <span>Tối đa 30 ký tự mỗi kỹ năng</span>
+            <span>{language === 'vi' ? 'Tối đa 30 ký tự mỗi kỹ năng' : 'Max 30 characters per skill'}</span>
             <span>{newSkill.trim().length}/30</span>
           </div>
         </form>
@@ -795,7 +890,11 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
               <ShieldAlert className="w-5 h-5 text-red-400" />
               <div>
                 <h4 className="font-extrabold text-red-300 text-xs">{t('adminPanel')}</h4>
-                <p className="text-[10px] text-red-400/80">Quản lý người dùng toàn sàn, quỹ Escrow, phân xử tranh chấp</p>
+                <p className="text-[10px] text-red-400/80">
+                  {language === 'vi'
+                    ? 'Quản lý người dùng toàn sàn, quỹ Escrow, phân xử tranh chấp'
+                    : 'Manage platform users, Escrow vaults, and disputes'}
+                </p>
               </div>
             </div>
             <span className="text-[10px] px-2 py-0.5 rounded bg-red-500 text-white font-bold">Admin</span>
@@ -830,7 +929,15 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
             <div className="flex justify-between items-center pb-3 border-b border-[#C5E5EC]/20">
               <h3 className="font-extrabold text-sm flex items-center space-x-2 text-[#E0FAEB]">
                 <KeyRound className="w-4 h-4 text-[#C5E5EC]" />
-                <span>{hasExistingPin ? 'Đổi Mã PIN Ví Bảo Mật 6 Số' : 'Thiết Lập Mã PIN Mới (Chưa Có PIN)'}</span>
+                <span>
+                  {hasExistingPin
+                    ? language === 'vi'
+                      ? 'Đổi Mã PIN Ví Bảo Mật 6 Số'
+                      : 'Change 6-Digit Security PIN'
+                    : language === 'vi'
+                    ? 'Thiết Lập Mã PIN Mới (Chưa Có PIN)'
+                    : 'Set Up New PIN (No PIN yet)'}
+                </span>
               </h3>
               <button
                 type="button"
@@ -843,8 +950,12 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
 
             <p className="text-[11px] text-[#C5E5EC]/80 leading-relaxed">
               {hasExistingPin
-                ? 'Để đổi mã PIN, bạn cần nhập Mật Khẩu tài khoản xác nhận danh tính kèm Mã PIN cũ hiện tại.'
-                : 'Để tạo mã PIN lần đầu, bạn cần nhập Mật Khẩu tài khoản để xác nhận trước.'}
+                ? language === 'vi'
+                  ? 'Để đổi mã PIN, bạn cần nhập Mật Khẩu tài khoản xác nhận danh tính kèm Mã PIN cũ hiện tại.'
+                  : 'To change your PIN, enter your account password and your current 6-digit PIN.'
+                : language === 'vi'
+                ? 'Để tạo mã PIN lần đầu, bạn cần nhập Mật Khẩu tài khoản để xác nhận trước.'
+                : 'To set up a PIN for the first time, please enter your account password first.'}
             </p>
 
             {pinError && (
@@ -858,7 +969,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
               {/* Account password (required for both create and change) */}
               <div>
                 <label className="block text-[#C5E5EC]/90 mb-1 font-semibold">
-                  Mật khẩu tài khoản <span className="text-rose-400">*</span>
+                  {language === 'vi' ? 'Mật khẩu tài khoản' : 'Account password'}{' '}
+                  <span className="text-rose-400">*</span>
                 </label>
                 <div className="relative">
                   <input
@@ -867,7 +979,9 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                     value={pinAccountPassword}
                     onChange={(e) => setPinAccountPassword(e.target.value)}
                     className="w-full px-3 pr-10 py-2.5 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-white placeholder:text-[#C5E5EC]/40 focus:border-[#C5E5EC] focus:outline-none"
-                    placeholder="Nhập mật khẩu tài khoản của bạn"
+                    placeholder={
+                      language === 'vi' ? 'Nhập mật khẩu tài khoản của bạn' : 'Enter your account password'
+                    }
                   />
                   <button
                     type="button"
@@ -883,7 +997,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
               {hasExistingPin && (
                 <div>
                   <label className="block text-[#C5E5EC]/90 mb-1 font-semibold">
-                    Mã PIN 6 số cũ hiện tại <span className="text-rose-400">*</span>
+                    {language === 'vi' ? 'Mã PIN 6 số cũ hiện tại' : 'Current 6-digit PIN'}{' '}
+                    <span className="text-rose-400">*</span>
                   </label>
                   <input
                     type="password"
@@ -901,7 +1016,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
               {/* New PIN */}
               <div>
                 <label className="block text-[#C5E5EC]/90 mb-1 font-semibold">
-                  Mã PIN 6 số mới <span className="text-rose-400">*</span>
+                  {language === 'vi' ? 'Mã PIN 6 số mới' : 'New 6-digit PIN'}{' '}
+                  <span className="text-rose-400">*</span>
                 </label>
                 <input
                   type="password"
@@ -918,7 +1034,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
               {/* Confirm New PIN */}
               <div>
                 <label className="block text-[#C5E5EC]/90 mb-1 font-semibold">
-                  Nhập lại Mã PIN 6 số mới <span className="text-rose-400">*</span>
+                  {language === 'vi' ? 'Nhập lại Mã PIN 6 số mới' : 'Re-enter new 6-digit PIN'}{' '}
+                  <span className="text-rose-400">*</span>
                 </label>
                 <input
                   type="password"
@@ -938,14 +1055,24 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                   onClick={() => setShowPinModal(false)}
                   className="flex-1 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-[#C5E5EC] font-bold text-xs transition cursor-pointer"
                 >
-                  Hủy Bỏ
+                  {language === 'vi' ? 'Hủy Bỏ' : 'Cancel'}
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmittingPin}
                   className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-[#3064AE] via-[#2A5594] to-[#25735B] text-white font-black text-xs hover:brightness-110 shadow-lg border border-[#E0FAEB]/30 transition cursor-pointer disabled:opacity-50"
                 >
-                  {isSubmittingPin ? 'Đang xử lý...' : hasExistingPin ? 'Cập Nhật Mã PIN' : 'Kích Hoạt Mã PIN'}
+                  {isSubmittingPin
+                    ? language === 'vi'
+                      ? 'Đang xử lý...'
+                      : 'Processing...'
+                    : hasExistingPin
+                    ? language === 'vi'
+                      ? 'Cập Nhật Mã PIN'
+                      : 'Update PIN'
+                    : language === 'vi'
+                    ? 'Kích Hoạt Mã PIN'
+                    : 'Activate PIN'}
                 </button>
               </div>
             </form>
@@ -968,7 +1095,15 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
             <div className="flex justify-between items-center pb-3 border-b border-[#C5E5EC]/20">
               <h3 className="font-extrabold text-sm flex items-center space-x-2 text-[#E0FAEB]">
                 <Fingerprint className="w-5 h-5 text-[#C5E5EC]" />
-                <span>{currentUser.isBiometricsEnabled ? 'Đổi / Tắt Dấu Vân Tay' : 'Kích Hoạt Dấu Vân Tay'}</span>
+                <span>
+                  {currentUser.isBiometricsEnabled
+                    ? language === 'vi'
+                      ? 'Đổi / Tắt Dấu Vân Tay'
+                      : 'Modify / Disable Biometrics'
+                    : language === 'vi'
+                    ? 'Kích Hoạt Dấu Vân Tay'
+                    : 'Enable Biometrics'}
+                </span>
               </h3>
               <button
                 type="button"
@@ -981,8 +1116,12 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
 
             <p className="text-[11px] text-[#C5E5EC]/80 leading-relaxed">
               {currentUser.isBiometricsEnabled
-                ? 'Để thay đổi vân tay hoặc tắt tính năng, bạn cần nhập Mật Khẩu tài khoản + xác nhận vân tay cũ trên thiết bị.'
-                : 'Để kích hoạt dấu vân tay, bạn cần nhập Mật Khẩu tài khoản để xác nhận trước khi liên kết cảm biến.'}
+                ? language === 'vi'
+                  ? 'Để thay đổi vân tay hoặc tắt tính năng, bạn cần nhập Mật Khẩu tài khoản + xác nhận vân tay cũ trên thiết bị.'
+                  : 'To change or disable biometrics, enter your account password and verify your fingerprint.'
+                : language === 'vi'
+                ? 'Để kích hoạt dấu vân tay, bạn cần nhập Mật Khẩu tài khoản để xác nhận trước khi liên kết cảm biến.'
+                : 'To enable biometrics, enter your account password before linking the sensor.'}
             </p>
 
             {bioError && (
@@ -995,7 +1134,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
             <form onSubmit={handleBioSubmit} className="space-y-3.5 text-xs">
               <div>
                 <label className="block text-[#C5E5EC]/90 mb-1 font-semibold">
-                  Mật khẩu tài khoản <span className="text-rose-400">*</span>
+                  {language === 'vi' ? 'Mật khẩu tài khoản' : 'Account password'}{' '}
+                  <span className="text-rose-400">*</span>
                 </label>
                 <div className="relative">
                   <input
@@ -1004,7 +1144,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                     value={bioAccountPassword}
                     onChange={(e) => setBioAccountPassword(e.target.value)}
                     className="w-full px-3 pr-10 py-2.5 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-white placeholder:text-[#C5E5EC]/40 focus:border-[#C5E5EC] focus:outline-none"
-                    placeholder="Nhập mật khẩu tài khoản"
+                    placeholder={language === 'vi' ? 'Nhập mật khẩu tài khoản' : 'Enter account password'}
                   />
                   <button
                     type="button"
@@ -1031,17 +1171,29 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                   {isScanningBio ? (
                     <>
                       <RefreshCw className="w-4 h-4 animate-spin text-cyan-400" />
-                      <span>Đang quét cảm biến vân tay...</span>
+                      <span>
+                        {language === 'vi' ? 'Đang quét cảm biến vân tay...' : 'Scanning fingerprint sensor...'}
+                      </span>
                     </>
                   ) : bioScanned ? (
                     <>
                       <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                      <span className="font-bold">Đã xác nhận vân tay thành công!</span>
+                      <span className="font-bold">
+                        {language === 'vi' ? 'Đã xác nhận vân tay thành công!' : 'Fingerprint confirmed successfully!'}
+                      </span>
                     </>
                   ) : (
                     <>
                       <Fingerprint className="w-4 h-4 text-[#E0FAEB]" />
-                      <span>{currentUser.isBiometricsEnabled ? 'Chạm Quét Vân Tay Cũ Để Xác Nhận' : 'Chạm Quét Cảm Biến Để Đăng Ký Vân Tay'}</span>
+                      <span>
+                        {currentUser.isBiometricsEnabled
+                          ? language === 'vi'
+                            ? 'Chạm Quét Vân Tay Cũ Để Xác Nhận'
+                            : 'Tap to Verify Fingerprint'
+                          : language === 'vi'
+                          ? 'Chạm Quét Cảm Biến Để Đăng Ký Vân Tay'
+                          : 'Tap Sensor to Register Fingerprint'}
+                      </span>
                     </>
                   )}
                 </button>
@@ -1053,14 +1205,24 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                   onClick={() => setShowBioModal(false)}
                   className="flex-1 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-[#C5E5EC] font-bold text-xs transition cursor-pointer"
                 >
-                  Hủy Bỏ
+                  {language === 'vi' ? 'Hủy Bỏ' : 'Cancel'}
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmittingBio || !bioScanned}
                   className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-[#3064AE] via-[#2A5594] to-[#25735B] text-white font-black text-xs hover:brightness-110 shadow-lg border border-[#E0FAEB]/30 transition cursor-pointer disabled:opacity-50"
                 >
-                  {isSubmittingBio ? 'Đang lưu...' : currentUser.isBiometricsEnabled ? 'Xác Nhận Tắt / Đổi' : 'Kích Hoạt Vân Tay'}
+                  {isSubmittingBio
+                    ? language === 'vi'
+                      ? 'Đang lưu...'
+                      : 'Saving...'
+                    : currentUser.isBiometricsEnabled
+                    ? language === 'vi'
+                      ? 'Xác Nhận Tắt / Đổi'
+                      : 'Confirm Disable / Change'
+                    : language === 'vi'
+                    ? 'Kích Hoạt Vân Tay'
+                    : 'Activate Biometrics'}
                 </button>
               </div>
             </form>
@@ -1086,8 +1248,14 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                   <Edit3 className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="font-extrabold text-sm text-white">Chỉnh Sửa Hồ Sơ Cá Nhân</h3>
-                  <p className="text-[10px] text-[#C5E5EC]/70">Cập nhật thông tin hiển thị với cộng đồng sinh viên</p>
+                  <h3 className="font-extrabold text-sm text-white">
+                    {language === 'vi' ? 'Chỉnh Sửa Hồ Sơ Cá Nhân' : 'Edit Personal Profile'}
+                  </h3>
+                  <p className="text-[10px] text-[#C5E5EC]/70">
+                    {language === 'vi'
+                      ? 'Cập nhật thông tin hiển thị với cộng đồng sinh viên'
+                      : 'Update information visible to the campus community'}
+                  </p>
                 </div>
               </div>
               <button
@@ -1105,7 +1273,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   <div>
                     <label className="block text-[#C5E5EC]/90 mb-1 font-bold">
-                      Họ và tên đệm <span className="text-rose-400">*</span>
+                      {language === 'vi' ? 'Họ và tên đệm' : 'Last and Middle Name'}{' '}
+                      <span className="text-rose-400">*</span>
                     </label>
                     <input
                       type="text"
@@ -1114,12 +1283,12 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                       value={editLastName}
                       onChange={(e) => setEditLastName(e.target.value)}
                       className="w-full px-3.5 py-2.5 rounded-xl bg-[#12233B] border border-[#C5E5EC]/30 text-white font-bold text-xs focus:outline-none focus:border-cyan-400"
-                      placeholder="Ví dụ: Lý Hoàng Gia"
+                      placeholder={language === 'vi' ? 'Ví dụ: Lý Hoàng Gia' : 'e.g. Smith'}
                     />
                   </div>
                   <div>
                     <label className="block text-[#C5E5EC]/90 mb-1 font-bold">
-                      Tên <span className="text-rose-400">*</span>
+                      {language === 'vi' ? 'Tên' : 'First Name'} <span className="text-rose-400">*</span>
                     </label>
                     <input
                       type="text"
@@ -1128,48 +1297,72 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                       value={editFirstName}
                       onChange={(e) => setEditFirstName(e.target.value)}
                       className="w-full px-3.5 py-2.5 rounded-xl bg-[#12233B] border border-[#C5E5EC]/30 text-white font-bold text-xs focus:outline-none focus:border-cyan-400"
-                      placeholder="Ví dụ: Bảo"
+                      placeholder={language === 'vi' ? 'Ví dụ: Bảo' : 'e.g. John'}
                     />
                   </div>
                 </div>
                 <div className="flex justify-between items-center text-[10px] text-[#C5E5EC]/70 px-1 pt-0.5">
-                  <span>Ví dụ: Họ và tên đệm: Lý Hoàng Gia / Tên: Bảo. Gộp lại không quá 30 ký tự.</span>
-                  <span className={`font-mono ${((editLastName.trim() + ' ' + editFirstName.trim()).trim().length > 30) ? 'text-rose-400 font-bold' : ''}`}>
-                    {((editLastName.trim() + ' ' + editFirstName.trim()).trim()).length}/30
+                  <span>
+                    {language === 'vi'
+                      ? 'Ví dụ: Họ và tên đệm: Lý Hoàng Gia / Tên: Bảo. Gộp lại không quá 30 ký tự.'
+                      : 'e.g. Combined full name cannot exceed 30 characters.'}
+                  </span>
+                  <span
+                    className={`font-mono ${
+                      (editLastName.trim() + ' ' + editFirstName.trim()).trim().length > 30
+                        ? 'text-rose-400 font-bold'
+                        : ''
+                    }`}
+                  >
+                    {(editLastName.trim() + ' ' + editFirstName.trim()).trim().length}/30
                   </span>
                 </div>
               </div>
 
               <div>
-                <label className="block text-[#C5E5EC]/80 mb-1 font-bold">Số điện thoại liên hệ</label>
+                <label className="block text-[#C5E5EC]/80 mb-1 font-bold">
+                  {language === 'vi' ? 'Số điện thoại liên hệ' : 'Contact Phone'}
+                </label>
                 <input
                   type="tel"
                   value={editPhone}
                   onChange={(e) => setEditPhone(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-[#12233B] border border-[#C5E5EC]/30 text-white font-mono text-xs focus:outline-none focus:border-cyan-400"
-                  placeholder="Ví dụ: 0909120918"
+                  placeholder={language === 'vi' ? 'Ví dụ: 0909120918' : 'e.g. 0909120918'}
                 />
               </div>
 
               <div>
-                <label className="block text-[#C5E5EC]/80 mb-1 font-bold">Trường Đại Học / Cao Đẳng / Ký Túc Xá</label>
+                <label className="block text-[#C5E5EC]/80 mb-1 font-bold">
+                  {language === 'vi' ? 'Trường Đại Học / Cao Đẳng / Ký Túc Xá' : 'University / College / Dormitory'}
+                </label>
                 <input
                   type="text"
                   value={editSchool}
                   onChange={(e) => setEditSchool(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-[#12233B] border border-[#C5E5EC]/30 text-white text-xs focus:outline-none focus:border-cyan-400"
-                  placeholder="Ví dụ: ĐH Tôn Đức Thắng (TDTU) - KTX Khu B"
+                  placeholder={
+                    language === 'vi'
+                      ? 'Ví dụ: ĐH Tôn Đức Thắng (TDTU) - KTX Khu B'
+                      : 'e.g. Ton Duc Thang University - Dorm B'
+                  }
                 />
               </div>
 
               <div>
-                <label className="block text-[#C5E5EC]/80 mb-1 font-bold">Giới thiệu bản thân (Bio / Slogan)</label>
+                <label className="block text-[#C5E5EC]/80 mb-1 font-bold">
+                  {language === 'vi' ? 'Giới thiệu bản thân (Bio / Slogan)' : 'Bio / Short Introduction'}
+                </label>
                 <textarea
                   rows={3}
                   value={editBio}
                   onChange={(e) => setEditBio(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-[#12233B] border border-[#C5E5EC]/30 text-white text-xs focus:outline-none focus:border-cyan-400"
-                  placeholder="Ví dụ: Sinh viên năm 3 chăm chỉ, chuyên gia sư Toán & hỗ trợ cài máy tính, giao hàng KTX siêu nhanh!"
+                  placeholder={
+                    language === 'vi'
+                      ? 'Ví dụ: Sinh viên năm 3 chăm chỉ, chuyên gia sư Toán & hỗ trợ cài máy tính, giao hàng KTX siêu nhanh!'
+                      : 'e.g. 3rd-year hardworking student, math tutor, laptop maintenance & fast dorm deliveries!'
+                  }
                 />
               </div>
 
@@ -1179,13 +1372,13 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                   onClick={() => setShowEditProfileModal(false)}
                   className="flex-1 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-[#C5E5EC] font-bold text-xs transition cursor-pointer"
                 >
-                  Hủy Bỏ
+                  {language === 'vi' ? 'Hủy Bỏ' : 'Cancel'}
                 </button>
                 <button
                   type="submit"
                   className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:brightness-110 text-white font-extrabold text-xs shadow-lg shadow-cyan-900/40 transition cursor-pointer"
                 >
-                  Lưu Thay Đổi
+                  {language === 'vi' ? 'Lưu Thay Đổi' : 'Save Changes'}
                 </button>
               </div>
             </form>

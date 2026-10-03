@@ -85,15 +85,26 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onOpenVerify }) => {
           <div className="space-y-1.5 flex-1">
             <div className="flex items-center justify-between">
               <h4 className="font-black text-sm text-white uppercase tracking-wider">
-                ⚠️ TÀI KHOẢN VƯỢT HẠN MỨC 200 TRIỆU (ÉP RÚT TIỀN)
+                {language === 'vi'
+                  ? '⚠️ TÀI KHOẢN VƯỢT HẠN MỨC 200 TRIỆU (ÉP RÚT TIỀN)'
+                  : '⚠️ BALANCE EXCEEDS 200M CEILING (MANDATORY WITHDRAWAL)'}
               </h4>
               <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-rose-600 text-white uppercase">
-                TẠM KHÓA GIAO DỊCH
+                {language === 'vi' ? 'TẠM KHÓA GIAO DỊCH' : 'TRANSACTIONS LOCKED'}
               </span>
             </div>
             <p className="text-xs text-rose-200/90 leading-relaxed">
-              Theo quy định nền tảng: Mỗi tài khoản chỉ được phép tích lũy tối đa <strong>200.000.000đ</strong>.
-              Tài khoản của bạn hiện có <strong>{formatVnd(currentUser?.walletBalance || 0)}</strong>. Các tính năng nạp tiền, đăng việc và nhận việc đã bị tạm dừng. Vui lòng bấm <strong>"Rút Tiền Ngay"</strong> để chuyển bớt tiền về ngân hàng!
+              {language === 'vi' ? (
+                <>
+                  Theo quy định nền tảng: Mỗi tài khoản chỉ được phép tích lũy tối đa <strong>200.000.000đ</strong>.
+                  Tài khoản của bạn hiện có <strong>{formatVnd(currentUser?.walletBalance || 0)}</strong>. Các tính năng nạp tiền, đăng việc và nhận việc đã bị tạm dừng. Vui lòng bấm <strong>"Rút Tiền Ngay"</strong> để chuyển bớt tiền về ngân hàng!
+                </>
+              ) : (
+                <>
+                  Platform policy: Each account may hold a maximum of <strong>200,000,000 VND</strong>.
+                  Your current balance is <strong>{formatVnd(currentUser?.walletBalance || 0)}</strong>. Deposits, job posting, and job claiming are temporarily paused. Please tap <strong>"Withdraw Now"</strong> to transfer funds back to your bank!
+                </>
+              )}
             </p>
             <button
               onClick={() => {
@@ -103,7 +114,7 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onOpenVerify }) => {
               className="mt-1 px-4 py-2 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:brightness-110 text-white font-extrabold text-xs shadow-lg transition flex items-center space-x-1.5 cursor-pointer"
             >
               <ArrowUpRight className="w-4 h-4 stroke-[2.5]" />
-              <span>Rút Tiền Về Ngân Hàng Ngay &rarr;</span>
+              <span>{language === 'vi' ? 'Rút Tiền Về Ngân Hàng Ngay →' : 'Withdraw to Bank Now →'}</span>
             </button>
           </div>
         </div>
@@ -121,22 +132,24 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onOpenVerify }) => {
               <div className="p-2 rounded-xl bg-[#3064AE]/30 text-[#C5E5EC] border border-[#C5E5EC]/20">
                 <Wallet className="w-5 h-5 text-[#C5E5EC]" />
               </div>
-              <span className="text-xs font-bold text-[#C5E5EC]">Ví Smart Escrow GigMe</span>
+              <span className="text-xs font-bold text-[#C5E5EC]">
+                {language === 'vi' ? 'Ví Smart Escrow GigMe' : 'GigMe Smart Escrow Wallet'}
+              </span>
             </div>
 
             <div className="flex items-center space-x-2">
               <button
                 onClick={() => setIsStatementOpen(true)}
                 className="px-2.5 py-1 rounded-xl bg-[#3064AE]/20 hover:bg-[#3064AE]/40 border border-[#C5E5EC]/30 text-xs text-[#C5E5EC] font-bold flex items-center space-x-1 transition"
-                title="Xuất sao kê PDF / Excel"
+                title={language === 'vi' ? 'Xuất sao kê PDF / Excel' : 'Export Statement (PDF/Excel)'}
               >
                 <Download className="w-3.5 h-3.5 text-[#E0FAEB]" />
-                <span className="hidden sm:inline">Sao Kê</span>
+                <span className="hidden sm:inline">{language === 'vi' ? 'Sao Kê' : 'Statement'}</span>
               </button>
               <button
                 onClick={() => setShowBalance((p) => !p)}
                 className="text-[#C5E5EC] hover:text-white p-1"
-                title="Ẩn/hiện số dư"
+                title={language === 'vi' ? 'Ẩn/hiện số dư' : 'Toggle balance visibility'}
               >
                 {showBalance ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4 text-[#E0FAEB]" />}
               </button>
@@ -375,7 +388,7 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onOpenVerify }) => {
                     {t('appleGooglePay')}
                   </h5>
                   <span className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-950/60 text-cyan-300 font-bold border border-cyan-500/30">
-                    NFC 1-Chạm
+                    {language === 'vi' ? 'NFC 1-Chạm' : '1-Tap NFC'}
                   </span>
                 </div>
                 <p className="text-[10px] text-[#C5E5EC]/70 truncate">
@@ -460,7 +473,7 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onOpenVerify }) => {
               <div>
                 <span className="font-bold text-white block text-[11px]">Viettel Money</span>
                 <span className="text-[10px] text-[#C5E5EC]/70 font-mono">
-                  {currentUser?.connectedViettelMoney || 'Chưa liên kết'}
+                  {currentUser?.connectedViettelMoney || (language === 'vi' ? 'Chưa liên kết' : 'Not linked')}
                 </span>
               </div>
             </div>
@@ -471,7 +484,7 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onOpenVerify }) => {
                   : 'bg-[#182C48] text-slate-400 border-slate-700'
               }`}
             >
-              {currentUser?.connectedViettelMoney ? 'Đã nối' : 'Chưa nối'}
+              {currentUser?.connectedViettelMoney ? t('connected') : t('notConnected')}
             </span>
           </div>
         </div>
@@ -541,10 +554,13 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onOpenVerify }) => {
                     </div>
 
                     <div>
-                      <h4 className="font-extrabold text-white text-xs">{tx.title || tx.description || 'Giao dịch ví'}</h4>
+                      <h4 className="font-extrabold text-white text-xs">
+                        {tx.title || tx.description || (language === 'vi' ? 'Giao dịch ví' : 'Wallet Transaction')}
+                      </h4>
                       <p className="text-[10px] text-[#C5E5EC]/70">
                         {tx.subtitle ? `${tx.subtitle} • ` : ''}
-                        {new Date(tx.timestamp).toLocaleString('vi-VN')} • Mã: {tx.id.slice(0, 8)}
+                        {new Date(tx.timestamp).toLocaleString(language === 'vi' ? 'vi-VN' : 'en-US')} •{' '}
+                        {language === 'vi' ? 'Mã' : 'ID'}: {tx.id.slice(0, 8)}
                       </p>
                     </div>
                   </div>
