@@ -156,8 +156,16 @@ export const GeminiVisionStudentIdModal: React.FC<GeminiVisionStudentIdModalProp
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-3 sm:p-4 animate-fade-in overflow-y-auto">
-      <div className="w-full max-w-lg rounded-3xl bg-[#0F172A] border-2 border-cyan-500/40 p-5 sm:p-6 text-white shadow-[0_0_50px_rgba(0,229,255,0.25)] my-8">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-3 sm:p-4 animate-fade-in overflow-y-auto"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-lg rounded-3xl bg-[#0F172A] border-2 border-cyan-500/40 p-5 sm:p-6 text-white shadow-[0_0_50px_rgba(0,229,255,0.25)] my-8"
+      >
         {/* Header */}
         <div className="flex items-center justify-between pb-4 border-b border-slate-800">
           <div className="flex items-center space-x-2.5">

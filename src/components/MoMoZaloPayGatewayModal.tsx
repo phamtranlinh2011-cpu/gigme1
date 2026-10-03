@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useGigMe } from '../context/GigMeContext';
 import { formatVnd } from '../types';
+import { triggerHaptic } from '../utils/haptics';
 
 interface MoMoZaloPayGatewayModalProps {
   isOpen: boolean;
@@ -49,10 +50,12 @@ export const MoMoZaloPayGatewayModal: React.FC<MoMoZaloPayGatewayModalProps> = (
 
   const handlePayAppToApp = () => {
     if (!eligibility.allowed) {
+      triggerHaptic('error');
       showNotification('Giới hạn nạp tiền ⚠️', eligibility.reason || 'Chưa đủ điều kiện nạp tiền');
       return;
     }
 
+    triggerHaptic('medium');
     setIsProcessing(true);
     // Simulate App-to-App launch & SDK handshake
     try {
@@ -65,11 +68,13 @@ export const MoMoZaloPayGatewayModal: React.FC<MoMoZaloPayGatewayModalProps> = (
     setTimeout(() => {
       const ok = depositEWallet(provider === 'MOMO' ? 'MOMO' : 'ZALOPAY', amount);
       if (!ok) {
+        triggerHaptic('error');
         setIsProcessing(false);
         return;
       }
       setIsProcessing(false);
       setIsSuccess(true);
+      triggerHaptic('success');
       showNotification(
         `🎉 Thanh toán ${provider === 'MOMO' ? 'Ví MoMo' : 'ZaloPay'} thành công!`,
         `Đã nạp +${formatVnd(amount)} vào ví thông qua ${
@@ -82,8 +87,16 @@ export const MoMoZaloPayGatewayModal: React.FC<MoMoZaloPayGatewayModalProps> = (
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-fade-in overflow-y-auto">
-      <div className="w-full max-w-md rounded-3xl bg-[#0F172A] border-2 border-slate-700 p-6 text-white shadow-2xl space-y-5">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-fade-in overflow-y-auto"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-md rounded-3xl bg-[#0F172A] border-2 border-slate-700 p-6 text-white shadow-2xl space-y-5"
+      >
         {/* Header */}
         <div className="flex items-center justify-between pb-3 border-b border-slate-800">
           <div className="flex items-center space-x-2.5">

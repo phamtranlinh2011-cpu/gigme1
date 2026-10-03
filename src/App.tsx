@@ -1,4 +1,4 @@
-import React, { useState, Suspense, lazy } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { GigMeProvider, useGigMe } from './context/GigMeContext';
 import { Header } from './components/Header';
 import { BottomNav, TabScreen } from './components/BottomNav';
@@ -40,9 +40,12 @@ const FaceLivenessDialog = lazy(() =>
 const StudentSsoDialog = lazy(() =>
   import('./components/AdvancedDialogs').then((m) => ({ default: m.StudentSsoDialog }))
 );
-const DownloadAppDialog = lazy(() =>
-  import('./components/DownloadAppDialog').then((m) => ({ default: m.DownloadAppDialog }))
-);
+import { DownloadAppDialog } from './components/DownloadAppDialog';
+import { SmartInstallBanner } from './components/SmartInstallBanner';
+import { VoipCallOverlay } from './components/VoipCallOverlay';
+import { ErrorBoundary } from './components/ErrorBoundary';
+import { GamificationBanner } from './components/GamificationBanner';
+import { subscribeToNotifications } from './lib/firebase';
 const FcmPushNotificationModal = lazy(() =>
   import('./components/FcmPushNotificationModal').then((m) => ({ default: m.FcmPushNotificationModal }))
 );
@@ -58,11 +61,11 @@ const MoMoZaloPayGatewayModal = lazy(() =>
 const GeminiVisionStudentIdModal = lazy(() =>
   import('./components/GeminiVisionStudentIdModal').then((m) => ({ default: m.GeminiVisionStudentIdModal }))
 );
-const VoipCallOverlay = lazy(() =>
-  import('./components/VoipCallOverlay').then((m) => ({ default: m.VoipCallOverlay }))
-);
 const BlockchainProofModal = lazy(() =>
   import('./components/BlockchainProofModal').then((m) => ({ default: m.BlockchainProofModal }))
+);
+const CampusLawScreen = lazy(() =>
+  import('./screens/CampusLawScreen').then((m) => ({ default: m.CampusLawScreen }))
 );
 
 // High-performance smooth loading skeleton for lazy loaded tab screens
@@ -90,9 +93,53 @@ const MainLayout: React.FC = () => {
     isMaintenanceActive,
     maintenanceConfig,
     setMaintenanceMode,
+    activeVoipCall,
+    showNotification,
+    isLanguageTransitioning,
   } = useGigMe();
 
   const [currentTab, setCurrentTab] = useState<TabScreen>('HOME');
+
+  // Real-time Firestore 'notifications' collection listener
+  // Monitors new gigs and status updates across users in real-time
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const unsubscribe = subscribeToNotifications((notif) => {
+      // Filter if target user is specified and not matching current user or broadcast
+      if (notif.userId && notif.userId !== 'ALL' && notif.userId !== currentUser.id) {
+        return;
+      }
+
+      // Check notification type
+      if (notif.type === 'NEW_GIG') {
+        showNotification(
+          notif.title || '🔥 Việc Mới Vừa Đăng!',
+          notif.message || (notif.gigTitle ? `Việc mới: "${notif.gigTitle}" vừa xuất hiện trên campus.` : 'Có công việc mới phù hợp với bạn!'),
+          true,
+          true
+        );
+      } else if (notif.type === 'STATUS_UPDATE') {
+        showNotification(
+          notif.title || '⚡ Cập Nhật Trạng Thái Đơn Việc',
+          notif.message || `Đơn việc #${notif.gigId?.slice(-6) || ''} đã chuyển sang trạng thái ${notif.status || 'mới'}.`,
+          true,
+          false
+        );
+      } else {
+        showNotification(
+          notif.title || '🔔 Thông Báo Mới',
+          notif.message,
+          true,
+          false
+        );
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [currentUser?.id, showNotification]);
 
   // Modals state
   const [showNfcModal, setShowNfcModal] = useState(false);
@@ -105,6 +152,21 @@ const MainLayout: React.FC = () => {
   const [showPaymentGateway, setShowPaymentGateway] = useState(false);
   const [showGeminiVision, setShowGeminiVision] = useState(false);
   const [showBlockchainProof, setShowBlockchainProof] = useState(false);
+
+  // Tự động đóng modal và bảo vệ tab Admin khi chuyển đổi tài khoản
+  useEffect(() => {
+    setShowNfcModal(false);
+    setShowFaceModal(false);
+    setShowSsoModal(false);
+    setShowEloModal(false);
+    setShowVietQrScanner(false);
+    setShowPaymentGateway(false);
+    setShowGeminiVision(false);
+    setShowBlockchainProof(false);
+    if (currentTab === 'ADMIN' && currentUser?.role !== 'ADMIN' && currentUser?.id !== '000000000') {
+      setCurrentTab('HOME');
+    }
+  }, [currentUser?.id, currentUser?.role]);
 
   if (!currentUser) {
     return <AuthScreen />;
@@ -168,11 +230,13 @@ const MainLayout: React.FC = () => {
             onOpenCreateGig={() => setCurrentTab('CREATE_GIG')}
             onOpenVerify={() => setShowNfcModal(true)}
             onOpenMarketplace={() => setCurrentTab('MARKETPLACE')}
+            onOpenLaw={() => setCurrentTab('LAW')}
             onOpenVietQrScanner={() => setShowVietQrScanner(true)}
             onOpenPaymentGateway={() => setShowPaymentGateway(true)}
             onOpenGeminiVision={() => setShowGeminiVision(true)}
             onOpenFcmPush={() => setShowFcmPush(true)}
             onOpenEloModal={() => setShowEloModal(true)}
+            onOpenDownloadApp={() => setShowDownloadApp(true)}
           />
         );
       case 'CREATE_GIG':
@@ -202,10 +266,18 @@ const MainLayout: React.FC = () => {
           <CampusMarketplaceScreen
             onOpenChat={() => setCurrentTab('CHAT')}
             onOpenWallet={() => setCurrentTab('WALLET')}
+            onOpenLaw={() => setCurrentTab('LAW')}
           />
         );
       case 'CHAT':
         return <ChatSupportScreen onBack={() => setCurrentTab('HOME')} />;
+      case 'LAW':
+        return (
+          <CampusLawScreen
+            onBack={() => setCurrentTab('HOME')}
+            onOpenContactAdmin={() => setCurrentTab('CHAT')}
+          />
+        );
       default:
         return (
           <HomeScreen
@@ -213,21 +285,26 @@ const MainLayout: React.FC = () => {
             onOpenCreateGig={() => setCurrentTab('CREATE_GIG')}
             onOpenVerify={() => setShowNfcModal(true)}
             onOpenMarketplace={() => setCurrentTab('MARKETPLACE')}
+            onOpenLaw={() => setCurrentTab('LAW')}
             onOpenVietQrScanner={() => setShowVietQrScanner(true)}
             onOpenPaymentGateway={() => setShowPaymentGateway(true)}
-            onOpenGeminiVision={() => setShowNfcModal(true)}
+            onOpenGeminiVision={() => setShowGeminiVision(true)}
             onOpenFcmPush={() => setShowFcmPush(true)}
             onOpenEloModal={() => setShowEloModal(true)}
+            onOpenDownloadApp={() => setShowDownloadApp(true)}
           />
         );
     }
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-[#0C1728] via-[#102038] to-[#0C1728] text-slate-100 selection:bg-[#3064AE] selection:text-[#E0FAEB] transition-colors duration-200 relative overflow-x-hidden">
+    <div className="min-h-screen flex flex-col bg-[#F6F8FC] dark:bg-gradient-to-b dark:from-[#0C1728] dark:via-[#102038] dark:to-[#0C1728] text-slate-900 dark:text-slate-100 selection:bg-[#3064AE] selection:text-[#E0FAEB] transition-colors duration-200 relative overflow-x-hidden">
       {/* Decorative ambient color washes for Cobalt Blue, Crystal Blue, and Ethereal Green brand palette */}
-      <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-[#3064AE]/20 to-[#C5E5EC]/15 rounded-full blur-3xl pointer-events-none -z-10" />
-      <div className="absolute top-80 left-0 w-80 h-80 bg-gradient-to-tr from-[#3064AE]/15 via-[#C5E5EC]/10 to-[#E0FAEB]/10 rounded-full blur-3xl pointer-events-none -z-10" />
+      <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-[#3064AE]/10 dark:from-[#3064AE]/20 to-[#C5E5EC]/10 dark:to-[#C5E5EC]/15 rounded-full blur-3xl pointer-events-none -z-10" />
+      <div className="absolute top-80 left-0 w-80 h-80 bg-gradient-to-tr from-[#3064AE]/10 dark:from-[#3064AE]/15 via-[#C5E5EC]/5 dark:via-[#C5E5EC]/10 to-[#E0FAEB]/5 dark:to-[#E0FAEB]/10 rounded-full blur-3xl pointer-events-none -z-10" />
+
+      {/* Smart PWA 1-Tap Install Banner */}
+      <SmartInstallBanner onOpenDownloadAppModal={() => setShowDownloadApp(true)} />
 
       <Header
         onOpenCreateGig={() => {
@@ -255,10 +332,15 @@ const MainLayout: React.FC = () => {
           selectGig(null);
           setCurrentTab('CHAT');
         }}
+        onOpenLaw={() => {
+          selectGig(null);
+          setCurrentTab('LAW');
+        }}
         onOpenFcmPush={() => setShowFcmPush(true)}
         onOpenEloModal={() => setShowEloModal(true)}
         onOpenVietQrScanner={() => setShowVietQrScanner(true)}
         onOpenPaymentGateway={() => setShowPaymentGateway(true)}
+        onSelectGigDetail={handleOpenGigDetail}
       />
 
       {/* Global Realtime Maintenance Status Bar for Admin */}
@@ -294,10 +376,12 @@ const MainLayout: React.FC = () => {
         </div>
       )}
 
-      <main className="flex-1 w-full max-w-7xl mx-auto pb-20">
-        <Suspense fallback={<ScreenLoadingSpinner label="Đang tải giao diện..." />}>
-          {renderContent()}
-        </Suspense>
+      <main className={`flex-1 w-full max-w-7xl mx-auto pb-20 transition-all duration-300 ease-in-out ${isLanguageTransitioning ? 'opacity-30 scale-[0.99] filter blur-[0.5px]' : 'opacity-100 scale-100 filter-none'}`}>
+        <ErrorBoundary>
+          <Suspense fallback={<ScreenLoadingSpinner label="Đang tải giao diện..." />}>
+            {renderContent()}
+          </Suspense>
+        </ErrorBoundary>
       </main>
 
       <BottomNav currentTab={currentTab} onSelectTab={handleSelectTab} />
@@ -395,9 +479,10 @@ const MainLayout: React.FC = () => {
         </Suspense>
       )}
 
-      <Suspense fallback={null}>
-        <VoipCallOverlay />
-      </Suspense>
+      {activeVoipCall && <VoipCallOverlay />}
+
+      {/* Floating toast notification banner */}
+      <GamificationBanner />
 
     </div>
   );
@@ -405,8 +490,10 @@ const MainLayout: React.FC = () => {
 
 export default function App() {
   return (
-    <GigMeProvider>
-      <MainLayout />
-    </GigMeProvider>
+    <ErrorBoundary>
+      <GigMeProvider>
+        <MainLayout />
+      </GigMeProvider>
+    </ErrorBoundary>
   );
 }

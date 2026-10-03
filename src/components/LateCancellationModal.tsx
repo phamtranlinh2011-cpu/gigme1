@@ -87,8 +87,16 @@ export const LateCancellationModal: React.FC<LateCancellationModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-fade-in">
-      <div className="w-full max-w-md rounded-3xl bg-[#0F172A] border-2 border-red-500/40 p-5 sm:p-6 text-white shadow-[0_0_50px_rgba(239,68,68,0.25)] relative max-h-[90vh] overflow-y-auto">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-fade-in"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-md rounded-3xl bg-[#0F172A] border-2 border-red-500/40 p-5 sm:p-6 text-white shadow-[0_0_50px_rgba(239,68,68,0.25)] relative max-h-[90vh] overflow-y-auto"
+      >
         <button
           onClick={onClose}
           className="absolute top-4 right-4 p-1.5 rounded-xl bg-slate-800 text-slate-400 hover:text-white transition"

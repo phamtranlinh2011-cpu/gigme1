@@ -57,8 +57,16 @@ export const ShareStoryModal: React.FC<ShareStoryModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
-      <div className="relative w-full max-w-md bg-[#0E1B2E] border border-[#C5E5EC]/30 rounded-3xl shadow-2xl overflow-hidden text-white my-4">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-fadeIn"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="relative w-full max-w-md bg-[#0E1B2E] border border-[#C5E5EC]/30 rounded-3xl shadow-2xl overflow-hidden text-white my-4"
+      >
         {/* Header */}
         <div className="p-5 bg-gradient-to-r from-[#3064AE] via-[#2A5594] to-[#12233B] border-b border-[#C5E5EC]/20 flex items-center justify-between">
           <div className="flex items-center space-x-2.5">

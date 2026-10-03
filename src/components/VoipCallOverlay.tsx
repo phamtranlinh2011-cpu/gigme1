@@ -284,3 +284,5 @@ export const VoipCallOverlay: React.FC = () => {
     </div>
   );
 };
+
+export default VoipCallOverlay;

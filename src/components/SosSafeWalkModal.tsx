@@ -138,6 +138,9 @@ export const SosSafeWalkModal: React.FC<SosSafeWalkModalProps> = ({ isOpen, onCl
 
   return (
     <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
       className={`fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 transition-colors duration-300 backdrop-blur-md overflow-y-auto ${
         safeWalkSession?.isAlarmTriggered
           ? strobeActive
@@ -146,7 +149,10 @@ export const SosSafeWalkModal: React.FC<SosSafeWalkModalProps> = ({ isOpen, onCl
           : 'bg-black/80'
       }`}
     >
-      <div className="relative w-full max-w-xl bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-rose-500/40 overflow-hidden my-4 text-slate-900 dark:text-white">
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="relative w-full max-w-xl bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-rose-500/40 overflow-hidden my-4 text-slate-900 dark:text-white"
+      >
         {/* Fake Call Overlay */}
         {isFakeCalling && (
           <div className="absolute inset-0 z-50 bg-[#0B0F19] text-white flex flex-col justify-between p-6 animate-fadeIn">

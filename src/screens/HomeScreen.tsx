@@ -24,10 +24,14 @@ import {
   ShieldAlert,
   WifiOff,
   Navigation,
+  Scale,
 } from 'lucide-react';
 import { useGigMe } from '../context/GigMeContext';
 import { formatVnd, GigEntity } from '../types';
 import { VIETNAM_HUBS } from '../utils/geo';
+import { triggerHaptic } from '../utils/haptics';
+import { PullToRefresh } from '../components/PullToRefresh';
+import { VerifiedIdentityBadge } from '../components/VerifiedIdentityBadge';
 
 // Lazy load heavy components for instant initial page render (Code-Splitting)
 const InteractiveRadar = lazy(() =>
@@ -46,11 +50,13 @@ interface HomeScreenProps {
   onOpenCreateGig: () => void;
   onOpenVerify: () => void;
   onOpenMarketplace?: () => void;
+  onOpenLaw?: () => void;
   onOpenVietQrScanner?: () => void;
   onOpenPaymentGateway?: () => void;
   onOpenGeminiVision?: () => void;
   onOpenFcmPush?: () => void;
   onOpenEloModal?: () => void;
+  onOpenDownloadApp?: () => void;
 }
 
 const CATEGORIES = [
@@ -87,11 +93,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   onOpenCreateGig,
   onOpenVerify,
   onOpenMarketplace,
+  onOpenLaw,
   onOpenVietQrScanner,
   onOpenPaymentGateway,
   onOpenGeminiVision,
   onOpenFcmPush,
   onOpenEloModal,
+  onOpenDownloadApp,
 }) => {
   const {
     filteredGigs,
@@ -118,15 +126,64 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     acceptGigDirectly,
     userCoords,
     setUserCoords,
+    refreshCloudConnection,
+    users,
+    language,
+    t,
   } = useGigMe();
+
+  const getCategoryLabel = (cat: string) => {
+    if (language === 'vi') return cat;
+    switch (cat) {
+      case 'Tất cả': return t('filterAll');
+      case 'Flash Gigs': return t('filterFlashGigs');
+      case 'Cày Game & Rank': return t('filterGaming');
+      case 'Tư vấn & Học tập': return t('filterTutoring');
+      case 'Digital Tasks': return t('filterDigital');
+      case 'Vận chuyển & Ship': return t('filterDelivery');
+      case 'Trợ thủ Campus': return t('filterCampusHelp');
+      case 'Mua đồ ăn, cà phê, trà sữa hộ': return 'Food & Beverage Delivery';
+      case 'Giao nhận & Ship hàng tận phòng KTX': return 'Dorm Package Delivery';
+      case 'Giặt ủi & Phơi quần áo KTX': return 'Dorm Laundry & Drying';
+      case 'Dọn phòng & Vệ sinh KTX / Nhà trọ': return 'Dorm Room Cleaning';
+      case 'Giữ chỗ thư viện / Xếp hàng hộ': return 'Library Seat & Line Holding';
+      case 'Gia sư & Kèm môn đại cương (Toán, Lý, Xác suất)': return 'General Math & Physics Tutoring';
+      case 'Gia sư Ngoại ngữ (IELTS, TOEIC, HSK, N3)': return 'Language Tutoring (IELTS, TOEIC)';
+      case 'Hướng dẫn Đồ án / Bài tập lớn / Khóa luận': return 'Project & Thesis Mentoring';
+      case 'Thiết kế Slide Powerpoint & Thuyết trình': return 'PowerPoint Slide & Pitch Deck Design';
+      case 'Soạn thảo văn bản & Định dạng chuẩn đồ án': return 'Document Formatting & Typesetting';
+      case 'Cắt ghép Video CapCut / TikTok / Reels': return 'CapCut & TikTok Video Editing';
+      case 'Thiết kế Poster, Banner Canva & Photoshop': return 'Canva & Photoshop Banner Design';
+      case 'Lập trình Web / Mobile / Fix Bug Code': return 'Web / Mobile / Code Bug Fix';
+      case 'Cài Win, Vệ sinh Laptop & Cài đặt phần mềm': return 'OS Install & Laptop Maintenance';
+      case 'Chụp ảnh kỷ yếu / Quay phim sự kiện trường': return 'Graduation Photo & Campus Event Filming';
+      case 'Cày Rank & Kéo Rank Game (Liên Quân, LMHT, Valorant)': return 'Game Rank Boosting (LoL, Valorant)';
+      case 'Trông thú cưng KTX / Dắt cún đi dạo': return 'Pet Sitting & Dog Walking';
+      case 'Chở xe máy / Đi chung xe campus / Về quê': return 'Bike Ride & Campus Carpooling';
+      case 'Tham gia khảo sát nghiên cứu khoa học': return 'Scientific Survey Participation';
+      case 'Hỗ trợ sự kiện, Tiếp tân, Hậu cần CLB': return 'Club Event Support & Logistics';
+      case 'Dịch thuật tài liệu Anh - Việt, Trung - Việt': return 'English - Vietnamese Translation';
+      case 'Khác': return 'Other';
+      default: return cat;
+    }
+  };
 
   const [isVoiceOpen, setIsVoiceOpen] = useState(false);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [isOfflineModalOpen, setIsOfflineModalOpen] = useState(false);
   const isClient = roleMode === 'CLIENT';
 
+  const handlePullRefresh = async () => {
+    try {
+      await refreshCloudConnection();
+    } catch {
+      // ignore
+    }
+  };
+
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 pb-24 space-y-6">
+    <PullToRefresh onRefresh={handlePullRefresh}>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 pb-24 space-y-6">
       {/* Tier Newbie Advisory Banner */}
       {currentUser && currentUser.tier === 'NEWBIE' && (
         <div className="p-4 rounded-2xl bg-[#12233B] border border-[#3064AE]/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs shadow-lg relative overflow-hidden">
@@ -136,9 +193,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               <ShieldCheck className="w-5 h-5" />
             </div>
             <div>
-              <h4 className="font-extrabold text-white">Bạn đang ở tài khoản Cấp 1 (Newbie)</h4>
+              <h4 className="font-extrabold text-white">
+                {language === 'vi' ? 'Bạn đang ở tài khoản Cấp 1 (Newbie)' : 'Level 1 Account (Newbie)'}
+              </h4>
               <p className="text-[#C5E5EC]/80 mt-0.5">
-                Chỉ được xem kèo dưới 20.000đ. Hãy xác thực CCCD gắn chip (NFC) hoặc Cổng sinh viên để mở khóa toàn bộ!
+                {language === 'vi'
+                  ? 'Chỉ được xem kèo dưới 20.000đ. Hãy xác thực CCCD gắn chip (NFC) hoặc Cổng sinh viên để mở khóa toàn bộ!'
+                  : 'Only jobs under 20,000 VND visible. Verify your NFC National ID or Student Portal to unlock all jobs!'}
               </p>
             </div>
           </div>
@@ -146,7 +207,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             onClick={onOpenVerify}
             className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#3064AE] via-[#417AC6] to-[#C5E5EC] text-white font-extrabold text-xs shrink-0 transition shadow-md shadow-[#3064AE]/30 active:scale-95 border border-[#E0FAEB]/30 cursor-pointer"
           >
-            Xác Thực Cấp 2 Ngay &rarr;
+            {language === 'vi' ? 'Xác Thực Cấp 2 Ngay →' : 'Verify Level 2 Now →'}
           </button>
         </div>
       )}
@@ -162,8 +223,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               <Navigation className="w-5 h-5 text-[#C5E5EC] absolute" />
             </div>
             <div className="text-center relative z-10">
-              <p className="text-xs font-bold text-white tracking-wide">Đang nạp Bản đồ Radar GPS Campus</p>
-              <p className="text-[11px] text-[#C5E5EC]/70 mt-0.5">Tải nền bất đồng bộ - Tiết kiệm dung lượng & khởi động siêu tốc</p>
+              <p className="text-xs font-bold text-white tracking-wide">
+                {language === 'vi' ? 'Đang nạp Bản đồ Radar GPS Campus' : 'Loading Campus GPS Radar Map'}
+              </p>
+              <p className="text-[11px] text-[#C5E5EC]/70 mt-0.5">
+                {language === 'vi' ? 'Tải nền bất đồng bộ - Tiết kiệm dung lượng & khởi động siêu tốc' : 'Async background load - Ultra fast & data saving'}
+              </p>
             </div>
           </div>
         }
@@ -188,9 +253,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         <div className="flex items-center justify-between mb-2.5">
           <span className="text-[11px] font-black uppercase tracking-wider text-[#C5E5EC] flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-[#E0FAEB] animate-pulse" />
-            Tiện ích Campus 24/7
+            {t('campusUtilities')}
           </span>
-          <span className="text-[10px] text-[#C5E5EC]/70 font-semibold hidden sm:inline">Trượt ngang để xem thêm tiện ích &rarr;</span>
+          <span className="text-[10px] text-[#C5E5EC]/70 font-semibold hidden sm:inline">
+            {language === 'vi' ? 'Trượt ngang để xem thêm tiện ích →' : 'Swipe horizontally to view more →'}
+          </span>
         </div>
         <div
           data-swipeable="true"
@@ -206,11 +273,29 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   <BookOpen className="w-4 h-4 group-hover:scale-110 transition" />
                 </div>
                 <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-[#E0FAEB]/20 text-[#E0FAEB] border border-[#E0FAEB]/30 font-black shadow-2xs">
-                  Chợ 0đ
+                  {t('freeMarket')}
                 </span>
               </div>
-              <h5 className="font-black text-white text-xs truncate">Chợ Giáo Trình</h5>
-              <p className="text-[10px] text-[#C5E5EC]/70 font-medium truncate">Trao đổi đồ KTX</p>
+              <h5 className="font-black text-white text-xs truncate">{t('dormMarket')}</h5>
+              <p className="text-[10px] text-[#C5E5EC]/70 font-medium truncate">{t('dormMarketDesc')}</p>
+            </button>
+          )}
+
+          {onOpenLaw && (
+            <button
+              onClick={onOpenLaw}
+              className="min-w-[130px] sm:min-w-0 p-3 rounded-2xl bg-[#0E1B2E] hover:bg-[#13243C] border border-amber-500/20 hover:border-amber-400 text-left transition group shadow-sm shrink-0 snap-start active:scale-95 cursor-pointer"
+            >
+              <div className="flex items-center justify-between mb-1.5">
+                <div className="p-1.5 rounded-lg bg-amber-500/20 text-amber-300 shadow-xs border border-amber-500/30">
+                  <Scale className="w-4 h-4 group-hover:scale-110 transition" />
+                </div>
+                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30 font-black shadow-2xs">
+                  {t('rules18')}
+                </span>
+              </div>
+              <h5 className="font-black text-white text-xs truncate">{t('campusLaw')}</h5>
+              <p className="text-[10px] text-[#C5E5EC]/70 font-medium truncate">{t('campusLawDesc')}</p>
             </button>
           )}
 
@@ -227,8 +312,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   VietQR
                 </span>
               </div>
-              <h5 className="font-black text-white text-xs truncate">Quét VietQR</h5>
-              <p className="text-[10px] text-[#C5E5EC]/70 font-medium truncate">Nạp rút 24/7</p>
+              <h5 className="font-black text-white text-xs truncate">{t('scanVietQr')}</h5>
+              <p className="text-[10px] text-[#C5E5EC]/70 font-medium truncate">{t('scanVietQrDesc')}</p>
             </button>
           )}
 
@@ -245,8 +330,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   MoMo
                 </span>
               </div>
-              <h5 className="font-black text-white text-xs truncate">Cổng Ví Điện Tử</h5>
-              <p className="text-[10px] text-[#C5E5EC]/70 font-medium truncate">MoMo & ZaloPay</p>
+              <h5 className="font-black text-white text-xs truncate">{t('quickTopup')}</h5>
+              <p className="text-[10px] text-[#C5E5EC]/70 font-medium truncate">{t('quickTopupDesc')}</p>
             </button>
           )}
 
@@ -263,8 +348,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   OCR AI
                 </span>
               </div>
-              <h5 className="font-black text-white text-xs truncate">Quét Thẻ SV</h5>
-              <p className="text-[10px] text-[#C5E5EC]/70 font-medium truncate">Duyệt Cấp 2</p>
+              <h5 className="font-black text-white text-xs truncate">
+                {language === 'vi' ? 'Quét Thẻ SV' : 'Student ID OCR'}
+              </h5>
+              <p className="text-[10px] text-[#C5E5EC]/70 font-medium truncate">
+                {language === 'vi' ? 'Duyệt Cấp 2' : 'Level 2 Verify'}
+              </p>
             </button>
           )}
 
@@ -281,8 +370,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   ELO
                 </span>
               </div>
-              <h5 className="font-black text-white text-xs truncate">Điểm Tín Nhiệm</h5>
-              <p className="text-[10px] text-[#C5E5EC]/70 font-medium truncate">Huy hiệu & rank</p>
+              <h5 className="font-black text-white text-xs truncate">{t('eloBadge')}</h5>
+              <p className="text-[10px] text-[#C5E5EC]/70 font-medium truncate">{t('eloBadgeDesc')}</p>
             </button>
           )}
 
@@ -298,9 +387,31 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 Offline
               </span>
             </div>
-            <h5 className="font-black text-white text-xs truncate">Kho Việc Offline</h5>
-            <p className="text-[10px] text-[#C5E5EC]/70 font-medium truncate">Xem trong thang máy</p>
+            <h5 className="font-black text-white text-xs truncate">
+              {language === 'vi' ? 'Kho Việc Offline' : 'Offline Gigs'}
+            </h5>
+            <p className="text-[10px] text-[#C5E5EC]/70 font-medium truncate">
+              {language === 'vi' ? 'Xem trong thang máy' : 'Elevator / No 4G'}
+            </p>
           </button>
+
+          {onOpenDownloadApp && (
+            <button
+              onClick={onOpenDownloadApp}
+              className="min-w-[130px] sm:min-w-0 p-3 rounded-2xl bg-gradient-to-br from-[#122846] to-[#0E1B2E] hover:from-[#173258] hover:to-[#13243C] border border-[#3064AE] hover:border-[#C5E5EC]/50 text-left transition group shadow-sm shrink-0 snap-start active:scale-95 cursor-pointer ring-1 ring-[#3064AE]/30"
+            >
+              <div className="flex items-center justify-between mb-1.5">
+                <div className="p-1.5 rounded-lg bg-[#3064AE] text-white shadow-xs border border-[#E0FAEB]/30">
+                  <Smartphone className="w-4 h-4 group-hover:scale-110 transition text-[#E0FAEB]" />
+                </div>
+                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-black shadow-2xs">
+                  {t('oneTapInstall')}
+                </span>
+              </div>
+              <h5 className="font-black text-white text-xs truncate">{t('downloadApp')}</h5>
+              <p className="text-[10px] text-[#E0FAEB] font-bold truncate">{t('downloadAppDesc')}</p>
+            </button>
+          )}
         </div>
       </div>
 
@@ -316,14 +427,14 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-10 py-2.5 rounded-2xl bg-[#0E1B2E] border border-[#C5E5EC]/25 text-white text-xs placeholder:text-[#C5E5EC]/40 focus:outline-hidden focus:border-[#C5E5EC] focus:ring-2 focus:ring-[#3064AE]/30 shadow-xs transition"
-              placeholder="Tìm việc làm siêu nhỏ, kéo rank, gia sư, ship hàng KTX..."
+              placeholder={t('searchPlaceholder')}
             />
             {/* Voice Search Button */}
             <button
               type="button"
               onClick={() => setIsVoiceOpen(true)}
               className="absolute right-2.5 top-2 p-1 text-[#C5E5EC]/70 hover:text-white transition rounded-lg hover:bg-[#12233B] cursor-pointer"
-              title="Tìm kiếm bằng giọng nói"
+              title={t('voiceSearch')}
             >
               <Mic className="w-4 h-4" />
             </button>
@@ -352,7 +463,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 ? 'bg-[#3064AE] text-white border-[#C5E5EC] shadow-md shadow-[#3064AE]/30'
                 : 'bg-[#0E1B2E] border-[#C5E5EC]/25 text-[#C5E5EC] hover:border-[#C5E5EC]/40 hover:bg-[#13243C]'
             }`}
-            title="Bộ lọc nâng cao"
+            title={t('advancedFilters')}
           >
             <Filter className="w-4 h-4" />
           </button>
@@ -368,7 +479,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             return (
               <button
                 key={cat}
-                onClick={() => setCategory(cat)}
+                onClick={() => {
+                  triggerHaptic('light');
+                  setCategory(cat);
+                }}
                 className={`flex items-center space-x-1 px-3.5 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap border shadow-xs active:scale-95 cursor-pointer ${
                   isSelected
                     ? cat === 'Flash Gigs'
@@ -378,7 +492,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 }`}
               >
                 {cat === 'Flash Gigs' && <Zap className="w-3 h-3 fill-current text-amber-300" />}
-                <span>{cat}</span>
+                <span>{getCategoryLabel(cat)}</span>
               </button>
             );
           })}
@@ -389,10 +503,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           <div className="p-4 rounded-2xl bg-[#0E1B2E] border border-[#C5E5EC]/25 space-y-3 text-xs shadow-xl animate-fade-in text-white">
             {/* Price filter chips */}
             <div>
-              <span className="text-[#C5E5EC] font-bold block mb-1.5">Mức tiền thù lao:</span>
+              <span className="text-[#C5E5EC] font-bold block mb-1.5">
+                {language === 'vi' ? 'Mức tiền thù lao:' : 'Budget range:'}
+              </span>
               <div className="flex flex-wrap gap-1.5">
                 {[
-                  { label: 'Tất cả mức giá', value: 'ALL' },
+                  { label: language === 'vi' ? 'Tất cả mức giá' : 'All budgets', value: 'ALL' },
                   { label: '< 50.000đ', value: '<50K' },
                   { label: '50.000đ - 200.000đ', value: '50K-200K' },
                   { label: '> 200.000đ', value: '>200K' },
@@ -414,13 +530,15 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
             {/* Duration filter chips */}
             <div>
-              <span className="text-[#C5E5EC] font-bold block mb-1.5">Thời lượng hoàn thành:</span>
+              <span className="text-[#C5E5EC] font-bold block mb-1.5">
+                {language === 'vi' ? 'Thời lượng hoàn thành:' : 'Estimated duration:'}
+              </span>
               <div className="flex flex-wrap gap-1.5">
                 {[
-                  { label: 'Tất cả thời lượng', value: 'ALL' },
-                  { label: 'Siêu tốc (< 15 phút)', value: '<15M' },
-                  { label: '15 - 60 phút', value: '15-60M' },
-                  { label: 'Trên 60 phút', value: '>60M' },
+                  { label: language === 'vi' ? 'Tất cả thời lượng' : 'All durations', value: 'ALL' },
+                  { label: language === 'vi' ? 'Siêu tốc (< 15 phút)' : 'Super fast (< 15 mins)', value: '<15M' },
+                  { label: language === 'vi' ? '15 - 60 phút' : '15 - 60 mins', value: '15-60M' },
+                  { label: language === 'vi' ? 'Trên 60 phút' : 'Over 60 mins', value: '>60M' },
                 ].map((d) => (
                   <button
                     key={d.value}
@@ -448,7 +566,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 />
                 <span className="flex items-center space-x-1">
                   <Repeat className="w-3.5 h-3.5 text-[#E0FAEB]" />
-                  <span>Kèo định kỳ / Thuê theo tuần</span>
+                  <span>
+                    {language === 'vi' ? 'Kèo định kỳ / Thuê theo tuần' : 'Recurring / Weekly jobs'}
+                  </span>
                 </span>
               </label>
 
@@ -461,7 +581,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 />
                 <span className="flex items-center space-x-1">
                   <Users className="w-3.5 h-3.5 text-orange-400" />
-                  <span>Kèo ghép nhóm (&gt;1 người cùng làm)</span>
+                  <span>
+                    {language === 'vi' ? 'Kèo ghép nhóm (>1 người cùng làm)' : 'Group jobs (>1 student)'}
+                  </span>
                 </span>
               </label>
             </div>
@@ -473,7 +595,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <h3 className="text-sm sm:text-base font-extrabold text-white">Công việc quanh bạn</h3>
+            <h3 className="text-sm sm:text-base font-extrabold text-white">{t('availableGigsTitle')}</h3>
             <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-[#3064AE]/30 text-[#C5E5EC] border border-[#C5E5EC]/25 shadow-2xs">
               {filteredGigs.length}
             </span>
@@ -483,7 +605,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             onClick={onOpenCreateGig}
             className="text-xs font-bold text-[#C5E5EC] hover:text-[#E0FAEB] flex items-center space-x-1 cursor-pointer transition"
           >
-            <span>+ Đăng việc mới</span>
+            <span>+ {t('navCreateGig')}</span>
           </button>
         </div>
 
@@ -492,16 +614,16 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             <div className="w-16 h-16 rounded-2xl bg-[#3064AE]/30 text-[#C5E5EC] border border-[#C5E5EC]/20 flex items-center justify-center mx-auto mb-3.5 shadow-md">
               <MapPin className="w-8 h-8" />
             </div>
-            <h4 className="text-base font-extrabold text-white">Chưa có công việc nào quanh khu vực này</h4>
+            <h4 className="text-base font-extrabold text-white">{t('noGigsFound')}</h4>
             <p className="text-xs text-[#C5E5EC]/70 mt-1.5 max-w-sm mx-auto leading-relaxed">
-              Hiện tại chưa có công việc nào trong phạm vi tìm kiếm. Hãy là người đầu tiên đăng việc mới hoặc mở rộng bán kính tìm kiếm!
+              {t('noGigsSubtext')}
             </p>
             <div className="flex flex-wrap items-center justify-center gap-2 mt-5">
               <button
                 onClick={onOpenCreateGig}
                 className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#3064AE] via-[#417AC6] to-[#C5E5EC] text-white font-extrabold text-xs hover:brightness-110 shadow-md shadow-[#3064AE]/30 transition active:scale-95 border border-[#E0FAEB]/30 cursor-pointer"
               >
-                + Đăng Kèo Mới Ngay
+                + {t('postGigCta')}
               </button>
               <button
                 onClick={() => {
@@ -511,7 +633,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 }}
                 className="px-4 py-2.5 rounded-xl bg-[#12233B] hover:bg-[#162B48] border border-[#C5E5EC]/25 text-xs font-bold text-[#C5E5EC] transition active:scale-95 cursor-pointer"
               >
-                Đặt lại bộ lọc (5km)
+                {t('resetFilters')}
               </button>
             </div>
           </div>
@@ -538,21 +660,21 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                       <div className="flex flex-wrap items-center gap-1.5">
                         {isBoosted && (
                           <span className="flex items-center text-[10px] font-black text-white bg-gradient-to-r from-red-600 to-rose-600 px-2 py-0.5 rounded-md shadow-xs animate-pulse">
-                            <Rocket className="w-3 h-3 mr-1 text-yellow-300" /> HOT BOOST
+                            <Rocket className="w-3 h-3 mr-1 text-yellow-300" /> {t('hotBoost')}
                           </span>
                         )}
                         {gig.auctionRoomOpen && (
                           <span className="flex items-center text-[10px] font-black text-white bg-red-600 px-2 py-0.5 rounded-md shadow-xs">
-                            <Radio className="w-3 h-3 mr-1 animate-pulse" /> ĐẤU GIÁ MỞ
+                            <Radio className="w-3 h-3 mr-1 animate-pulse" /> {t('auctionOpen')}
                           </span>
                         )}
                         {gig.isFlash && !isBoosted && (
                           <span className="flex items-center text-[10px] font-extrabold text-white bg-gradient-to-r from-amber-500 to-orange-500 px-2 py-0.5 rounded-md shadow-xs">
-                            <Zap className="w-3 h-3 mr-0.5 fill-current" /> HỎA TỐC
+                            <Zap className="w-3 h-3 mr-0.5 fill-current" /> {t('urgentBadge')}
                           </span>
                         )}
                         <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-md border shadow-2xs ${getCategoryBadgeStyle(gig.category)}`}>
-                          {gig.category}
+                          {getCategoryLabel(gig.category)}
                         </span>
                       </div>
 
@@ -567,6 +689,32 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                       {gig.title}
                     </h4>
 
+                    {/* Poster Info & Verification Badge */}
+                    <div className="flex items-center space-x-1.5 flex-wrap gap-y-1 mb-2">
+                      <span className="text-[11px] font-bold text-slate-300">
+                        {gig.clientName}
+                      </span>
+                      {(() => {
+                        const poster = users.find((u) => u.id === gig.clientId);
+                        const isCccd = poster?.isNfcVerified || gig.clientTier === 'CCCD_VERIFIED' || gig.clientTier === 'PRO';
+                        const isStudent = poster?.isStudentVerified || poster?.isEduVerified || gig.clientTier === 'STUDENT';
+                        const school = poster?.studentSchool || '';
+
+                        if (isCccd || isStudent) {
+                          return (
+                            <VerifiedIdentityBadge
+                              isCccdVerified={isCccd}
+                              isStudentVerified={isStudent}
+                              school={school}
+                              size="sm"
+                              showText={true}
+                            />
+                          );
+                        }
+                        return null;
+                      })()}
+                    </div>
+
                     {/* Description */}
                     <p className="text-xs text-[#C5E5EC]/75 line-clamp-2 mb-3 leading-relaxed">
                       {gig.description}
@@ -578,14 +726,18 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                     <div className="flex items-center justify-between text-[11px] text-[#C5E5EC]/70 py-2 border-t border-[#C5E5EC]/15 mb-3">
                       <div className="flex items-center space-x-1">
                         <Clock className="w-3.5 h-3.5 text-[#C5E5EC]" />
-                        <span className="font-semibold text-[#C5E5EC]/90">~{gig.estimatedDurationMinutes} phút</span>
+                        <span className="font-semibold text-[#C5E5EC]/90">
+                          ~{gig.estimatedDurationMinutes} {language === 'vi' ? 'phút' : 'mins'}
+                        </span>
                       </div>
 
                       {gig.totalWorkersNeeded > 1 && (
                         <div className="flex items-center space-x-1 text-[#E0FAEB] font-bold bg-teal-950/60 px-2 py-0.5 rounded-md border border-teal-400/30">
                           <Users className="w-3.5 h-3.5 text-teal-300" />
                           <span>
-                            Nhóm {gig.multiWorkers?.length || 0}/{gig.totalWorkersNeeded} bạn
+                            {language === 'vi'
+                              ? `Nhóm ${gig.multiWorkers?.length || 0}/${gig.totalWorkersNeeded} bạn`
+                              : `Team ${gig.multiWorkers?.length || 0}/${gig.totalWorkersNeeded} students`}
                           </span>
                         </div>
                       )}
@@ -593,7 +745,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                       {gig.isRecurringWeekly && (
                         <div className="flex items-center space-x-1 text-[#C5E5EC] font-bold bg-[#3064AE]/25 px-2 py-0.5 rounded-md border border-[#C5E5EC]/30">
                           <Repeat className="w-3.5 h-3.5 text-[#C5E5EC]" />
-                          <span>Hàng tuần</span>
+                          <span>{t('weekly')}</span>
                         </div>
                       )}
                     </div>
@@ -601,7 +753,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                     <div className="flex items-center justify-between">
                       <div>
                         <span className="text-[10px] text-[#C5E5EC]/70 block font-bold mb-0.5">
-                          {gig.isReverseAuction ? 'Đấu giá ngược' : 'Thù lao Escrow'}
+                          {gig.isReverseAuction ? t('reverseAuction') : t('escrowReward')}
                         </span>
                         <div className="inline-flex items-center px-2 py-0.5 rounded-lg bg-[#12233B] border border-[#E0FAEB]/30 shadow-2xs">
                           <span className="text-base font-black text-[#E0FAEB] font-mono">
@@ -614,6 +766,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
+                            triggerHaptic('medium');
                             onSelectGigDetail(gig.id);
                           }}
                           className={`px-3.5 py-1.5 rounded-xl font-extrabold text-xs shadow-md transition flex items-center space-x-1 active:scale-95 cursor-pointer ${
@@ -622,7 +775,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                               : 'bg-gradient-to-r from-[#3064AE] via-[#417AC6] to-[#C5E5EC] text-white hover:brightness-110 shadow-[#3064AE]/30 border border-[#E0FAEB]/30'
                           }`}
                         >
-                          <span>{gig.auctionRoomOpen ? 'Vào Đấu Giá' : gig.isReverseAuction ? 'Đấu Giá' : 'Xem Kèo'}</span>
+                          <span>
+                            {gig.auctionRoomOpen
+                              ? t('joinAuction')
+                              : gig.isReverseAuction
+                              ? t('bid')
+                              : t('viewGig')}
+                          </span>
                           <ArrowRight className="w-3.5 h-3.5" />
                         </button>
                       </div>
@@ -657,6 +816,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         </Suspense>
       )}
 
-    </div>
+      </div>
+    </PullToRefresh>
   );
 };

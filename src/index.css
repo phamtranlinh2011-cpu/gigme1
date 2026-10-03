@@ -4,6 +4,7 @@
 
 @layer base {
   :root {
+    color-scheme: light dark;
     /* Brand Color Architecture & Proportions (from Design Specs):
        - 60% Dominant: Cobalt Blue (#3064AE)
        - 30% Secondary: Crystal Blue (#C5E5EC)
@@ -26,12 +27,115 @@
     --ethereal-green-soft: rgba(224, 250, 235, 0.15);
   }
 
+  html.dark {
+    color-scheme: dark;
+  }
+
+  html:not(.dark) {
+    color-scheme: light;
+  }
+
   body {
     background-color: #0C1728;
     color: #F1F6FA;
     font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
     overflow-x: hidden;
+    transition: background-color 0.25s ease, color 0.25s ease;
   }
+
+  html:not(.dark) body {
+    background-color: #F8FAFC;
+    color: #0F172A;
+  }
+
+  html.dark body {
+    background-color: #0C1728;
+    color: #F1F6FA;
+  }
+
+  html.theme-amoled body {
+    background-color: #000000;
+    color: #FFFFFF;
+  }
+}
+
+/* Light Mode Global Adaptations & Surface Elevation */
+html:not(.dark) {
+  --bg-primary: #F8FAFC;
+  --bg-surface: #FFFFFF;
+  --bg-surface-elevated: #F1F5F9;
+  --border-subtle: #E2E8F0;
+  --text-main: #0F172A;
+  --text-muted: #64748B;
+}
+
+html.dark {
+  --bg-primary: #0C1728;
+  --bg-surface: #0E1B2E;
+  --bg-surface-elevated: #12233B;
+  --border-subtle: rgba(197, 229, 236, 0.2);
+  --text-main: #F1F6FA;
+  --text-muted: #8FBAC4;
+}
+
+/* Clean automatic mapping for surface cards in light mode */
+html:not(.dark) .bg-\[\#0E1B2E\],
+html:not(.dark) .bg-\[\#0E1A2D\],
+html:not(.dark) .bg-\[\#12233B\],
+html:not(.dark) .bg-\[\#13243C\],
+html:not(.dark) .bg-\[\#13243D\],
+html:not(.dark) .bg-\[\#0D192B\],
+html:not(.dark) .bg-\[\#102038\] {
+  background-color: #FFFFFF !important;
+  border-color: #E2E8F0 !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
+}
+
+html:not(.dark) .bg-\[\#0E1B2E\]:hover,
+html:not(.dark) .bg-\[\#12233B\]:hover,
+html:not(.dark) .bg-\[\#13243C\]:hover {
+  background-color: #F8FAFC !important;
+}
+
+/* Light mode text contrast within surface cards */
+html:not(.dark) .bg-\[\#0E1B2E\] h1,
+html:not(.dark) .bg-\[\#0E1B2E\] h2,
+html:not(.dark) .bg-\[\#0E1B2E\] h3,
+html:not(.dark) .bg-\[\#0E1B2E\] h4,
+html:not(.dark) .bg-\[\#0E1B2E\] h5,
+html:not(.dark) .bg-\[\#0E1B2E\] h6,
+html:not(.dark) .bg-\[\#12233B\] h1,
+html:not(.dark) .bg-\[\#12233B\] h2,
+html:not(.dark) .bg-\[\#12233B\] h3,
+html:not(.dark) .bg-\[\#12233B\] h4,
+html:not(.dark) .bg-\[\#12233B\] h5,
+html:not(.dark) .bg-\[\#12233B\] h6 {
+  color: #0F172A !important;
+}
+
+html:not(.dark) .bg-\[\#0E1B2E\] p:not([class*="text-amber-"]):not([class*="text-emerald-"]):not([class*="text-rose-"]),
+html:not(.dark) .bg-\[\#12233B\] p:not([class*="text-amber-"]):not([class*="text-emerald-"]):not([class*="text-rose-"]) {
+  color: #475569 !important;
+}
+
+html:not(.dark) .bg-\[\#0E1B2E\] input,
+html:not(.dark) .bg-\[\#12233B\] input,
+html:not(.dark) .bg-\[\#0E1B2E\] textarea,
+html:not(.dark) .bg-\[\#12233B\] textarea {
+  background-color: #F8FAFC !important;
+  color: #0F172A !important;
+  border-color: #CBD5E1 !important;
+}
+
+html:not(.dark) .bg-\[\#0E1B2E\] input::placeholder,
+html:not(.dark) .bg-\[\#12233B\] input::placeholder {
+  color: #94A3B8 !important;
+}
+
+/* Light mode category pill & tags */
+html:not(.dark) .bg-\[\#3064AE\]\/30 {
+  background-color: rgba(48, 100, 174, 0.12) !important;
+  color: #255294 !important;
 }
 
 /* Brand Proportional Utility Classes */
@@ -258,22 +362,110 @@ html.dark ::-webkit-scrollbar-thumb:hover {
 @keyframes slideUp {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(14px) scale(0.98);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
   }
 }
 
 .animate-slide-up {
-  animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Toast Progress Countdown */
+@keyframes toast-progress {
+  0% {
+    width: 100%;
+  }
+  100% {
+    width: 0%;
+  }
+}
+
+/* Toast Spring-in with elegant deceleration */
+@keyframes toast-spring {
+  0% {
+    opacity: 0;
+    transform: translateY(-24px) scale(0.92);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(3px) scale(1.02);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-toast-spring {
+  animation: toast-spring 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+  will-change: transform, opacity;
+}
+
+/* Glowing Border Pulse for High Priority Actions */
+@keyframes glow-pulse {
+  0%, 100% {
+    box-shadow: 0 0 15px rgba(48, 100, 174, 0.4), inset 0 0 10px rgba(197, 229, 236, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 25px rgba(0, 229, 255, 0.6), inset 0 0 15px rgba(224, 250, 235, 0.3);
+  }
+}
+
+.animate-glow-pulse {
+  animation: glow-pulse 2.5s ease-in-out infinite;
 }
 
 /* Micro-animations: tactile button press and click feedback */
+button:not(:disabled), a, [role="button"] {
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), 
+              box-shadow 0.18s cubic-bezier(0.16, 1, 0.3, 1), 
+              filter 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+              background-color 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+button:hover:not(:disabled):not([class*="hover:none"]), [role="button"]:hover:not([class*="hover:none"]) {
+  filter: brightness(1.06);
+}
+
 button:active:not(:disabled), a:active, [role="button"]:active {
   transform: scale(0.965);
-  transition: transform 120ms cubic-bezier(0.2, 0, 0.1, 1);
+  filter: brightness(0.95);
+  transition: transform 80ms cubic-bezier(0.2, 0, 0.1, 1);
+}
+
+/* Smooth modal pop-in */
+@keyframes modal-scale-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.94) translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.animate-modal-in {
+  animation: modal-scale-in 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+
+/* Smooth float badge */
+@keyframes soft-float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+.animate-soft-float {
+  animation: soft-float 3s ease-in-out infinite;
 }
 
 /* Card hover and interactive drag elevation */
@@ -361,6 +553,70 @@ body {
   .app-viewport-fit {
     min-height: 100dvh;
   }
+}
+
+/* Chat Bubble Slide-in Entry Animations (Messenger style) */
+@keyframes slide-in-right {
+  0% {
+    opacity: 0;
+    transform: translate3d(16px, 6px, 0) scale(0.96);
+  }
+  60% {
+    opacity: 0.95;
+    transform: translate3d(-1px, -1px, 0) scale(1.01);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes slide-in-left {
+  0% {
+    opacity: 0;
+    transform: translate3d(-16px, 6px, 0) scale(0.96);
+  }
+  60% {
+    opacity: 0.95;
+    transform: translate3d(1px, -1px, 0) scale(1.01);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes pop-sticker {
+  0% {
+    opacity: 0;
+    transform: scale(0.4) rotate(-10deg);
+  }
+  65% {
+    opacity: 1;
+    transform: scale(1.15) rotate(4deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+.animate-message-me {
+  animation: slide-in-right 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transform-origin: bottom right;
+  will-change: transform, opacity;
+}
+
+.animate-message-partner {
+  animation: slide-in-left 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transform-origin: bottom left;
+  will-change: transform, opacity;
+}
+
+.animate-sticker-pop {
+  animation: pop-sticker 0.28s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  transform-origin: center bottom;
+  will-change: transform, opacity;
 }
 
 

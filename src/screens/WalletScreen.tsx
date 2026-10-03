@@ -18,6 +18,7 @@ import {
   Smartphone,
   Building2,
   Download,
+  AlertTriangle,
 } from 'lucide-react';
 import { useGigMe } from '../context/GigMeContext';
 import { formatVnd, TransactionEntity } from '../types';
@@ -42,6 +43,10 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onOpenVerify }) => {
     userTransactions,
     withdrawFunds,
     checkDepositEligibility,
+    checkWithdrawalEligibility,
+    isOverBalanceLimit,
+    language,
+    t,
   } = useGigMe();
 
   const [isQrOpen, setIsQrOpen] = useState(false);
@@ -50,7 +55,7 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onOpenVerify }) => {
   const [isEWalletOpen, setIsEWalletOpen] = useState(false);
   const [isStatementOpen, setIsStatementOpen] = useState(false);
   const [isBankWithdrawOpen, setIsBankWithdrawOpen] = useState(false);
-  const [showBalance, setShowBalance] = useState(true);
+  const [showBalance, setShowBalance] = useState(false);
 
   // Transaction filter
   const [txFilter, setTxFilter] = useState<'ALL' | 'INCOME' | 'EXPENSE' | 'ESCROW'>('ALL');
@@ -73,6 +78,37 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onOpenVerify }) => {
 
   return (
     <div className="max-w-3xl mx-auto px-3 sm:px-4 py-4 sm:py-6 pb-28 text-slate-900 dark:text-white space-y-4 sm:space-y-6">
+      {/* CẢNH BÁO SỐ DƯ VƯỢT TRẦN 200 TRIỆU (ÉP RÚT TIỀN) */}
+      {isOverBalanceLimit && (
+        <div className="p-4 sm:p-5 rounded-3xl bg-rose-950/85 border-2 border-rose-500 text-rose-200 shadow-2xl flex items-start space-x-3.5 animate-pulse">
+          <AlertTriangle className="w-6 h-6 text-rose-400 shrink-0 mt-0.5" />
+          <div className="space-y-1.5 flex-1">
+            <div className="flex items-center justify-between">
+              <h4 className="font-black text-sm text-white uppercase tracking-wider">
+                ⚠️ TÀI KHOẢN VƯỢT HẠN MỨC 200 TRIỆU (ÉP RÚT TIỀN)
+              </h4>
+              <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-rose-600 text-white uppercase">
+                TẠM KHÓA GIAO DỊCH
+              </span>
+            </div>
+            <p className="text-xs text-rose-200/90 leading-relaxed">
+              Theo quy định nền tảng: Mỗi tài khoản chỉ được phép tích lũy tối đa <strong>200.000.000đ</strong>.
+              Tài khoản của bạn hiện có <strong>{formatVnd(currentUser?.walletBalance || 0)}</strong>. Các tính năng nạp tiền, đăng việc và nhận việc đã bị tạm dừng. Vui lòng bấm <strong>"Rút Tiền Ngay"</strong> để chuyển bớt tiền về ngân hàng!
+            </p>
+            <button
+              onClick={() => {
+                playNotificationSound('BUTTON_CLICK');
+                setIsBankWithdrawOpen(true);
+              }}
+              className="mt-1 px-4 py-2 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:brightness-110 text-white font-extrabold text-xs shadow-lg transition flex items-center space-x-1.5 cursor-pointer"
+            >
+              <ArrowUpRight className="w-4 h-4 stroke-[2.5]" />
+              <span>Rút Tiền Về Ngân Hàng Ngay &rarr;</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Balance Card with Cobalt Blue (60%), Crystal Blue (30%), Ethereal Green (10%) Brand Styling */}
       <div className="rounded-3xl bg-gradient-to-r from-[#18345E] via-[#10223D] to-[#0A1526] border border-[#C5E5EC]/25 text-white p-5 sm:p-6 shadow-xl relative overflow-hidden">
         {/* Left Decorative Proportional Brand Gradient Bar */}
@@ -108,12 +144,12 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onOpenVerify }) => {
           </div>
 
           <div>
-            <span className="text-xs text-[#C5E5EC]/80 font-semibold">Số dư khả dụng:</span>
+            <span className="text-xs text-[#C5E5EC]/80 font-semibold">{t('availableBalance')}:</span>
             <div className="text-2xl sm:text-3xl font-black text-white font-mono mt-0.5 tracking-tight">
               {showBalance ? formatVnd(currentUser?.walletBalance || 0) : '•••••••• đ'}
             </div>
             <div className="flex items-center space-x-2 mt-1.5 text-xs">
-              <span className="text-[#C5E5EC]/70">Đang giữ trong Smart Escrow:</span>
+              <span className="text-[#C5E5EC]/70">{t('escrowHoldingBalance')}:</span>
               <span className="font-bold text-[#E0FAEB] font-mono">
                 {showBalance ? formatVnd(currentUser?.escrowLockedBalance || 0) : '••••••'}
               </span>
@@ -131,7 +167,7 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onOpenVerify }) => {
               className="py-3 px-3 rounded-2xl bg-gradient-to-r from-[#3064AE] via-[#417AC6] to-[#C5E5EC] text-white font-extrabold text-xs hover:brightness-110 shadow-lg shadow-[#3064AE]/30 transition flex items-center justify-center space-x-1.5 active:scale-95 border border-[#E0FAEB]/30 cursor-pointer"
             >
               <QrCode className="w-4 h-4 stroke-[2.5]" />
-              <span>Nạp VietQR Pro 24/7</span>
+              <span>{t('depositBtn')} (VietQR)</span>
             </button>
 
             <button
@@ -143,19 +179,39 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onOpenVerify }) => {
               className="py-3 px-3 rounded-2xl bg-[#0E1B2E] hover:bg-[#152742] border border-[#C5E5EC]/30 text-[#C5E5EC] font-extrabold text-xs transition flex items-center justify-center space-x-1.5 active:scale-95 cursor-pointer"
             >
               <ArrowUpRight className="w-4 h-4 text-[#E0FAEB] stroke-[2.5]" />
-              <span>Rút Napas 247 (&lt;3s)</span>
+              <span>{t('withdrawBtn')} (Napas)</span>
             </button>
           </div>
 
-          {/* Deposit Limit Safety Note */}
-          <div className="flex items-center justify-between px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-[10px] text-[#C5E5EC]/80">
-            <span className="flex items-center space-x-1 font-semibold">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-              <span>Hạn mức nạp: Tối đa 10M/lần • Giãn cách 1h • Max 30M/ngày</span>
-            </span>
-            <span className="font-mono text-[#E0FAEB]">
-              Hôm nay: {formatVnd(checkDepositEligibility().todayDeposited)}/30M
-            </span>
+          {/* Deposit & Withdrawal Limits Safety Rules */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-[10px] text-[#C5E5EC]/80">
+              <span className="flex items-center space-x-1 font-semibold">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                <span>
+                  {language === 'vi'
+                    ? 'Nạp tiền: Max 10M/lần • Giãn cách 1h • Max 30M/ngày • Trần 200M'
+                    : 'Deposit: Max 10M/time • 1h cooldown • Max 30M/day • Cap 200M'}
+                </span>
+              </span>
+              <span className="font-mono text-[#E0FAEB]">
+                {formatVnd(checkDepositEligibility().todayDeposited)}/30M
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-[10px] text-[#C5E5EC]/80">
+              <span className="flex items-center space-x-1 font-semibold">
+                <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
+                <span>
+                  {language === 'vi'
+                    ? 'Rút tiền: Max 3M/lần • Giãn cách 15p • Dư >50k • >=1 việc • Tuổi >=5 ngày • Online >=3h'
+                    : 'Withdraw: Max 3M/time • 15min cooldown • Bal >50k • >=1 gig • Age >=5d'}
+                </span>
+              </span>
+              <span className="font-mono text-cyan-300 font-bold">
+                {checkWithdrawalEligibility().isAdminBypass ? 'Admin Bypass ✓' : 'Max 3M'}
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -169,12 +225,12 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onOpenVerify }) => {
             </div>
             <div>
               <h4 className="font-extrabold text-xs text-white flex items-center space-x-1.5">
-                <span>Tài Khoản Nhận Tiền Mặc Định</span>
+                <span>{t('defaultBankTitle')}</span>
                 <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#E0FAEB]/15 text-[#E0FAEB] font-bold border border-[#E0FAEB]/30">
                   Napas 247
                 </span>
               </h4>
-              <p className="text-[10px] text-[#C5E5EC]/70">Tự động điền khi rút tiền, giải ngân siêu tốc 24/7</p>
+              <p className="text-[10px] text-[#C5E5EC]/70">{t('defaultBankDesc')}</p>
             </div>
           </div>
           <button
@@ -182,9 +238,9 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onOpenVerify }) => {
               playNotificationSound('BUTTON_CLICK');
               setIsBankWithdrawOpen(true);
             }}
-            className="text-[11px] font-bold text-[#C5E5EC] hover:underline"
+            className="text-[11px] font-bold text-[#C5E5EC] hover:underline cursor-pointer"
           >
-            {currentUser?.defaultBank ? 'Đổi tài khoản' : '+ Liên kết ngay'}
+            {currentUser?.defaultBank ? t('changeAccount') : t('linkNow')}
           </button>
         </div>
 
@@ -199,7 +255,7 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onOpenVerify }) => {
               </div>
               <div className="text-[11px] text-[#C5E5EC]/80 font-mono flex items-center space-x-2">
                 <span className="text-white font-semibold uppercase">{currentUser.defaultBank.accountHolder}</span>
-                <span className="text-[#E0FAEB] text-[10px] font-bold">✓ Đã khớp E-KYC</span>
+                <span className="text-[#E0FAEB] text-[10px] font-bold">{t('ekycVerified')}</span>
               </div>
             </div>
             <button
@@ -210,13 +266,13 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onOpenVerify }) => {
               className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#3064AE] to-[#255294] hover:brightness-110 text-white font-extrabold text-xs shadow-xs transition flex items-center space-x-1 active:scale-95 border border-[#C5E5EC]/30 cursor-pointer"
             >
               <ArrowUpRight className="w-3.5 h-3.5" />
-              <span>Rút Về TK Này</span>
+              <span>{t('withdrawToThisBank')}</span>
             </button>
           </div>
         ) : (
           <div className="p-3 rounded-2xl bg-[#0E1B2E] border border-dashed border-[#C5E5EC]/30 flex items-center justify-between">
             <div className="text-xs text-[#C5E5EC]/80">
-              Chưa lưu tài khoản ngân hàng. Nhấn để cài đặt số tài khoản Napas 247 nhận tiền tức thì.
+              {t('noBankLinked')}
             </div>
             <button
               onClick={() => {
@@ -225,7 +281,7 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onOpenVerify }) => {
               }}
               className="px-3 py-1.5 rounded-xl bg-[#162B48] hover:bg-[#1E375C] border border-[#C5E5EC]/30 text-[#C5E5EC] font-bold text-xs shrink-0 ml-2 shadow-xs cursor-pointer"
             >
-              Thiết lập
+              {t('setup')}
             </button>
           </div>
         )}
@@ -234,7 +290,7 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onOpenVerify }) => {
       {/* Payment Services & Student Support Hub */}
       <div className="space-y-2">
         <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#C5E5EC]/70 block px-1">
-          Cổng thanh toán & Dịch vụ sinh viên
+          {t('gatewaysAndServices')}
         </span>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -249,9 +305,9 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onOpenVerify }) => {
               </div>
               <div className="min-w-0">
                 <h5 className="font-extrabold text-xs text-white group-hover:text-pink-400 transition truncate">
-                  Cổng MoMo & ZaloPay
+                  {t('momoZaloGateway')}
                 </h5>
-                <p className="text-[10px] text-[#C5E5EC]/70 truncate">App-to-App 1 chạm tức thì</p>
+                <p className="text-[10px] text-[#C5E5EC]/70 truncate">{t('momoZaloDesc')}</p>
               </div>
             </div>
             <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-pink-500/15 text-pink-300 border border-pink-500/30 font-bold shrink-0">
@@ -270,9 +326,9 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onOpenVerify }) => {
               </div>
               <div className="min-w-0">
                 <h5 className="font-extrabold text-xs text-white group-hover:text-[#C5E5EC] transition truncate">
-                  Tự Động Khớp VietQR
+                  {t('autoVietQr')}
                 </h5>
-                <p className="text-[10px] text-[#C5E5EC]/70 truncate">Open API Casso/SePAY 3 giây</p>
+                <p className="text-[10px] text-[#C5E5EC]/70 truncate">{t('autoVietQrDesc')}</p>
               </div>
             </div>
             <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#3064AE]/20 text-[#C5E5EC] border border-[#C5E5EC]/30 font-bold shrink-0">
@@ -292,9 +348,9 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onOpenVerify }) => {
               </div>
               <div className="min-w-0">
                 <h5 className="font-extrabold text-xs text-white group-hover:text-[#C5E5EC] transition truncate">
-                  Ví Điện Tử Đã Liên Kết
+                  {t('linkedEWallets')}
                 </h5>
-                <p className="text-[10px] text-[#C5E5EC]/70 truncate">Quản lý ví ShopeePay / Viettel</p>
+                <p className="text-[10px] text-[#C5E5EC]/70 truncate">{t('linkedEWalletsDesc')}</p>
               </div>
             </div>
             <span className="text-[10px] text-[#C5E5EC] shrink-0">&rarr;</span>
@@ -310,24 +366,24 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onOpenVerify }) => {
             className="p-3.5 rounded-2xl bg-[#12233B] hover:bg-[#162B48] border border-[#C5E5EC]/20 text-left transition flex items-center justify-between group shadow-sm active:scale-[0.99] sm:col-span-2 cursor-pointer"
           >
             <div className="flex items-center space-x-2.5 min-w-0">
-              <div className="p-2 rounded-xl bg-slate-900 text-white shrink-0">
-                <Zap className="w-4 h-4 text-sky-400" />
+              <div className="p-2 rounded-xl bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 shrink-0">
+                <Zap className="w-4 h-4 text-cyan-300" />
               </div>
               <div className="min-w-0">
                 <div className="flex items-center space-x-2">
-                  <h5 className="font-extrabold text-xs text-slate-900 group-hover:text-[#0284C7] transition truncate">
-                    Apple Pay & Google Pay (1-Chạm)
+                  <h5 className="font-extrabold text-xs text-white group-hover:text-cyan-300 transition truncate">
+                    {t('appleGooglePay')}
                   </h5>
-                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-sky-50 text-[#0284C7] font-bold border border-sky-200">
-                    Thẻ sinh viên chip
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-950/60 text-cyan-300 font-bold border border-cyan-500/30">
+                    NFC 1-Chạm
                   </span>
                 </div>
-                <p className="text-[10px] text-slate-500 truncate">
-                  Xác thực vân tay / Face ID hoặc thẻ sinh viên đa năng BIDV, VietinBank, Agribank
+                <p className="text-[10px] text-[#C5E5EC]/70 truncate">
+                  {t('appleGooglePayDesc')}
                 </p>
               </div>
             </div>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-900 text-white font-bold shrink-0">
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-cyan-950/60 text-cyan-300 border border-cyan-500/30 font-bold shrink-0">
               1-TAP
             </span>
           </button>
@@ -339,13 +395,13 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onOpenVerify }) => {
         <div className="flex items-center justify-between">
           <h4 className="text-xs font-extrabold text-white flex items-center space-x-1.5">
             <Smartphone className="w-4 h-4 text-[#C5E5EC]" />
-            <span>Liên Kết Ví Điện Tử (MoMo, ZaloPay, Viettel Money)</span>
+            <span>{language === 'vi' ? 'Liên Kết Ví Điện Tử (MoMo, ZaloPay, Viettel Money)' : 'E-Wallet Integrations (MoMo, ZaloPay, Viettel)'}</span>
           </h4>
           <button
             onClick={() => setIsEWalletOpen(true)}
             className="text-[11px] text-[#C5E5EC] hover:underline font-bold cursor-pointer"
           >
-            Quản lý &rarr;
+            {t('manage')} &rarr;
           </button>
         </div>
 
@@ -358,7 +414,7 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onOpenVerify }) => {
               <div>
                 <span className="font-bold text-white block text-[11px]">MoMo</span>
                 <span className="text-[10px] text-[#C5E5EC]/70 font-mono">
-                  {currentUser?.connectedMoMo || 'Chưa liên kết'}
+                  {currentUser?.connectedMoMo || (language === 'vi' ? 'Chưa liên kết' : 'Not linked')}
                 </span>
               </div>
             </div>
@@ -369,7 +425,7 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onOpenVerify }) => {
                   : 'bg-[#182C48] text-slate-400 border-slate-700'
               }`}
             >
-              {currentUser?.connectedMoMo ? 'Đã nối' : 'Chưa nối'}
+              {currentUser?.connectedMoMo ? t('connected') : t('notConnected')}
             </span>
           </div>
 
@@ -381,7 +437,7 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onOpenVerify }) => {
               <div>
                 <span className="font-bold text-white block text-[11px]">ZaloPay</span>
                 <span className="text-[10px] text-[#C5E5EC]/70 font-mono">
-                  {currentUser?.connectedZaloPay || 'Chưa liên kết'}
+                  {currentUser?.connectedZaloPay || (language === 'vi' ? 'Chưa liên kết' : 'Not linked')}
                 </span>
               </div>
             </div>
@@ -392,7 +448,7 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onOpenVerify }) => {
                   : 'bg-[#182C48] text-slate-400 border-slate-700'
               }`}
             >
-              {currentUser?.connectedZaloPay ? 'Đã nối' : 'Chưa nối'}
+              {currentUser?.connectedZaloPay ? t('connected') : t('notConnected')}
             </span>
           </div>
 
@@ -426,7 +482,7 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onOpenVerify }) => {
         <div className="flex items-center justify-between flex-wrap gap-2">
           <h3 className="font-extrabold text-sm text-white flex items-center space-x-1.5">
             <Clock className="w-4 h-4 text-[#C5E5EC]" />
-            <span>Lịch Sử Giao Dịch ({filteredTx.length})</span>
+            <span>{t('transactionHistoryTitle')} ({filteredTx.length})</span>
           </h3>
 
           <div className="flex items-center space-x-2">
@@ -435,7 +491,7 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onOpenVerify }) => {
               className="px-2.5 py-1 rounded-xl bg-[#12233B] hover:bg-[#162B48] border border-[#C5E5EC]/20 text-[10px] text-[#C5E5EC] font-bold flex items-center space-x-1 transition shadow-xs cursor-pointer"
             >
               <FileSpreadsheet className="w-3.5 h-3.5 text-[#E0FAEB]" />
-              <span>Xuất PDF/Excel</span>
+              <span>{language === 'vi' ? 'Xuất PDF/Excel' : 'Export PDF/Excel'}</span>
             </button>
 
             {/* Filter tabs */}
@@ -449,11 +505,11 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onOpenVerify }) => {
                   }`}
                 >
                   {filter === 'ALL'
-                    ? 'Tất cả'
+                    ? (language === 'vi' ? 'Tất cả' : 'All')
                     : filter === 'INCOME'
-                    ? 'Thu'
+                    ? (language === 'vi' ? 'Thu' : 'In')
                     : filter === 'EXPENSE'
-                    ? 'Chi'
+                    ? (language === 'vi' ? 'Chi' : 'Out')
                     : 'Escrow'}
                 </button>
               ))}
@@ -464,7 +520,7 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onOpenVerify }) => {
         {/* Transactions List */}
         {filteredTx.length === 0 ? (
           <div className="text-center py-12 rounded-2xl bg-[#12233B] border border-[#C5E5EC]/15 text-[#C5E5EC]/60 text-xs shadow-xs">
-            Chưa có giao dịch nào trong danh mục này.
+            {t('noTransactions')}
           </div>
         ) : (
           <div className="space-y-2">

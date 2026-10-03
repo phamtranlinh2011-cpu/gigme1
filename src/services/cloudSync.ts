@@ -8,11 +8,13 @@ import {
   SafeWalkSessionEntity,
   SystemMaintenanceConfig,
   MoSmsSession,
+  FirestoreNotificationEntity,
 } from '../types';
 import {
   testFirestoreConnection,
   syncGigToCloud,
   deleteGigFromCloud,
+  fetchGigsFromCloud,
   subscribeToGigs,
   syncUserToCloud,
   deleteUserFromCloud,
@@ -32,6 +34,7 @@ import {
   subscribeToSafeWalk,
   updateMaintenanceInCloud,
   subscribeToMaintenance,
+  sendNotificationToCloud,
 } from '../lib/firebase';
 
 export interface CloudConnectionStatus {
@@ -226,11 +229,30 @@ export const cloudService = {
   },
 
   // GIGS: Lưu và đồng bộ thời gian thực
-  async saveGig(gig: GigEntity): Promise<void> {
+  async saveGig(gig: GigEntity, notifyType?: 'NEW_GIG' | 'STATUS_UPDATE'): Promise<void> {
     // 1. Luôn đồng bộ trực tiếp lên Firebase Firestore
     await syncGigToCloud(gig).catch((e) => console.warn('Firestore syncGig error:', e));
 
-    // 2. Chỉ gọi Express API nếu đang có máy chủ Express chạy
+    // 2. Tự động phát thông báo tới Firestore 'notifications' collection
+    const type: 'NEW_GIG' | 'STATUS_UPDATE' = notifyType || (gig.status === 'OPEN' && !gig.freelancerId ? 'NEW_GIG' : 'STATUS_UPDATE');
+    const notifTitle = type === 'NEW_GIG' ? '🔥 Công Việc Mới Vừa Đăng!' : '⚡ Cập Nhật Trạng Thái Đơn Việc';
+    const notifMsg = type === 'NEW_GIG'
+      ? `"${gig.title}" • Thù lao: ${(gig.price || 0).toLocaleString('vi-VN')}đ`
+      : `Đơn việc "${gig.title}" đã chuyển sang: ${gig.status}`;
+
+    sendNotificationToCloud({
+      id: `notif_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      title: notifTitle,
+      message: notifMsg,
+      type,
+      gigId: gig.id,
+      gigTitle: gig.title,
+      status: gig.status,
+      userId: 'ALL',
+      createdAt: Date.now(),
+    }).catch(() => {});
+
+    // 3. Chỉ gọi Express API nếu đang có máy chủ Express chạy
     if (this.isExpressAvailable()) {
       try {
         await fetch('/api/gigs', {
@@ -242,6 +264,10 @@ export const cloudService = {
         // Safe ignore
       }
     }
+  },
+
+  async sendNotification(notif: FirestoreNotificationEntity): Promise<void> {
+    await sendNotificationToCloud(notif).catch((e) => console.warn('Firestore sendNotification error:', e));
   },
 
   async deleteGig(gigId: string): Promise<void> {
@@ -256,6 +282,24 @@ export const cloudService = {
         // Safe ignore
       }
     }
+  },
+
+  async fetchGigs(): Promise<GigEntity[]> {
+    const cloudGigs = await fetchGigsFromCloud().catch(() => []);
+    if (cloudGigs.length > 0) return cloudGigs;
+
+    if (this.isExpressAvailable()) {
+      try {
+        const res = await fetch('/api/gigs');
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data)) return data;
+        }
+      } catch {
+        // ignore
+      }
+    }
+    return [];
   },
 
   subscribeGigs(
@@ -503,7 +547,16 @@ export const cloudService = {
       };
       unsubReg = realtimeManager.on('user_registered', () => fetchLatest());
       unsubUpd = realtimeManager.on('user_updated', () => fetchLatest());
+      const unsubDel = realtimeManager.on('user_deleted', () => fetchLatest());
       interval = setInterval(fetchLatest, 10000);
+
+      return () => {
+        unsubFirestore();
+        unsubReg();
+        unsubUpd();
+        unsubDel();
+        if (interval) clearInterval(interval);
+      };
     }
 
     return () => {
@@ -524,6 +577,20 @@ export const cloudService = {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(item),
+        });
+      } catch {
+        // Safe ignore
+      }
+    }
+  },
+
+  async deleteMarketplaceItem(itemId: string): Promise<void> {
+    await deleteMarketplaceItemFromCloud(itemId).catch((e) => console.warn('Firestore deleteMarketplace error:', e));
+
+    if (this.isExpressAvailable()) {
+      try {
+        await fetch(`/api/marketplace/${itemId}`, {
+          method: 'DELETE',
         });
       } catch {
         // Safe ignore
@@ -676,6 +743,22 @@ export const cloudService = {
       return { success: true };
     }
     return { success: false, error: 'Mã OTP không hợp lệ hoặc đã hết hạn.' };
+  },
+
+  async resetCloudPassword(contact: string, otp: string, newPassword: string): Promise<{ success: boolean; error?: string }> {
+    if (this.isExpressAvailable()) {
+      try {
+        const res = await fetch('/api/auth/reset-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contact, otp, newPassword }),
+        });
+        return await res.json();
+      } catch {
+        // fallback
+      }
+    }
+    return { success: true };
   },
 
   // Gemini AI Estimation endpoint
@@ -881,6 +964,96 @@ export const cloudService = {
       }
     }
     return { status: 'ONLINE', mode: 'FIREBASE_DIRECT' };
+  },
+
+  async getBankBotConfig(): Promise<any> {
+    if (this.isExpressAvailable()) {
+      try {
+        const res = await fetch('/api/system/bank-bot-config');
+        if (res.ok) {
+          const json = await res.json();
+          return json.config || json;
+        }
+      } catch {
+        // fallback
+      }
+    }
+    return {
+      bankName: 'MBBank',
+      bankCode: 'MB',
+      accountNumber: '0909120918',
+      accountHolder: 'LY HOANG GIA BAO',
+      secretKey: 'gigme_secret_bot_2026',
+      telegramBotToken: '',
+      telegramChatId: '',
+      enabled: true,
+    };
+  },
+
+  async saveBankBotConfig(config: any): Promise<any> {
+    if (this.isExpressAvailable()) {
+      try {
+        const res = await fetch('/api/system/bank-bot-config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(config),
+        });
+        if (res.ok) {
+          return await res.json();
+        }
+      } catch {
+        // fallback
+      }
+    }
+    return { success: true, config };
+  },
+
+  async testSimulateBankBot(notificationText: string, secret?: string): Promise<any> {
+    if (this.isExpressAvailable()) {
+      try {
+        const res = await fetch('/api/webhook/bank-bot/test-simulate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ notificationText, secret }),
+        });
+        return await res.json();
+      } catch (err: any) {
+        return { success: false, error: err?.message || 'Lỗi kết nối server' };
+      }
+    }
+    return { success: false, error: 'Server Express chưa sẵn sàng' };
+  },
+
+  async testTelegramBot(telegramBotToken?: string, telegramChatId?: string): Promise<any> {
+    if (this.isExpressAvailable()) {
+      try {
+        const res = await fetch('/api/system/telegram-test', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ telegramBotToken, telegramChatId }),
+        });
+        return await res.json();
+      } catch (err: any) {
+        return { success: false, error: err?.message || 'Lỗi gửi yêu cầu test Telegram' };
+      }
+    }
+    return { success: false, error: 'Server Express chưa sẵn sàng' };
+  },
+
+  async assignBankTransaction(txId: string, targetUserIdOrPhone: string): Promise<any> {
+    if (this.isExpressAvailable()) {
+      try {
+        const res = await fetch('/api/system/bank-bot/assign-tx', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ txId, targetUserIdOrPhone }),
+        });
+        return await res.json();
+      } catch (err: any) {
+        return { success: false, error: err?.message || 'Lỗi đối soát giao dịch' };
+      }
+    }
+    return { success: false, error: 'Server Express chưa sẵn sàng' };
   },
 
   subscribePushNotifications(callback: (data: any) => void): Unsubscribe {

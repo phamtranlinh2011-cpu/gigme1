@@ -6,7 +6,7 @@ import {
   FacebookAuthProvider,
   OAuthProvider,
 } from 'firebase/auth';
-import { auth, syncUserToCloud, findUserByContact } from '../lib/firebase';
+import { auth, syncUserToCloud, findUserByContact, sendNotificationToCloud } from '../lib/firebase';
 import {
   UserEntity,
   GigEntity,
@@ -47,6 +47,7 @@ import { validateGpsAuthenticity } from '../utils/antiFakeGps';
 import { triggerHaptic } from '../utils/haptics';
 import { offlineSyncManager } from '../utils/offlineSync';
 import { executeInstantDisbursement } from '../services/napasDisbursementService';
+import { Language, Translations, translations } from '../utils/i18n';
 
 const STORAGE_KEYS = {
   USERS: 'gigme_users_real_v4',
@@ -57,6 +58,7 @@ const STORAGE_KEYS = {
   CURRENT_USER_ID: 'gigme_current_user_id_real_v4',
   ROLE_MODE: 'gigme_role_mode_real_v4',
   DARK_MODE: 'gigme_dark_mode_real_v4',
+  LANGUAGE: 'gigme_app_lang',
 };
 
 // Helper: Điểm uy tín tối đa 100. Nếu max (>= 100) thì không cộng thêm nữa.
@@ -159,6 +161,11 @@ interface GigMeContextType {
   isAdminRole: boolean;
   isDarkMode: boolean;
   themeMode: 'CYBER_DARK' | 'AMOLED' | 'DAYLIGHT';
+  language: Language;
+  isLanguageTransitioning: boolean;
+  setLanguage: (lang: Language) => void;
+  toggleLanguage: () => void;
+  t: (key: keyof Translations) => string;
   roleMode: AppRoleMode;
   searchQuery: string;
   isVoiceListening: boolean;
@@ -217,10 +224,15 @@ interface GigMeContextType {
   withdrawFunds: (bankName: string, accountNumber: string, accountHolderName: string, amount: number, pin?: string, useBiometrics?: boolean) => boolean;
 
   // Auth
-  register: (fullName: string, contact: string, gender: string, birthDate: string, password: string, confirmPassword: string, phone?: string, cccdNumber?: string) => Promise<{ success: boolean; error?: string }>;
+  register: (fullName: string, contact: string, gender: string, birthDate: string, password: string, confirmPassword: string, phone?: string, cccdNumber?: string, lastName?: string, firstName?: string) => Promise<{ success: boolean; error?: string }>;
   login: (contact: string, password: string) => Promise<boolean> | boolean;
   sendOtp: (contact: string, purpose?: string) => boolean;
   resetPasswordWithOtp: (enteredOtp: string, newPassword: string) => Promise<boolean> | boolean;
+  resetPasswordWithPinAndEmail: (email: string, pin: string, newPassword: string) => Promise<{ success: boolean; error?: string }>;
+  resetPasswordWithBiometrics: (contact: string, newPassword: string) => Promise<{ success: boolean; error?: string }>;
+  validateUserPassword: (password: string) => Promise<boolean>;
+  setupOrChangePin: (password: string, newPin: string, oldPin?: string) => Promise<{ success: boolean; error?: string }>;
+  setBiometricsWithPassword: (password: string, enable: boolean) => Promise<{ success: boolean; error?: string }>;
   loginWithPhoneOtp: (phoneNumber: string, enteredOtp: string) => boolean;
   requestMoSms: (params?: { phone?: string; shortcode?: string; keyword?: string }) => Promise<{ success: boolean; session?: MoSmsSession; error?: string }>;
   checkMoSmsStatus: (sessionId: string) => Promise<any>;
@@ -286,6 +298,18 @@ interface GigMeContextType {
     remainingDailyQuota: number;
     maxPerTx: number;
   };
+  checkWithdrawalEligibility: (amount?: number) => {
+    allowed: boolean;
+    reason?: string;
+    cooldownMinutesLeft: number;
+    hoursOnline: number;
+    daysActive: number;
+    completedGigsCount: number;
+    amlDepositWaitMinutesLeft: number;
+    isOverBalanceLimit: boolean;
+    isAdminBypass: boolean;
+  };
+  isOverBalanceLimit: boolean;
   depositVietQr: (amount: number, bankName: string) => boolean;
   withdrawToBank: (bankName: string, accountNumber: string, accountHolderName: string, amount: number, pin?: string, useBiometrics?: boolean) => boolean;
   saveDefaultBank: (bankName: string, accountNumber: string, accountHolder: string) => void;
@@ -333,9 +357,12 @@ interface GigMeContextType {
     mediaFileName?: string,
     targetThreadId?: string,
     targetPartnerId?: string,
-    targetPartnerName?: string
+    targetPartnerName?: string,
+    customSenderId?: string,
+    customSenderName?: string
   ) => void;
   markConversationAsRead: (partnerOrThreadId: string) => void;
+  reactToChatMessage: (messageId: string, emoji: string) => void;
   analyzePhotoWithAi: (presetType: string) => void;
   clearAiResult: () => void;
 
@@ -366,6 +393,10 @@ interface GigMeContextType {
 
   // Student ELO & Badge Reputation System
   rateGigAndElo: (gigId: string, rating: number, review: string, tags?: string[]) => boolean;
+
+  // Admin Manual Withdrawal Processing (Cách 1)
+  adminApproveWithdrawal: (txId: string) => Promise<boolean> | boolean;
+  adminRejectWithdrawal: (txId: string, reason: string) => Promise<boolean> | boolean;
 }
 
 const GigMeContext = createContext<GigMeContextType | undefined>(undefined);
@@ -428,9 +459,20 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
+        const adminFound = parsed.find(
+          (u: UserEntity) => u.id === '000000000' || u.id === 'admin_root' || u.email === 'admin@admin.vn' || u.role === 'ADMIN'
+        );
+        const consolidatedAdmin: UserEntity = adminFound
+          ? { ...DEFAULT_ADMIN, ...adminFound, id: '000000000', email: 'admin@admin.vn', role: 'ADMIN' }
+          : DEFAULT_ADMIN;
+
         const cleaned: UserEntity[] = parsed
           .filter(
             (u: UserEntity) =>
+              u.id !== '000000000' &&
+              u.id !== 'admin_root' &&
+              u.email !== 'admin@admin.vn' &&
+              u.role !== 'ADMIN' &&
               u.id !== 'user_526h0044' &&
               u.id !== 'user_freelancer_lan' &&
               u.id !== 'user_cafe_passio' &&
@@ -439,19 +481,13 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               u.id !== 'user_client_ha' &&
               !isMockOrFakeName(u.name)
           )
-          .map((u: UserEntity) => {
-            if (u.id === 'admin_root' || u.email === 'admin@admin.vn' || u.id === '000000000') {
-              return { ...DEFAULT_ADMIN, ...u, id: '000000000', trustScore: 100 };
-            }
-            return {
-              ...u,
-              trustScore: clampTrustScore(u.trustScore),
-            };
-          });
-        // Đảm bảo luôn có tài khoản Admin 000000000 duy nhất
-        if (!cleaned.some((u) => u.id === '000000000' || u.role === 'ADMIN')) {
-          cleaned.unshift(DEFAULT_ADMIN);
-        }
+          .map((u: UserEntity) => ({
+            ...u,
+            trustScore: clampTrustScore(u.trustScore),
+          }));
+
+        // Luôn chỉ có 1 tài khoản Admin duy nhất id: 000000000 ở vị trí đầu tiên
+        cleaned.unshift(consolidatedAdmin);
         return cleaned;
       } catch {
         return INITIAL_USERS;
@@ -494,25 +530,41 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return (localStorage.getItem(STORAGE_KEYS.ROLE_MODE) as AppRoleMode) || 'FREELANCER';
   });
 
-  const [themeMode, setThemeModeState] = useState<'CYBER_DARK' | 'AMOLED' | 'DAYLIGHT'>(() => {
-    // Migration: reset default to clean, high-contrast DAYLIGHT white mode
-    const migrationFlag = 'gigme_theme_v3_clean_white';
-    if (typeof window !== 'undefined' && !localStorage.getItem(migrationFlag)) {
-      localStorage.setItem(migrationFlag, 'true');
-      localStorage.setItem('gigme_theme_mode', 'DAYLIGHT');
-      localStorage.setItem(STORAGE_KEYS.DARK_MODE, 'false');
-      return 'DAYLIGHT';
-    }
-    const saved = typeof window !== 'undefined' ? localStorage.getItem('gigme_theme_mode') : null;
-    if (saved === 'CYBER_DARK' || saved === 'AMOLED' || saved === 'DAYLIGHT') {
-      return saved;
-    }
-    return 'DAYLIGHT';
-  });
+  // Giao diện tối (Dark Mode / Cyber Dark) là giao diện mặc định vĩnh viễn
+  const [themeMode, setThemeModeState] = useState<'CYBER_DARK' | 'AMOLED' | 'DAYLIGHT'>('CYBER_DARK');
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
 
-  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
-    return themeMode !== 'DAYLIGHT';
+  // Đa ngôn ngữ (Tiếng Việt / English)
+  const [language, setLanguageState] = useState<Language>(() => {
+    return (localStorage.getItem(STORAGE_KEYS.LANGUAGE) as Language) || 'vi';
   });
+  const [isLanguageTransitioning, setIsLanguageTransitioning] = useState<boolean>(false);
+
+  const setLanguage = (lang: Language) => {
+    if (lang === language) return;
+    setIsLanguageTransitioning(true);
+    triggerHaptic('light');
+    setTimeout(() => {
+      setLanguageState(lang);
+      try {
+        localStorage.setItem(STORAGE_KEYS.LANGUAGE, lang);
+      } catch {}
+      setTimeout(() => {
+        setIsLanguageTransitioning(false);
+      }, 180);
+    }, 120);
+  };
+
+  const toggleLanguage = () => {
+    const next = language === 'vi' ? 'en' : 'vi';
+    setLanguage(next);
+    triggerHaptic('light');
+  };
+
+  const t = (key: keyof Translations): string => {
+    const dict = translations[language] || translations.vi;
+    return dict[key] || translations.vi[key] || String(key);
+  };
 
   const [gigs, setGigs] = useState<GigEntity[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.GIGS);
@@ -655,11 +707,20 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setCloudStatus({
       connected: false,
       status: 'CHECKING',
-      message: 'Đang kiểm tra lại máy chủ Firebase...',
+      message: 'Đang làm mới dữ liệu từ Firebase Firestore...',
     });
-    const res = await cloudService.testConnection();
+    const [res, cloudGigs] = await Promise.all([
+      cloudService.testConnection(),
+      cloudService.fetchGigs().catch(() => []),
+    ]);
     setCloudStatus(res);
     setIsCloudConnected(res.connected);
+    if (cloudGigs && cloudGigs.length > 0) {
+      setGigs(cloudGigs);
+      try {
+        localStorage.setItem(STORAGE_KEYS.GIGS, JSON.stringify(cloudGigs));
+      } catch {}
+    }
   };
 
   // Đồng bộ hóa đám mây thời gian thực với Firebase Firestore
@@ -674,7 +735,14 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const unsubGigs = cloudService.subscribeGigs(
       (cloudGigs) => {
         setIsCloudConnected(true);
-        setGigs(cloudGigs);
+        if (cloudGigs && cloudGigs.length > 0) {
+          setGigs((prev) => {
+            const map = new Map<string, GigEntity>();
+            prev.forEach((g) => map.set(g.id, g));
+            cloudGigs.forEach((g) => map.set(g.id, g));
+            return Array.from(map.values());
+          });
+        }
       },
       (status) => {
         setCloudStatus(status);
@@ -684,12 +752,26 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     // 3. Lắng nghe đề xuất đấu giá thời gian thực
     const unsubBids = cloudService.subscribeBids((cloudBids) => {
-      setBids(cloudBids);
+      if (cloudBids && cloudBids.length > 0) {
+        setBids((prev) => {
+          const map = new Map<string, BidEntity>();
+          prev.forEach((b) => map.set(b.id, b));
+          cloudBids.forEach((b) => map.set(b.id, b));
+          return Array.from(map.values());
+        });
+      }
     });
 
     // 4. Lắng nghe tin nhắn trò chuyện công việc thời gian thực
     const unsubChats = cloudService.subscribeChats((cloudChats) => {
-      setChats(cloudChats);
+      if (cloudChats && cloudChats.length > 0) {
+        setChats((prev) => {
+          const map = new Map<string, ChatMessageEntity>();
+          prev.forEach((c) => map.set(c.id, c));
+          cloudChats.forEach((c) => map.set(c.id, c));
+          return Array.from(map.values());
+        });
+      }
     });
 
     // 5. Lắng nghe người dùng thực tế thời gian thực
@@ -697,16 +779,45 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (cloudUsers && cloudUsers.length > 0) {
         setUsers((prev) => {
           const map = new Map<string, UserEntity>();
-          prev.forEach((u) => map.set(u.id, u));
-          cloudUsers.forEach((u) => map.set(u.id, u));
-          return Array.from(map.values());
+          prev.forEach((u) => {
+            if (u.id !== 'admin_root') map.set(u.id, u);
+          });
+          cloudUsers.forEach((u) => {
+            if (u.id === 'admin_root' || (u.role === 'ADMIN' && u.email === 'admin@admin.vn')) {
+              // Hợp nhất tài khoản admin vào duy nhất 000000000
+              const existingAdmin = map.get('000000000') || DEFAULT_ADMIN;
+              map.set('000000000', {
+                ...existingAdmin,
+                ...u,
+                id: '000000000',
+                role: 'ADMIN',
+                email: 'admin@admin.vn',
+              });
+            } else {
+              map.set(u.id, u);
+            }
+          });
+          // Đảm bảo admin 000000000 luôn hiện diện và admin_root bị loại trừ hoàn toàn
+          map.delete('admin_root');
+          if (!map.has('000000000')) {
+            map.set('000000000', DEFAULT_ADMIN);
+          }
+          const result = Array.from(map.values());
+          return result;
         });
       }
     });
 
     // 6. Lắng nghe giao dịch ví thực tế thời gian thực
     const unsubTransactions = cloudService.subscribeTransactions((cloudTxs) => {
-      setTransactions(cloudTxs);
+      if (cloudTxs && cloudTxs.length > 0) {
+        setTransactions((prev) => {
+          const map = new Map<string, WalletTransactionEntity>();
+          prev.forEach((t) => map.set(t.id, t));
+          cloudTxs.forEach((t) => map.set(t.id, t));
+          return Array.from(map.values());
+        });
+      }
     });
 
     // 7. Lắng nghe chế độ bảo trì toàn hệ thống thời gian thực (Realtime Maintenance Mode)
@@ -833,29 +944,66 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [roleMode]);
 
   useEffect(() => {
-    localStorage.setItem('gigme_theme_mode', themeMode);
-    localStorage.setItem(STORAGE_KEYS.DARK_MODE, JSON.stringify(themeMode !== 'DAYLIGHT'));
-    setIsDarkMode(themeMode !== 'DAYLIGHT');
+    localStorage.setItem('gigme_theme_mode', 'CYBER_DARK');
+    localStorage.setItem('theme', 'dark');
+    localStorage.setItem(STORAGE_KEYS.DARK_MODE, 'true');
+    setIsDarkMode(true);
 
-    document.documentElement.classList.remove('dark', 'theme-amoled', 'theme-cyber', 'theme-daylight');
-    if (themeMode === 'AMOLED') {
-      document.documentElement.classList.add('dark', 'theme-amoled');
-    } else if (themeMode === 'CYBER_DARK') {
-      document.documentElement.classList.add('dark', 'theme-cyber');
-    } else {
-      document.documentElement.classList.add('theme-daylight');
+    document.documentElement.classList.add('dark', 'theme-cyber');
+    document.documentElement.classList.remove('light', 'theme-daylight', 'theme-amoled');
+
+    // Update browser theme-color meta for matching address bar
+    const metaThemeColor = document.querySelector('meta[name="theme-color"]');
+    if (metaThemeColor) {
+      metaThemeColor.setAttribute('content', '#0C1728');
     }
-  }, [themeMode]);
+  }, []);
 
   // Derived states
   const currentUser = users.find((u) => u.id === currentUserId) || null;
   const isAuthenticated = !!currentUser && !currentUser.isLocked;
   const isAdminRole = currentUser?.role === 'ADMIN';
 
+  // Helper: Xác định tài khoản Admin tối cao để được bypass toàn bộ điều kiện kiểm thử
+  const isAdminUser = (user?: UserEntity | null): boolean => {
+    if (!user) return false;
+    return (
+      user.role === 'ADMIN' ||
+      user.id === '000000000' ||
+      user.email === 'admin@admin.vn' ||
+      user.phone === '0909120918'
+    );
+  };
+
+  // Cảnh báo & Khóa tính năng nếu vượt trần 200 triệu (Admin được bypass)
+  const isOverBalanceLimit = useMemo(() => {
+    if (!currentUser) return false;
+    if (isAdminUser(currentUser)) return false; // Admin bypass
+    return currentUser.walletBalance > 200_000_000;
+  }, [currentUser]);
+
+  // Online Time Heartbeat (Tích lũy thời gian online cho điều kiện rút tiền 3 giờ)
+  useEffect(() => {
+    if (!currentUser) return;
+    const interval = setInterval(() => {
+      setUsers((prev) =>
+        prev.map((u) => {
+          if (u.id === currentUser.id) {
+            const currentOnline = u.onlineSeconds ?? 3600; // Mặc định 1h nếu chưa có
+            const newOnline = currentOnline + 10;
+            return { ...u, onlineSeconds: newOnline };
+          }
+          return u;
+        })
+      );
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [currentUser?.id]);
+
   const currentSelectedGig = gigs.find((g) => g.id === selectedGigId) || null;
   const currentGigBids = bids.filter((b) => b.gigId === selectedGigId);
   const currentChatMessages = chats.filter((c) => c.gigId === selectedGigId);
-  const walletTransactions = transactions.filter((t) => !currentUserId || t.userId === currentUserId);
+  const walletTransactions = currentUserId ? transactions.filter((t) => t.userId === currentUserId) : [];
 
   // Filtered gigs based on radius, category, search, price, duration, and smart match
   const filteredGigs = useMemo(() => {
@@ -996,24 +1144,19 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const toggleDarkMode = () => {
-    setThemeModeState((prev) => (prev === 'DAYLIGHT' ? 'CYBER_DARK' : 'DAYLIGHT'));
+    setThemeModeState('CYBER_DARK');
+    setIsDarkMode(true);
+    showNotification('Giao diện tối mặc định', 'Hệ thống GigMe được thiết lập mặc định ở chế độ Giao Diện Tối (Dark Mode).');
   };
 
-  const setThemeMode = (mode: 'CYBER_DARK' | 'AMOLED' | 'DAYLIGHT') => {
-    setThemeModeState(mode);
-    if (currentUser) {
-      const updated = { ...currentUser, themePreference: mode };
-      setUsers((prev) => prev.map((u) => (u.id === currentUser.id ? updated : u)));
-      cloudService.saveUser(updated);
-    }
+  const setThemeMode = (_mode: 'CYBER_DARK' | 'AMOLED' | 'DAYLIGHT') => {
+    setThemeModeState('CYBER_DARK');
+    setIsDarkMode(true);
   };
 
   const toggleThemeMode = () => {
-    setThemeModeState((prev) => {
-      if (prev === 'CYBER_DARK') return 'AMOLED';
-      if (prev === 'AMOLED') return 'DAYLIGHT';
-      return 'CYBER_DARK';
-    });
+    setThemeModeState('CYBER_DARK');
+    setIsDarkMode(true);
   };
 
   const updateUserProfile = (updates: Partial<UserEntity>) => {
@@ -1128,7 +1271,9 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     password: string,
     confirmPassword: string,
     phoneInput = '',
-    cccdInput = ''
+    cccdInput = '',
+    lastNameInput = '',
+    firstNameInput = ''
   ): Promise<{ success: boolean; error?: string }> => {
     const trimmedName = (fullName || '').trim();
     const trimmedEmail = (contact || '').trim().toLowerCase();
@@ -1137,6 +1282,15 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const cleanBirthDate = (birthDate || '').trim() || '01/01/2000';
     const trimmedPhone = (phoneInput || '').trim();
     const trimmedCccd = (cccdInput || '').trim();
+
+    // Determine lastName and firstName
+    let finalLastName = (lastNameInput || '').trim();
+    let finalFirstName = (firstNameInput || '').trim();
+    if (!finalLastName && !finalFirstName && trimmedName) {
+      const parts = trimmedName.split(' ');
+      finalFirstName = parts.length > 1 ? parts.pop() || '' : parts[0] || '';
+      finalLastName = parts.join(' ');
+    }
 
     if (!trimmedName) {
       showNotification('Lỗi đăng ký', 'Vui lòng nhập họ và tên đầy đủ!');
@@ -1224,6 +1378,8 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const newUser: UserEntity = {
       id: newUserId,
       name: trimmedName,
+      lastName: finalLastName,
+      firstName: finalFirstName,
       email: trimmedEmail,
       phone: trimmedPhone,
       cccdNumber: trimmedCccd,
@@ -1238,12 +1394,13 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       isFaceLivenessPassed: false,
       isStudentVerified: false,
       studentSchool: '',
+      skills: [],
       isBiometricsEnabled: false,
       isBusinessAccount: false,
       businessName: '',
       businessTaxId: '',
       trustScore: trimmedCccd ? 80 : 50,
-      eloRating: 0,
+      eloRating: 200,
       eloTier: 'BRONZE',
       winStreak: 0,
       notificationSound: 'DING_DEFAULT',
@@ -1261,7 +1418,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       totalSpent: 0,
       walletBalance: 0,
       escrowLockedBalance: 0,
-      securityPin: '123456',
+      securityPin: '',
       badges: 'Thành viên mới',
       isLocked: false,
       createdAt: Date.now(),
@@ -1393,12 +1550,26 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return false;
     }
 
+    if (user.id === '000000000' || user.email === 'admin@admin.vn' || user.role === 'ADMIN') {
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('gigme_admin_active_session', 'true');
+        sessionStorage.setItem('gigme_admin_session_time', String(Date.now()));
+        localStorage.setItem(STORAGE_KEYS.CURRENT_USER_ID, '000000000');
+      }
+      setCurrentUserId('000000000');
+      showNotification('Chào mừng Quản trị viên!', 'Đã đăng nhập Trung Tâm Điều Hành Admin GigMe (ID: 000000000).', true);
+      return true;
+    }
+
     setCurrentUserId(user.id);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEYS.CURRENT_USER_ID, user.id);
+    }
     showNotification('Đăng nhập thành công!', `Chào mừng trở lại, ${user.name}!`, true);
     return true;
   };
 
-  // 3. SEND OTP (Hiệu lực 3 phút, chống Spam với Cooldown 60s)
+  // 3. SEND OTP (Hiệu lực 3 phút, chống Spam với Cooldown 60s, bảo mật không lộ mã trên giao diện)
   const sendOtp = (contact: string, purpose = 'RESET_PASSWORD'): boolean => {
     const trimmed = (contact || '').trim();
     if (!trimmed) {
@@ -1413,6 +1584,44 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return false;
     }
 
+    const trimmedContact = trimmed.toLowerCase();
+    let normalizedPhone = trimmedContact;
+    if (normalizedPhone.startsWith('+84')) {
+      normalizedPhone = '0' + normalizedPhone.slice(3).replace(/\D/g, '');
+    } else if (normalizedPhone.startsWith('84') && normalizedPhone.length >= 10 && !normalizedPhone.includes('@')) {
+      normalizedPhone = '0' + normalizedPhone.slice(2).replace(/\D/g, '');
+    } else if (!normalizedPhone.includes('@')) {
+      normalizedPhone = normalizedPhone.replace(/\D/g, '');
+    }
+
+    // Kiểm tra tài khoản có tồn tại hay không trước khi gửi OTP khôi phục mật khẩu
+    if (purpose === 'FORGOT_PASSWORD') {
+      const isAdminAccount =
+        trimmedContact === 'admin@admin.vn' ||
+        trimmedContact === '000000000' ||
+        normalizedPhone === '0909120918' ||
+        trimmedContact === 'admin';
+
+      const userExists = users.some((u) => {
+        const idMatch = u.id === trimmedContact;
+        const emailMatch = !!u.email && u.email.toLowerCase() === trimmedContact;
+        const phoneMatch = !!u.phone && (
+          u.phone === trimmedContact ||
+          u.phone === normalizedPhone ||
+          u.phone.replace(/\D/g, '') === normalizedPhone
+        );
+        return idMatch || emailMatch || phoneMatch;
+      });
+
+      if (!userExists && !isAdminAccount) {
+        showNotification(
+          'Tài khoản không tồn tại',
+          `Không tìm thấy tài khoản với "${trimmed}". Vui lòng kiểm tra lại Gmail hoặc Số điện thoại!`
+        );
+        return false;
+      }
+    }
+
     const code = generateSecureOtp(6);
     const expiry = Date.now() + 3 * 60 * 1000; // 3 phút
     setGeneratedOtp(code);
@@ -1421,12 +1630,17 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setOtpFailedAttempts(0);
     setLastOtpSentAt(Date.now());
 
-    // Đồng bộ phía máy chủ backend
+    // Đồng bộ phía máy chủ backend & gửi email OTP qua nodemailer
     cloudService.requestCloudOtp(trimmed);
 
+    // Che thông tin liên hệ bảo mật (Masking contact)
+    const maskedContact = trimmed.includes('@')
+      ? trimmed.replace(/^(.{2})(.*)(@.*)$/, (_m, a, b, c) => `${a}${'*'.repeat(Math.min(b.length, 5))}${c}`)
+      : trimmed.replace(/^(\d{3})\d+(\d{3})$/, '$1***$2');
+
     showNotification(
-      'Mã xác thực OTP GigMe',
-      `Mã OTP xác thực của bạn là: [${code}]. Mã có hiệu lực trong 3 phút (Tối đa 3 lần thử). Vui lòng không chia sẻ mã này!`,
+      'Đã gửi mã xác thực OTP',
+      `Mã OTP xác thực 6 số đã được gửi tới ${maskedContact}. Vui lòng kiểm tra hộp thư Gmail hoặc tin nhắn (Hiệu lực 3 phút).`,
       true
     );
     return true;
@@ -1479,26 +1693,87 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
 
     if (otpTargetContact) {
+      const target = otpTargetContact.trim().toLowerCase();
+      let normalizedTargetPhone = target;
+      if (normalizedTargetPhone.startsWith('+84')) {
+        normalizedTargetPhone = '0' + normalizedTargetPhone.slice(3).replace(/\D/g, '');
+      } else if (normalizedTargetPhone.startsWith('84') && normalizedTargetPhone.length >= 10 && !normalizedTargetPhone.includes('@')) {
+        normalizedTargetPhone = '0' + normalizedTargetPhone.slice(2).replace(/\D/g, '');
+      } else if (!normalizedTargetPhone.includes('@')) {
+        normalizedTargetPhone = normalizedTargetPhone.replace(/\D/g, '');
+      }
+
       const hashedNewPass = await hashPassword(newPassword.trim());
-      setUsers((prev) =>
-        prev.map((u) => {
-          if ((u.email && u.email.toLowerCase() === otpTargetContact) || (u.phone && u.phone === otpTargetContact)) {
-            const updated = { ...u, password: hashedNewPass };
+
+      // Cập nhật lên backend Express server
+      cloudService.resetCloudPassword(otpTargetContact, cleanOtp, newPassword.trim()).catch(() => {});
+
+      let matched = false;
+      const updatedUsers = users.map((u) => {
+        const idMatch = u.id === target;
+        const emailMatch = !!u.email && u.email.toLowerCase() === target;
+        const phoneMatch = !!u.phone && (
+          u.phone === target ||
+          u.phone === normalizedTargetPhone ||
+          u.phone.replace(/\D/g, '') === normalizedTargetPhone
+        );
+
+        if (idMatch || emailMatch || phoneMatch) {
+          matched = true;
+          const updated = { ...u, password: hashedNewPass };
+          cloudService.saveUser(updated);
+          return updated;
+        }
+        return u;
+      });
+
+      // Nếu người dùng chưa có trong mảng users cục bộ, tìm kiếm trên cloud Firestore
+      if (!matched) {
+        try {
+          const cloudUser = await findUserByContact(target) || (normalizedTargetPhone !== target ? await findUserByContact(normalizedTargetPhone) : null);
+          if (cloudUser) {
+            matched = true;
+            const updated = { ...cloudUser, password: hashedNewPass };
             cloudService.saveUser(updated);
-            return updated;
+            updatedUsers.push(updated);
           }
-          return u;
-        })
-      );
-      setGeneratedOtp(null);
-      setOtpExpiresAt(null);
-      setOtpFailedAttempts(0);
-      showNotification(
-        'Đặt lại mật khẩu thành công!',
-        'Mật khẩu mới đã được mã hóa an toàn và cập nhật. Bạn có thể đăng nhập ngay bây giờ.',
-        true
-      );
-      return true;
+        } catch (e) {
+          console.warn('Could not find user in cloud for reset password:', e);
+        }
+      }
+
+      if (!matched) {
+        // Tài khoản Admin tối cao đặc biệt
+        if (target === 'admin@admin.vn' || target === '000000000' || normalizedTargetPhone === '0909120918') {
+          matched = true;
+          const updatedAdmin = { ...DEFAULT_ADMIN, password: hashedNewPass };
+          cloudService.saveUser(updatedAdmin);
+          updatedUsers.push(updatedAdmin);
+        }
+      }
+
+      if (matched) {
+        setUsers(updatedUsers);
+        try {
+          localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(updatedUsers));
+        } catch {}
+
+        setGeneratedOtp(null);
+        setOtpExpiresAt(null);
+        setOtpFailedAttempts(0);
+        showNotification(
+          'Đặt lại mật khẩu thành công!',
+          'Mật khẩu mới đã được cập nhật an toàn. Bạn có thể đăng nhập ngay bây giờ.',
+          true
+        );
+        return true;
+      } else {
+        showNotification(
+          'Không tìm thấy tài khoản',
+          'Không tìm thấy tài khoản tương ứng để cập nhật mật khẩu. Vui lòng kiểm tra lại thông tin!'
+        );
+        return false;
+      }
     }
     return false;
   };
@@ -1577,7 +1852,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         businessName: '',
         businessTaxId: '',
         trustScore: 0,
-        eloRating: 0,
+        eloRating: 200,
         eloTier: 'BRONZE',
         winStreak: 0,
         notificationSound: 'DING_DEFAULT',
@@ -1662,7 +1937,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         businessName: '',
         businessTaxId: '',
         trustScore: 100,
-        eloRating: 1000,
+        eloRating: 200,
         eloTier: 'BRONZE',
         winStreak: 0,
         notificationSound: 'BANK_TING',
@@ -1796,7 +2071,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             businessName: '',
             businessTaxId: '',
             trustScore: 100,
-            eloRating: 1000,
+            eloRating: 200,
             eloTier: 'BRONZE',
             winStreak: 0,
             notificationSound: 'BANK_TING',
@@ -1862,6 +2137,11 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       sessionStorage.removeItem('gigme_admin_session_time');
     }
     setCurrentUserId(null);
+    setSelectedGigId(null);
+    setActiveVoipCall(null);
+    setNotification(null);
+    setGeneratedOtp(null);
+    setOtpTargetContact(null);
     showNotification('Đã đăng xuất', 'Bạn đã đăng xuất tài khoản an toàn.', true);
   };
 
@@ -1966,6 +2246,18 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     isBoosted?: boolean;
   }): boolean => {
     if (!currentUser) return false;
+
+    // Quy định: Số dư vượt trần 200 triệu sẽ bị cấm và ép rút tiền (Admin bypass)
+    if (!isAdminUser(currentUser) && currentUser.walletBalance > 200_000_000) {
+      showNotification(
+        '⚠️ TÀI KHOẢN VƯỢT HẠN MỨC 200 TRIỆU!',
+        'Số dư của bạn vượt trần 200.000.000đ. Hệ thống tạm khóa đăng việc và yêu cầu rút bớt tiền về ngân hàng để bảo đảm an toàn!',
+        true,
+        false
+      );
+      return false;
+    }
+
     const { price, title, isBoosted } = params;
     const boostFee = isBoosted ? 10000 : 0;
     const totalRequired = price + boostFee;
@@ -2124,11 +2416,32 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // REVERSE AUCTION BID
   const placeBid = (gigId: string, offeredPrice: number, minutes: number, note: string): boolean => {
     if (!currentUser) return false;
+
+    // Quy định: Số dư vượt trần 200 triệu sẽ bị cấm và ép rút tiền (Admin bypass)
+    if (!isAdminUser(currentUser) && currentUser.walletBalance > 200_000_000) {
+      showNotification(
+        '⚠️ TÀI KHOẢN VƯỢT HẠN MỨC 200 TRIỆU!',
+        'Số dư ví của bạn vượt trần 200.000.000đ. Hệ thống tạm khóa đấu giá và yêu cầu rút bớt tiền về ngân hàng!',
+        true,
+        false
+      );
+      return false;
+    }
+
     if (currentUser.tier === 'NEWBIE') {
       showNotification(
         'Yêu cầu Xác thực Cấp 2',
         'Tài khoản Newbie chưa được nhận việc hoặc đấu giá để chống lừa đảo. Vui lòng xác thực E-KYC hoặc Email trường học!'
       );
+      return false;
+    }
+
+    // Chống spam đặt giá thầu nhanh liên tục
+    const hasRecentBid = bids.some(
+      (b) => b.gigId === gigId && b.freelancerId === currentUser.id && Date.now() - b.createdAt < 3000
+    );
+    if (hasRecentBid) {
+      showNotification('Thao tác quá nhanh', 'Bạn vừa gửi đề xuất cho công việc này. Vui lòng đợi trong giây lát!');
       return false;
     }
 
@@ -2168,6 +2481,33 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // ACCEPT GIG DIRECTLY
   const acceptGigDirectly = (gig: GigEntity): boolean => {
     if (!currentUser) return false;
+
+    // Kiểm tra trực tiếp trạng thái việc làm mới nhất từ State
+    const latestGig = gigs.find((g) => g.id === gig.id);
+    if (!latestGig || latestGig.status !== 'OPEN' || latestGig.freelancerId) {
+      showNotification(
+        'Đã có người nhận việc',
+        'Công việc này đã được người khác nhận hoặc không còn khả dụng!'
+      );
+      return false;
+    }
+
+    if (latestGig.clientId === currentUser.id) {
+      showNotification('Không thể nhận việc', 'Bạn không thể tự nhận công việc do chính mình đăng!');
+      return false;
+    }
+
+    // Quy định: Số dư vượt trần 200 triệu sẽ bị cấm và ép rút tiền (Admin bypass)
+    if (!isAdminUser(currentUser) && currentUser.walletBalance > 200_000_000) {
+      showNotification(
+        '⚠️ TÀI KHOẢN VƯỢT HẠN MỨC 200 TRIỆU!',
+        'Số dư ví của bạn vượt trần 200.000.000đ. Hệ thống tạm khóa nhận việc và yêu cầu rút bớt tiền về ngân hàng!',
+        true,
+        false
+      );
+      return false;
+    }
+
     if (currentUser.tier === 'NEWBIE') {
       showNotification(
         'Tài khoản chưa xác thực',
@@ -3390,6 +3730,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   // CHECK DEPOSIT ELIGIBILITY (Max 10M/tx, 1h cooldown, max 30M/day)
+  // CHECK DEPOSIT ELIGIBILITY (Max 10M/tx, 15p cooldown, max 30M/day, Max 200M balance cap, Admin bypass)
   const checkDepositEligibility = (amount?: number): {
     allowed: boolean;
     reason?: string;
@@ -3400,7 +3741,8 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   } => {
     const maxPerTx = 10_000_000;
     const maxPerDay = 30_000_000;
-    const cooldownMs = 60 * 60 * 1000; // 1 giờ
+    const cooldownMs = 15 * 60 * 1000; // Giảm xuống 15 phút
+    const maxAccountCap = 200_000_000; // Tối đa 200 triệu / tài khoản
 
     if (!currentUser) {
       return {
@@ -3409,6 +3751,41 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         cooldownMinutesLeft: 0,
         todayDeposited: 0,
         remainingDailyQuota: maxPerDay,
+        maxPerTx,
+      };
+    }
+
+    // ADMIN BYPASS TOÀN BỘ ĐIỀU KIỆN ĐỂ TEST
+    if (isAdminUser(currentUser)) {
+      return {
+        allowed: true,
+        cooldownMinutesLeft: 0,
+        todayDeposited: 0,
+        remainingDailyQuota: 999_999_999,
+        maxPerTx: 999_999_999,
+      };
+    }
+
+    // Kiểm tra trần số dư tối đa 200 triệu
+    if (currentUser.walletBalance >= maxAccountCap) {
+      return {
+        allowed: false,
+        reason: 'Hạn mức tài khoản: Số dư ví đã đạt mức trần tối đa 200.000.000đ. Không thể nạp thêm!',
+        cooldownMinutesLeft: 0,
+        todayDeposited: 0,
+        remainingDailyQuota: 0,
+        maxPerTx,
+      };
+    }
+
+    if (amount !== undefined && currentUser.walletBalance + amount > maxAccountCap) {
+      const maxCanDeposit = Math.max(0, maxAccountCap - currentUser.walletBalance);
+      return {
+        allowed: false,
+        reason: `Hạn mức tài khoản: Số dư tối đa là 200.000.000đ. Bạn hiện có ${currentUser.walletBalance.toLocaleString('vi-VN')}đ, chỉ có thể nạp thêm tối đa ${maxCanDeposit.toLocaleString('vi-VN')}đ!`,
+        cooldownMinutesLeft: 0,
+        todayDeposited: 0,
+        remainingDailyQuota: maxCanDeposit,
         maxPerTx,
       };
     }
@@ -3431,7 +3808,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const todayDeposited = todayDeposits.reduce((sum, t) => sum + t.amount, 0);
     const remainingDailyQuota = Math.max(0, maxPerDay - todayDeposited);
 
-    // Tìm lần nạp gần nhất để kiểm tra thời gian giãn cách 1 giờ
+    // Tìm lần nạp gần nhất để kiểm tra thời gian giãn cách 15 phút
     const sortedDeposits = [...userDeposits].sort((a, b) => b.timestamp - a.timestamp);
     const lastDeposit = sortedDeposits[0];
     let cooldownMinutesLeft = 0;
@@ -3446,7 +3823,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (cooldownMinutesLeft > 0) {
       return {
         allowed: false,
-        reason: `Quy định bảo mật: Bạn vừa nạp tiền lúc ${new Date(lastDeposit.timestamp).toLocaleTimeString('vi-VN')}. Vui lòng đợi thêm ${cooldownMinutesLeft} phút nữa để thực hiện lần nạp tiếp theo (giãn cách tối thiểu 1 giờ/lần).`,
+        reason: `Quy định bảo mật: Bạn vừa nạp tiền lúc ${new Date(lastDeposit.timestamp).toLocaleTimeString('vi-VN')}. Vui lòng đợi thêm ${cooldownMinutesLeft} phút nữa để thực hiện lần nạp tiếp theo (giãn cách tối thiểu 15 phút/lần).`,
         cooldownMinutesLeft,
         todayDeposited,
         remainingDailyQuota,
@@ -3496,6 +3873,213 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
   };
 
+  // CHECK WITHDRAWAL ELIGIBILITY
+  // Điều kiện rút tiền:
+  // 1. Tối đa 3 triệu / lần
+  // 2. Cách 15 phút mới được rút 1 lần
+  // 3. Phải làm ít nhất 1 công việc (completedGigs >= 1)
+  // 4. Tài khoản đã tồn tại ít nhất 5 ngày
+  // 5. Online tích lũy được ít nhất 3 giờ
+  // 6. Số dư ví phải trên 50.000đ
+  // 7. Chống rửa tiền (AML): Mới nạp vào không được rút liền - cách 1 tiếng (60 phút)
+  // 8. TẤT CẢ ADMIN ĐỀU ĐƯỢC BYPASS ĐỂ TEST
+  const checkWithdrawalEligibility = (amount?: number): {
+    allowed: boolean;
+    reason?: string;
+    cooldownMinutesLeft: number;
+    hoursOnline: number;
+    daysActive: number;
+    completedGigsCount: number;
+    amlDepositWaitMinutesLeft: number;
+    isOverBalanceLimit: boolean;
+    isAdminBypass: boolean;
+  } => {
+    if (!currentUser) {
+      return {
+        allowed: false,
+        reason: 'Vui lòng đăng nhập để rút tiền.',
+        cooldownMinutesLeft: 0,
+        hoursOnline: 0,
+        daysActive: 0,
+        completedGigsCount: 0,
+        amlDepositWaitMinutesLeft: 0,
+        isOverBalanceLimit: false,
+        isAdminBypass: false,
+      };
+    }
+
+    const isOverBalanceLimit = currentUser.walletBalance > 200_000_000;
+    const isAdmin = isAdminUser(currentUser);
+
+    // ADMIN BYPASS TOÀN BỘ ĐIỀU KIỆN ĐỂ TEST
+    if (isAdmin) {
+      return {
+        allowed: true,
+        cooldownMinutesLeft: 0,
+        hoursOnline: (currentUser.onlineSeconds || 0) / 3600,
+        daysActive: 99,
+        completedGigsCount: currentUser.completedGigs || 10,
+        amlDepositWaitMinutesLeft: 0,
+        isOverBalanceLimit,
+        isAdminBypass: true,
+      };
+    }
+
+    // 1. Tài khoản phải có số dư trên 50.000đ
+    if (currentUser.walletBalance <= 50_000) {
+      return {
+        allowed: false,
+        reason: `Tài khoản phải có số dư trên 50.000đ mới đủ điều kiện rút tiền (Hiện có: ${currentUser.walletBalance.toLocaleString('vi-VN')}đ).`,
+        cooldownMinutesLeft: 0,
+        hoursOnline: (currentUser.onlineSeconds || 0) / 3600,
+        daysActive: 0,
+        completedGigsCount: currentUser.completedGigs || 0,
+        amlDepositWaitMinutesLeft: 0,
+        isOverBalanceLimit,
+        isAdminBypass: false,
+      };
+    }
+
+    // 2. Mỗi lần rút tối đa 3 triệu (3.000.000đ)
+    if (amount !== undefined && amount > 3_000_000) {
+      return {
+        allowed: false,
+        reason: 'Quy định rút tiền: Mỗi lần rút tối đa 3.000.000đ (3 triệu). Vui lòng chia nhỏ số tiền để rút!',
+        cooldownMinutesLeft: 0,
+        hoursOnline: (currentUser.onlineSeconds || 0) / 3600,
+        daysActive: 0,
+        completedGigsCount: currentUser.completedGigs || 0,
+        amlDepositWaitMinutesLeft: 0,
+        isOverBalanceLimit,
+        isAdminBypass: false,
+      };
+    }
+
+    // 3. Phải làm ít nhất 1 công việc (completedGigs >= 1)
+    const completedGigsCount = currentUser.completedGigs || 0;
+    if (completedGigsCount < 1) {
+      return {
+        allowed: false,
+        reason: 'Điều kiện rút tiền: Tài khoản cần hoàn thành tối thiểu 1 công việc trên GigMe mới được mở khóa tính năng rút tiền!',
+        cooldownMinutesLeft: 0,
+        hoursOnline: (currentUser.onlineSeconds || 0) / 3600,
+        daysActive: 0,
+        completedGigsCount,
+        amlDepositWaitMinutesLeft: 0,
+        isOverBalanceLimit,
+        isAdminBypass: false,
+      };
+    }
+
+    // 4. Tài khoản đã tồn tại ít nhất 5 ngày
+    const userCreatedAt = currentUser.createdAt || (Date.now() - 7 * 24 * 3600 * 1000);
+    const ageMs = Date.now() - userCreatedAt;
+    const requiredAgeMs = 5 * 24 * 60 * 60 * 1000;
+    const daysActive = Math.floor(ageMs / (24 * 3600 * 1000));
+    if (ageMs < requiredAgeMs) {
+      const daysLeft = Math.ceil((requiredAgeMs - ageMs) / (24 * 3600 * 1000));
+      return {
+        allowed: false,
+        reason: `Chính sách an toàn: Tài khoản phải hoạt động tối thiểu 5 ngày kể từ ngày tạo mới được rút tiền (còn lại ${daysLeft} ngày).`,
+        cooldownMinutesLeft: 0,
+        hoursOnline: (currentUser.onlineSeconds || 0) / 3600,
+        daysActive,
+        completedGigsCount,
+        amlDepositWaitMinutesLeft: 0,
+        isOverBalanceLimit,
+        isAdminBypass: false,
+      };
+    }
+
+    // 5. Online được ít nhất 3 giờ (10.800 giây)
+    const onlineSecs = currentUser.onlineSeconds ?? 3.5 * 3600;
+    const hoursOnline = onlineSecs / 3600;
+    if (onlineSecs < 3 * 3600) {
+      const hoursLeft = ((3 * 3600 - onlineSecs) / 3600).toFixed(1);
+      return {
+        allowed: false,
+        reason: `Chính sách an toàn: Tài khoản cần thời gian online tích lũy tối thiểu 3 giờ (hiện tại: ${hoursOnline.toFixed(1)}h/3.0h, còn thiếu ${hoursLeft} giờ).`,
+        cooldownMinutesLeft: 0,
+        hoursOnline,
+        daysActive,
+        completedGigsCount,
+        amlDepositWaitMinutesLeft: 0,
+        isOverBalanceLimit,
+        isAdminBypass: false,
+      };
+    }
+
+    // 6. 15 phút mới được rút 1 lần
+    const userWithdrawals = transactions.filter(
+      (t) => t.userId === currentUser.id && t.type === 'BANK_WITHDRAWAL'
+    );
+    const sortedWithdrawals = [...userWithdrawals].sort((a, b) => b.timestamp - a.timestamp);
+    const lastWithdrawal = sortedWithdrawals[0];
+    let cooldownMinutesLeft = 0;
+    const withdrawCooldownMs = 15 * 60 * 1000; // 15 phút
+    if (lastWithdrawal) {
+      const elapsed = Date.now() - lastWithdrawal.timestamp;
+      if (elapsed < withdrawCooldownMs) {
+        cooldownMinutesLeft = Math.ceil((withdrawCooldownMs - elapsed) / 60000);
+      }
+    }
+    if (cooldownMinutesLeft > 0) {
+      return {
+        allowed: false,
+        reason: `Quy định an toàn: Bạn vừa tạo lệnh rút tiền lúc ${new Date(lastWithdrawal.timestamp).toLocaleTimeString('vi-VN')}. Vui lòng đợi 15 phút giữa các lần rút (còn lại ${cooldownMinutesLeft} phút)!`,
+        cooldownMinutesLeft,
+        hoursOnline,
+        daysActive,
+        completedGigsCount,
+        amlDepositWaitMinutesLeft: 0,
+        isOverBalanceLimit,
+        isAdminBypass: false,
+      };
+    }
+
+    // 7. Chống rửa tiền (AML): Mới nạp vào không được rút ra liền - cách tối thiểu 1 tiếng (60 phút)
+    const userDeposits = transactions.filter(
+      (t) =>
+        t.userId === currentUser.id &&
+        (t.type === 'VIETQR_DEPOSIT' || t.type === 'EWALLET_DEPOSIT') &&
+        t.isSuccess
+    );
+    const sortedDeposits = [...userDeposits].sort((a, b) => b.timestamp - a.timestamp);
+    const lastDeposit = sortedDeposits[0];
+    let amlDepositWaitMinutesLeft = 0;
+    const amlWaitMs = 60 * 60 * 1000; // 1 tiếng
+    if (lastDeposit) {
+      const elapsed = Date.now() - lastDeposit.timestamp;
+      if (elapsed < amlWaitMs) {
+        amlDepositWaitMinutesLeft = Math.ceil((amlWaitMs - elapsed) / 60000);
+      }
+    }
+    if (amlDepositWaitMinutesLeft > 0) {
+      return {
+        allowed: false,
+        reason: `Quy tắc chống rửa tiền (AML): Bạn vừa nạp tiền lúc ${new Date(lastDeposit.timestamp).toLocaleTimeString('vi-VN')}. Tiền mới nạp phải cách tối thiểu 1 tiếng (60 phút) mới được rút ra (còn lại ${amlDepositWaitMinutesLeft} phút)!`,
+        cooldownMinutesLeft: 0,
+        hoursOnline,
+        daysActive,
+        completedGigsCount,
+        amlDepositWaitMinutesLeft,
+        isOverBalanceLimit,
+        isAdminBypass: false,
+      };
+    }
+
+    return {
+      allowed: true,
+      cooldownMinutesLeft: 0,
+      hoursOnline,
+      daysActive,
+      completedGigsCount,
+      amlDepositWaitMinutesLeft: 0,
+      isOverBalanceLimit,
+      isAdminBypass: false,
+    };
+  };
+
   // DEPOSIT VIETQR DYNAMIC WITH ATOMIC CLOUD SYNC & DEPOSIT LIMIT CHECKS
   const depositVietQr = (amount: number, bankName: string): boolean => {
     if (!currentUser) return false;
@@ -3507,10 +4091,22 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
 
     const txId = generateSecureTxId('tx_dep');
-    const updatedUser: UserEntity = {
-      ...currentUser,
-      walletBalance: currentUser.walletBalance + amount,
-    };
+    let finalUser: UserEntity | null = null;
+    setUsers((prev) =>
+      prev.map((u) => {
+        if (u.id === currentUser.id) {
+          finalUser = {
+            ...u,
+            walletBalance: u.walletBalance + amount,
+            hasDeposited: true,
+            depositCount: (u.depositCount || 0) + 1,
+          };
+          return finalUser;
+        }
+        return u;
+      })
+    );
+
     const tx: WalletTransactionEntity = {
       id: txId,
       userId: currentUser.id,
@@ -3523,7 +4119,6 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       isSuccess: true,
     };
 
-    setUsers((prev) => prev.map((u) => (u.id === currentUser.id ? updatedUser : u)));
     setTransactions((prev) => [tx, ...prev]);
 
     // Atomic Cloud Sync
@@ -3534,7 +4129,9 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       transactionId: txId,
       note: 'Nạp tiền VietQR Động 24/7',
     });
-    cloudService.saveUser(updatedUser);
+    if (finalUser) {
+      cloudService.saveUser(finalUser);
+    }
     cloudService.saveTransaction(tx);
 
     showNotification(
@@ -3556,6 +4153,14 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     useBiometrics = false
   ): boolean => {
     if (!currentUser) return false;
+
+    // Kiểm tra toàn bộ điều kiện rút tiền: Max 3m, Cooldown 15p, >=1 việc, >=5 ngày, >=3h online, >50k, AML 1h (Admin bypass)
+    const eligibility = checkWithdrawalEligibility(amount);
+    if (!eligibility.allowed) {
+      showNotification('Không đủ điều kiện rút tiền ⚠️', eligibility.reason || 'Yêu cầu không hợp lệ');
+      return false;
+    }
+
     if (!useBiometrics && pin !== currentUser.securityPin) {
       showNotification('Mã PIN không đúng', 'Mã PIN bảo mật 6 số không khớp. Vui lòng kiểm tra lại!');
       return false;
@@ -3604,17 +4209,21 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       userId: currentUser.id,
       type: 'BANK_WITHDRAWAL',
       amount: -amount,
-      title: 'Rút tiền Napas 247 Siêu Tốc',
-      subtitle: `${bankName} - ${accountNumber} (${normalizedInput || accountHolderName}) • Ref: ${napasRef}`,
-      bankInfo: `${bankName} • Napas 247: ${napasRef}`,
+      title: 'Yêu cầu rút tiền về ngân hàng',
+      subtitle: `${bankName} - ${accountNumber} (${normalizedInput || accountHolderName}) • Đang chờ Admin duyệt & chuyển khoản`,
+      bankInfo: `${bankName} • STK: ${accountNumber}`,
+      bankName,
+      accountNumber,
+      accountHolderName: normalizedInput || accountHolderName,
       timestamp: Date.now(),
-      isSuccess: true,
+      status: 'PENDING',
+      isSuccess: false,
     };
 
     setUsers((prev) => prev.map((u) => (u.id === currentUser.id ? updatedUser : u)));
     setTransactions((prev) => [tx, ...prev]);
 
-    // Atomic Cloud Sync & Napas 24/7 Instant Auto-Disbursement
+    // Atomic Cloud Sync
     cloudService.withdrawWallet({
       userId: currentUser.id,
       amount,
@@ -3628,22 +4237,124 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     cloudService.saveUser(updatedUser);
     cloudService.saveTransaction(tx);
 
-    // Kích hoạt cổng giải ngân tức thì Napas 247 & VietQR T0
-    executeInstantDisbursement({
-      userId: currentUser.id,
-      amount,
-      bankName,
-      accountNumber,
-      accountHolderName: normalizedInput || accountHolderName,
-      pin,
-      useBiometrics,
-    }).catch((err) => console.warn('Napas 247 Instant disbursement error:', err));
+    // Phát thông báo tức thì lên Firestore notifications để Admin nhận được ngay
+    sendNotificationToCloud({
+      id: `notif_wd_${txId}`,
+      title: '💸 Yêu Cầu Rút Tiền Mới!',
+      message: `${currentUser.name} (SĐT: ${currentUser.phone || currentUser.email}) yêu cầu rút ${amount.toLocaleString('vi-VN')}đ về ${bankName} - STK: ${accountNumber} (${normalizedInput || accountHolderName})`,
+      type: 'INFO',
+      userId: 'ALL',
+      createdAt: Date.now(),
+    }).catch(() => {});
 
     showNotification(
-      '⚡ Giải Ngân Tự Động 24/7 Thành Công!',
-      `Đã chuyển ${amount.toLocaleString()}đ tới ${bankName} (${accountNumber} - ${normalizedInput}). Chuyển mạch Napas 247 hoàn tất tức thì.`,
+      '⏳ Yêu Cầu Rút Tiền Đã Tiếp Nhận!',
+      `Đã tạo lệnh rút ${amount.toLocaleString('vi-VN')}đ về ${bankName} (${accountNumber}). Tiền sẽ được Quản trị viên chuyển khoản Napas 247 tới bạn (5 - 15 phút).`,
+      true,
+      false
+    );
+    return true;
+  };
+
+  // ADMIN APPROVE WITHDRAWAL (CÁCH 1: XÁC NHẬN ĐÃ CHUYỂN TIỀN THẬT)
+  const adminApproveWithdrawal = async (txId: string): Promise<boolean> => {
+    const targetTx = transactions.find((t) => t.id === txId);
+    if (!targetTx) {
+      showNotification('Không tìm thấy giao dịch', 'Giao dịch không tồn tại hoặc đã xử lý.');
+      return false;
+    }
+
+    const updatedTx: WalletTransactionEntity = {
+      ...targetTx,
+      status: 'COMPLETED',
+      isSuccess: true,
+      approvedAt: Date.now(),
+      title: 'Rút tiền Napas 247 thành công',
+      subtitle: `${targetTx.bankName || 'Ngân hàng'} - ${targetTx.accountNumber} • Đã chuyển khoản hoàn tất`,
+    };
+
+    setTransactions((prev) => prev.map((t) => (t.id === txId ? updatedTx : t)));
+    cloudService.saveTransaction(updatedTx);
+
+    // Gửi thông báo thời gian thực về máy sinh viên
+    sendNotificationToCloud({
+      id: `notif_wd_ok_${Date.now()}`,
+      title: '💸 Tiền Đã Về Tài Khoản!',
+      message: `Quản trị viên đã chuyển ${Math.abs(targetTx.amount).toLocaleString('vi-VN')}đ tới tài khoản ${targetTx.bankName} (${targetTx.accountNumber}) của bạn qua Napas 247.`,
+      type: 'STATUS_UPDATE',
+      userId: targetTx.userId,
+      createdAt: Date.now(),
+    }).catch(() => {});
+
+    showNotification(
+      '✅ Đã Xác Nhận Chuyển Tiền!',
+      `Đã duyệt và đánh dấu hoàn tất lệnh rút ${Math.abs(targetTx.amount).toLocaleString('vi-VN')}đ cho sinh viên.`,
       true,
       true
+    );
+    return true;
+  };
+
+  // ADMIN REJECT WITHDRAWAL (TỪ CHỐI & HOÀN TIỀN LẠI VÀO VÍ)
+  const adminRejectWithdrawal = async (txId: string, reason: string): Promise<boolean> => {
+    const targetTx = transactions.find((t) => t.id === txId);
+    if (!targetTx) {
+      showNotification('Không tìm thấy giao dịch', 'Giao dịch không tồn tại hoặc đã xử lý.');
+      return false;
+    }
+
+    const refundAmount = Math.abs(targetTx.amount);
+    const targetUser = users.find((u) => u.id === targetTx.userId);
+
+    const updatedTx: WalletTransactionEntity = {
+      ...targetTx,
+      status: 'REJECTED',
+      isSuccess: false,
+      rejectionReason: reason,
+      title: 'Yêu cầu rút tiền bị từ chối',
+      subtitle: `Lý do: ${reason} • Đã hoàn tiền vào ví`,
+    };
+
+    const refundTx: WalletTransactionEntity = {
+      id: `tx_${Date.now()}_refund`,
+      userId: targetTx.userId,
+      type: 'ADMIN_REFUND',
+      amount: refundAmount,
+      title: 'Hoàn tiền rút không thành công',
+      subtitle: `Hoàn lại ${refundAmount.toLocaleString('vi-VN')}đ vào ví do lệnh rút bị từ chối (${reason})`,
+      timestamp: Date.now(),
+      isSuccess: true,
+      status: 'COMPLETED',
+    };
+
+    setTransactions((prev) => [refundTx, ...prev.map((t) => (t.id === txId ? updatedTx : t))]);
+    cloudService.saveTransaction(updatedTx);
+    cloudService.saveTransaction(refundTx);
+
+    if (targetUser) {
+      const updatedUser: UserEntity = {
+        ...targetUser,
+        walletBalance: targetUser.walletBalance + refundAmount,
+      };
+      setUsers((prev) => prev.map((u) => (u.id === targetUser.id ? updatedUser : u)));
+      cloudService.saveUser(updatedUser);
+    }
+
+    // Gửi thông báo thời gian thực về máy sinh viên
+    sendNotificationToCloud({
+      id: `notif_wd_reject_${Date.now()}`,
+      title: '⚠️ Lệnh Rút Tiền Bị Từ Chối',
+      message: `Yêu cầu rút tiền không thành công: "${reason}". Số tiền ${refundAmount.toLocaleString('vi-VN')}đ đã được hoàn lại vào ví GigMe của bạn.`,
+      type: 'STATUS_UPDATE',
+      userId: targetTx.userId,
+      createdAt: Date.now(),
+    }).catch(() => {});
+
+    showNotification(
+      'Đã từ chối & hoàn tiền',
+      `Đã hoàn lại ${refundAmount.toLocaleString('vi-VN')}đ vào ví người dùng và gửi thông báo.`,
+      true,
+      false
     );
     return true;
   };
@@ -3828,10 +4539,22 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
 
     const txId = generateSecureTxId('tx_ewd');
-    const updatedUser: UserEntity = {
-      ...currentUser,
-      walletBalance: currentUser.walletBalance + amount,
-    };
+    let finalUser: UserEntity | null = null;
+    setUsers((prev) =>
+      prev.map((u) => {
+        if (u.id === currentUser.id) {
+          finalUser = {
+            ...u,
+            walletBalance: u.walletBalance + amount,
+            hasDeposited: true,
+            depositCount: (u.depositCount || 0) + 1,
+          };
+          return finalUser;
+        }
+        return u;
+      })
+    );
+
     const tx: WalletTransactionEntity = {
       id: txId,
       userId: currentUser.id,
@@ -3844,10 +4567,11 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       isSuccess: true,
     };
 
-    setUsers((prev) => prev.map((u) => (u.id === currentUser.id ? updatedUser : u)));
     setTransactions((prev) => [tx, ...prev]);
 
-    cloudService.saveUser(updatedUser);
+    if (finalUser) {
+      cloudService.saveUser(finalUser);
+    }
     cloudService.saveTransaction(tx);
 
     showNotification(
@@ -3868,10 +4592,20 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
 
     const txId = generateSecureTxId('tx_topup');
-    const updatedUser: UserEntity = {
-      ...currentUser,
-      walletBalance: currentUser.walletBalance + amount,
-    };
+    let finalUser: UserEntity | null = null;
+    setUsers((prev) =>
+      prev.map((u) => {
+        if (u.id === currentUser.id) {
+          finalUser = {
+            ...u,
+            walletBalance: u.walletBalance + amount,
+          };
+          return finalUser;
+        }
+        return u;
+      })
+    );
+
     const tx: WalletTransactionEntity = {
       id: txId,
       userId: currentUser.id,
@@ -3884,10 +4618,11 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       isSuccess: true,
     };
 
-    setUsers((prev) => prev.map((u) => (u.id === currentUser.id ? updatedUser : u)));
     setTransactions((prev) => [tx, ...prev]);
 
-    cloudService.saveUser(updatedUser);
+    if (finalUser) {
+      cloudService.saveUser(finalUser);
+    }
     cloudService.saveTransaction(tx);
 
     triggerHaptic('escrow');
@@ -3982,6 +4717,148 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setUsers((prev) => prev.map((u) => (u.id === currentUser.id ? { ...u, securityPin: newPin } : u)));
     showNotification('Đổi mã PIN thành công', 'Mã PIN bảo mật 6 số mới đã được kích hoạt!', true);
     return true;
+  };
+
+  const validateUserPassword = async (password: string): Promise<boolean> => {
+    if (!currentUser || !currentUser.password) return false;
+    const trimmed = password.trim();
+    if (currentUser.password === trimmed) return true;
+    return await verifyPassword(trimmed, currentUser.password);
+  };
+
+  const setupOrChangePin = async (
+    password: string,
+    newPin: string,
+    oldPin?: string
+  ): Promise<{ success: boolean; error?: string }> => {
+    if (!currentUser) return { success: false, error: 'Chưa đăng nhập!' };
+    const passOk = await validateUserPassword(password);
+    if (!passOk) {
+      return { success: false, error: 'Mật khẩu tài khoản không chính xác!' };
+    }
+    const hasExistingPin = Boolean(currentUser.securityPin && currentUser.securityPin.trim().length === 6);
+    if (hasExistingPin) {
+      if (!oldPin || oldPin.trim() !== currentUser.securityPin.trim()) {
+        return { success: false, error: 'Mã PIN cũ không chính xác!' };
+      }
+    }
+    const trimmedNewPin = newPin.trim();
+    if (!/^\d{6}$/.test(trimmedNewPin)) {
+      return { success: false, error: 'Mã PIN mới phải gồm đúng 6 chữ số!' };
+    }
+    updateUserProfile({ securityPin: trimmedNewPin });
+    showNotification(
+      hasExistingPin ? 'Đổi mã PIN thành công! 🔐' : 'Tạo mã PIN thành công! 🔐',
+      'Mã PIN 6 số đã được kích hoạt bảo vệ tài khoản và giao dịch rút tiền.',
+      true
+    );
+    return { success: true };
+  };
+
+  const setBiometricsWithPassword = async (
+    password: string,
+    enable: boolean
+  ): Promise<{ success: boolean; error?: string }> => {
+    if (!currentUser) return { success: false, error: 'Chưa đăng nhập!' };
+    const passOk = await validateUserPassword(password);
+    if (!passOk) {
+      return { success: false, error: 'Mật khẩu xác nhận không chính xác!' };
+    }
+    updateUserProfile({ isBiometricsEnabled: enable });
+    showNotification(
+      enable ? 'Đã bật Vân tay / FaceID! 👆' : 'Đã tắt sinh trắc học! 🔓',
+      enable
+        ? 'Xác thực sinh trắc học đã được liên kết với tài khoản trên thiết bị này.'
+        : 'Bạn có thể kích hoạt lại bất kỳ lúc nào.',
+      true
+    );
+    return { success: true };
+  };
+
+  const resetPasswordWithPinAndEmail = async (
+    email: string,
+    pin: string,
+    newPassword: string
+  ): Promise<{ success: boolean; error?: string }> => {
+    const trimmedEmail = email.trim().toLowerCase();
+    const trimmedPin = pin.trim();
+    const trimmedPass = newPassword.trim();
+    if (!trimmedEmail || !trimmedPin || !trimmedPass) {
+      return { success: false, error: 'Vui lòng điền đầy đủ Gmail, Mã PIN và Mật khẩu mới!' };
+    }
+    if (trimmedPass.length < 6) {
+      return { success: false, error: 'Mật khẩu mới phải có tối thiểu 6 ký tự!' };
+    }
+    let user = users.find((u) => u.email && u.email.trim().toLowerCase() === trimmedEmail);
+    if (!user) {
+      try {
+        const found = await findUserByContact(trimmedEmail);
+        if (found) user = found;
+      } catch {}
+    }
+    if (!user) {
+      return { success: false, error: 'Không tìm thấy tài khoản với địa chỉ Gmail này!' };
+    }
+    if (!user.securityPin || user.securityPin.trim().length !== 6) {
+      return {
+        success: false,
+        error: 'Tài khoản này chưa cài đặt mã PIN! Vui lòng chọn hình thức khôi phục bằng OTP.',
+      };
+    }
+    if (user.securityPin.trim() !== trimmedPin) {
+      return { success: false, error: 'Mã PIN bảo mật không chính xác!' };
+    }
+    const hashedNewPass = await hashPassword(trimmedPass);
+    const updatedUser = { ...user, password: hashedNewPass };
+    setUsers((prev) => prev.map((u) => (u.id === user!.id ? updatedUser : u)));
+    try {
+      await cloudService.saveUser(updatedUser);
+    } catch {}
+    showNotification('Đặt lại mật khẩu thành công! ✨', 'Mật khẩu mới đã được cập nhật. Bạn có thể đăng nhập ngay.', true);
+    return { success: true };
+  };
+
+  const resetPasswordWithBiometrics = async (
+    contact: string,
+    newPassword: string
+  ): Promise<{ success: boolean; error?: string }> => {
+    const trimmedContact = contact.trim().toLowerCase();
+    const trimmedPass = newPassword.trim();
+    if (!trimmedContact || !trimmedPass) {
+      return { success: false, error: 'Vui lòng nhập tài khoản và mật khẩu mới!' };
+    }
+    if (trimmedPass.length < 6) {
+      return { success: false, error: 'Mật khẩu mới phải có tối thiểu 6 ký tự!' };
+    }
+    let user = users.find(
+      (u) =>
+        (u.email && u.email.trim().toLowerCase() === trimmedContact) ||
+        (u.phone && u.phone.trim() === trimmedContact) ||
+        u.id === trimmedContact
+    );
+    if (!user) {
+      try {
+        const found = await findUserByContact(trimmedContact);
+        if (found) user = found;
+      } catch {}
+    }
+    if (!user) {
+      return { success: false, error: 'Không tìm thấy tài khoản trong hệ thống!' };
+    }
+    if (!user.isBiometricsEnabled) {
+      return {
+        success: false,
+        error: 'Tài khoản này chưa kích hoạt tính năng Vân tay / FaceID! Vui lòng chọn nhận mã OTP hoặc Mã PIN kèm Gmail.',
+      };
+    }
+    const hashedNewPass = await hashPassword(trimmedPass);
+    const updatedUser = { ...user, password: hashedNewPass };
+    setUsers((prev) => prev.map((u) => (u.id === user!.id ? updatedUser : u)));
+    try {
+      await cloudService.saveUser(updatedUser);
+    } catch {}
+    showNotification('Xác thực vân tay thành công! ✨', 'Mật khẩu tài khoản đã được đặt lại thành công!', true);
+    return { success: true };
   };
 
   // ADMIN ACTIONS
@@ -4088,13 +4965,14 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const adminDeleteUser = async (userId: string): Promise<boolean> => {
-    if (userId === '000000000') {
+    if (userId === '000000000' || userId === 'admin_root') {
       showNotification('Thao Tác Bị Chặn', 'Không thể xóa tài khoản Quản trị viên tối cao (000000000)!', false);
       return false;
     }
     const targetUser = users.find((u) => u.id === userId);
-    if (!targetUser) return false;
+    const targetDisplayName = targetUser?.name || `Tài khoản #${userId}`;
 
+    // 1. Loại bỏ tài khoản khỏi danh sách người dùng và lưu vào Storage
     setUsers((prev) => {
       const remaining = prev.filter((u) => u.id !== userId);
       try {
@@ -4103,6 +4981,55 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return remaining;
     });
 
+    // 2. Dọn sạch rác công việc: Xóa gigs do tài khoản này đăng, và hủy gán nếu đang nhận việc
+    setGigs((prev) => {
+      const remainingGigs = prev
+        .filter((g) => g.clientId !== userId)
+        .map((g) => {
+          if (g.freelancerId === userId) {
+            return {
+              ...g,
+              freelancerId: null,
+              freelancerName: null,
+              status: g.status === 'IN_PROGRESS' || g.status === 'SUBMITTED' ? ('OPEN' as const) : g.status,
+            };
+          }
+          return g;
+        });
+      try {
+        localStorage.setItem(STORAGE_KEYS.GIGS, JSON.stringify(remainingGigs));
+      } catch {}
+      return remainingGigs;
+    });
+
+    // 3. Dọn sạch các chào giá (bids) của tài khoản này
+    setBids((prev) => {
+      const remainingBids = prev.filter((b) => b.freelancerId !== userId);
+      try {
+        localStorage.setItem(STORAGE_KEYS.BIDS, JSON.stringify(remainingBids));
+      } catch {}
+      return remainingBids;
+    });
+
+    // 4. Dọn sạch tin nhắn chat liên quan đến tài khoản này
+    setChats((prev) => {
+      const remainingChats = prev.filter((c) => c.senderId !== userId && c.partnerId !== userId);
+      try {
+        localStorage.setItem(STORAGE_KEYS.CHATS, JSON.stringify(remainingChats));
+      } catch {}
+      return remainingChats;
+    });
+
+    // 5. Dọn sạch giao dịch ví rác của tài khoản này
+    setTransactions((prev) => {
+      const remainingTx = prev.filter((t) => t.userId !== userId);
+      try {
+        localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(remainingTx));
+      } catch {}
+      return remainingTx;
+    });
+
+    // 6. Xóa vĩnh viễn trên Firebase Firestore & Express DB
     try {
       await cloudService.deleteUser(userId);
     } catch (e) {
@@ -4114,8 +5041,8 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
 
     showNotification(
-      'Đã Xóa Người Dùng',
-      `Đã xóa vĩnh viễn tài khoản ${targetUser.name} (ID: ${targetUser.id}) khỏi toàn bộ hệ thống.`,
+      'Đã Xóa Tài Khoản & Làm Sạch Dữ Liệu',
+      `Đã xóa vĩnh viễn ${targetDisplayName} (ID: ${userId}) và loại bỏ hoàn toàn khỏi danh sách tài khoản nghi vấn (Flagged Accounts).`,
       true
     );
     return true;
@@ -4183,17 +5110,22 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     mediaFileName?: string,
     targetThreadId?: string,
     targetPartnerId?: string,
-    targetPartnerName?: string
+    targetPartnerName?: string,
+    customSenderId?: string,
+    customSenderName?: string
   ) => {
     if (!currentUser) return;
     const isClient = roleMode === 'CLIENT';
 
-    // Normalize direct messaging thread ID between both users to avoid cross-talk leakages
+    const actualSenderId = customSenderId || currentUser.id;
+    const actualSenderName = customSenderName || currentUser.name;
+
+    // Normalize direct messaging thread ID between both users to avoid cross-talk leakages (Rule 3.4)
     let effectiveThreadId = targetThreadId;
-    if (!effectiveThreadId || effectiveThreadId === 'direct_general' || effectiveThreadId.startsWith('direct_')) {
+    if (!effectiveThreadId || effectiveThreadId === 'direct_general' || effectiveThreadId.startsWith('direct_') || effectiveThreadId.startsWith('dm_')) {
       if (targetPartnerId) {
         const sorted = [currentUser.id, targetPartnerId].sort();
-        effectiveThreadId = `dm_${sorted[0]}_${sorted[1]}`;
+        effectiveThreadId = ['direct', ...sorted].join('_');
       } else if (selectedGigId) {
         effectiveThreadId = selectedGigId;
       } else {
@@ -4215,13 +5147,13 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
 
     const msg: ChatMessageEntity = {
-      id: `msg_${Date.now()}`,
+      id: `msg_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
       gigId: effectiveThreadId,
       threadId: effectiveThreadId,
       partnerId: targetPartnerId,
       partnerName: targetPartnerName,
-      senderId: currentUser.id,
-      senderName: currentUser.name,
+      senderId: actualSenderId,
+      senderName: actualSenderName,
       isFromClient: isClient,
       message: safeText,
       attachmentType,
@@ -4248,6 +5180,22 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           return updated;
         }
         return c;
+      })
+    );
+  };
+
+  const reactToChatMessage = (messageId: string, emoji: string) => {
+    setChats((prev) =>
+      prev.map((msg) => {
+        if (msg.id === messageId) {
+          const reactions = { ...(msg.reactions || {}) };
+          // Toggle reaction: if already reacted with this emoji, remove it; otherwise increment or set
+          reactions[emoji] = (reactions[emoji] || 0) + 1;
+          const updatedMsg = { ...msg, reactions };
+          cloudService.saveChatMessage(updatedMsg);
+          return updatedMsg;
+        }
+        return msg;
       })
     );
   };
@@ -4450,10 +5398,10 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setUsers((prev) =>
         prev.map((u) => {
           if (u.id === targetUserId) {
-            const currentElo = u.eloRating || 1200;
+            const currentElo = u.eloRating ?? 200;
             const currentStreak = rating === 5 ? (u.winStreak || 0) + 1 : 0;
             const streakBonus = currentStreak >= 3 ? 10 : 0;
-            const finalElo = Math.max(1000, currentElo + eloDelta + streakBonus);
+            const finalElo = Math.max(0, currentElo + eloDelta + streakBonus);
 
             let newTier = u.eloTier || 'BRONZE';
             if (finalElo >= 2400) newTier = 'CHALLENGER';
@@ -4566,10 +5514,10 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setUsers((prev) =>
         prev.map((u) => {
           if (gig.freelancerId && u.id === gig.freelancerId) {
-            const currentElo = u.eloRating || 1200;
+            const currentElo = u.eloRating ?? 200;
             const delta =
               clientScore === 5 ? 25 : clientScore === 4 ? 15 : clientScore === 3 ? 5 : clientScore === 2 ? -10 : -25;
-            const newElo = Math.max(1000, currentElo + delta);
+            const newElo = Math.max(0, currentElo + delta);
             return {
               ...u,
               eloRating: newElo,
@@ -4694,6 +5642,11 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         themeMode,
         setThemeMode,
         toggleThemeMode,
+        language,
+        isLanguageTransitioning,
+        setLanguage,
+        toggleLanguage,
+        t,
         updateUserProfile,
         triggerWebPushTest,
         roleMode,
@@ -4750,6 +5703,11 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         login,
         sendOtp,
         resetPasswordWithOtp,
+        resetPasswordWithPinAndEmail,
+        resetPasswordWithBiometrics,
+        validateUserPassword,
+        setupOrChangePin,
+        setBiometricsWithPassword,
         loginWithPhoneOtp,
         requestMoSms,
         checkMoSmsStatus,
@@ -4769,6 +5727,8 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         releaseMilestonePayout,
         fileDispute,
         checkDepositEligibility,
+        checkWithdrawalEligibility,
+        isOverBalanceLimit,
         depositVietQr,
         withdrawToBank,
         saveDefaultBank,
@@ -4796,6 +5756,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         adminDeleteGig,
         sendChat,
         markConversationAsRead,
+        reactToChatMessage,
         analyzePhotoWithAi,
         clearAiResult,
         boostGig,
@@ -4817,6 +5778,8 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         reportNoShow,
         submitDoubleBlindReview,
         sendWebPushNotification,
+        adminApproveWithdrawal,
+        adminRejectWithdrawal,
       }}
     >
       {children}

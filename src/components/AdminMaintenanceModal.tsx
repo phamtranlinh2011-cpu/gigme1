@@ -106,8 +106,16 @@ export const AdminMaintenanceModal: React.FC<AdminMaintenanceModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
-      <div className="relative w-full max-w-2xl bg-gradient-to-b from-[#12233B] via-[#0E1B2E] to-[#0A1628] border border-amber-500/40 rounded-3xl p-6 sm:p-7 text-white shadow-[0_0_50px_rgba(245,158,11,0.2)] max-h-[92vh] overflow-y-auto">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="relative w-full max-w-2xl bg-gradient-to-b from-[#12233B] via-[#0E1B2E] to-[#0A1628] border border-amber-500/40 rounded-3xl p-6 sm:p-7 text-white shadow-[0_0_50px_rgba(245,158,11,0.2)] max-h-[92vh] overflow-y-auto"
+      >
         {/* Close button */}
         <button
           onClick={onClose}

@@ -44,8 +44,16 @@ export const DoubleBlindReviewModal: React.FC<DoubleBlindReviewModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-fade-in overflow-y-auto">
-      <div className="w-full max-w-lg rounded-3xl bg-[#0F172A] border-2 border-indigo-500/40 p-5 sm:p-6 text-white shadow-[0_0_50px_rgba(99,102,241,0.25)] relative my-8">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-fade-in overflow-y-auto"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-lg rounded-3xl bg-[#0F172A] border-2 border-indigo-500/40 p-5 sm:p-6 text-white shadow-[0_0_50px_rgba(99,102,241,0.25)] relative my-8"
+      >
         <button
           onClick={onClose}
           className="absolute top-4 right-4 p-1.5 rounded-xl bg-slate-800 text-slate-400 hover:text-white transition"

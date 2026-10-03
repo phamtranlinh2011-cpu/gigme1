@@ -30,17 +30,33 @@ export function auditSybilAndReviewRings(
 ): SybilAuditSummary {
   const threats: SybilThreatItem[] = [];
 
-  // Map user gigs
+  // 1. Chỉ lấy những tài khoản người dùng thực sự còn tồn tại trong hệ thống, loại trừ Ban Quản Trị tối cao
+  const activeUsers = (users || []).filter(
+    (u) =>
+      u &&
+      u.id &&
+      u.id !== '000000000' &&
+      u.id !== 'admin_root' &&
+      u.role !== 'ADMIN' &&
+      u.email !== 'admin@admin.vn'
+  );
+  const activeUserIds = new Set(activeUsers.map((u) => u.id));
+
+  // 2. Map user gigs chỉ cho các tài khoản đang tồn tại (loại bỏ hoàn toàn dữ liệu rác từ user đã bị xóa)
   const userPostedGigs = new Map<string, GigEntity[]>();
   const userWorkedGigs = new Map<string, GigEntity[]>();
 
-  gigs.forEach((gig) => {
-    if (!userPostedGigs.has(gig.clientId)) {
-      userPostedGigs.set(gig.clientId, []);
+  (gigs || []).forEach((gig) => {
+    // Chỉ đưa vào phân tích nếu người đăng còn tồn tại trong hệ thống
+    if (gig && gig.clientId && activeUserIds.has(gig.clientId)) {
+      if (!userPostedGigs.has(gig.clientId)) {
+        userPostedGigs.set(gig.clientId, []);
+      }
+      userPostedGigs.get(gig.clientId)!.push(gig);
     }
-    userPostedGigs.get(gig.clientId)!.push(gig);
 
-    if (gig.freelancerId) {
+    // Chỉ đưa vào phân tích nếu người nhận việc còn tồn tại trong hệ thống
+    if (gig && gig.freelancerId && activeUserIds.has(gig.freelancerId)) {
       if (!userWorkedGigs.has(gig.freelancerId)) {
         userWorkedGigs.set(gig.freelancerId, []);
       }
@@ -48,9 +64,9 @@ export function auditSybilAndReviewRings(
     }
   });
 
-  // Track shared device fingerprints or IP simulation
+  // Track shared device fingerprints or IP simulation giữa các user còn tồn tại
   const deviceMap = new Map<string, string[]>();
-  users.forEach((u) => {
+  activeUsers.forEach((u) => {
     const key = u.deviceFingerprint || u.lastDeviceName || 'dev_default';
     if (!deviceMap.has(key)) {
       deviceMap.set(key, []);
@@ -58,10 +74,7 @@ export function auditSybilAndReviewRings(
     deviceMap.get(key)!.push(u.id);
   });
 
-  users.forEach((user) => {
-    // Admin root is excluded
-    if (user.id === 'admin_root' || user.role === 'ADMIN') return;
-
+  activeUsers.forEach((user) => {
     let score = 0;
     const reasons: string[] = [];
     const associatedUserIds = new Set<string>();
@@ -69,7 +82,7 @@ export function auditSybilAndReviewRings(
     // 1. Kiểm tra tài khoản dùng chung thiết bị phần cứng (Same Device / Multi-accounting)
     const deviceKey = user.deviceFingerprint || user.lastDeviceName;
     if (deviceKey && deviceMap.has(deviceKey)) {
-      const coUsers = deviceMap.get(deviceKey)!.filter((uid) => uid !== user.id);
+      const coUsers = deviceMap.get(deviceKey)!.filter((uid) => uid !== user.id && activeUserIds.has(uid));
       if (coUsers.length >= 2) {
         score += 35;
         reasons.push(
@@ -84,20 +97,23 @@ export function auditSybilAndReviewRings(
     const clientFrequency = new Map<string, number>();
 
     workedList.forEach((gig) => {
-      clientFrequency.set(
-        gig.clientId,
-        (clientFrequency.get(gig.clientId) || 0) + 1
-      );
+      // Chỉ tính nếu client này vẫn tồn tại trong hệ thống (không tính client đã bị xóa)
+      if (activeUserIds.has(gig.clientId)) {
+        clientFrequency.set(
+          gig.clientId,
+          (clientFrequency.get(gig.clientId) || 0) + 1
+        );
+      }
     });
 
     clientFrequency.forEach((count, clientId) => {
-      // Nếu làm việc với cùng 1 khách từ 3 đơn trở lên mà khách đó cũng nhận việc ngược lại từ user này
+      // Nếu làm việc với cùng 1 khách từ 2 đơn trở lên mà khách đó cũng nhận việc ngược lại từ user này
       const reverseList = userWorkedGigs.get(clientId) || [];
       const reverseCount = reverseList.filter((g) => g.clientId === user.id).length;
 
       if (count >= 2 && reverseCount >= 1) {
         score += 45;
-        const targetClient = users.find((u) => u.id === clientId);
+        const targetClient = activeUsers.find((u) => u.id === clientId);
         reasons.push(
           `Phát hiện vòng tròn tương hỗ (Reciprocal Ring): Đổi đơn và đánh giá 5 sao qua lại với ${
             targetClient?.name || clientId
@@ -125,14 +141,14 @@ export function auditSybilAndReviewRings(
 
     // 4. Số điện thoại có định dạng hàng loạt / số ảo
     const phone = user.phone || '';
-    if (phone.startsWith('090900') || phone.endsWith('0000') || user.email.includes('tempmail')) {
+    if (phone.startsWith('090900') || phone.endsWith('0000') || (user.email && user.email.includes('tempmail'))) {
       score += 20;
       reasons.push('Định dạng liên hệ thuộc dải số/email rác');
     }
 
     // 5. Trùng lặp họ tên CCCD hoặc Tên hiển thị giống hệt nhau
-    const nameClones = users.filter(
-      (u) => u.id !== user.id && u.name.trim().toLowerCase() === user.name.trim().toLowerCase()
+    const nameClones = activeUsers.filter(
+      (u) => u.id !== user.id && u.name?.trim().toLowerCase() === user.name?.trim().toLowerCase()
     );
     if (nameClones.length >= 2) {
       score += 25;
@@ -153,7 +169,7 @@ export function auditSybilAndReviewRings(
             ? 'MEDIUM'
             : 'LOW',
         reasons,
-        associatedUserIds: Array.from(associatedUserIds),
+        associatedUserIds: Array.from(associatedUserIds).filter((id) => activeUserIds.has(id)),
         detectedAt: Date.now(),
         isFlagged: user.isFlaggedSybil ?? (score >= 50),
         score: Math.min(100, score),
@@ -162,7 +178,7 @@ export function auditSybilAndReviewRings(
   });
 
   return {
-    totalScannedUsers: users.length,
+    totalScannedUsers: activeUsers.length,
     flaggedCount: threats.length,
     highRiskRingsCount: threats.filter((t) => t.threatLevel === 'HIGH_RISK_SYBIL_RING').length,
     threats: threats.sort((a, b) => b.score - a.score),

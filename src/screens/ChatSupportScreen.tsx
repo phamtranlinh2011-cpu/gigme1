@@ -36,13 +36,19 @@ import {
   UserPlus,
   Cloud,
   FileText,
+  Download,
+  RotateCw,
+  Heart,
+  ChevronDown,
 } from 'lucide-react';
 import { useGigMe } from '../context/GigMeContext';
 import { formatVnd, ChatMessageEntity, UserEntity } from '../types';
 import { generateSynthesizedVoiceWav, playSynthesizedVoiceTone } from '../utils/audio';
 import { rateLimiter } from '../utils/rateLimiter';
 import { compressImageToWebP } from '../utils/imageCompressor';
+import { triggerHaptic } from '../utils/haptics';
 import { VerifiedEduBadge } from '../components/VerifiedEduBadge';
+import { VerifiedIdentityBadge } from '../components/VerifiedIdentityBadge';
 import { FriendBackupRestoreModal } from '../components/FriendBackupRestoreModal';
 import { TermsAndRefundPolicyModal } from '../components/TermsAndRefundPolicyModal';
 
@@ -62,6 +68,7 @@ interface MessengerContact {
   lastActiveText: string;
   specialtyOrNeed: string;
   isEduVerified?: boolean;
+  isCccdVerified?: boolean;
   associatedGig?: {
     id: string;
     title: string;
@@ -88,9 +95,12 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
     findUserByNineDigitId,
     sendChat,
     markConversationAsRead,
+    reactToChatMessage,
     startVoipCall,
     selectGig,
     showNotification,
+    language,
+    t,
   } = useGigMe();
 
   // Search & Filters
@@ -112,6 +122,11 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
   const [pendingImage, setPendingImage] = useState<string | null>(null);
   const [pendingVideo, setPendingVideo] = useState<{ url: string; name: string } | null>(null);
   const [previewZoomImage, setPreviewZoomImage] = useState<string | null>(null);
+  const [previewImageRotation, setPreviewImageRotation] = useState<number>(0);
+  const [activeReactionPickerMsgId, setActiveReactionPickerMsgId] = useState<string | null>(null);
+  const messagesContainerRef = useRef<HTMLDivElement | null>(null);
+  const [showScrollBottomBtn, setShowScrollBottomBtn] = useState(false);
+  const isNearBottomRef = useRef<boolean>(true);
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
   const [showContactInfoModal, setShowContactInfoModal] = useState(false);
   const [showNewChatModal, setShowNewChatModal] = useState(false);
@@ -209,6 +224,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
             lastActiveText: 'Đang online',
             specialtyOrNeed: `Bạn bè kết nối qua ID 9 số: ${friendUser.id}`,
             isEduVerified: !!friendUser.isEduVerified || !!friendUser.isStudentVerified,
+            isCccdVerified: !!friendUser.isNfcVerified || friendUser.tier === 'CCCD_VERIFIED' || friendUser.tier === 'PRO',
           });
         }
       });
@@ -217,69 +233,94 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
     // 3. Người thuê & Thợ từ các công việc thật trong hệ thống (rawGigs)
     if (rawGigs && rawGigs.length > 0) {
       rawGigs.forEach((gig) => {
-        // Người thuê
-        if (gig.clientId && gig.clientId !== currentUser?.id) {
-          const existing = list.find((c) => c.id === gig.clientId);
-          if (!existing) {
-            const clientUser = (users || []).find((u) => u.id === gig.clientId);
-            list.push({
-              id: gig.clientId,
-              name: gig.clientName || clientUser?.name || `Người thuê (ID ${gig.clientId})`,
-              role: 'CLIENT',
-              roleLabel: 'Người thuê',
-              school: clientUser?.studentSchool || (gig.locationName?.includes('Hà Nội') ? 'ĐH Bách Khoa HN' : 'ĐHQG TP.HCM'),
-              avatarBg: 'from-blue-600 to-indigo-600',
-              avatarUrl: (clientUser as any)?.avatarUrl || (clientUser as any)?.photoURL || undefined,
-              isOnline: true,
-              lastActiveText: 'Đang online',
-              specialtyOrNeed: `Đơn: ${gig.title}`,
-              associatedGig: {
+        // Kiểm tra xem gig có phải do Ban Quản Trị đăng không (Ban Quản Trị đã có kênh Hỗ Trợ 000000000 cố định)
+        const isClientAdmin =
+          gig.clientId === '000000000' ||
+          gig.clientId === 'admin_root' ||
+          gig.clientName?.toLowerCase().includes('ban quản trị') ||
+          gig.clientName?.toLowerCase().includes('admin');
+
+        // Người thuê (Bỏ qua tài khoản Admin / Ban Quản Trị để không tạo mục "Người thuê" trùng lặp)
+        if (gig.clientId && gig.clientId !== currentUser?.id && !isClientAdmin) {
+          const clientUser = (users || []).find((u) => u.id === gig.clientId);
+          const isUserAdmin = clientUser?.role === 'ADMIN' || clientUser?.name?.toLowerCase().includes('ban quản trị');
+
+          if (!isUserAdmin) {
+            const existing = list.find((c) => c.id === gig.clientId);
+            if (!existing) {
+              list.push({
+                id: gig.clientId,
+                name: gig.clientName || clientUser?.name || `Người thuê (ID ${gig.clientId})`,
+                role: 'CLIENT',
+                roleLabel: 'Người thuê',
+                school: clientUser?.studentSchool || (gig.locationName?.includes('Hà Nội') ? 'ĐH Bách Khoa HN' : 'ĐHQG TP.HCM'),
+                avatarBg: 'from-blue-600 to-indigo-600',
+                avatarUrl: (clientUser as any)?.avatarUrl || (clientUser as any)?.photoURL || undefined,
+                isOnline: true,
+                lastActiveText: 'Đang online',
+                specialtyOrNeed: `Đơn: ${gig.title}`,
+                isEduVerified: !!clientUser?.isEduVerified || !!clientUser?.isStudentVerified || gig.clientTier === 'STUDENT',
+                isCccdVerified: !!clientUser?.isNfcVerified || gig.clientTier === 'CCCD_VERIFIED' || gig.clientTier === 'PRO',
+                associatedGig: {
+                  id: gig.id,
+                  title: gig.title,
+                  price: gig.price,
+                  status: gig.status,
+                },
+              });
+            } else if (!existing.associatedGig && existing.id !== '000000000') {
+              existing.associatedGig = {
                 id: gig.id,
                 title: gig.title,
                 price: gig.price,
                 status: gig.status,
-              },
-            });
-          } else if (!existing.associatedGig) {
-            existing.associatedGig = {
-              id: gig.id,
-              title: gig.title,
-              price: gig.price,
-              status: gig.status,
-            };
+              };
+            }
           }
         }
 
-        // Người làm việc
-        if (gig.freelancerId && gig.freelancerId !== currentUser?.id) {
-          const existing = list.find((c) => c.id === gig.freelancerId);
-          if (!existing) {
-            const freelancerUser = (users || []).find((u) => u.id === gig.freelancerId);
-            list.push({
-              id: gig.freelancerId,
-              name: gig.freelancerName || freelancerUser?.name || `Người làm (ID ${gig.freelancerId})`,
-              role: 'WORKER',
-              roleLabel: 'Người làm',
-              school: freelancerUser?.studentSchool || 'Sinh viên Campus',
-              avatarBg: 'from-emerald-600 to-cyan-600',
-              avatarUrl: (freelancerUser as any)?.avatarUrl || (freelancerUser as any)?.photoURL || undefined,
-              isOnline: true,
-              lastActiveText: 'Đang online',
-              specialtyOrNeed: `Đang làm: ${gig.title}`,
-              associatedGig: {
+        // Người làm việc (Bỏ qua tài khoản Admin)
+        const isFreelancerAdmin =
+          gig.freelancerId === '000000000' ||
+          gig.freelancerId === 'admin_root' ||
+          gig.freelancerName?.toLowerCase().includes('ban quản trị') ||
+          gig.freelancerName?.toLowerCase().includes('admin');
+
+        if (gig.freelancerId && gig.freelancerId !== currentUser?.id && !isFreelancerAdmin) {
+          const freelancerUser = (users || []).find((u) => u.id === gig.freelancerId);
+          const isUserAdmin = freelancerUser?.role === 'ADMIN' || freelancerUser?.name?.toLowerCase().includes('ban quản trị');
+
+          if (!isUserAdmin) {
+            const existing = list.find((c) => c.id === gig.freelancerId);
+            if (!existing) {
+              list.push({
+                id: gig.freelancerId,
+                name: gig.freelancerName || freelancerUser?.name || `Người làm (ID ${gig.freelancerId})`,
+                role: 'WORKER',
+                roleLabel: 'Người làm',
+                school: freelancerUser?.studentSchool || 'Sinh viên Campus',
+                avatarBg: 'from-emerald-600 to-cyan-600',
+                avatarUrl: (freelancerUser as any)?.avatarUrl || (freelancerUser as any)?.photoURL || undefined,
+                isOnline: true,
+                lastActiveText: 'Đang online',
+                specialtyOrNeed: `Đang làm: ${gig.title}`,
+                isEduVerified: !!freelancerUser?.isEduVerified || !!freelancerUser?.isStudentVerified,
+                isCccdVerified: !!freelancerUser?.isNfcVerified || freelancerUser?.tier === 'CCCD_VERIFIED' || freelancerUser?.tier === 'PRO',
+                associatedGig: {
+                  id: gig.id,
+                  title: gig.title,
+                  price: gig.price,
+                  status: gig.status,
+                },
+              });
+            } else if (!existing.associatedGig && existing.id !== '000000000') {
+              existing.associatedGig = {
                 id: gig.id,
                 title: gig.title,
                 price: gig.price,
                 status: gig.status,
-              },
-            });
-          } else if (!existing.associatedGig) {
-            existing.associatedGig = {
-              id: gig.id,
-              title: gig.title,
-              price: gig.price,
-              status: gig.status,
-            };
+              };
+            }
           }
         }
       });
@@ -292,13 +333,25 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
         if (!isUserInvolved) return;
 
         const partnerId = chat.senderId === currentUser.id ? chat.partnerId : chat.senderId;
+        const isPartnerAdmin =
+          partnerId === '000000000' ||
+          partnerId === 'admin_root';
+
+        if (isPartnerAdmin) {
+          // Bỏ qua vì Admin Support 000000000 đã được thêm cố định ở mục 1
+          return;
+        }
+
         if (partnerId && partnerId !== currentUser.id && !list.find((c) => c.id === partnerId)) {
           const u = (users || []).find((usr) => usr.id === partnerId);
+          if (u?.role === 'ADMIN' || u?.name?.toLowerCase().includes('ban quản trị')) {
+            return;
+          }
           list.push({
             id: partnerId,
-            name: u?.name || (partnerId === '000000000' ? 'Ban Quản Trị GigMe' : `Tài khoản ${partnerId}`),
-            role: (u?.role === 'ADMIN' ? 'ADMIN' : 'WORKER') as 'CLIENT' | 'WORKER' | 'ADMIN',
-            roleLabel: partnerId === '000000000' ? 'Admin 000000000' : `ID ${partnerId}`,
+            name: u?.name || `Tài khoản ${partnerId}`,
+            role: 'WORKER',
+            roleLabel: `ID ${partnerId}`,
             school: u?.studentSchool || 'Campus Hub',
             avatarBg: 'from-teal-600 to-blue-600',
             avatarUrl: (u as any)?.avatarUrl || (u as any)?.photoURL || undefined,
@@ -310,7 +363,17 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
       });
     }
 
-    return list.filter((c) => !isMockOrFakeAccount(c.name, c.id));
+    // Lọc loại bỏ triệt để tài khoản mock và mọi tài khoản giả/trùng lặp mang tên Ban Quản Trị
+    return list.filter((c) => {
+      if (isMockOrFakeAccount(c.name, c.id)) return false;
+      if (c.id === 'admin_root') return false;
+      const isBanQuanTriName = c.name?.toLowerCase().includes('ban quản trị') || c.name?.toLowerCase().includes('admin support');
+      // Duy nhất chỉ 1 tài khoản Ban Quản Trị chính thức ID 000000000 với role ADMIN được hiển thị
+      if (isBanQuanTriName && (c.id !== '000000000' || c.role === 'CLIENT' || c.roleLabel === 'Người thuê')) {
+        return false;
+      }
+      return true;
+    });
   }, [rawGigs, currentUser, users, allChats]);
 
   // Active contact details with foolproof fallback (so clicking any contact ALWAYS opens chat room)
@@ -357,11 +420,12 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
   const currentConversationMessages = useMemo(() => {
     if (!activeConversationId || !currentUser) return [];
     const dmThreadId = getDirectThreadId(currentUser.id, activeConversationId);
+    const dmAltThreadId = `dm_${[currentUser.id, activeConversationId].sort().join('_')}`;
     const gigId = activeContact?.associatedGig?.id;
 
     return (allChats || []).filter((msg) => {
-      // 1. Direct thread match
-      if (msg.threadId === dmThreadId) return true;
+      // 1. Direct thread match (Rule 3.4 standard direct_ & fallback dm_)
+      if (msg.threadId === dmThreadId || msg.threadId === dmAltThreadId) return true;
 
       // 2. Explicit direct pair between currentUser and activeConversationId
       const isDirectPair =
@@ -386,11 +450,25 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
 
   // Select contact handler (switches view to chat room immediately & marks read)
   const handleSelectContact = (contactId: string) => {
+    triggerHaptic('light');
     setActiveConversationId(contactId);
     if (markConversationAsRead) {
       markConversationAsRead(contactId);
     }
   };
+
+  // Reset conversation and input state when switching user accounts
+  useEffect(() => {
+    setActiveConversationId(null);
+    setMessageInput('');
+    setPendingImage(null);
+    setPendingVideo(null);
+    setShowAddFriendModal(false);
+    setShowContactInfoModal(false);
+    setShowNewChatModal(false);
+    setShowBackupModal(false);
+    setShowTermsModal(false);
+  }, [currentUser?.id]);
 
   // Mark active conversation messages as read
   useEffect(() => {
@@ -399,9 +477,30 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
     }
   }, [activeConversationId, allChats?.length]);
 
-  // Auto-scroll on new messages & typing state
+  // Smart auto-scroll: only auto-scroll if near bottom or active conversation changes
+  const scrollToBottom = (smooth = true) => {
+    messagesEndRef.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto' });
+  };
+
+  const handleMessagesScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    const distanceToBottom = scrollHeight - scrollTop - clientHeight;
+    const nearBottom = distanceToBottom < 120;
+    isNearBottomRef.current = nearBottom;
+    setShowScrollBottomBtn(!nearBottom);
+  };
+
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    // When switching conversation, always scroll to bottom immediately
+    isNearBottomRef.current = true;
+    scrollToBottom(false);
+  }, [activeConversationId]);
+
+  useEffect(() => {
+    // If user is near bottom, keep scrolling to bottom on incoming message
+    if (isNearBottomRef.current) {
+      scrollToBottom(true);
+    }
   }, [currentConversationMessages, aiChatMessages, isAiTyping, isPartnerTyping]);
 
   // Clean audio on unmount
@@ -497,9 +596,10 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
   const getLastMessageForContact = (contactId: string, associatedGigId?: string) => {
     if (!currentUser) return null;
     const dmThreadId = getDirectThreadId(currentUser.id, contactId);
+    const dmAltThreadId = `dm_${[currentUser.id, contactId].sort().join('_')}`;
 
     const relevant = (allChats || []).filter((m) => {
-      if (m.threadId === dmThreadId) return true;
+      if (m.threadId === dmThreadId || m.threadId === dmAltThreadId) return true;
       const isDirectPair =
         (m.senderId === currentUser.id && m.partnerId === contactId) ||
         (m.senderId === contactId && (m.partnerId === currentUser.id || (!m.partnerId && m.threadId?.includes(currentUser.id))));
@@ -519,10 +619,11 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
   const getUnreadCountForContact = (contactId: string, associatedGigId?: string): number => {
     if (!currentUser) return 0;
     const dmThreadId = getDirectThreadId(currentUser.id, contactId);
+    const dmAltThreadId = `dm_${[currentUser.id, contactId].sort().join('_')}`;
 
     return (allChats || []).filter((m) => {
       if (m.senderId === currentUser.id || m.isRead) return false;
-      if (m.threadId === dmThreadId) return true;
+      if (m.threadId === dmThreadId || m.threadId === dmAltThreadId) return true;
       const isDirectPair =
         m.senderId === contactId &&
         (m.partnerId === currentUser.id || (!m.partnerId && m.threadId?.includes(currentUser.id)));
@@ -576,7 +677,9 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
             undefined,
             targetThread,
             currentUser.id,
-            currentUser.name
+            currentUser.name,
+            activeContact.id,
+            activeContact.name
           );
         }, 2500);
       }, 1200);
@@ -584,6 +687,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
 
     if (pendingImage) {
       rateLimiter.record('CHAT', currentUser?.id);
+      triggerHaptic('medium');
       sendChat(
         messageInput.trim() || 'Đã gửi một hình ảnh',
         'IMAGE',
@@ -596,11 +700,13 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
       );
       setPendingImage(null);
       setMessageInput('');
+      setTimeout(() => scrollToBottom(true), 50);
       return;
     }
 
     if (pendingVideo) {
       rateLimiter.record('CHAT', currentUser?.id);
+      triggerHaptic('medium');
       sendChat(
         messageInput.trim() || `Đã gửi video: ${pendingVideo.name}`,
         'VIDEO',
@@ -613,12 +719,14 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
       );
       setPendingVideo(null);
       setMessageInput('');
+      setTimeout(() => scrollToBottom(true), 50);
       return;
     }
 
     if (!messageInput.trim()) return;
 
     rateLimiter.record('CHAT', currentUser?.id);
+    triggerHaptic('light');
     sendChat(
       messageInput.trim(),
       'NONE',
@@ -630,6 +738,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
       activeContact.name
     );
     setMessageInput('');
+    setTimeout(() => scrollToBottom(true), 50);
   };
 
   // Quick Thumbs-up (Messenger classic 👍)
@@ -645,6 +754,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
       return;
     }
     rateLimiter.record('CHAT', currentUser?.id);
+    triggerHaptic('success');
 
     const targetThread = activeContact.associatedGig?.id || getDirectThreadId(currentUser.id, activeContact.id);
     sendChat(
@@ -657,6 +767,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
       activeContact.id,
       activeContact.name
     );
+    setTimeout(() => scrollToBottom(true), 50);
   };
 
   // Preset Quick Replies
@@ -672,6 +783,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
       return;
     }
     rateLimiter.record('CHAT', currentUser?.id);
+    triggerHaptic('light');
 
     const targetThread = activeContact.associatedGig?.id || getDirectThreadId(currentUser.id, activeContact.id);
     sendChat(
@@ -1011,7 +1123,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
   // ==========================================
   if (activeConversationId === 'AI_ASSISTANT') {
     return (
-      <div className="max-w-2xl mx-auto px-2 sm:px-4 py-3 flex flex-col h-[calc(100vh-4.5rem)] pb-20">
+      <div className="max-w-4xl mx-auto px-2 sm:px-4 py-3 flex flex-col h-[calc(100vh-4.5rem)] pb-20">
         {/* Messenger Header for AI */}
         <div className="flex items-center justify-between pb-3 border-b border-[#C5E5EC]/15 shrink-0">
           <div className="flex items-center space-x-3">
@@ -1065,34 +1177,45 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
         </div>
 
         {/* Message Log */}
-        <div className="flex-1 overflow-y-auto py-3 space-y-3 pr-1">
+        <div className="flex-1 overflow-y-auto py-2.5 px-1 space-y-1.5 scroll-smooth">
           {aiChatMessages.map((msg) => {
             const isMe = msg.sender === 'USER';
             return (
-              <div key={msg.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
-                <div className="flex items-center space-x-1.5 mb-1 px-1">
-                  <span className="text-[10px] text-[#C5E5EC]/70 font-bold">
-                    {isMe ? currentUser?.name || 'Bạn' : 'Trợ lý AI GigMe'}
-                  </span>
-                  <span className="text-[9px] text-[#C5E5EC]/50">{msg.time}</span>
+              <div key={msg.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} mt-1`}>
+                <div className={`flex items-end space-x-1.5 max-w-[85%] sm:max-w-[78%] ${isMe ? 'flex-row-reverse space-x-reverse' : 'flex-row'}`}>
+                  {!isMe && (
+                    <div className="w-6 h-6 rounded-full shrink-0 overflow-hidden mb-0.5 bg-gradient-to-tr from-cyan-600 to-blue-600 flex items-center justify-center text-white shadow-xs border border-white/20">
+                      <Bot className="w-3.5 h-3.5" />
+                    </div>
+                  )}
+
+                  <div
+                    className={`relative px-3 py-1.5 text-[13px] leading-snug break-words rounded-2xl inline-block w-fit max-w-full transition-all ${
+                      isMe ? 'animate-message-me bg-[#0084FF] text-white rounded-br-xs shadow-xs' : 'animate-message-partner bg-[#2A394A] text-slate-100 border border-white/5 rounded-bl-xs shadow-xs'
+                    }`}
+                  >
+                    <p className="whitespace-pre-wrap">{msg.text}</p>
+                  </div>
                 </div>
-                <div
-                  className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-xs leading-relaxed ${
-                    isMe
-                      ? 'bg-gradient-to-r from-[#3064AE] to-[#255294] text-white font-medium rounded-tr-none shadow-md shadow-[#3064AE]/20 border border-[#C5E5EC]/25'
-                      : 'bg-[#12233B] border border-[#C5E5EC]/20 text-slate-100 rounded-tl-none shadow-sm'
-                  }`}
-                >
-                  {msg.text}
+
+                <div className={`flex items-center space-x-1 text-[10px] text-[#C5E5EC]/50 mt-0.5 ${isMe ? 'pr-1' : 'pl-8'}`}>
+                  <span>{msg.time}</span>
+                  {isMe && <CheckCheck className="w-3 h-3 text-[#00E5FF] ml-0.5" />}
                 </div>
               </div>
             );
           })}
 
           {isAiTyping && (
-            <div className="flex items-center space-x-2 text-[#C5E5EC] text-xs py-2 px-2">
-              <Bot className="w-4 h-4 text-[#C5E5EC] animate-spin" />
-              <span className="animate-pulse">Trợ lý AI đang phản hồi...</span>
+            <div className="flex items-end space-x-1.5 mt-2 animate-fadeIn">
+              <div className="w-6 h-6 rounded-full shrink-0 overflow-hidden mb-0.5 bg-gradient-to-tr from-cyan-600 to-blue-600 flex items-center justify-center text-white border border-white/20">
+                <Bot className="w-3.5 h-3.5" />
+              </div>
+              <div className="px-3 py-2 rounded-2xl rounded-bl-xs bg-[#2A394A] border border-white/10 flex items-center space-x-1 shadow-xs">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#C5E5EC] animate-bounce" style={{ animationDelay: '0ms' }} />
+                <span className="w-1.5 h-1.5 rounded-full bg-[#C5E5EC] animate-bounce" style={{ animationDelay: '150ms' }} />
+                <span className="w-1.5 h-1.5 rounded-full bg-[#C5E5EC] animate-bounce" style={{ animationDelay: '300ms' }} />
+              </div>
             </div>
           )}
           <div ref={messagesEndRef} />
@@ -1111,14 +1234,14 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
             value={messageInput}
             onChange={(e) => setMessageInput(e.target.value)}
             placeholder="Hỏi về tiền cọc, rút tiền Napas, mẹo nhận việc..."
-            className="flex-1 py-2.5 px-4 rounded-2xl bg-[#12233B] border border-[#C5E5EC]/20 text-white text-xs placeholder:text-[#C5E5EC]/40 focus:border-[#3064AE] transition outline-none"
+            className="flex-1 py-2 px-3.5 rounded-full bg-[#1e2c3d] border border-white/10 text-white text-[13px] placeholder:text-[#C5E5EC]/40 focus:border-[#0084FF] focus:bg-[#1a2636] transition outline-none"
           />
           <button
             type="submit"
             disabled={!messageInput.trim() || isAiTyping}
-            className="p-2.5 rounded-2xl bg-[#3064AE] hover:bg-[#255294] disabled:opacity-40 text-white font-bold transition shadow-md shadow-[#3064AE]/30 border border-[#C5E5EC]/30 shrink-0 cursor-pointer"
+            className="p-2 rounded-full bg-[#0084FF] hover:bg-[#0073e6] disabled:opacity-40 text-white font-bold transition shadow-md shadow-[#0084FF]/30 shrink-0 cursor-pointer flex items-center justify-center"
           >
-            <Send className="w-4 h-4" />
+            <Send className="w-4 h-4 ml-0.5" />
           </button>
         </form>
       </div>
@@ -1133,7 +1256,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
     const associatedGig = activeContact.associatedGig;
 
     return (
-      <div className="max-w-2xl mx-auto px-2 sm:px-4 py-2 flex flex-col h-[calc(100vh-4.5rem)] pb-20">
+      <div className="max-w-4xl mx-auto px-2 sm:px-4 py-2 flex flex-col h-[calc(100vh-4.5rem)] pb-20">
         {/* MESSENGER TOP APP BAR */}
         <div className="flex items-center justify-between pb-2.5 border-b border-[#C5E5EC]/15 shrink-0">
           <div className="flex items-center space-x-2.5 min-w-0">
@@ -1168,8 +1291,17 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
 
             {/* Partner Info */}
             <div className="min-w-0">
-              <div className="flex items-center space-x-1.5 truncate">
+              <div className="flex items-center space-x-1.5 flex-wrap gap-y-1">
                 <h3 className="font-extrabold text-sm text-white truncate">{activeContact.name}</h3>
+                {(activeContact.isCccdVerified || activeContact.isEduVerified) && (
+                  <VerifiedIdentityBadge
+                    isCccdVerified={!!activeContact.isCccdVerified}
+                    isStudentVerified={!!activeContact.isEduVerified}
+                    school={activeContact.school}
+                    size="sm"
+                    showText={false}
+                  />
+                )}
                 <span
                   className={`px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 ${
                     activeContact.role === 'CLIENT'
@@ -1268,9 +1400,13 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
         </div>
 
         {/* MESSENGER MESSAGES STREAM */}
-        <div className="flex-1 overflow-y-auto py-2 space-y-2.5 pr-1">
+        <div
+          ref={messagesContainerRef}
+          onScroll={handleMessagesScroll}
+          className="flex-1 overflow-y-auto py-2.5 px-1 space-y-1.5 scroll-smooth relative"
+        >
           {currentConversationMessages.length === 0 ? (
-            <div className="text-center py-12 text-[#C5E5EC]/60 text-xs">
+            <div className="text-center py-10 text-[#C5E5EC]/60 text-xs">
               <div
                 className={`w-14 h-14 mx-auto mb-3 rounded-full bg-gradient-to-tr ${activeContact.avatarBg} flex items-center justify-center text-white font-black text-xl shadow-lg border border-[#C5E5EC]/30`}
               >
@@ -1283,102 +1419,216 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
               </p>
             </div>
           ) : (
-            currentConversationMessages.map((msg) => {
+            currentConversationMessages.map((msg, index) => {
               const isMe = msg.senderId === currentUser?.id;
+              const prevMsg = currentConversationMessages[index - 1];
+              const nextMsg = currentConversationMessages[index + 1];
+              const isFirstInGroup = !prevMsg || prevMsg.senderId !== msg.senderId;
+              const isLastInGroup = !nextMsg || nextMsg.senderId !== msg.senderId;
+
+              // Check if thumbs up single emoji
+              const isOnlyThumbsUp = msg.message?.trim() === '👍' && !msg.attachmentType || msg.attachmentType === 'NONE' && msg.message?.trim() === '👍';
 
               return (
-                <div key={msg.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} group`}>
-                  {/* Sender Name & Time */}
-                  <div className="flex items-center space-x-1.5 mb-0.5 px-1">
-                    <span className="text-[10px] text-[#C5E5EC]/70 font-bold">
-                      {isMe ? 'Bạn' : msg.senderName || activeContact.name}
-                    </span>
-                    <span className="text-[9px] text-[#C5E5EC]/50">
-                      {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  </div>
+                <div
+                  key={msg.id}
+                  className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} ${isFirstInGroup ? 'mt-2.5' : 'mt-0.5'}`}
+                >
+                  {/* Sender Name (Only on first of group for partner) */}
+                  {!isMe && isFirstInGroup && (
+                    <div className="flex items-center space-x-1.5 mb-1 px-8 text-[11px] text-[#C5E5EC]/75 font-semibold">
+                      <span>{msg.senderName || activeContact.name}</span>
+                    </div>
+                  )}
 
-                  {/* Message Bubble Container */}
-                  <div
-                    className={`max-w-[85%] rounded-2xl px-3.5 py-2 text-xs leading-relaxed relative ${
-                      isMe
-                        ? 'bg-gradient-to-r from-[#3064AE] to-[#255294] text-white font-medium rounded-tr-none shadow-md shadow-[#3064AE]/20 border border-[#C5E5EC]/25'
-                        : 'bg-[#12233B] border border-[#C5E5EC]/20 text-slate-100 rounded-tl-none shadow-sm'
-                    }`}
-                  >
-                    {/* Text Message */}
-                    {msg.message && <p className="whitespace-pre-wrap break-words">{msg.message}</p>}
-
-                    {/* Image Attachment */}
-                    {msg.attachmentType === 'IMAGE' && msg.attachmentData && (
-                      <div className="mt-2 rounded-xl overflow-hidden border border-black/20">
-                        <img
-                          src={msg.attachmentData}
-                          alt="Ảnh đính kèm"
-                          className="max-h-60 rounded-xl object-cover cursor-pointer hover:opacity-95 transition"
-                          onClick={() => setPreviewZoomImage(msg.attachmentData!)}
-                        />
+                  {/* Message Row with Partner Avatar on Left */}
+                  <div className={`flex items-end space-x-1.5 max-w-[82%] sm:max-w-[75%] ${isMe ? 'flex-row-reverse space-x-reverse' : 'flex-row'}`}>
+                    {/* Small Messenger avatar on bottom-left for partner */}
+                    {!isMe && (
+                      <div className="w-6 h-6 rounded-full shrink-0 overflow-hidden mb-0.5">
+                        {isLastInGroup ? (
+                          <div
+                            className={`w-6 h-6 rounded-full bg-gradient-to-tr ${activeContact.avatarBg} flex items-center justify-center text-white font-bold text-[10px] border border-[#C5E5EC]/30`}
+                          >
+                            {activeContact.avatarUrl ? (
+                              <img src={activeContact.avatarUrl} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              (activeContact.name || 'U').charAt(0).toUpperCase()
+                            )}
+                          </div>
+                        ) : (
+                          <div className="w-6 h-6" />
+                        )}
                       </div>
                     )}
 
-                    {/* Voice Note Attachment */}
-                    {msg.attachmentType === 'VOICE' && (
-                      <div className="mt-2 flex items-center space-x-2.5 py-2 px-3 rounded-2xl bg-black/25 backdrop-blur-xs border border-white/15 text-xs min-w-[200px] sm:min-w-[240px]">
-                        <button
-                          type="button"
-                          onClick={() => handleTogglePlayAudio(msg.id, msg.attachmentData, msg.attachmentDuration)}
-                          className="w-9 h-9 rounded-full bg-[#00E5FF] text-black hover:scale-105 active:scale-95 flex items-center justify-center shrink-0 shadow-md transition"
-                          title={playingAudioId === msg.id ? 'Tạm dừng' : 'Phát tin nhắn thoại'}
+                    {/* Single Thumbs-Up sticker style */}
+                    {isOnlyThumbsUp ? (
+                      <div className="py-1 px-1 text-4xl select-none animate-sticker-pop cursor-default inline-block" title="👍">
+                        👍
+                      </div>
+                    ) : (
+                      /* Messenger Bubble with Responsive Content Sizing & Slide-in Entry Animation */
+                      <div className="relative group/msg">
+                        <div
+                          className={`relative px-3 py-1.5 text-[13px] leading-snug break-words transition-all shadow-xs inline-block w-fit max-w-full ${
+                            isMe ? 'animate-message-me' : 'animate-message-partner'
+                          } ${
+                            isMe
+                              ? 'bg-[#0084FF] text-white selection:bg-white selection:text-[#0084FF] ' +
+                                (isFirstInGroup && isLastInGroup
+                                  ? 'rounded-2xl'
+                                  : isFirstInGroup
+                                  ? 'rounded-2xl rounded-br-sm'
+                                  : isLastInGroup
+                                  ? 'rounded-2xl rounded-tr-sm'
+                                  : 'rounded-2xl rounded-r-sm')
+                              : 'bg-[#2A394A] text-slate-100 border border-white/5 ' +
+                                (isFirstInGroup && isLastInGroup
+                                  ? 'rounded-2xl'
+                                  : isFirstInGroup
+                                  ? 'rounded-2xl rounded-bl-sm'
+                                  : isLastInGroup
+                                  ? 'rounded-2xl rounded-tl-sm'
+                                  : 'rounded-2xl rounded-l-sm')
+                          }`}
                         >
-                          {playingAudioId === msg.id ? (
-                            <Pause className="w-4 h-4 fill-current" />
-                          ) : (
-                            <Play className="w-4 h-4 fill-current ml-0.5" />
-                          )}
-                        </button>
-                        <div className="flex-1 flex flex-col justify-center">
-                          <div className="flex items-center justify-between text-[11px] mb-1.5">
-                            <span className="font-extrabold text-white tracking-tight">
-                              {playingAudioId === msg.id ? 'Đang phát thoại...' : 'Tin nhắn thoại'}
-                            </span>
-                            <span className="font-mono text-[10px] text-cyan-200 font-bold">
-                              {msg.attachmentDuration || 3}s
-                            </span>
-                          </div>
-                          {/* Audio Waveform Bars */}
-                          <div className="flex items-center space-x-0.5 h-4">
-                            {[30, 65, 90, 50, 100, 80, 45, 90, 70, 40, 85, 60, 95, 50, 30].map((h, i) => (
-                              <div
-                                key={i}
-                                className={`flex-1 rounded-full transition-all duration-150 ${
-                                  playingAudioId === msg.id ? 'bg-[#00E5FF] animate-pulse' : 'bg-white/40'
-                                }`}
-                                style={{
-                                  height:
-                                    playingAudioId === msg.id
-                                      ? `${Math.max(25, h * (0.6 + ((i % 3) * 0.2)))}%`
-                                      : `${h}%`,
+                          {/* Text Message */}
+                          {msg.message && <p className="whitespace-pre-wrap">{msg.message}</p>}
+
+                          {/* Image Attachment */}
+                          {msg.attachmentType === 'IMAGE' && msg.attachmentData && (
+                            <div className="mt-1.5 rounded-xl overflow-hidden border border-black/20">
+                              <img
+                                src={msg.attachmentData}
+                                alt="Ảnh đính kèm"
+                                className="max-h-56 rounded-xl object-cover cursor-pointer hover:opacity-95 transition"
+                                onClick={() => {
+                                  setPreviewImageRotation(0);
+                                  setPreviewZoomImage(msg.attachmentData!);
                                 }}
                               />
+                            </div>
+                          )}
+
+                          {/* Voice Note Attachment */}
+                          {msg.attachmentType === 'VOICE' && (
+                            <div className="mt-1.5 flex items-center space-x-2 py-1 px-2 rounded-xl bg-black/25 backdrop-blur-xs border border-white/15 text-xs min-w-[180px]">
+                              <button
+                                type="button"
+                                onClick={() => handleTogglePlayAudio(msg.id, msg.attachmentData, msg.attachmentDuration)}
+                                className="w-7 h-7 rounded-full bg-[#00E5FF] text-black hover:scale-105 active:scale-95 flex items-center justify-center shrink-0 shadow transition cursor-pointer"
+                                title={playingAudioId === msg.id ? 'Tạm dừng' : 'Phát'}
+                              >
+                                {playingAudioId === msg.id ? (
+                                  <Pause className="w-3.5 h-3.5 fill-current" />
+                                ) : (
+                                  <Play className="w-3.5 h-3.5 fill-current ml-0.5" />
+                                )}
+                              </button>
+                              <div className="flex-1 flex flex-col justify-center">
+                                <div className="flex items-center justify-between text-[10px] mb-1">
+                                  <span className="font-bold text-white">Thoại</span>
+                                  <span className="font-mono text-[9px] text-cyan-200">
+                                    {msg.attachmentDuration || 3}s
+                                  </span>
+                                </div>
+                                <div className="flex items-center space-x-0.5 h-3">
+                                  {[30, 65, 90, 50, 100, 80, 45, 90, 70, 40, 85, 60].map((h, i) => (
+                                    <div
+                                      key={i}
+                                      className={`flex-1 rounded-full transition-all duration-150 ${
+                                        playingAudioId === msg.id ? 'bg-[#00E5FF] animate-pulse' : 'bg-white/40'
+                                      }`}
+                                      style={{ height: `${h}%` }}
+                                    />
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Video Attachment */}
+                          {msg.attachmentType === 'VIDEO' && msg.attachmentData && (
+                            <div className="mt-1.5 rounded-xl overflow-hidden">
+                              <video src={msg.attachmentData} controls className="max-h-52 w-full rounded-xl" />
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Reaction Picker Button on Hover / Mobile tap */}
+                        <div
+                          className={`absolute top-1/2 -translate-y-1/2 opacity-0 group-hover/msg:opacity-100 transition-opacity z-10 ${
+                            isMe ? '-left-7' : '-right-7'
+                          }`}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => {
+                              triggerHaptic('light');
+                              setActiveReactionPickerMsgId(activeReactionPickerMsgId === msg.id ? null : msg.id);
+                            }}
+                            className="w-6 h-6 rounded-full bg-[#12233B] border border-[#C5E5EC]/30 text-[#C5E5EC] hover:text-white flex items-center justify-center text-xs shadow hover:scale-110 active:scale-95 transition cursor-pointer"
+                            title="Thả cảm xúc"
+                          >
+                            <Smile className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+
+                        {/* Reaction Picker Popover (Messenger style floating emojis) */}
+                        {activeReactionPickerMsgId === msg.id && (
+                          <div
+                            className={`absolute -top-10 z-20 flex items-center space-x-1 p-1 bg-[#12233B]/95 backdrop-blur-md border border-[#3064AE] rounded-full shadow-2xl animate-pop-sticker ${
+                              isMe ? 'right-0' : 'left-0'
+                            }`}
+                          >
+                            {['❤️', '👍', '😂', '😮', '😢', '🔥'].map((emoji) => (
+                              <button
+                                key={emoji}
+                                type="button"
+                                onClick={() => {
+                                  triggerHaptic('medium');
+                                  reactToChatMessage(msg.id, emoji);
+                                  setActiveReactionPickerMsgId(null);
+                                }}
+                                className="w-7 h-7 flex items-center justify-center text-base hover:scale-135 active:scale-95 transition cursor-pointer select-none"
+                              >
+                                {emoji}
+                              </button>
                             ))}
                           </div>
-                        </div>
-                      </div>
-                    )}
+                        )}
 
-                    {/* Video Attachment */}
-                    {msg.attachmentType === 'VIDEO' && msg.attachmentData && (
-                      <div className="mt-2 rounded-xl overflow-hidden">
-                        <video src={msg.attachmentData} controls className="max-h-56 w-full rounded-xl" />
+                        {/* Displayed Active Reactions Count Badge on Message */}
+                        {msg.reactions && Object.keys(msg.reactions).length > 0 && (
+                          <div
+                            className={`absolute -bottom-2 flex items-center space-x-0.5 px-1.5 py-0.5 bg-[#0C1B2E] border border-white/15 rounded-full text-[11px] shadow-sm z-10 ${
+                              isMe ? 'right-1' : 'left-1'
+                            }`}
+                          >
+                            {Object.entries(msg.reactions)
+                              .filter(([_, count]) => (count as number) > 0)
+                              .map(([emoji, count]) => (
+                                <span key={emoji} className="flex items-center space-x-0.5 text-[11px]">
+                                  <span>{emoji}</span>
+                                  {(count as number) > 1 && (
+                                    <span className="text-[10px] text-slate-300 font-bold">{count as number}</span>
+                                  )}
+                                </span>
+                              ))}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
 
-                  {/* Read Receipt */}
-                  {isMe && (
-                    <div className="flex items-center space-x-1 text-[9px] text-slate-500 mt-0.5 px-1">
-                      <span>Đã gửi</span>
-                      <CheckCheck className="w-3 h-3 text-cyan-400" />
+                  {/* Timestamp & Read Receipt on Last of Group */}
+                  {isLastInGroup && (
+                    <div className={`flex items-center space-x-1 text-[10px] text-[#C5E5EC]/50 mt-0.5 ${isMe ? 'pr-1' : 'pl-8'}`}>
+                      <span>
+                        {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                      {isMe && <CheckCheck className="w-3 h-3 text-[#00E5FF] ml-0.5" />}
                     </div>
                   )}
                 </div>
@@ -1386,22 +1636,42 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
             })
           )}
 
-          {/* Real-time Partner Typing Indicator (Messenger Style) */}
+          {/* Real-time Partner Typing Indicator (Classic Messenger 3-dots bubble) */}
           {isPartnerTyping && (
-            <div className="flex flex-col items-start space-y-1 animate-fadeIn">
-              <div className="flex items-center space-x-1.5 px-1">
-                <span className="text-[10px] text-[#C5E5EC]/70 font-bold">{activeContact.name}</span>
-                <span className="text-[10px] text-[#E0FAEB] italic">đang nhập tin nhắn...</span>
+            <div className="flex items-end space-x-1.5 mt-2 animate-fadeIn">
+              <div className="w-6 h-6 rounded-full shrink-0 overflow-hidden mb-0.5">
+                <div
+                  className={`w-6 h-6 rounded-full bg-gradient-to-tr ${activeContact.avatarBg} flex items-center justify-center text-white font-bold text-[10px] border border-[#C5E5EC]/30`}
+                >
+                  {(activeContact.name || 'U').charAt(0).toUpperCase()}
+                </div>
               </div>
-              <div className="px-3.5 py-2.5 rounded-2xl rounded-tl-sm bg-[#12233B] border border-[#C5E5EC]/30 flex items-center space-x-1.5 shadow-md">
-                <span className="w-2 h-2 rounded-full bg-[#C5E5EC] animate-bounce" style={{ animationDelay: '0ms' }} />
-                <span className="w-2 h-2 rounded-full bg-[#417AC6] animate-bounce" style={{ animationDelay: '150ms' }} />
-                <span className="w-2 h-2 rounded-full bg-[#E0FAEB] animate-bounce" style={{ animationDelay: '300ms' }} />
+              <div className="px-3 py-2 rounded-2xl rounded-bl-sm bg-[#2A394A] border border-white/10 flex items-center space-x-1 shadow-sm">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#C5E5EC] animate-bounce" style={{ animationDelay: '0ms' }} />
+                <span className="w-1.5 h-1.5 rounded-full bg-[#C5E5EC] animate-bounce" style={{ animationDelay: '150ms' }} />
+                <span className="w-1.5 h-1.5 rounded-full bg-[#C5E5EC] animate-bounce" style={{ animationDelay: '300ms' }} />
               </div>
             </div>
           )}
 
           <div ref={messagesEndRef} />
+
+          {/* Floating Scroll to Bottom Button (Messenger style) */}
+          {showScrollBottomBtn && (
+            <div className="sticky bottom-2 left-0 right-0 flex justify-center z-20 pointer-events-none">
+              <button
+                type="button"
+                onClick={() => {
+                  triggerHaptic('light');
+                  scrollToBottom(true);
+                }}
+                className="pointer-events-auto px-3.5 py-1.5 rounded-full bg-[#122E54]/95 backdrop-blur-md border border-[#00E5FF]/40 text-[#00E5FF] hover:text-white shadow-xl flex items-center space-x-1.5 text-xs font-bold transition hover:scale-105 active:scale-95 cursor-pointer"
+              >
+                <ChevronDown className="w-4 h-4 animate-bounce" />
+                <span>Cuộn xuống tin mới</span>
+              </button>
+            </div>
+          )}
         </div>
 
         {/* PREVIEW ATTACHMENT BEFORE SEND */}
@@ -1419,26 +1689,42 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
 
         {/* ATTACHMENT POPUP MENU */}
         {showAttachmentMenu && (
-          <div className="mb-2 p-2 rounded-2xl bg-[#12233B] border border-[#C5E5EC]/25 shadow-xl flex items-center space-x-3 shrink-0">
+          <div className="mb-2 p-2 rounded-2xl bg-[#12233B]/95 backdrop-blur-md border border-[#00E5FF]/30 shadow-2xl flex items-center space-x-2 shrink-0 animate-fadeIn">
             <button
+              type="button"
               onClick={() => {
+                triggerHaptic('light');
                 setShowAttachmentMenu(false);
                 fileInputImageRef.current?.click();
               }}
-              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-[#0E1B2E] hover:bg-[#162B48] text-xs font-semibold text-[#C5E5EC] border border-[#C5E5EC]/20 transition cursor-pointer"
+              className="flex items-center space-x-2 px-3 py-2 rounded-xl bg-[#0E1B2E] hover:bg-[#162B48] active:scale-95 text-xs font-bold text-[#E0FAEB] border border-[#00E5FF]/20 transition cursor-pointer"
             >
-              <ImageIcon className="w-4 h-4 text-[#C5E5EC]" />
-              <span>Gửi Ảnh</span>
+              <div className="w-6 h-6 rounded-lg bg-blue-500/20 text-[#0084FF] flex items-center justify-center">
+                <ImageIcon className="w-4 h-4" />
+              </div>
+              <span>Chọn từ thư viện</span>
             </button>
             <button
+              type="button"
               onClick={() => {
+                triggerHaptic('light');
                 setShowAttachmentMenu(false);
                 fileInputCameraRef.current?.click();
               }}
-              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-[#0E1B2E] hover:bg-[#162B48] text-xs font-semibold text-[#C5E5EC] border border-[#C5E5EC]/20 transition cursor-pointer"
+              className="flex items-center space-x-2 px-3 py-2 rounded-xl bg-[#0E1B2E] hover:bg-[#162B48] active:scale-95 text-xs font-bold text-[#E0FAEB] border border-[#00E5FF]/20 transition cursor-pointer"
             >
-              <Camera className="w-4 h-4 text-[#C5E5EC]" />
-              <span>Chụp Ảnh</span>
+              <div className="w-6 h-6 rounded-lg bg-purple-500/20 text-purple-400 flex items-center justify-center">
+                <Camera className="w-4 h-4" />
+              </div>
+              <span>Chụp ảnh nhanh</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowAttachmentMenu(false)}
+              className="p-2 ml-auto rounded-full text-slate-400 hover:text-white transition cursor-pointer"
+              title="Đóng menu đính kèm"
+            >
+              <X className="w-4 h-4" />
             </button>
           </div>
         )}
@@ -1460,56 +1746,154 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
           onChange={handleImageFileChange}
         />
 
-        {/* MESSENGER BOTTOM INPUT BAR */}
-        <form onSubmit={handleSendMessage} className="pt-2 border-t border-[#C5E5EC]/15 shrink-0 flex items-center space-x-2">
-          {/* Plus button for attachment menu */}
-          <button
-            type="button"
-            onClick={() => setShowAttachmentMenu((p) => !p)}
-            className={`p-2.5 rounded-2xl transition shrink-0 cursor-pointer ${
-              showAttachmentMenu
-                ? 'bg-[#3064AE] text-white'
-                : 'bg-[#12233B] hover:bg-[#162B48] text-[#C5E5EC] border border-[#C5E5EC]/20'
-            }`}
-            title="Đính kèm ảnh, chụp camera"
-          >
-            <Plus className="w-4 h-4" />
-          </button>
+        {/* LIVE VOICE RECORDING BAR (Khi đang ghi âm microphone) */}
+        {isRecordingVoice ? (
+          <div className="pt-2 border-t border-[#C5E5EC]/15 shrink-0 flex items-center justify-between space-x-2 animate-fadeIn">
+            <div className="flex items-center space-x-2.5 px-3 py-2 rounded-full bg-red-950/70 border border-red-500/40 text-red-200 flex-1">
+              <span className="w-3 h-3 rounded-full bg-red-500 animate-ping" />
+              <Mic className="w-4 h-4 text-red-400 animate-pulse" />
+              <span className="text-xs font-bold font-mono">Đang ghi âm: {recordingDuration}s</span>
+              <div className="flex items-center space-x-0.5 ml-2 h-3">
+                {[40, 80, 50, 100, 75, 90, 45, 85].map((h, i) => (
+                  <div
+                    key={i}
+                    className="w-1 bg-red-400/80 rounded-full animate-pulse"
+                    style={{ height: `${h}%`, animationDelay: `${i * 100}ms` }}
+                  />
+                ))}
+              </div>
+            </div>
 
-          {/* Text Input */}
-          <input
-            type="text"
-            value={messageInput}
-            onChange={(e) => setMessageInput(e.target.value)}
-            placeholder="Nhập tin nhắn..."
-            className="flex-1 py-2.5 px-4 rounded-2xl bg-[#12233B] border border-[#C5E5EC]/20 text-white text-xs placeholder:text-[#C5E5EC]/40 focus:border-[#3064AE] transition outline-none"
-          />
-
-          {/* Send Button or Thumbs-up if empty */}
-          {messageInput.trim() || pendingImage ? (
-            <button
-              type="submit"
-              className="p-2.5 rounded-2xl bg-[#3064AE] hover:bg-[#255294] text-white font-bold transition shadow-md shadow-[#3064AE]/30 border border-[#C5E5EC]/30 shrink-0 cursor-pointer"
-              title="Gửi tin nhắn"
-            >
-              <Send className="w-4 h-4" />
-            </button>
-          ) : (
+            <div className="flex items-center space-x-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  triggerHaptic('light');
+                  cancelVoiceRecording();
+                }}
+                className="p-2 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition active:scale-95 cursor-pointer"
+                title="Hủy ghi âm"
+              >
+                <X className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  triggerHaptic('medium');
+                  stopVoiceRecording();
+                }}
+                className="px-3.5 py-1.5 rounded-full bg-gradient-to-r from-red-600 to-rose-600 hover:brightness-110 active:scale-95 text-white font-bold text-xs flex items-center space-x-1 shadow-lg shadow-red-600/30 transition cursor-pointer"
+                title="Gửi bản ghi âm"
+              >
+                <Send className="w-3.5 h-3.5" />
+                <span>Gửi Thoại</span>
+              </button>
+            </div>
+          </div>
+        ) : (
+          /* MESSENGER BOTTOM INPUT BAR */
+          <form onSubmit={handleSendMessage} className="pt-2 border-t border-[#C5E5EC]/15 shrink-0 flex items-center space-x-1 sm:space-x-1.5">
+            {/* Attachment Button (Paperclip) */}
             <button
               type="button"
-              onClick={handleSendThumbsUp}
-              className="p-2.5 rounded-2xl bg-[#12233B] hover:bg-[#162B48] text-[#C5E5EC] border border-[#C5E5EC]/20 transition shrink-0 cursor-pointer"
-              title="Gửi nút Thích (Like)"
+              onClick={() => {
+                triggerHaptic('light');
+                setShowAttachmentMenu(!showAttachmentMenu);
+              }}
+              className={`p-2 rounded-full transition shrink-0 cursor-pointer ${
+                showAttachmentMenu
+                  ? 'bg-[#0084FF] text-white shadow-md shadow-[#0084FF]/30'
+                  : 'hover:bg-white/10 text-[#0084FF]'
+              }`}
+              title="Đính kèm tệp, ảnh hoặc chụp ảnh"
             >
-              <ThumbsUp className="w-4 h-4" />
+              <Paperclip className="w-5 h-5 text-[#0084FF]" />
             </button>
-          )}
-        </form>
+
+            {/* Gallery Image Button */}
+            <button
+              type="button"
+              onClick={() => {
+                triggerHaptic('light');
+                fileInputImageRef.current?.click();
+              }}
+              className="p-2 rounded-full hover:bg-white/10 text-[#0084FF] transition shrink-0 cursor-pointer"
+              title="Chọn ảnh từ thư viện"
+            >
+              <ImageIcon className="w-5 h-5 text-[#0084FF]" />
+            </button>
+
+            {/* Camera Button */}
+            <button
+              type="button"
+              onClick={() => {
+                triggerHaptic('light');
+                fileInputCameraRef.current?.click();
+              }}
+              className="p-2 rounded-full hover:bg-white/10 text-[#0084FF] transition shrink-0 cursor-pointer"
+              title="Chụp ảnh nhanh"
+            >
+              <Camera className="w-5 h-5 text-[#0084FF]" />
+            </button>
+
+            {/* Text Input Pill */}
+            <input
+              type="text"
+              value={messageInput}
+              onChange={(e) => setMessageInput(e.target.value)}
+              placeholder={t('typeMessagePlaceholder')}
+              className="flex-1 py-2 px-3 sm:px-3.5 rounded-full bg-[#1e2c3d] border border-white/10 text-white text-[13px] placeholder:text-[#C5E5EC]/40 focus:border-[#0084FF] focus:bg-[#1a2636] transition outline-none min-w-0"
+            />
+
+            {/* Voice Message Microphone Button (Hiển thị khi không có text) */}
+            {!messageInput.trim() && !pendingImage && (
+              <button
+                type="button"
+                onClick={() => {
+                  triggerHaptic('medium');
+                  startVoiceRecording();
+                }}
+                className="p-2 rounded-full hover:bg-white/10 text-[#00E5FF] hover:scale-105 active:scale-95 transition shrink-0 cursor-pointer flex items-center justify-center"
+                title="Ghi âm tin nhắn thoại"
+              >
+                <Mic className="w-5 h-5 text-[#00E5FF]" />
+              </button>
+            )}
+
+            {/* Send Button or Thumbs-up if empty */}
+            {messageInput.trim() || pendingImage ? (
+              <button
+                type="submit"
+                className="p-2 rounded-full bg-[#0084FF] hover:bg-[#0073e6] active:scale-95 text-white transition shadow-md shadow-[#0084FF]/30 shrink-0 cursor-pointer flex items-center justify-center"
+                title="Gửi tin nhắn"
+              >
+                <Send className="w-4 h-4 ml-0.5" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleSendThumbsUp}
+                className="p-2 rounded-full hover:bg-white/10 text-[#0084FF] hover:scale-110 active:scale-90 transition shrink-0 cursor-pointer flex items-center justify-center text-xl"
+                title="Gửi nút Thích (Like)"
+              >
+                👍
+              </button>
+            )}
+          </form>
+        )}
 
         {/* MODAL: CONTACT DETAILS INFO */}
         {showContactInfoModal && (
-          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="w-full max-w-sm rounded-3xl bg-[#0B1528] border border-slate-700 p-5 shadow-2xl text-slate-200">
+          <div
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setShowContactInfoModal(false);
+            }}
+            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-sm rounded-3xl bg-[#0B1528] border border-slate-700 p-5 shadow-2xl text-slate-200"
+            >
               <div className="flex items-center justify-between pb-3 border-b border-slate-800">
                 <h4 className="font-extrabold text-sm text-white">Hồ sơ Campus Messenger</h4>
                 <button
@@ -1569,20 +1953,58 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
           </div>
         )}
 
-        {/* IMAGE ZOOM LIGHTBOX */}
+        {/* IMAGE ZOOM LIGHTBOX (MESSENGER ENHANCED WITH ROTATE & DOWNLOAD) */}
         {previewZoomImage && (
           <div
             onClick={() => setPreviewZoomImage(null)}
-            className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 cursor-pointer"
+            className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex items-center justify-center p-4 cursor-pointer animate-fadeIn"
           >
-            <div className="relative max-w-3xl max-h-[85vh]">
-              <img src={previewZoomImage} alt="Zoom" className="max-h-[85vh] rounded-2xl object-contain shadow-2xl" />
-              <button
-                onClick={() => setPreviewZoomImage(null)}
-                className="absolute top-3 right-3 p-2 rounded-full bg-black/60 text-white cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
+            <div
+              className="relative max-w-4xl max-h-[88vh] flex flex-col items-center"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Image Toolbar */}
+              <div className="absolute -top-12 right-0 flex items-center space-x-2 z-20">
+                <button
+                  type="button"
+                  onClick={() => {
+                    triggerHaptic('light');
+                    setPreviewImageRotation((prev) => (prev + 90) % 360);
+                  }}
+                  className="p-2 rounded-full bg-slate-900/80 hover:bg-slate-800 text-white border border-white/20 transition hover:scale-105 cursor-pointer shadow"
+                  title="Xoay ảnh 90°"
+                >
+                  <RotateCw className="w-4 h-4 text-[#00E5FF]" />
+                </button>
+                <a
+                  href={previewZoomImage}
+                  download="gigme-chat-photo.jpg"
+                  onClick={() => triggerHaptic('success')}
+                  className="p-2 rounded-full bg-slate-900/80 hover:bg-slate-800 text-white border border-white/20 transition hover:scale-105 cursor-pointer shadow"
+                  title="Tải ảnh về máy"
+                >
+                  <Download className="w-4 h-4 text-emerald-400" />
+                </a>
+                <button
+                  type="button"
+                  onClick={() => {
+                    triggerHaptic('light');
+                    setPreviewZoomImage(null);
+                  }}
+                  className="p-2 rounded-full bg-slate-900/80 hover:bg-red-500/80 text-white border border-white/20 transition hover:scale-105 cursor-pointer shadow"
+                  title="Đóng xem ảnh"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Rotatable Image View */}
+              <img
+                src={previewZoomImage}
+                alt="Zoom"
+                style={{ transform: `rotate(${previewImageRotation}deg)` }}
+                className="max-h-[85vh] max-w-[90vw] rounded-2xl object-contain shadow-2xl transition-transform duration-200"
+              />
             </div>
           </div>
         )}
@@ -1629,7 +2051,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
             title="Thêm bạn bè qua ID 9 số"
           >
             <UserPlus className="w-4 h-4 text-[#E0FAEB]" />
-            <span>Add Friend</span>
+            <span>{t('addFriendBtn')}</span>
           </button>
           <button
             onClick={() => setShowNewChatModal(true)}
@@ -1642,15 +2064,27 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
             onClick={onBack}
             className="px-3 py-1.5 rounded-xl bg-[#12233B] hover:bg-[#162B48] text-[#C5E5EC] border border-[#C5E5EC]/20 font-bold text-xs transition cursor-pointer"
           >
-            &larr; Khám phá
+            &larr; {t('back')}
           </button>
         </div>
       </div>
 
       {/* 9-DIGIT ID SYSTEM & QUICK FRIEND SEARCH - CHỈ HIỆN KHI BẤM NÚT ADDFRIEND */}
       {showAddFriendModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="w-full max-w-md rounded-3xl bg-[#0E1B2E] border border-[#C5E5EC]/30 p-5 shadow-2xl text-slate-100 flex flex-col space-y-3.5 max-h-[90vh] overflow-y-auto">
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowAddFriendModal(false);
+              setSearchIdError('');
+              setFoundUserResult(null);
+            }
+          }}
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md rounded-3xl bg-[#0E1B2E] border border-[#C5E5EC]/30 p-5 shadow-2xl text-slate-100 flex flex-col space-y-3.5 max-h-[90vh] overflow-y-auto"
+          >
             {/* Modal Header */}
             <div className="flex items-center justify-between pb-2 border-b border-[#C5E5EC]/15 shrink-0">
               <div className="flex items-center space-x-2">
@@ -1818,7 +2252,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Tìm người thuê, người làm, trường ĐH..."
+          placeholder={t('searchContactsPlaceholder')}
           className="w-full pl-10 pr-8 py-2.5 rounded-2xl bg-[#12233B] border border-[#C5E5EC]/25 text-white text-xs placeholder:text-[#C5E5EC]/40 focus:border-[#3064AE] transition outline-none"
         />
         {searchQuery && (
@@ -1834,7 +2268,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
       {/* ACTIVE NOW (STORIES / AVATAR BUBBLE ROW - LIKE MESSENGER) */}
       <div className="shrink-0 py-1 border-b border-[#C5E5EC]/15">
         <p className="text-[10px] font-bold text-[#C5E5EC]/70 uppercase tracking-wider mb-2 px-1">
-          Đang hoạt động trên Campus ({campusContacts.filter((c) => c.isOnline).length})
+          {t('onlineNow')} ({campusContacts.filter((c) => c.isOnline).length})
         </p>
         <div className="flex items-center gap-3 overflow-x-auto pb-1.5 no-scrollbar">
           {/* AI Story */}
@@ -2032,8 +2466,14 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                       <h4 className={`font-bold text-sm truncate group-hover:text-[#C5E5EC] transition ${unreadCount > 0 ? 'text-white font-black' : 'text-slate-100'}`}>
                         {contact.name}
                       </h4>
-                      {contact.isEduVerified && (
-                        <VerifiedEduBadge school={contact.school} size="sm" showText={false} />
+                      {(contact.isCccdVerified || contact.isEduVerified) && (
+                        <VerifiedIdentityBadge
+                          isCccdVerified={!!contact.isCccdVerified}
+                          isStudentVerified={!!contact.isEduVerified}
+                          school={contact.school}
+                          size="sm"
+                          showText={false}
+                        />
                       )}
                       <span
                         className={`px-2 py-0.5 rounded text-[10px] font-semibold shrink-0 ${
@@ -2083,8 +2523,16 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
 
       {/* MODAL: START NEW CHAT WITH ANY STUDENT */}
       {showNewChatModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="w-full max-w-md rounded-3xl bg-[#0E1B2E] border border-[#C5E5EC]/30 p-5 shadow-2xl text-slate-100 flex flex-col max-h-[80vh]">
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowNewChatModal(false);
+          }}
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md rounded-3xl bg-[#0E1B2E] border border-[#C5E5EC]/30 p-5 shadow-2xl text-slate-100 flex flex-col max-h-[80vh]"
+          >
             <div className="flex items-center justify-between pb-3 border-b border-[#C5E5EC]/15 shrink-0">
               <h4 className="font-extrabold text-sm text-white flex items-center space-x-1.5">
                 <MessageCircle className="w-4 h-4 text-[#C5E5EC]" />

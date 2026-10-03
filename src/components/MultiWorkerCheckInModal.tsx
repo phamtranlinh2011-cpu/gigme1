@@ -17,6 +17,7 @@ import {
 import { GigEntity } from '../types';
 import { useGigMe } from '../context/GigMeContext';
 import { validateSecurityToken } from '../utils/securityTokens';
+import { triggerHaptic } from '../utils/haptics';
 
 interface MultiWorkerCheckInModalProps {
   isOpen: boolean;
@@ -54,37 +55,52 @@ export const MultiWorkerCheckInModal: React.FC<MultiWorkerCheckInModalProps> = (
   const secretCode = gig.checkInSecretCode || '';
 
   const handleJoin = () => {
+    triggerHaptic('medium');
     joinMultiWorkerGig(gig.id);
   };
 
   const handleManualCheckIn = () => {
     if (!enteredCode.trim()) {
+      triggerHaptic('error');
       showNotification('Chưa nhập mã', 'Vui lòng nhập mã bảo mật điểm danh từ người thuê.');
       return;
     }
+    triggerHaptic('success');
     checkInMultiWorker(gig.id, enteredCode.trim());
     setEnteredCode('');
   };
 
   const handleSimulateQrScan = () => {
     if (!secretCode) {
+      triggerHaptic('error');
       showNotification('Chưa có mã', 'Chủ việc chưa kích hoạt mã bảo mật QR cho ca làm này.');
       return;
     }
+    triggerHaptic('light');
     setIsScanningSimulation(true);
     setTimeout(() => {
+      triggerHaptic('success');
       checkInMultiWorker(gig.id, secretCode);
       setIsScanningSimulation(false);
     }, 900);
   };
 
   const handlePayoutAll = () => {
+    triggerHaptic('escrow');
     payoutMultiWorkers(gig.id);
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-md overflow-y-auto animate-fadeIn">
-      <div className="relative w-full max-w-2xl bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-teal-500/30 overflow-hidden my-6">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-md overflow-y-auto animate-fadeIn"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="relative w-full max-w-2xl bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-teal-500/30 overflow-hidden my-6"
+      >
         {/* Header Nhóm Làm Việc */}
         <div className="bg-gradient-to-r from-teal-600 via-emerald-600 to-cyan-600 p-5 text-white">
           <div className="flex items-center justify-between">

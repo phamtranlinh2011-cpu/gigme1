@@ -1,7 +1,7 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { 
-  getFirestore, 
+  initializeFirestore,
   doc, 
   getDocFromServer,
   collection,
@@ -26,14 +26,22 @@ import {
   BidEntity,
   MarketplaceItemEntity,
   SafeWalkSessionEntity,
-  SystemMaintenanceConfig
+  SystemMaintenanceConfig,
+  FirestoreNotificationEntity
 } from '../types';
 
 // Initialize Firebase SDK
 export const app = initializeApp(firebaseConfig);
 
-// CRITICAL: Initialize Firestore with databaseId as required
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+// CRITICAL: Initialize Firestore with databaseId and experimentalForceLongPolling
+// This prevents 10-second backend timeout warnings and ensures instant connectivity across proxies/iframes/mobile
+export const db = initializeFirestore(
+  app,
+  {
+    experimentalForceLongPolling: true,
+  },
+  firebaseConfig.firestoreDatabaseId
+);
 export const auth = getAuth(app);
 
 export enum OperationType {
@@ -83,17 +91,23 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
   return errInfo;
 }
 
-// Validate Connection to Firestore at boot
+// Validate Connection to Firestore at boot with safe timeout
 export async function testFirestoreConnection(): Promise<boolean> {
   try {
-    await getDocFromServer(doc(db, 'test', 'connection'));
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('connection timeout')), 3500)
+    );
+    await Promise.race([
+      getDocFromServer(doc(db, 'test', 'connection')),
+      timeoutPromise
+    ]);
     console.log('Firebase Firestore connection verified.');
     return true;
   } catch (error) {
-    if (error instanceof Error && error.message.includes('the client is offline')) {
-      console.warn('Firebase Firestore is currently offline. Operating in local cache mode.');
+    if (error instanceof Error && (error.message.includes('the client is offline') || error.message.includes('connection timeout'))) {
+      console.warn('Firebase Firestore is operating in local/offline fallback mode.');
     } else {
-      console.log('Firebase Firestore connection established.');
+      console.log('Firebase Firestore connection responded.');
     }
     return false;
   }
@@ -119,6 +133,21 @@ export async function deleteGigFromCloud(gigId: string): Promise<void> {
     await deleteDoc(doc(db, 'gigs', gigId));
   } catch (err) {
     handleFirestoreError(err, OperationType.DELETE, path);
+  }
+}
+
+export async function fetchGigsFromCloud(): Promise<GigEntity[]> {
+  try {
+    const gigsRef = collection(db, 'gigs');
+    const snapshot = await getDocs(gigsRef);
+    const gigs: GigEntity[] = [];
+    snapshot.forEach((doc) => {
+      gigs.push(doc.data() as GigEntity);
+    });
+    return gigs;
+  } catch (err) {
+    console.warn('fetchGigsFromCloud error:', err);
+    return [];
   }
 }
 
@@ -567,6 +596,54 @@ export function subscribeToMaintenance(
       },
       (error) => {
         handleFirestoreError(error, OperationType.GET, 'system_settings/maintenance');
+        if (onError) onError(error);
+      }
+    );
+  } catch (err: any) {
+    if (onError) onError(err);
+    return () => {};
+  }
+}
+
+// ==================== REAL-TIME NOTIFICATIONS ====================
+export async function sendNotificationToCloud(notification: FirestoreNotificationEntity): Promise<void> {
+  const path = `notifications/${notification.id}`;
+  try {
+    const cleanData = JSON.parse(JSON.stringify(notification));
+    await setDoc(doc(db, 'notifications', notification.id), cleanData);
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, path);
+  }
+}
+
+export function subscribeToNotifications(
+  onNotification: (notif: FirestoreNotificationEntity) => void,
+  onError?: (err: Error) => void
+): () => void {
+  try {
+    const notifsRef = collection(db, 'notifications');
+    const startTime = Date.now();
+    let isInitialSnapshot = true;
+
+    return onSnapshot(
+      notifsRef,
+      (snapshot) => {
+        if (isInitialSnapshot) {
+          isInitialSnapshot = false;
+          return;
+        }
+
+        snapshot.docChanges().forEach((change) => {
+          if (change.type === 'added') {
+            const data = change.doc.data() as FirestoreNotificationEntity;
+            if (!data.createdAt || data.createdAt >= startTime - 5000) {
+              onNotification(data);
+            }
+          }
+        });
+      },
+      (error) => {
+        handleFirestoreError(error, OperationType.LIST, 'notifications');
         if (onError) onError(error);
       }
     );

@@ -177,8 +177,16 @@ export const FcmPushNotificationModal: React.FC<FcmPushNotificationModalProps> =
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-md overflow-y-auto animate-fadeIn">
-      <div className="relative w-full max-w-xl bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-blue-500/30 overflow-hidden my-4 text-slate-900 dark:text-white">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-md overflow-y-auto animate-fadeIn"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="relative w-full max-w-xl bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-blue-500/30 overflow-hidden my-4 text-slate-900 dark:text-white"
+      >
         {/* Header với phong cách Firebase Cloud Messaging */}
         <div className="bg-gradient-to-r from-amber-500 via-orange-600 to-red-600 p-5 text-white flex items-center justify-between">
           <div className="flex items-center space-x-3">

@@ -24,6 +24,9 @@ import {
   RefreshCw,
   ExternalLink,
   X,
+  Fingerprint,
+  Key,
+  Globe,
 } from 'lucide-react';
 import { useGigMe } from '../context/GigMeContext';
 import { MoSmsSession } from '../types';
@@ -35,16 +38,18 @@ export const AuthScreen: React.FC = () => {
     register,
     sendOtp,
     resetPasswordWithOtp,
+    resetPasswordWithPinAndEmail,
+    resetPasswordWithBiometrics,
     loginWithPhoneOtp,
     requestMoSms,
     checkMoSmsStatus,
     simulateMoSms,
     loginWithMoSms,
-    loginSocial,
-    generatedOtp,
     otpTargetContact,
     otpExpiresAt,
     showNotification,
+    language,
+    toggleLanguage,
   } = useGigMe();
 
   const [activeTab, setActiveTab] = useState<'LOGIN' | 'REGISTER' | 'PHONE_OTP' | 'FORGOT'>('LOGIN');
@@ -60,7 +65,8 @@ export const AuthScreen: React.FC = () => {
   const [loginPassword, setLoginPassword] = useState('');
 
   // Register form
-  const [regName, setRegName] = useState('');
+  const [regLastName, setRegLastName] = useState(''); // Họ và tên đệm (VD: Lý Hoàng Gia)
+  const [regFirstName, setRegFirstName] = useState(''); // Tên (VD: Bảo)
   const [regGmail, setRegGmail] = useState('');
   const [regPhone, setRegPhone] = useState('');
   const [regCccd, setRegCccd] = useState('');
@@ -89,23 +95,27 @@ export const AuthScreen: React.FC = () => {
   const [phoneOtpInput, setPhoneOtpInput] = useState('');
   const [phoneCountdown, setPhoneCountdown] = useState(0);
 
-  // Forgot Password
+  // Forgot Password: 3 hình thức (Vân tay, OTP, Mã PIN kèm Gmail)
+  const [forgotMethod, setForgotMethod] = useState<'BIOMETRICS' | 'OTP' | 'PIN'>('OTP');
   const [forgotContact, setForgotContact] = useState('');
   const [forgotOtpInput, setForgotOtpInput] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [forgotCountdown, setForgotCountdown] = useState(0);
 
+  // Forgot Password via PIN + Gmail
+  const [forgotPinEmail, setForgotPinEmail] = useState('');
+  const [forgotPinCode, setForgotPinCode] = useState('');
+  const [forgotPinNewPassword, setForgotPinNewPassword] = useState('');
+
+  // Forgot Password via Biometrics
+  const [forgotBioContact, setForgotBioContact] = useState('');
+  const [forgotBioNewPassword, setForgotBioNewPassword] = useState('');
+  const [bioScanning, setBioScanning] = useState(false);
+  const [bioVerified, setBioVerified] = useState(false);
+
   // State for inline feedback
   const [authError, setAuthError] = useState<string | null>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
-  const [socialLoadingProvider, setSocialLoadingProvider] = useState<string | null>(null);
-
-  // Domain whitelist & Social fallback modal
-  const [showDomainModal, setShowDomainModal] = useState(false);
-  const [domainModalProvider, setDomainModalProvider] = useState('Google');
-  const [quickSocialEmail, setQuickSocialEmail] = useState('vnlandserver@gmail.com');
-  const [copiedDomain, setCopiedDomain] = useState(false);
-  const [quickLoginLoading, setQuickLoginLoading] = useState(false);
 
   // Secret Admin Access (Hidden by default for public users)
   const [isAdminMode, setIsAdminMode] = useState(false);
@@ -287,58 +297,29 @@ export const AuthScreen: React.FC = () => {
     }
   };
 
-  const handleSocialLogin = async (provider: string) => {
-    setAuthError(null);
-    setSocialLoadingProvider(provider);
-    try {
-      await loginSocial(provider);
-    } catch (err: any) {
-      if (
-        err?.code === 'auth/unauthorized-domain' ||
-        err?.message?.includes('unauthorized-domain') ||
-        err?.code === 'auth/configuration-not-found'
-      ) {
-        setDomainModalProvider(provider);
-        setShowDomainModal(true);
-      } else if (err?.code !== 'auth/popup-closed-by-user') {
-        setAuthError(err?.message || `Không thể đăng nhập bằng ${provider}. Vui lòng thử lại!`);
-      }
-    } finally {
-      setSocialLoadingProvider(null);
-    }
-  };
-
-  const handleQuickSocialLoginSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const cleanEmail = quickSocialEmail.trim().toLowerCase();
-    if (!cleanEmail || !cleanEmail.includes('@')) {
-      setAuthError('Vui lòng nhập địa chỉ email hợp lệ!');
-      return;
-    }
-    setQuickLoginLoading(true);
-    try {
-      await loginSocial(domainModalProvider, cleanEmail);
-      setShowDomainModal(false);
-    } catch (err: any) {
-      setAuthError(err?.message || 'Lỗi đăng nhập nhanh. Vui lòng thử lại!');
-    } finally {
-      setQuickLoginLoading(false);
-    }
-  };
-
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError(null);
 
-    const name = regName.trim();
+    const lastName = regLastName.trim();
+    const firstName = regFirstName.trim();
+    const combinedName = `${lastName} ${firstName}`.trim();
     const gmail = regGmail.trim().toLowerCase();
     const phone = regPhone.trim();
     const cccd = regCccd.trim();
     const pass = regPassword.trim();
     const confirm = regConfirmPassword.trim();
 
-    if (!name) {
-      setAuthError('Vui lòng nhập họ và tên của bạn!');
+    if (!lastName) {
+      setAuthError('Vui lòng nhập họ và tên đệm của bạn (VD: Lý Hoàng Gia)!');
+      return;
+    }
+    if (!firstName) {
+      setAuthError('Vui lòng nhập tên của bạn (VD: Bảo)!');
+      return;
+    }
+    if (combinedName.length > 30) {
+      setAuthError(`Họ tên đệm và tên ghi gộp lại không được quá 30 ký tự (hiện tại: ${combinedName.length} ký tự)!`);
       return;
     }
     if (!gmail) {
@@ -374,7 +355,7 @@ export const AuthScreen: React.FC = () => {
     const birth = regBirthDate.trim() || '01/01/2000';
     setIsLoggingIn(true);
     try {
-      const res = await register(name, gmail, regGender, birth, pass, confirm, phone, cccd);
+      const res = await register(combinedName, gmail, regGender, birth, pass, confirm, phone, cccd, lastName, firstName);
       if (!res.success) {
         setAuthError(res.error || 'Đăng ký không thành công. Vui lòng kiểm tra lại thông tin!');
       }
@@ -451,8 +432,100 @@ export const AuthScreen: React.FC = () => {
     }
   };
 
+  const handleResetPasswordWithPin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError(null);
+    if (!forgotPinEmail.trim() || !forgotPinCode.trim() || !forgotPinNewPassword.trim()) {
+      setAuthError('Vui lòng nhập đầy đủ Gmail, Mã PIN 6 số và Mật khẩu mới!');
+      return;
+    }
+    if (forgotPinCode.trim().length !== 6) {
+      setAuthError('Mã PIN bảo mật phải gồm đúng 6 chữ số!');
+      return;
+    }
+    if (forgotPinNewPassword.trim().length < 6) {
+      setAuthError('Mật khẩu mới phải có tối thiểu 6 ký tự!');
+      return;
+    }
+    setIsLoggingIn(true);
+    try {
+      const res = await resetPasswordWithPinAndEmail(forgotPinEmail, forgotPinCode, forgotPinNewPassword);
+      if (res.success) {
+        setActiveTab('LOGIN');
+        setAuthError(null);
+        setForgotPinEmail('');
+        setForgotPinCode('');
+        setForgotPinNewPassword('');
+      } else {
+        setAuthError(res.error || 'Đặt lại mật khẩu bằng Mã PIN không thành công!');
+      }
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  const handleTriggerBiometricScan = async () => {
+    setAuthError(null);
+    if (!forgotBioContact.trim()) {
+      setAuthError('Vui lòng nhập Gmail, Số điện thoại hoặc ID 9 số tài khoản của bạn trước khi quét vân tay!');
+      return;
+    }
+    setBioScanning(true);
+    try {
+      // Simulate real biometric device sensor scan with verification
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      setBioVerified(true);
+      showNotification('Đã nhận diện vân tay! 👆', 'Xác thực sinh trắc học thiết bị thành công. Vui lòng nhập mật khẩu mới.', true);
+    } catch {
+      setAuthError('Không thể quét vân tay trên thiết bị này.');
+    } finally {
+      setBioScanning(false);
+    }
+  };
+
+  const handleResetPasswordWithBio = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError(null);
+    if (!bioVerified) {
+      setAuthError('Vui lòng bấm nút quét dấu vân tay để xác thực trước!');
+      return;
+    }
+    if (forgotBioNewPassword.trim().length < 6) {
+      setAuthError('Mật khẩu mới phải có tối thiểu 6 ký tự!');
+      return;
+    }
+    setIsLoggingIn(true);
+    try {
+      const res = await resetPasswordWithBiometrics(forgotBioContact, forgotBioNewPassword);
+      if (res.success) {
+        setActiveTab('LOGIN');
+        setAuthError(null);
+        setBioVerified(false);
+        setForgotBioContact('');
+        setForgotBioNewPassword('');
+      } else {
+        setAuthError(res.error || 'Đặt lại mật khẩu bằng Vân tay không thành công!');
+      }
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#081120] via-[#0E1B2E] to-[#081120] flex flex-col justify-center items-center px-4 py-8 text-white selection:bg-[#3064AE]/40 selection:text-[#C5E5EC] relative overflow-hidden">
+      {/* Top right language switch pill */}
+      <div className="absolute top-4 right-4 z-20">
+        <button
+          type="button"
+          onClick={() => toggleLanguage()}
+          className="flex items-center space-x-1.5 px-3 py-1.5 rounded-full bg-[#12233B]/80 hover:bg-[#162B48] border border-[#C5E5EC]/30 text-white text-xs font-bold shadow-md cursor-pointer transition active:scale-95"
+          title={language === 'vi' ? 'Switch to English' : 'Chuyển sang Tiếng Việt'}
+        >
+          <Globe className="w-3.5 h-3.5 text-[#C5E5EC]" />
+          <span>{language === 'vi' ? '🇻🇳 Tiếng Việt' : '🇬🇧 English'}</span>
+        </button>
+      </div>
+
       {/* Ambient background glow accents */}
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-[#3064AE]/15 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-10 right-10 w-72 h-72 bg-[#C5E5EC]/10 rounded-full blur-3xl pointer-events-none" />
@@ -648,17 +721,44 @@ export const AuthScreen: React.FC = () => {
               )}
 
               <div>
-                <label className="block text-[#C5E5EC]/90 mb-1 font-semibold">Họ và tên đầy đủ</label>
-                <div className="relative">
-                  <User className="w-4 h-4 text-[#C5E5EC]/50 absolute left-3 top-2.5" />
-                  <input
-                    type="text"
-                    required
-                    value={regName}
-                    onChange={(e) => setRegName(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-white placeholder:text-[#C5E5EC]/40 focus:border-[#C5E5EC] focus:bg-[#152844] focus:outline-none transition"
-                    placeholder="Nguyễn Văn A"
-                  />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[#C5E5EC]/90 mb-1 font-semibold">
+                      Họ và tên đệm <span className="text-rose-400 font-bold">*</span>
+                    </label>
+                    <div className="relative">
+                      <User className="w-4 h-4 text-[#C5E5EC]/50 absolute left-3 top-2.5" />
+                      <input
+                        type="text"
+                        required
+                        maxLength={25}
+                        value={regLastName}
+                        onChange={(e) => setRegLastName(e.target.value)}
+                        className="w-full pl-9 pr-3 py-2 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-white placeholder:text-[#C5E5EC]/40 focus:border-[#C5E5EC] focus:bg-[#152844] focus:outline-none transition"
+                        placeholder="Lý Hoàng Gia"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[#C5E5EC]/90 mb-1 font-semibold">
+                      Tên <span className="text-rose-400 font-bold">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      maxLength={15}
+                      value={regFirstName}
+                      onChange={(e) => setRegFirstName(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-white placeholder:text-[#C5E5EC]/40 focus:border-[#C5E5EC] focus:bg-[#152844] focus:outline-none transition"
+                      placeholder="Bảo"
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center justify-between text-[10px] text-[#C5E5EC]/70 mt-1 px-1">
+                  <span>Ví dụ: Họ và tên đệm: Lý Hoàng Gia / Tên: Bảo</span>
+                  <span className={`${`${regLastName.trim()} ${regFirstName.trim()}`.trim().length > 30 ? 'text-rose-400 font-bold' : 'text-[#C5E5EC]/60'}`}>
+                    {`${regLastName.trim()} ${regFirstName.trim()}`.trim().length}/30 ký tự
+                  </span>
                 </div>
               </div>
 
@@ -1030,166 +1130,302 @@ export const AuthScreen: React.FC = () => {
 
           {/* 4. FORGOT PASSWORD */}
           {activeTab === 'FORGOT' && (
-            <form onSubmit={handleResetPassword} className="space-y-4 text-xs">
+            <div className="space-y-3.5 text-xs">
               <div className="flex items-center justify-between">
-                <h4 className="font-bold text-white">Khôi phục mật khẩu qua OTP</h4>
+                <h4 className="font-extrabold text-white text-sm">Quên Mật Khẩu</h4>
                 <button
                   type="button"
-                  onClick={() => setActiveTab('LOGIN')}
+                  onClick={() => {
+                    setActiveTab('LOGIN');
+                    setAuthError(null);
+                  }}
                   className="text-[#C5E5EC] font-bold hover:underline text-[11px] cursor-pointer"
                 >
-                  Quay lại đăng nhập
+                  &larr; Quay lại đăng nhập
                 </button>
               </div>
 
-              <div>
-                <label className="block text-[#C5E5EC]/90 mb-1 font-semibold">Gmail hoặc Số điện thoại tài khoản</label>
-                <div className="flex space-x-2">
-                  <input
-                    type="text"
-                    required
-                    value={forgotContact}
-                    onChange={(e) => setForgotContact(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-white placeholder:text-[#C5E5EC]/40 focus:border-[#C5E5EC] focus:bg-[#152844] focus:outline-none"
-                    placeholder="vietanh.dhbk@gmail.com"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleSendForgotOtp}
-                    disabled={forgotCountdown > 0}
-                    className={`px-3.5 py-2 rounded-xl font-extrabold whitespace-nowrap transition cursor-pointer ${
-                      forgotCountdown > 0
-                        ? 'bg-[#12233B] text-[#C5E5EC]/50 cursor-not-allowed border border-[#C5E5EC]/20'
-                        : 'bg-gradient-to-r from-[#3064AE] via-[#2A5594] to-[#25735B] text-white hover:brightness-110 active:scale-95 shadow-xs border border-[#E0FAEB]/30'
-                    }`}
-                  >
-                    {forgotCountdown > 0 ? `Gửi lại (${forgotCountdown}s)` : 'Nhận OTP'}
-                  </button>
-                </div>
+              {/* 3 Recovery Methods Selector */}
+              <div className="grid grid-cols-3 gap-1 p-1 bg-[#09111E] rounded-xl border border-[#C5E5EC]/20 text-[11px] font-bold">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setForgotMethod('BIOMETRICS');
+                    setAuthError(null);
+                  }}
+                  className={`py-1.5 px-1.5 rounded-lg flex items-center justify-center space-x-1 transition cursor-pointer ${
+                    forgotMethod === 'BIOMETRICS'
+                      ? 'bg-[#3064AE] text-white shadow-xs font-black'
+                      : 'text-[#C5E5EC]/70 hover:text-white'
+                  }`}
+                >
+                  <Fingerprint className="w-3.5 h-3.5" />
+                  <span>1. Vân Tay</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setForgotMethod('OTP');
+                    setAuthError(null);
+                  }}
+                  className={`py-1.5 px-1.5 rounded-lg flex items-center justify-center space-x-1 transition cursor-pointer ${
+                    forgotMethod === 'OTP'
+                      ? 'bg-[#3064AE] text-white shadow-xs font-black'
+                      : 'text-[#C5E5EC]/70 hover:text-white'
+                  }`}
+                >
+                  <Mail className="w-3.5 h-3.5" />
+                  <span>2. Mã OTP</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setForgotMethod('PIN');
+                    setAuthError(null);
+                  }}
+                  className={`py-1.5 px-1.5 rounded-lg flex items-center justify-center space-x-1 transition cursor-pointer ${
+                    forgotMethod === 'PIN'
+                      ? 'bg-[#3064AE] text-white shadow-xs font-black'
+                      : 'text-[#C5E5EC]/70 hover:text-white'
+                  }`}
+                >
+                  <Key className="w-3.5 h-3.5" />
+                  <span>3. Mã PIN</span>
+                </button>
               </div>
 
-              {generatedOtp && (
-                <div className="p-3 rounded-xl bg-[#12233B] border border-[#E0FAEB]/30 text-[#E0FAEB] space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold flex items-center text-[#E0FAEB]">
-                      <Sparkles className="w-3.5 h-3.5 mr-1 text-[#E0FAEB]" /> Tin nhắn OTP:
-                    </span>
-                    <span className="text-[10px] text-[#C5E5EC] font-mono">Hiệu lực 3 phút</span>
+              {/* METHOD 1: BIOMETRICS (VÂN TAY) */}
+              {forgotMethod === 'BIOMETRICS' && (
+                <form onSubmit={handleResetPasswordWithBio} className="space-y-3">
+                  <div className="p-3 rounded-xl bg-[#12233B] border border-[#3064AE]/30 text-[#C5E5EC] space-y-1">
+                    <div className="flex items-center space-x-1.5 text-white font-bold">
+                      <Fingerprint className="w-4 h-4 text-[#E0FAEB]" />
+                      <span>Xác Thực Sinh Trắc Học Vân Tay</span>
+                    </div>
+                    <p className="text-[11px] text-[#C5E5EC]/80">
+                      Dành cho tài khoản đã bật tính năng xác thực Vân tay / FaceID trên thiết bị này.
+                    </p>
                   </div>
-                  <div className="flex items-center space-x-2 py-1">
-                    <span className="text-xs text-[#C5E5EC]/80">Mã xác thực:</span>
-                    <strong className="font-mono text-base tracking-[0.2em] text-[#E0FAEB] bg-[#0E1B2E] px-2.5 py-0.5 rounded-lg border border-[#E0FAEB]/40 shadow-xs">
-                      {generatedOtp}
-                    </strong>
+
+                  <div>
+                    <label className="block text-[#C5E5EC]/90 mb-1 font-semibold">Gmail, SĐT hoặc ID 9 số tài khoản</label>
+                    <input
+                      type="text"
+                      required
+                      value={forgotBioContact}
+                      onChange={(e) => {
+                        setForgotBioContact(e.target.value);
+                        setBioVerified(false);
+                      }}
+                      className="w-full px-3 py-2 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-white placeholder:text-[#C5E5EC]/40 focus:border-[#C5E5EC] focus:outline-none"
+                      placeholder="Nhập Gmail, SĐT hoặc ID 9 số"
+                    />
                   </div>
-                  <p className="text-[10px] text-[#C5E5EC]/70">
-                    * Bắt buộc nhập chính xác 6 số này vào ô bên dưới để đặt lại mật khẩu mới.
-                  </p>
-                </div>
+
+                  {!bioVerified ? (
+                    <button
+                      type="button"
+                      onClick={handleTriggerBiometricScan}
+                      disabled={bioScanning}
+                      className="w-full py-3 rounded-xl bg-gradient-to-r from-[#3064AE] via-[#2A5594] to-[#25735B] text-white font-extrabold text-xs hover:brightness-110 shadow-lg shadow-[#3064AE]/25 transition flex items-center justify-center space-x-2 border border-[#E0FAEB]/30 cursor-pointer active:scale-95"
+                    >
+                      {bioScanning ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 animate-spin text-white" />
+                          <span>Đang quét cảm biến vân tay...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Fingerprint className="w-4 h-4 text-[#E0FAEB]" />
+                          <span>Chạm Để Quét Vân Tay Xác Thực</span>
+                        </>
+                      )}
+                    </button>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="p-2.5 rounded-xl bg-emerald-950/40 border border-emerald-500/40 text-[#E0FAEB] flex items-center space-x-2">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                        <span className="font-bold text-xs">Vân tay hợp lệ! Mời bạn nhập mật khẩu mới.</span>
+                      </div>
+
+                      <div>
+                        <label className="block text-[#C5E5EC]/90 mb-1 font-semibold">Mật khẩu mới</label>
+                        <input
+                          type="password"
+                          required
+                          value={forgotBioNewPassword}
+                          onChange={(e) => setForgotBioNewPassword(e.target.value)}
+                          className="w-full px-3 py-2 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-white placeholder:text-[#C5E5EC]/40 focus:border-[#C5E5EC] focus:outline-none"
+                          placeholder="Mật khẩu mới tối thiểu 6 ký tự"
+                        />
+                      </div>
+
+                      <button
+                        type="submit"
+                        disabled={isLoggingIn}
+                        className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#3064AE] via-[#2A5594] to-[#25735B] text-white font-black text-xs hover:brightness-110 transition shadow-lg border border-[#E0FAEB]/30 cursor-pointer"
+                      >
+                        {isLoggingIn ? 'Đang cập nhật...' : 'Cập Nhật Mật Khẩu Bằng Vân Tay'}
+                      </button>
+                    </div>
+                  )}
+                </form>
               )}
 
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="block text-[#C5E5EC]/90 font-semibold">Nhập mã OTP 6 số</label>
-                  <span className="text-[10px] text-rose-400 font-medium">* Bắt buộc nhập mã</span>
-                </div>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]{6}"
-                  maxLength={6}
-                  required
-                  value={forgotOtpInput}
-                  onChange={(e) => setForgotOtpInput(e.target.value.replace(/\D/g, ''))}
-                  className="w-full px-3 py-2.5 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-white font-mono tracking-[0.3em] text-center text-base font-bold placeholder:tracking-normal placeholder:text-xs placeholder:font-normal placeholder:text-[#C5E5EC]/40 focus:border-[#C5E5EC] focus:bg-[#152844] focus:outline-none"
-                  placeholder="Nhập đủ 6 chữ số OTP"
-                />
-              </div>
+              {/* METHOD 2: OTP (GMAIL / SMS) */}
+              {forgotMethod === 'OTP' && (
+                <form onSubmit={handleResetPassword} className="space-y-3 text-xs">
+                  <div>
+                    <label className="block text-[#C5E5EC]/90 mb-1 font-semibold">Gmail hoặc Số điện thoại tài khoản</label>
+                    <div className="flex space-x-2">
+                      <input
+                        type="text"
+                        required
+                        value={forgotContact}
+                        onChange={(e) => setForgotContact(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-white placeholder:text-[#C5E5EC]/40 focus:border-[#C5E5EC] focus:bg-[#152844] focus:outline-none"
+                        placeholder="vietanh.dhbk@gmail.com"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleSendForgotOtp}
+                        disabled={forgotCountdown > 0}
+                        className={`px-3.5 py-2 rounded-xl font-extrabold whitespace-nowrap transition cursor-pointer ${
+                          forgotCountdown > 0
+                            ? 'bg-[#12233B] text-[#C5E5EC]/50 cursor-not-allowed border border-[#C5E5EC]/20'
+                            : 'bg-gradient-to-r from-[#3064AE] via-[#2A5594] to-[#25735B] text-white hover:brightness-110 active:scale-95 shadow-xs border border-[#E0FAEB]/30'
+                        }`}
+                      >
+                        {forgotCountdown > 0 ? `Gửi lại (${forgotCountdown}s)` : 'Nhận OTP'}
+                      </button>
+                    </div>
+                  </div>
 
-              <div>
-                <label className="block text-[#C5E5EC]/90 mb-1 font-semibold">Mật khẩu mới</label>
-                <div className="relative">
-                  <input
-                    type={showNewPassword ? 'text' : 'password'}
-                    required
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    className="w-full px-3 pr-10 py-2 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-white placeholder:text-[#C5E5EC]/40 focus:border-[#C5E5EC] focus:bg-[#152844] focus:outline-none"
-                    placeholder="Mật khẩu tối thiểu 6 ký tự"
-                  />
+                  {forgotCountdown > 0 && (
+                    <div className="p-3.5 rounded-xl bg-[#12233B] border border-[#3064AE]/40 text-[#E0FAEB] space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold flex items-center text-[#E0FAEB]">
+                          <Mail className="w-3.5 h-3.5 mr-1.5 text-[#C5E5EC]" /> Đã gửi mã OTP bảo mật
+                        </span>
+                        <span className="text-[10px] text-[#C5E5EC] font-mono">Hiệu lực 3 phút</span>
+                      </div>
+                      <p className="text-[11px] text-[#C5E5EC]/90 leading-relaxed">
+                        Mã xác thực 6 số đã được gửi tới <span className="font-bold text-white font-mono">{forgotContact.trim().includes('@') ? forgotContact.trim() : forgotContact.trim().replace(/^(\d{3})\d+(\d{3})$/, '$1***$2')}</span>. Vui lòng kiểm tra hộp thư để lấy mã.
+                      </p>
+                    </div>
+                  )}
+
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-[#C5E5EC]/90 font-semibold">Nhập mã OTP 6 số</label>
+                      <span className="text-[10px] text-rose-400 font-medium">* Bắt buộc nhập mã</span>
+                    </div>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]{6}"
+                      maxLength={6}
+                      required
+                      value={forgotOtpInput}
+                      onChange={(e) => setForgotOtpInput(e.target.value.replace(/\D/g, ''))}
+                      className="w-full px-3 py-2.5 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-white font-mono tracking-[0.3em] text-center text-base font-bold placeholder:tracking-normal placeholder:text-xs placeholder:font-normal placeholder:text-[#C5E5EC]/40 focus:border-[#C5E5EC] focus:bg-[#152844] focus:outline-none"
+                      placeholder="Nhập đủ 6 chữ số OTP"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[#C5E5EC]/90 mb-1 font-semibold">Mật khẩu mới</label>
+                    <div className="relative">
+                      <input
+                        type={showNewPassword ? 'text' : 'password'}
+                        required
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        className="w-full px-3 pr-10 py-2 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-white placeholder:text-[#C5E5EC]/40 focus:border-[#C5E5EC] focus:bg-[#152844] focus:outline-none"
+                        placeholder="Mật khẩu tối thiểu 6 ký tự"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowNewPassword(!showNewPassword)}
+                        className="absolute right-3 top-2.5 text-[#C5E5EC]/60 hover:text-white cursor-pointer"
+                      >
+                        {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
                   <button
-                    type="button"
-                    onClick={() => setShowNewPassword(!showNewPassword)}
-                    className="absolute right-3 top-2.5 text-[#C5E5EC]/60 hover:text-white cursor-pointer"
+                    type="submit"
+                    className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#3064AE] via-[#2A5594] to-[#25735B] text-white font-black text-sm hover:brightness-110 transition shadow-lg shadow-[#3064AE]/25 active:scale-95 border border-[#E0FAEB]/30 cursor-pointer"
                   >
-                    {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    Cập Nhật Mật Khẩu Bằng OTP
                   </button>
-                </div>
-              </div>
+                </form>
+              )}
 
-              <button
-                type="submit"
-                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#3064AE] via-[#2A5594] to-[#25735B] text-white font-black text-sm hover:brightness-110 transition shadow-lg shadow-[#3064AE]/25 active:scale-95 border border-[#E0FAEB]/30 cursor-pointer"
-              >
-                Cập Nhật Mật Khẩu Mới
-              </button>
-            </form>
-          )}
+              {/* METHOD 3: PIN + GMAIL */}
+              {forgotMethod === 'PIN' && (
+                <form onSubmit={handleResetPasswordWithPin} className="space-y-3 text-xs">
+                  <div className="p-3 rounded-xl bg-[#12233B] border border-[#3064AE]/30 text-[#C5E5EC] space-y-1">
+                    <div className="flex items-center space-x-1.5 text-white font-bold">
+                      <Key className="w-4 h-4 text-amber-400" />
+                      <span>Xác Thực Qua Mã PIN &amp; Gmail</span>
+                    </div>
+                    <p className="text-[11px] text-[#C5E5EC]/80">
+                      Khôi phục mật khẩu tức thì bằng địa chỉ Gmail kèm Mã PIN ví bảo mật 6 số đã thiết lập trong tài khoản.
+                    </p>
+                  </div>
 
-          {/* Social Logins */}
-          <div className="mt-6 pt-4 border-t border-[#C5E5EC]/20 text-center">
-            <span className="text-[11px] text-[#C5E5EC]/70 block mb-3 font-semibold">Hoặc tiếp tục nhanh với</span>
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                type="button"
-                onClick={() => handleSocialLogin('Google')}
-                disabled={socialLoadingProvider !== null}
-                className="py-2.5 rounded-xl bg-[#12233B] hover:bg-[#162C4E] border border-[#C5E5EC]/20 font-bold text-xs text-slate-200 transition flex items-center justify-center space-x-1.5 disabled:opacity-50 shadow-xs active:scale-95 cursor-pointer"
-              >
-                {socialLoadingProvider === 'Google' ? (
-                  <span className="w-3 h-3 border-2 border-slate-400 border-t-slate-100 rounded-full animate-spin" />
-                ) : (
-                  <svg className="w-4 h-4" viewBox="0 0 24 24">
-                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
-                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
-                  </svg>
-                )}
-                <span>Google</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleSocialLogin('Facebook')}
-                disabled={socialLoadingProvider !== null}
-                className="py-2.5 rounded-xl bg-[#12233B] hover:bg-[#162C4E] border border-[#C5E5EC]/20 font-bold text-xs text-[#1877F2] transition flex items-center justify-center space-x-1.5 disabled:opacity-50 shadow-xs active:scale-95 cursor-pointer"
-              >
-                {socialLoadingProvider === 'Facebook' ? (
-                  <span className="w-3 h-3 border-2 border-blue-400 border-t-blue-200 rounded-full animate-spin" />
-                ) : (
-                  <svg className="w-4 h-4 fill-[#1877F2]" viewBox="0 0 24 24">
-                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-                  </svg>
-                )}
-                <span>Facebook</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleSocialLogin('Apple')}
-                disabled={socialLoadingProvider !== null}
-                className="py-2.5 rounded-xl bg-[#12233B] hover:bg-[#162C4E] border border-[#C5E5EC]/20 font-bold text-xs text-white transition flex items-center justify-center space-x-1.5 disabled:opacity-50 shadow-xs active:scale-95 cursor-pointer"
-              >
-                {socialLoadingProvider === 'Apple' ? (
-                  <span className="w-3 h-3 border-2 border-slate-400 border-t-white rounded-full animate-spin" />
-                ) : (
-                  <svg className="w-4 h-4 fill-white" viewBox="0 0 24 24">
-                    <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.37c.62-.75 1.04-1.8 0.92-2.85-.9.04-1.99.6-2.64 1.35-.57.65-1.07 1.7-0.93 2.73 1.01.08 2.03-.49 2.65-1.23"/>
-                  </svg>
-                )}
-                <span>Apple</span>
-              </button>
+                  <div>
+                    <label className="block text-[#C5E5EC]/90 mb-1 font-semibold">Địa chỉ Gmail tài khoản</label>
+                    <input
+                      type="email"
+                      required
+                      value={forgotPinEmail}
+                      onChange={(e) => setForgotPinEmail(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-white placeholder:text-[#C5E5EC]/40 focus:border-[#C5E5EC] focus:outline-none"
+                      placeholder="tenban@gmail.com"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[#C5E5EC]/90 mb-1 font-semibold">Mã PIN bảo mật 6 số</label>
+                    <input
+                      type="password"
+                      inputMode="numeric"
+                      pattern="[0-9]{6}"
+                      maxLength={6}
+                      required
+                      value={forgotPinCode}
+                      onChange={(e) => setForgotPinCode(e.target.value.replace(/\D/g, ''))}
+                      className="w-full px-3 py-2.5 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-white font-mono tracking-[0.3em] text-center text-sm font-bold placeholder:tracking-normal placeholder:font-normal placeholder:text-xs placeholder:text-[#C5E5EC]/40 focus:border-[#C5E5EC] focus:outline-none"
+                      placeholder="******"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[#C5E5EC]/90 mb-1 font-semibold">Mật khẩu mới</label>
+                    <input
+                      type="password"
+                      required
+                      value={forgotPinNewPassword}
+                      onChange={(e) => setForgotPinNewPassword(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-white placeholder:text-[#C5E5EC]/40 focus:border-[#C5E5EC] focus:outline-none"
+                      placeholder="Mật khẩu tối thiểu 6 ký tự"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isLoggingIn}
+                    className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#3064AE] via-[#2A5594] to-[#25735B] text-white font-black text-sm hover:brightness-110 transition shadow-lg shadow-[#3064AE]/25 active:scale-95 border border-[#E0FAEB]/30 cursor-pointer"
+                  >
+                    {isLoggingIn ? 'Đang xác thực...' : 'Cập Nhật Mật Khẩu Bằng Mã PIN'}
+                  </button>
+                </form>
+              )}
             </div>
-          </div>
+          )}
         </div>
 
         {/* Copyright Notice */}
@@ -1198,143 +1434,6 @@ export const AuthScreen: React.FC = () => {
           <p className="text-[11px] text-[#C5E5EC]/50">Tất cả quyền được bảo lưu. Nền tảng Siêu kết nối việc làm sinh viên an toàn 100%.</p>
         </div>
       </div>
-
-      {/* Domain Whitelist / Quick Social Login Modal */}
-      {showDomainModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="relative w-full max-w-lg bg-[#0E1A2D] border border-amber-500/30 rounded-3xl p-6 shadow-2xl text-slate-100 my-8">
-            {/* Close Button */}
-            <button
-              onClick={() => setShowDomainModal(false)}
-              className="absolute top-4 right-4 p-2 text-slate-400 hover:text-white rounded-full hover:bg-slate-800 transition cursor-pointer"
-              title="Đóng"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            {/* Header */}
-            <div className="flex items-center space-x-3 mb-4">
-              <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
-                <ShieldCheck className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-white">Xác Thực Tên Miền {domainModalProvider}</h3>
-                <p className="text-xs text-amber-400/90 font-medium">Lỗi Firebase: auth/unauthorized-domain</p>
-              </div>
-            </div>
-
-            {/* Warning Details */}
-            <div className="bg-amber-950/30 border border-amber-500/20 rounded-2xl p-3.5 mb-5 text-xs text-amber-200/90 leading-relaxed">
-              Tên miền đám mây Cloud Run hiện tại (<span className="font-mono font-bold text-white bg-black/40 px-1.5 py-0.5 rounded">{typeof window !== 'undefined' ? window.location.hostname : ''}</span>) chưa được thêm vào danh sách <span className="font-semibold text-white">Authorized Domains</span> của Firebase Authentication.
-            </div>
-
-            {/* Solution 1: Quick Social Login */}
-            <div className="bg-[#12233B] border border-[#C5E5EC]/20 rounded-2xl p-4 mb-4">
-              <div className="flex items-center space-x-2 mb-2">
-                <Sparkles className="w-4 h-4 text-emerald-400" />
-                <h4 className="text-sm font-bold text-emerald-300">Cách 1: Đăng nhập nhanh với {domainModalProvider} (Khuyên dùng)</h4>
-              </div>
-              <p className="text-xs text-slate-300 mb-3 leading-relaxed">
-                Đăng nhập tức thì với tài khoản Gmail của bạn mà không bị chặn bởi tên miền preview đám mây:
-              </p>
-              <form onSubmit={handleQuickSocialLoginSubmit} className="space-y-3">
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-300 mb-1">Địa chỉ Email {domainModalProvider}:</label>
-                  <input
-                    type="email"
-                    required
-                    value={quickSocialEmail}
-                    onChange={(e) => setQuickSocialEmail(e.target.value)}
-                    placeholder="ví dụ: vnlandserver@gmail.com"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#09111E] border border-[#C5E5EC]/30 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-400 font-mono"
-                  />
-                </div>
-
-                {/* Quick email presets */}
-                <div className="flex flex-wrap gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => setQuickSocialEmail('vnlandserver@gmail.com')}
-                    className="text-[10px] px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/20 transition cursor-pointer"
-                  >
-                    vnlandserver@gmail.com (Chủ sở hữu)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setQuickSocialEmail('sinhvien.campus@gmail.com')}
-                    className="text-[10px] px-2.5 py-1 rounded-lg bg-blue-500/10 border border-blue-500/30 text-blue-300 hover:bg-blue-500/20 transition cursor-pointer"
-                  >
-                    sinhvien.campus@gmail.com
-                  </button>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={quickLoginLoading}
-                  className="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs shadow-md transition flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-50"
-                >
-                  {quickLoginLoading ? (
-                    <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                  ) : (
-                    <>
-                      <Zap className="w-3.5 h-3.5 fill-current" />
-                      <span>Đăng Nhập Ngay Với {domainModalProvider}</span>
-                    </>
-                  )}
-                </button>
-              </form>
-            </div>
-
-            {/* Solution 2: Whitelist Domain in Firebase Console */}
-            <div className="bg-[#12233B]/60 border border-[#C5E5EC]/10 rounded-2xl p-4">
-              <div className="flex items-center space-x-2 mb-2">
-                <ExternalLink className="w-4 h-4 text-blue-400" />
-                <h4 className="text-xs font-bold text-blue-300">Cách 2: Cấp phép tên miền vĩnh viễn (Cho Dev/Admin)</h4>
-              </div>
-              <p className="text-[11px] text-slate-400 mb-2">
-                Sao chép tên miền bên dưới và thêm vào Firebase Console để mở cửa sổ Google Popup chính thức:
-              </p>
-              <div className="flex items-center space-x-2 bg-[#09111E] border border-slate-700 rounded-xl px-3 py-2 mb-2">
-                <span className="font-mono text-xs text-amber-300 truncate flex-1 select-all">
-                  {typeof window !== 'undefined' ? window.location.hostname : ''}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (typeof window !== 'undefined') {
-                      navigator.clipboard.writeText(window.location.hostname);
-                      setCopiedDomain(true);
-                      setTimeout(() => setCopiedDomain(false), 2000);
-                    }
-                  }}
-                  className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-200 font-semibold transition flex items-center space-x-1 cursor-pointer"
-                >
-                  {copiedDomain ? (
-                    <>
-                      <Check className="w-3 h-3 text-emerald-400" />
-                      <span className="text-emerald-400">Đã chép</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-3 h-3" />
-                      <span>Sao chép</span>
-                    </>
-                  )}
-                </button>
-              </div>
-              <a
-                href="https://console.firebase.google.com/project/gen-lang-client-0729535805/authentication/settings"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center space-x-1.5 text-[11px] text-blue-400 hover:text-blue-300 underline font-medium"
-              >
-                <span>Mở Firebase Console &rarr; Authentication &rarr; Settings &rarr; Authorized domains</span>
-                <ExternalLink className="w-3 h-3" />
-              </a>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

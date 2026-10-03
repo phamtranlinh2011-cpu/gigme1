@@ -18,6 +18,7 @@ import {
 import { useGigMe } from '../context/GigMeContext';
 import { VIETNAMESE_BANKS, formatVnd } from '../types';
 import { cloudService } from '../services/cloudSync';
+import { triggerHaptic } from '../utils/haptics';
 
 interface VietQrOpenApiAutoScannerProps {
   isOpen: boolean;
@@ -33,7 +34,7 @@ export const VietQrOpenApiAutoScanner: React.FC<VietQrOpenApiAutoScannerProps> =
   const { currentUser, depositVietQr, showNotification, checkDepositEligibility } = useGigMe();
   const [amount, setAmount] = useState(defaultAmount);
   const [selectedBank, setSelectedBank] = useState(VIETNAMESE_BANKS[2]); // Techcombank
-  const [copied, setCopied] = useState(false);
+  const [copiedField, setCopiedField] = useState<'account' | 'syntax' | null>(null);
   const [isListening, setIsListening] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   const [transactionSuccess, setTransactionSuccess] = useState(false);
@@ -47,15 +48,19 @@ export const VietQrOpenApiAutoScanner: React.FC<VietQrOpenApiAutoScannerProps> =
 
   const eligibility = checkDepositEligibility(amount);
 
-  // Generate distinct transfer code for user dynamically
-  const userIdentifier =
-    currentUser?.phone ||
-    currentUser?.email?.split('@')[0]?.toUpperCase() ||
-    currentUser?.id?.replace('user_', '').toUpperCase() ||
-    'VIETNAM';
-  const transferSyntax = `GIGME ${userIdentifier}`;
-  const accountNumber = '190388992211';
-  const accountHolder = 'CONG TY CP GIGME VIET NAM';
+  // Dynamic system bank details configured by Admin
+  const [systemBank, setSystemBank] = useState({
+    accountNumber: '0909120918',
+    accountHolder: 'LY HOANG GIA BAO',
+    bankName: 'MBBank',
+    bankCode: 'MB',
+  });
+
+  // Generate distinct transfer code for user dynamically: GIGME <id tài khoản muốn nạp tiền>
+  const userAccountId = currentUser?.id || '000000000';
+  const transferSyntax = `GIGME ${userAccountId}`;
+  const accountNumber = systemBank.accountNumber;
+  const accountHolder = systemBank.accountHolder;
 
   // Construct standard VietQR QuickLink image URL
   const qrUrl = `https://img.vietqr.io/image/${selectedBank.code}-${accountNumber}-compact2.png?amount=${amount}&addInfo=${encodeURIComponent(
@@ -67,24 +72,50 @@ export const VietQrOpenApiAutoScanner: React.FC<VietQrOpenApiAutoScannerProps> =
       setTransactionSuccess(false);
       setDetectedTx(null);
       setIsListening(true);
+      cloudService.getBankBotConfig().then((cfg) => {
+        if (cfg && cfg.accountNumber) {
+          setSystemBank({
+            accountNumber: cfg.accountNumber,
+            accountHolder: cfg.accountHolder || 'LY HOANG GIA BAO',
+            bankName: cfg.bankName || 'MBBank',
+            bankCode: cfg.bankCode || 'MB',
+          });
+          const matched = VIETNAMESE_BANKS.find(
+            (b) =>
+              b.code.toUpperCase() === (cfg.bankCode || '').toUpperCase() ||
+              b.name.toLowerCase().includes((cfg.bankName || '').toLowerCase())
+          );
+          if (matched) {
+            setSelectedBank(matched);
+          }
+        }
+      });
     }
   }, [isOpen]);
 
   if (!isOpen) return null;
 
-  const handleCopy = (text: string) => {
+  const handleCopy = (text: string, field: 'account' | 'syntax') => {
+    triggerHaptic('light');
     navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setCopiedField(field);
+    showNotification(
+      'Đã sao chép! 📋',
+      field === 'account' ? `Đã sao chép số tài khoản ${text}.` : `Đã sao chép nội dung "${text}".`,
+      false
+    );
+    setTimeout(() => setCopiedField(null), 2500);
   };
 
   // Real Open API webhook execution to Cloud Server (Casso / SePAY / VietQR API)
   const triggerOpenApiWebhook = () => {
     if (!eligibility.allowed) {
+      triggerHaptic('error');
       showNotification('Giới hạn nạp tiền ⚠️', eligibility.reason || 'Chưa đủ điều kiện nạp tiền');
       return;
     }
 
+    triggerHaptic('medium');
     setIsProcessing(true);
     const refCode = `FT${Date.now().toString().slice(-8)}`;
 
@@ -98,6 +129,7 @@ export const VietQrOpenApiAutoScanner: React.FC<VietQrOpenApiAutoScannerProps> =
       .then(() => {
         const ok = depositVietQr(amount, selectedBank.name);
         if (!ok) {
+          triggerHaptic('error');
           setIsProcessing(false);
           return;
         }
@@ -111,6 +143,7 @@ export const VietQrOpenApiAutoScanner: React.FC<VietQrOpenApiAutoScannerProps> =
         setDetectedTx(newTx);
         setIsProcessing(false);
         setTransactionSuccess(true);
+        triggerHaptic('success');
         showNotification(
           '🔔 Biến động số dư VietQR Open API',
           `Nhận thành công +${formatVnd(amount)} từ ${newTx.sender} (${selectedBank.name}). Số dư đã được nạp tự động vào tài khoản!`,
@@ -122,17 +155,27 @@ export const VietQrOpenApiAutoScanner: React.FC<VietQrOpenApiAutoScannerProps> =
         console.warn('Webhook trigger notice:', err);
         const ok = depositVietQr(amount, selectedBank.name);
         if (!ok) {
+          triggerHaptic('error');
           setIsProcessing(false);
           return;
         }
         setIsProcessing(false);
         setTransactionSuccess(true);
+        triggerHaptic('success');
       });
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-3 sm:p-4 animate-fade-in overflow-y-auto">
-      <div className="w-full max-w-lg rounded-3xl bg-[#0B1322] border-2 border-[#00E5FF]/40 p-5 sm:p-6 text-white shadow-[0_0_50px_rgba(0,229,255,0.2)] my-8">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-3 sm:p-4 animate-fade-in overflow-y-auto"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-lg rounded-3xl bg-[#0B1322] border-2 border-[#00E5FF]/40 p-5 sm:p-6 text-white shadow-[0_0_50px_rgba(0,229,255,0.2)] my-8"
+      >
         {/* Header */}
         <div className="flex items-center justify-between pb-4 border-b border-slate-800">
           <div className="flex items-center space-x-2.5">
@@ -327,11 +370,12 @@ export const VietQrOpenApiAutoScanner: React.FC<VietQrOpenApiAutoScannerProps> =
                   <div className="flex items-center space-x-1">
                     <span className="font-mono font-black text-white">{accountNumber}</span>
                     <button
-                      onClick={() => handleCopy(accountNumber)}
-                      className="p-1 text-[#00E5FF] hover:text-white"
-                      title="Sao chép"
+                      type="button"
+                      onClick={() => handleCopy(accountNumber, 'account')}
+                      className="p-1 text-[#00E5FF] hover:text-white transition cursor-pointer"
+                      title="Sao chép số tài khoản"
                     >
-                      <Copy className="w-3.5 h-3.5" />
+                      {copiedField === 'account' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                     </button>
                   </div>
                 </div>
@@ -343,11 +387,12 @@ export const VietQrOpenApiAutoScanner: React.FC<VietQrOpenApiAutoScannerProps> =
                       {transferSyntax}
                     </span>
                     <button
-                      onClick={() => handleCopy(transferSyntax)}
-                      className="p-1 text-amber-400 hover:text-white"
+                      type="button"
+                      onClick={() => handleCopy(transferSyntax, 'syntax')}
+                      className="p-1 text-amber-400 hover:text-white transition cursor-pointer"
                       title="Sao chép cú pháp"
                     >
-                      {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                      {copiedField === 'syntax' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                     </button>
                   </div>
                 </div>

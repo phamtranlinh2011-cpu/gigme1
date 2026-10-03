@@ -95,8 +95,16 @@ export const DownloadAppDialog: React.FC<DownloadAppDialogProps> = ({ isOpen, on
   )}&bgcolor=FFFFFF&color=3064AE&margin=1`;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-4 animate-in fade-in duration-200">
-      <div className="w-full max-w-lg rounded-3xl bg-[#0E1A2D] border border-[#C5E5EC]/25 p-6 text-slate-100 shadow-2xl relative max-h-[92vh] overflow-y-auto">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-3 sm:p-4 animate-fade-in"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-lg rounded-3xl bg-[#0E1A2D] border border-[#C5E5EC]/25 p-5 sm:p-6 text-slate-100 shadow-2xl relative max-h-[92vh] overflow-y-auto animate-modal-in"
+      >
         {/* Top Brand Gradient Strip (Cobalt 60% -> Crystal 30% -> Ethereal 10%) */}
         <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#3064AE] via-[#437DD2] to-[#C5E5EC]" />
 
@@ -136,12 +144,20 @@ export const DownloadAppDialog: React.FC<DownloadAppDialogProps> = ({ isOpen, on
                 <Sparkles className="w-4 h-4 text-[#E0FAEB]" />
               </span>
               <div>
-                <h4 className="font-extrabold text-sm text-white">Cách 1: Cài Đặt Trực Tiếp (Khuyên Dùng)</h4>
-                <p className="text-[11px] text-[#C5E5EC]/80">Chuẩn WebAPK chính thức • Không lo lỗi đọc file • Tự động cập nhật</p>
+                <h4 className="font-extrabold text-sm text-white">Cách 1: Cài Đặt Trực Tiếp (Khuyên Dùng 100% Thành Công)</h4>
+                <p className="text-[11px] text-[#C5E5EC]/80">Chuẩn WebAPK chính thức • Không bao giờ bị lỗi "Không đọc được cấu hình/gói"</p>
               </div>
             </div>
             <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shrink-0">
               100% Hoạt động
+            </span>
+          </div>
+
+          {/* Special notice for Parse error */}
+          <div className="p-2.5 rounded-xl bg-emerald-950/40 border border-emerald-500/30 text-[11px] text-emerald-200 leading-relaxed flex items-start space-x-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+            <span>
+              <strong>Khắc phục triệt để lỗi trên Android:</strong> Khi tải file APK bên ngoài, Android thường báo <em>"Không đọc được cấu hình"</em> hoặc <em>"Lỗi phân tích cú pháp gói"</em> do bảo mật máy. Cài đặt trực tiếp bằng Cách 1 sẽ vượt qua 100% rào cản này, app chạy mượt mà ngay lập tức!
             </span>
           </div>
 
@@ -225,14 +241,18 @@ export const DownloadAppDialog: React.FC<DownloadAppDialogProps> = ({ isOpen, on
           </div>
 
           {/* Technical Explanation on Parse Error */}
-          <div className="p-3 rounded-xl bg-amber-950/30 border border-amber-500/25 text-[11px] text-amber-200 leading-relaxed space-y-1">
+          <div className="p-3 rounded-xl bg-amber-950/30 border border-amber-500/25 text-[11px] text-amber-200 leading-relaxed space-y-1.5">
             <div className="flex items-center space-x-1.5 font-bold text-amber-300">
               <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-              <span>Giải thích lỗi "Không đọc được file / Lỗi phân tích cú pháp":</span>
+              <span>Tại sao máy báo "Không đọc được cấu hình / Lỗi phân tích cú pháp gói"?</span>
             </div>
             <p>
-              Khi tải file APK rời ngoài CH Play, một số dòng điện thoại (Samsung, Xiaomi, Oppo...) sẽ chặn do chưa bật <em>"Cho phép cài đặt từ nguồn không xác định"</em> hoặc thiếu chữ ký Google Play. Nếu gặp lỗi này, bạn <strong>hãy dùng Cách 1 (Cài đặt trực tiếp)</strong> ở trên để vào app ngay mà không bao giờ bị lỗi!
+              Đây là cơ chế bảo vệ mặc định của Android đối với file APK tải ngoài Google Play. Để cài đặt file APK:
             </p>
+            <ul className="list-disc list-inside space-y-1 text-slate-300 pl-1">
+              <li>Vào <strong>Cài đặt điện thoại &rarr; Bảo mật / Quyền riêng tư &rarr; Bật "Cài đặt ứng dụng không rõ nguồn gốc"</strong> cho trình duyệt (Chrome, Cốc Cốc...).</li>
+              <li>Hoặc <strong>khuyên dùng Cách 1 (Cài đặt trực tiếp PWA 1-chạm)</strong> ở phía trên: hoàn toàn không bao giờ bị lỗi cấu hình, cài trong 1 giây, tự động cập nhật và nhận thông báo màn hình khóa 24/7.</li>
+            </ul>
           </div>
 
           {/* In-Browser Blob Download Button */}
@@ -260,17 +280,35 @@ export const DownloadAppDialog: React.FC<DownloadAppDialogProps> = ({ isOpen, on
               )}
             </button>
 
-            <div className="flex items-center justify-between gap-2 text-xs">
+            <div className="flex flex-col sm:flex-row items-center gap-2 text-xs">
               <a
                 href="/downloads/Gigme.apk"
                 download="Gigme.apk"
-                className="flex-1 py-2 px-3 rounded-xl bg-[#0E1A2D] hover:bg-[#13243D] text-[#C5E5EC] text-center font-bold text-[11px] border border-[#C5E5EC]/15 transition"
+                className="w-full sm:flex-1 py-2.5 px-3 rounded-xl bg-[#0E1A2D] hover:bg-[#13243D] text-[#C5E5EC] text-center font-bold text-[11px] border border-[#C5E5EC]/20 transition flex items-center justify-center space-x-1.5"
               >
-                Link Dự Phòng (Trực tiếp)
+                <Download className="w-3.5 h-3.5 text-[#C5E5EC]" />
+                <span>Link Máy Chủ Trực Tiếp</span>
               </a>
+
+              {/* Gofile Cloud Download Option */}
+              <a
+                href="https://gofile.io/d/gigme"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => {
+                  // Fallback: if gofile link requires local file upload, trigger local blob too
+                  handleDownloadBlobApk();
+                }}
+                className="w-full sm:flex-1 py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-600/30 to-teal-600/30 hover:bg-emerald-600/40 text-emerald-200 text-center font-extrabold text-[11px] border border-emerald-500/40 transition flex items-center justify-center space-x-1.5 shadow-sm"
+                title="Tải siêu tốc qua máy chủ đám mây Gofile"
+              >
+                <ExternalLink className="w-3.5 h-3.5 text-emerald-300" />
+                <span>Tải Qua Gofile (Tốc Độ Cao)</span>
+              </a>
+
               <button
                 onClick={handleCopyUrl}
-                className="flex-1 py-2 px-3 rounded-xl bg-[#0E1A2D] hover:bg-[#13243D] text-[#C5E5EC] text-center font-bold text-[11px] border border-[#C5E5EC]/15 transition cursor-pointer flex items-center justify-center space-x-1"
+                className="w-full sm:w-auto py-2.5 px-3 rounded-xl bg-[#0E1A2D] hover:bg-[#13243D] text-[#C5E5EC] text-center font-bold text-[11px] border border-[#C5E5EC]/20 transition cursor-pointer flex items-center justify-center space-x-1"
               >
                 {copiedLink ? (
                   <>
@@ -280,7 +318,7 @@ export const DownloadAppDialog: React.FC<DownloadAppDialogProps> = ({ isOpen, on
                 ) : (
                   <>
                     <ExternalLink className="w-3.5 h-3.5" />
-                    <span>Sao Chép Link Mở Trình Duyệt</span>
+                    <span>Sao Chép Link Web</span>
                   </>
                 )}
               </button>

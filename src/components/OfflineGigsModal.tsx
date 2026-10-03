@@ -60,8 +60,16 @@ export const OfflineGigsModal: React.FC<OfflineGigsModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in text-xs">
-      <div className="w-full max-w-lg rounded-3xl bg-[#0F172A] border border-amber-500/40 p-5 text-white shadow-2xl space-y-4 max-h-[90vh] flex flex-col">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in text-xs"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-lg rounded-3xl bg-[#0F172A] border border-amber-500/40 p-5 text-white shadow-2xl space-y-4 max-h-[90vh] flex flex-col"
+      >
         {/* Modal Header */}
         <div className="flex items-center justify-between pb-3 border-b border-slate-800 shrink-0">
           <div className="flex items-center space-x-2.5">

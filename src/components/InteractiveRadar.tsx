@@ -1033,8 +1033,16 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
           MOCK LOCATION DETECTOR (CHỐNG FAKE GPS) MODAL
          ========================================== */}
       {showMockDetectorDialog && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
-          <div className="bg-[#0E1B2E] border border-[#C5E5EC]/30 rounded-3xl max-w-md w-full p-5 space-y-4 shadow-2xl relative text-xs animate-scale-up text-white">
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowMockDetectorDialog(false);
+          }}
+          className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[9999] flex items-center justify-center p-4"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-[#0E1B2E] border border-[#C5E5EC]/30 rounded-3xl max-w-md w-full p-5 space-y-4 shadow-2xl relative text-xs animate-scale-up text-white"
+          >
             <button
               onClick={() => setShowMockDetectorDialog(false)}
               className="absolute top-4 right-4 p-1.5 rounded-xl bg-[#12233B] hover:bg-[#162B48] text-[#C5E5EC] transition cursor-pointer"

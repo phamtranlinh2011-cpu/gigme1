@@ -142,8 +142,16 @@ export const EduEmailVerificationModal: React.FC<EduEmailVerificationModalProps>
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm p-4 animate-fade-in">
-      <div className="w-full max-w-lg rounded-3xl bg-[#0E1B2E] border border-sky-400/40 p-6 text-white shadow-2xl relative overflow-hidden">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm p-4 animate-fade-in"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-lg rounded-3xl bg-[#0E1B2E] border border-sky-400/40 p-6 text-white shadow-2xl relative overflow-hidden"
+      >
         {/* Background ambient light */}
         <div className="absolute top-0 right-0 w-64 h-64 bg-sky-600/10 rounded-full blur-3xl pointer-events-none" />
 

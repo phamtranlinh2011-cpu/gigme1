@@ -57,8 +57,16 @@ export const PWAInstallButton: React.FC<{ compact?: boolean }> = ({ compact = fa
         </button>
 
         {showIOSGuide && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
-            <div className="w-full max-w-sm rounded-2xl bg-[#0F172A] border border-[#1E293B] p-6 shadow-2xl text-white">
+          <div
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setShowIOSGuide(false);
+            }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in"
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-sm rounded-2xl bg-[#0F172A] border border-[#1E293B] p-6 shadow-2xl text-white"
+            >
               <div className="flex justify-between items-center mb-3 pb-3 border-b border-slate-800">
                 <h3 className="font-extrabold text-sm flex items-center space-x-2 text-cyan-400">
                   <Smartphone className="w-4 h-4" />

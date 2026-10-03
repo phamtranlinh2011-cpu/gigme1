@@ -64,6 +64,8 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
     roleMode,
     toggleRoleMode,
     showNotification,
+    language,
+    t,
   } = useGigMe();
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -172,13 +174,15 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
           className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-[#12233B] hover:bg-[#162C4E] border border-[#C5E5EC]/25 text-[#C5E5EC] text-xs font-bold transition shadow-sm active:scale-95 cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4" />
-          <span>Quay lại</span>
+          <span>{t('back')}</span>
         </button>
 
-        <h2 className="text-sm sm:text-base font-extrabold text-white">Đăng Việc Làm 3 Bước</h2>
+        <h2 className="text-sm sm:text-base font-extrabold text-white">
+          {language === 'vi' ? 'Đăng Việc Làm 3 Bước' : 'Post A Gig in 3 Steps'}
+        </h2>
 
         <span className="text-xs font-mono font-bold text-[#E0FAEB] bg-[#3064AE]/30 px-2.5 py-1 rounded-lg border border-[#C5E5EC]/30">
-          Bước {step}/3
+          {t('stepIndicator')} {step}/3
         </span>
       </div>
 
@@ -218,18 +222,18 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
               </div>
               <div className="min-w-0">
                 <div className="flex items-center space-x-2 flex-wrap gap-y-1">
-                  <span className="text-xs sm:text-sm font-black tracking-wide">Trợ Lý AI Định Giá & Đề Bài</span>
+                  <span className="text-xs sm:text-sm font-black tracking-wide">{t('aiEstimator')}</span>
                   <span className="text-[10px] bg-[#E0FAEB] text-[#0E1B2E] font-extrabold px-2 py-0.5 rounded-full shadow">
                     Gemini 3.5
                   </span>
                 </div>
                 <p className="text-[11px] text-[#C5E5EC]/90 font-medium mt-0.5 line-clamp-2 sm:line-clamp-none">
-                  Quét đề bài, tính độ khó, dự toán giờ làm & gợi ý khung giá chuẩn thị trường
+                  {t('aiEstimatorDesc')}
                 </p>
               </div>
             </div>
             <span className="text-xs font-black bg-[#C5E5EC]/20 text-[#E0FAEB] px-3 py-1.5 rounded-xl border border-[#C5E5EC]/30 shrink-0 self-end sm:self-center">
-              Phân tích ngay &rarr;
+              {t('analyzeNow')} &rarr;
             </span>
           </button>
 

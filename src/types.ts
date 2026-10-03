@@ -49,6 +49,8 @@ export const USER_TIERS: Record<UserTierKey, UserTierConfig> = {
 export interface UserEntity {
   id: string;
   name: string;
+  lastName?: string; // Họ và tên đệm (VD: Lý Hoàng Gia)
+  firstName?: string; // Tên (VD: Bảo)
   email: string;
   phone: string;
   password?: string;
@@ -62,6 +64,7 @@ export interface UserEntity {
   isFaceLivenessPassed: boolean; // Face Liveness Verification
   isStudentVerified: boolean;
   studentSchool: string;
+  skills?: string[]; // Thẻ kỹ năng nhận việc sinh viên
   isBiometricsEnabled: boolean; // Xác thực sinh trắc học vân tay/FaceID
   isBusinessAccount: boolean; // GigMe for Business
   businessName: string;
@@ -85,10 +88,14 @@ export interface UserEntity {
   securityPin: string;
   badges: string;
   isLocked: boolean;
+  hasDeposited?: boolean; // Đã từng nạp tiền vào ví
+  depositCount?: number; // Số lần đã nạp tiền
   createdAt?: number; // Thời điểm tạo tài khoản (timestamp)
+  onlineSeconds?: number; // Thời gian online tích lũy (giây)
+  isForceWithdrawOnly?: boolean; // Bị khóa tính năng, ép rút tiền do vượt trần 200 triệu
   isKycVerified?: boolean;
   friendIds?: string[]; // Danh sách ID bạn bè kết nối qua ID 9 số
-  eloRating?: number; // Thang ELO sinh viên (1200 -> 2500+)
+  eloRating?: number; // Thang ELO sinh viên (khởi đầu 200 -> 2500+)
   eloTier?: 'BRONZE' | 'SILVER' | 'GOLD' | 'PLATINUM' | 'DIAMOND' | 'CHALLENGER';
   winStreak?: number; // Chuỗi đơn 5 sao liên tiếp
   studentBadges?: string[]; // Danh sách huy hiệu vinh danh ELO
@@ -96,6 +103,7 @@ export interface UserEntity {
   fcmToken?: string;
   safeWalkContact?: { name: string; phone: string }; // Người liên hệ khẩn cấp SafeWalk
   avatarUrl?: string; // Ảnh đại diện người dùng tùy chỉnh
+  bio?: string; // Giới thiệu bản thân / Slogan cá nhân sinh viên
   themePreference?: 'CYBER_DARK' | 'AMOLED' | 'DAYLIGHT'; // Tùy chọn giao diện
   cccdNumber?: string; // Số CCCD 12 số
   cccdIssueDate?: string; // Ngày cấp CCCD
@@ -352,6 +360,9 @@ export interface WalletTransactionEntity {
   note?: string;
   timestamp: number;
   isSuccess: boolean;
+  status?: 'PENDING' | 'APPROVED' | 'COMPLETED' | 'REJECTED';
+  rejectionReason?: string;
+  approvedAt?: number;
 }
 
 export interface SafeWalkSessionEntity {
@@ -392,6 +403,18 @@ export interface UiNotification {
   isCelebration?: boolean;
 }
 
+export interface FirestoreNotificationEntity {
+  id: string;
+  title: string;
+  message: string;
+  type: 'NEW_GIG' | 'STATUS_UPDATE' | 'INFO';
+  gigId?: string;
+  gigTitle?: string;
+  status?: string;
+  userId?: string;
+  createdAt: number;
+}
+
 export interface AiRecognitionResult {
   suggestedTitle: string;
   suggestedDescription: string;
@@ -402,9 +425,9 @@ export interface AiRecognitionResult {
 
 export const VIETNAMESE_BANKS = [
   { code: 'VCB', name: 'Vietcombank', fullName: 'Ngân hàng TMCP Ngoại thương Việt Nam' },
-  { code: 'MB', name: 'MB Bank', fullName: 'Ngân hàng TMCP Quân Đội' },
+  { code: 'MB', name: 'MBBank', fullName: 'Ngân hàng TMCP Quân Đội' },
   { code: 'TCB', name: 'Techcombank', fullName: 'Ngân hàng TMCP Kỹ thương Việt Nam' },
-  { code: 'VPB', name: 'VPBank', fullName: 'Ngân hàng TMCP Việt Nam Thịnh Vượng' },
+  { code: 'MOMO', name: 'MoMo', fullName: 'Ví Điện Tử MoMo (Napas 247)' },
   { code: 'ACB', name: 'ACB', fullName: 'Ngân hàng TMCP Á Châu' },
   { code: 'BIDV', name: 'BIDV', fullName: 'Ngân hàng TMCP Đầu tư và Phát triển Việt Nam' },
   { code: 'CTG', name: 'VietinBank', fullName: 'Ngân hàng TMCP Công Thương Việt Nam' },

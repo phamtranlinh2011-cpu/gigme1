@@ -1,6 +1,7 @@
 import React from 'react';
-import { Radar, Wallet, UserCheck, PlusCircle, MessageSquare, BookOpen } from 'lucide-react';
+import { Radar, Wallet, UserCheck, PlusCircle, MessageSquare, BookOpen, Scale } from 'lucide-react';
 import { useGigMe } from '../context/GigMeContext';
+import { triggerHaptic } from '../utils/haptics';
 
 export type TabScreen =
   | 'HOME'
@@ -9,7 +10,8 @@ export type TabScreen =
   | 'PROFILE'
   | 'CHAT'
   | 'ADMIN'
-  | 'MARKETPLACE';
+  | 'MARKETPLACE'
+  | 'LAW';
 
 interface BottomNavProps {
   currentTab: TabScreen;
@@ -17,7 +19,7 @@ interface BottomNavProps {
 }
 
 export const BottomNav: React.FC<BottomNavProps> = ({ currentTab, onSelectTab }) => {
-  const { currentSelectedGig, roleMode, allChats, currentUser } = useGigMe();
+  const { currentSelectedGig, roleMode, allChats, currentUser, t } = useGigMe();
   const isClient = roleMode === 'CLIENT';
 
   const unreadChatCount = React.useMemo(() => {
@@ -28,34 +30,39 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentTab, onSelectTab })
     }).length;
   }, [allChats, currentUser]);
 
+  const handleTabClick = (tab: TabScreen) => {
+    triggerHaptic('light');
+    onSelectTab(tab);
+  };
+
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-40 bg-[#0B1528]/95 dark:bg-[#070D18]/98 backdrop-blur-lg border-t border-[#C5E5EC]/20 px-1 sm:px-3 pt-1.5 pb-2 pb-safe shadow-[0_-4px_25px_rgba(48,100,174,0.25)]"
+      className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-[#0B1528]/95 backdrop-blur-lg border-t border-slate-200 dark:border-[#C5E5EC]/20 px-1 sm:px-3 pt-1.5 pb-2 pb-safe shadow-[0_-4px_25px_rgba(48,100,174,0.1)] dark:shadow-[0_-4px_25px_rgba(48,100,174,0.25)] transition-colors duration-200"
       style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom, 0px))' }}
     >
       <div className="max-w-lg mx-auto flex items-center justify-between">
         {/* Tab 1: Radar Discovery */}
         <button
           id="nav-home-btn"
-          onClick={() => onSelectTab('HOME')}
+          onClick={() => handleTabClick('HOME')}
           className={`flex-1 min-w-0 flex flex-col items-center py-1 px-1 rounded-xl transition cursor-pointer ${
             currentTab === 'HOME'
-              ? 'text-[#E0FAEB] bg-[#3064AE]/35 font-black border border-[#C5E5EC]/30 shadow-xs'
-              : 'text-[#C5E5EC]/70 hover:text-white'
+              ? 'text-[#3064AE] dark:text-[#E0FAEB] bg-[#3064AE]/10 dark:bg-[#3064AE]/35 font-black border border-[#3064AE]/30 dark:border-[#C5E5EC]/30 shadow-xs'
+              : 'text-slate-500 hover:text-slate-900 dark:text-[#C5E5EC]/70 dark:hover:text-white'
           }`}
         >
-          <Radar className={`w-4 h-4 sm:w-5 sm:h-5 ${currentTab === 'HOME' ? 'animate-pulse text-[#E0FAEB]' : ''}`} />
-          <span className="text-[10px] font-bold mt-0.5 truncate max-w-full">Radar</span>
+          <Radar className={`w-4 h-4 sm:w-5 sm:h-5 ${currentTab === 'HOME' ? 'animate-pulse text-[#3064AE] dark:text-[#E0FAEB]' : ''}`} />
+          <span className="text-[10px] font-bold mt-0.5 truncate max-w-full">{t('navHome')}</span>
         </button>
 
         {/* Tab 2: Tin Nhắn Chat (Kế mục Radar) */}
         <button
           id="nav-chat-btn"
-          onClick={() => onSelectTab('CHAT')}
+          onClick={() => handleTabClick('CHAT')}
           className={`flex-1 min-w-0 flex flex-col items-center py-1 px-1 rounded-xl transition relative cursor-pointer ${
             currentTab === 'CHAT'
-              ? 'text-[#E0FAEB] bg-[#3064AE]/35 font-black border border-[#C5E5EC]/30 shadow-xs'
-              : 'text-[#C5E5EC]/70 hover:text-white'
+              ? 'text-[#3064AE] dark:text-[#E0FAEB] bg-[#3064AE]/10 dark:bg-[#3064AE]/35 font-black border border-[#3064AE]/30 dark:border-[#C5E5EC]/30 shadow-xs'
+              : 'text-slate-500 hover:text-slate-900 dark:text-[#C5E5EC]/70 dark:hover:text-white'
           }`}
         >
           <div className="relative">
@@ -65,33 +72,36 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentTab, onSelectTab })
                 {unreadChatCount > 9 ? '9+' : unreadChatCount}
               </span>
             ) : (
-              <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-[#E0FAEB] animate-pulse" />
+              <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-[#3064AE] dark:bg-[#E0FAEB] animate-pulse" />
             )}
           </div>
-          <span className="text-[10px] font-bold mt-0.5 truncate max-w-full">Tin Nhắn</span>
+          <span className="text-[10px] font-bold mt-0.5 truncate max-w-full">{t('navChat')}</span>
         </button>
 
         {/* Tab 3: Campus Flea Market (Thanh lý đồ cũ) */}
         <button
           id="nav-marketplace-btn"
-          onClick={() => onSelectTab('MARKETPLACE')}
+          onClick={() => handleTabClick('MARKETPLACE')}
           className={`flex-1 min-w-0 flex flex-col items-center py-1 px-1 rounded-xl transition cursor-pointer ${
             currentTab === 'MARKETPLACE'
-              ? 'text-[#E0FAEB] bg-[#3064AE]/35 font-black border border-[#C5E5EC]/30 shadow-xs'
-              : 'text-[#C5E5EC]/70 hover:text-white'
+              ? 'text-[#3064AE] dark:text-[#E0FAEB] bg-[#3064AE]/10 dark:bg-[#3064AE]/35 font-black border border-[#3064AE]/30 dark:border-[#C5E5EC]/30 shadow-xs'
+              : 'text-slate-500 hover:text-slate-900 dark:text-[#C5E5EC]/70 dark:hover:text-white'
           }`}
         >
           <BookOpen className="w-4 h-4 sm:w-5 sm:h-5" />
-          <span className="text-[10px] font-bold mt-0.5 truncate max-w-full">Chợ KTX</span>
+          <span className="text-[10px] font-bold mt-0.5 truncate max-w-full">{t('navMarketplace')}</span>
         </button>
 
         {/* Central Action: Đăng Kèo */}
         <div className="px-1 shrink-0">
           <button
             id="nav-create-btn"
-            onClick={() => onSelectTab('CREATE_GIG')}
-            className="relative -top-3 flex flex-col items-center justify-center w-11 h-11 sm:w-13 sm:h-13 rounded-full bg-gradient-to-tr from-[#3064AE] via-[#417AC6] to-[#C5E5EC] text-white border-2 border-[#E0FAEB]/40 shadow-lg shadow-[#3064AE]/40 ring-4 ring-[#0B1528] transition transform hover:scale-105 active:scale-95 cursor-pointer"
-            title="Đăng việc nhanh"
+            onClick={() => {
+              triggerHaptic('medium');
+              onSelectTab('CREATE_GIG');
+            }}
+            className="relative -top-3 flex flex-col items-center justify-center w-11 h-11 sm:w-13 sm:h-13 rounded-full bg-gradient-to-tr from-[#3064AE] via-[#417AC6] to-[#C5E5EC] text-white border-2 border-[#E0FAEB]/40 shadow-lg shadow-[#3064AE]/40 ring-4 ring-slate-100 dark:ring-[#0B1528] transition transform hover:scale-110 active:scale-95 cursor-pointer animate-glow-pulse"
+            title={t('navCreateGig')}
           >
             <PlusCircle className="w-5 h-5 sm:w-6 sm:h-6 stroke-[2.4]" />
           </button>
@@ -100,29 +110,44 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentTab, onSelectTab })
         {/* Tab 4: Wallet & Escrow */}
         <button
           id="nav-wallet-btn"
-          onClick={() => onSelectTab('WALLET')}
+          onClick={() => handleTabClick('WALLET')}
           className={`flex-1 min-w-0 flex flex-col items-center py-1 px-1 rounded-xl transition cursor-pointer ${
             currentTab === 'WALLET'
-              ? 'text-[#E0FAEB] bg-[#3064AE]/35 font-black border border-[#C5E5EC]/30 shadow-xs'
-              : 'text-[#C5E5EC]/70 hover:text-white'
+              ? 'text-[#3064AE] dark:text-[#E0FAEB] bg-[#3064AE]/10 dark:bg-[#3064AE]/35 font-black border border-[#3064AE]/30 dark:border-[#C5E5EC]/30 shadow-xs'
+              : 'text-slate-500 hover:text-slate-900 dark:text-[#C5E5EC]/70 dark:hover:text-white'
           }`}
         >
           <Wallet className="w-4 h-4 sm:w-5 sm:h-5" />
-          <span className="text-[10px] font-bold mt-0.5 truncate max-w-full">Ví</span>
+          <span className="text-[10px] font-bold mt-0.5 truncate max-w-full">{t('navWallet')}</span>
         </button>
 
         {/* Tab 6: 2-in-1 Profile */}
         <button
           id="nav-profile-btn"
-          onClick={() => onSelectTab('PROFILE')}
+          onClick={() => handleTabClick('PROFILE')}
           className={`flex-1 min-w-0 flex flex-col items-center py-1 px-1 rounded-xl transition cursor-pointer ${
             currentTab === 'PROFILE'
-              ? 'text-[#E0FAEB] bg-[#3064AE]/35 font-black border border-[#C5E5EC]/30 shadow-xs'
-              : 'text-[#C5E5EC]/70 hover:text-white'
+              ? 'text-[#3064AE] dark:text-[#E0FAEB] bg-[#3064AE]/10 dark:bg-[#3064AE]/35 font-black border border-[#3064AE]/30 dark:border-[#C5E5EC]/30 shadow-xs'
+              : 'text-slate-500 hover:text-slate-900 dark:text-[#C5E5EC]/70 dark:hover:text-white'
           }`}
         >
           <UserCheck className="w-4 h-4 sm:w-5 sm:h-5" />
-          <span className="text-[10px] font-bold mt-0.5 truncate max-w-full">Hồ Sơ</span>
+          <span className="text-[10px] font-bold mt-0.5 truncate max-w-full">{t('navProfile')}</span>
+        </button>
+
+        {/* Tab 7: Luật & Điều Khoản Chặt Chẽ (Kế bên Hồ Sơ) */}
+        <button
+          id="nav-law-btn"
+          onClick={() => handleTabClick('LAW')}
+          className={`flex-1 min-w-0 flex flex-col items-center py-1 px-1 rounded-xl transition cursor-pointer ${
+            currentTab === 'LAW'
+              ? 'text-[#3064AE] dark:text-[#E0FAEB] bg-[#3064AE]/10 dark:bg-[#3064AE]/35 font-black border border-[#3064AE]/30 dark:border-[#C5E5EC]/30 shadow-xs'
+              : 'text-slate-500 hover:text-slate-900 dark:text-[#C5E5EC]/70 dark:hover:text-white'
+          }`}
+          title={t('navLaw')}
+        >
+          <Scale className="w-4 h-4 sm:w-5 sm:h-5" />
+          <span className="text-[10px] font-bold mt-0.5 truncate max-w-full">{t('navLaw')}</span>
         </button>
       </div>
     </nav>

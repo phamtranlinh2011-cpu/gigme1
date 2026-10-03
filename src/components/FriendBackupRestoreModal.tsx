@@ -171,8 +171,16 @@ export const FriendBackupRestoreModal: React.FC<FriendBackupRestoreModalProps> =
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm p-3 sm:p-4 animate-fade-in">
-      <div className="w-full max-w-lg rounded-3xl bg-[#0E1B2E] border border-[#C5E5EC]/30 text-white shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm p-3 sm:p-4 animate-fade-in"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-lg rounded-3xl bg-[#0E1B2E] border border-[#C5E5EC]/30 text-white shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+      >
         {/* Header */}
         <div className="p-4 sm:p-5 border-b border-[#C5E5EC]/20 flex items-center justify-between bg-[#12233B]/80 shrink-0">
           <div className="flex items-center space-x-3">
