@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { usePWAInstall } from '../hooks/usePWAInstall';
 import { useGigMe } from '../context/GigMeContext';
+import { useTranslation } from '../context/LanguageContext';
 
 interface DownloadAppDialogProps {
   isOpen: boolean;
@@ -24,7 +25,7 @@ interface DownloadAppDialogProps {
 
 export const DownloadAppDialog: React.FC<DownloadAppDialogProps> = ({ isOpen, onClose }) => {
   const { isInstallable, isInstalled, isIOS, install } = usePWAInstall();
-  const { language } = useGigMe();
+  const { language, t } = useTranslation();
 
   const [downloading, setDownloading] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState<string>('');

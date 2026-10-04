@@ -33,6 +33,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { useGigMe } from '../context/GigMeContext';
+import { useTranslation } from '../context/LanguageContext';
 import { USER_TIERS, formatVnd } from '../types';
 import { playNotificationSound } from '../utils/audio';
 import { triggerHaptic } from '../utils/haptics';
@@ -72,9 +73,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
     setupOrChangePin,
     setBiometricsWithPassword,
     validateUserPassword,
-    language,
-    t,
   } = useGigMe();
+  const { language, t } = useTranslation();
 
   // 1. SKILLS STATE (Ban đầu mảng rỗng nếu chưa add kỹ năng nào)
   const [skills, setSkills] = useState<string[]>(currentUser?.skills || []);

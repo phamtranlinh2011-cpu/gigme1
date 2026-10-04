@@ -45,6 +45,7 @@ import {
   Clock,
 } from 'lucide-react';
 import { useGigMe } from '../context/GigMeContext';
+import { useTranslation } from '../context/LanguageContext';
 import { formatVnd, USER_TIERS, UserEntity, VIETNAMESE_BANKS, WalletTransactionEntity } from '../types';
 import { auditSybilAndReviewRings, SybilAuditSummary } from '../utils/sybilDetector';
 import { AdminMaintenanceModal } from '../components/AdminMaintenanceModal';
@@ -73,6 +74,7 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onBa
     maintenanceConfig,
     isMaintenanceActive,
   } = useGigMe();
+  const { language, t } = useTranslation();
 
   const [showMaintenanceModal, setShowMaintenanceModal] = useState(false);
   const [selectedUserForModal, setSelectedUserForModal] = useState<UserEntity | null>(null);

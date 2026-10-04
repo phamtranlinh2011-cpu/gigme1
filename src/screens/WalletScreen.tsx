@@ -21,6 +21,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { useGigMe } from '../context/GigMeContext';
+import { useTranslation } from '../context/LanguageContext';
 import { formatVnd, TransactionEntity } from '../types';
 import { playNotificationSound } from '../utils/audio';
 import {
@@ -31,6 +32,7 @@ import {
 } from '../components/AdvancedDialogs';
 import { MoMoZaloPayGatewayModal } from '../components/MoMoZaloPayGatewayModal';
 import { AppleGooglePayModal } from '../components/AppleGooglePayModal';
+import { TransactionHistoryTable } from '../components/TransactionHistoryTable';
 import { triggerHaptic } from '../utils/haptics';
 
 interface WalletScreenProps {
@@ -45,9 +47,8 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onOpenVerify }) => {
     checkDepositEligibility,
     checkWithdrawalEligibility,
     isOverBalanceLimit,
-    language,
-    t,
   } = useGigMe();
+  const { language, t } = useTranslation();
 
   const [isQrOpen, setIsQrOpen] = useState(false);
   const [isGatewayOpen, setIsGatewayOpen] = useState(false);
@@ -201,11 +202,7 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onOpenVerify }) => {
             <div className="flex items-center justify-between px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-[10px] text-[#C5E5EC]/80">
               <span className="flex items-center space-x-1 font-semibold">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                <span>
-                  {language === 'vi'
-                    ? 'Nạp tiền: Max 10M/lần • Giãn cách 1h • Max 30M/ngày • Trần 200M'
-                    : 'Deposit: Max 10M/time • 1h cooldown • Max 30M/day • Cap 200M'}
-                </span>
+                <span>{t('depositSafetyNotice')}</span>
               </span>
               <span className="font-mono text-[#E0FAEB]">
                 {formatVnd(checkDepositEligibility().todayDeposited)}/30M
@@ -215,11 +212,7 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onOpenVerify }) => {
             <div className="flex items-center justify-between px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-[10px] text-[#C5E5EC]/80">
               <span className="flex items-center space-x-1 font-semibold">
                 <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
-                <span>
-                  {language === 'vi'
-                    ? 'Rút tiền: Max 3M/lần • Giãn cách 15p • Dư >50k • >=1 việc • Tuổi >=5 ngày • Online >=3h'
-                    : 'Withdraw: Max 3M/time • 15min cooldown • Bal >50k • >=1 gig • Age >=5d'}
-                </span>
+                <span>{t('withdrawalSafetyNotice')}</span>
               </span>
               <span className="font-mono text-cyan-300 font-bold">
                 {checkWithdrawalEligibility().isAdminBypass ? 'Admin Bypass ✓' : 'Max 3M'}
@@ -490,97 +483,13 @@ export const WalletScreen: React.FC<WalletScreenProps> = ({ onOpenVerify }) => {
         </div>
       </div>
 
-      {/* Transactions History Header & Filters */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between flex-wrap gap-2">
-          <h3 className="font-extrabold text-sm text-white flex items-center space-x-1.5">
-            <Clock className="w-4 h-4 text-[#C5E5EC]" />
-            <span>{t('transactionHistoryTitle')} ({filteredTx.length})</span>
-          </h3>
-
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={() => setIsStatementOpen(true)}
-              className="px-2.5 py-1 rounded-xl bg-[#12233B] hover:bg-[#162B48] border border-[#C5E5EC]/20 text-[10px] text-[#C5E5EC] font-bold flex items-center space-x-1 transition shadow-xs cursor-pointer"
-            >
-              <FileSpreadsheet className="w-3.5 h-3.5 text-[#E0FAEB]" />
-              <span>{language === 'vi' ? 'Xuất PDF/Excel' : 'Export PDF/Excel'}</span>
-            </button>
-
-            {/* Filter tabs */}
-            <div className="flex bg-[#0E1B2E] p-1 rounded-xl border border-[#C5E5EC]/20 text-[10px] font-bold">
-              {(['ALL', 'INCOME', 'EXPENSE', 'ESCROW'] as const).map((filter) => (
-                <button
-                  key={filter}
-                  onClick={() => setTxFilter(filter)}
-                  className={`px-2 py-1 rounded-lg transition cursor-pointer ${
-                    txFilter === filter ? 'bg-[#3064AE] text-white shadow-xs font-extrabold' : 'text-[#C5E5EC]/70 hover:text-white'
-                  }`}
-                >
-                  {filter === 'ALL'
-                    ? (language === 'vi' ? 'Tất cả' : 'All')
-                    : filter === 'INCOME'
-                    ? (language === 'vi' ? 'Thu' : 'In')
-                    : filter === 'EXPENSE'
-                    ? (language === 'vi' ? 'Chi' : 'Out')
-                    : 'Escrow'}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Transactions List */}
-        {filteredTx.length === 0 ? (
-          <div className="text-center py-12 rounded-2xl bg-[#12233B] border border-[#C5E5EC]/15 text-[#C5E5EC]/60 text-xs shadow-xs">
-            {t('noTransactions')}
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {filteredTx.map((tx) => {
-              const isPlus = tx.amount > 0;
-              return (
-                <div
-                  key={tx.id}
-                  className="p-3.5 rounded-2xl bg-[#12233B] border border-[#C5E5EC]/15 hover:border-[#C5E5EC]/35 flex items-center justify-between transition text-xs shadow-sm"
-                >
-                  <div className="flex items-center space-x-3">
-                    <div
-                      className={`p-2 rounded-xl ${
-                        isPlus ? 'bg-[#E0FAEB]/15 text-[#E0FAEB]' : 'bg-orange-500/15 text-orange-400'
-                      }`}
-                    >
-                      {isPlus ? <ArrowDownLeft className="w-4 h-4" /> : <ArrowUpRight className="w-4 h-4" />}
-                    </div>
-
-                    <div>
-                      <h4 className="font-extrabold text-white text-xs">
-                        {tx.title || tx.description || (language === 'vi' ? 'Giao dịch ví' : 'Wallet Transaction')}
-                      </h4>
-                      <p className="text-[10px] text-[#C5E5EC]/70">
-                        {tx.subtitle ? `${tx.subtitle} • ` : ''}
-                        {new Date(tx.timestamp).toLocaleString(language === 'vi' ? 'vi-VN' : 'en-US')} •{' '}
-                        {language === 'vi' ? 'Mã' : 'ID'}: {tx.id.slice(0, 8)}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="text-right">
-                    <span
-                      className={`font-mono font-black text-sm block ${
-                        isPlus ? 'text-[#E0FAEB]' : 'text-slate-200'
-                      }`}
-                    >
-                      {isPlus ? `+${formatVnd(tx.amount)}` : formatVnd(tx.amount)}
-                    </span>
-                    <span className="text-[10px] text-[#C5E5EC]/70 font-semibold">{tx.type}</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+      {/* Bảng Lịch Sử Giao Dịch Chi Tiết (Truy vấn Sub-collection users/{userId}/transactions từ Firestore) */}
+      <TransactionHistoryTable
+        userId={currentUser?.id}
+        fallbackTransactions={userTransactions}
+        onOpenStatementModal={() => setIsStatementOpen(true)}
+        language={language}
+      />
 
       {/* VietQR Dialog */}
       <DynamicVietQrDialog isOpen={isQrOpen} onClose={() => setIsQrOpen(false)} />

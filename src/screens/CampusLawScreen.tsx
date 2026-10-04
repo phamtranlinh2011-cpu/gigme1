@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { triggerHaptic } from '../utils/haptics';
 import { useGigMe } from '../context/GigMeContext';
+import { useTranslation } from '../context/LanguageContext';
 import {
   FULL_LAW_ARTICLES,
   LAW_CHAPTER_LIST,
@@ -38,7 +39,8 @@ export const CampusLawScreen: React.FC<CampusLawScreenProps> = ({
   onBack,
   onOpenContactAdmin,
 }) => {
-  const { currentUser, showNotification, sendChat, language } = useGigMe();
+  const { currentUser, showNotification, sendChat } = useGigMe();
+  const { language, t } = useTranslation();
   const [selectedChapter, setSelectedChapter] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [expandedArticles, setExpandedArticles] = useState<Record<string, boolean>>({

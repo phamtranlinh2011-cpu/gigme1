@@ -14,13 +14,17 @@
    - Cấu hình Firebase mặc định nằm tại `/firebase-applet-config.json` (Project: `gen-lang-client-0729535805`, Firestore DB: `ai-studio-gigme1-c6834680-edff-46fb-b8b2-1aeee555726a`).
    - Khi import vào một tài khoản Google mới chưa liên kết Firestore này: Hệ thống tự động fallback mượt mà sang cơ chế LocalStorage + IndexedDB (`data/db.json` và `cloudSync.ts`) mà không làm ứng dụng bị lỗi, crash hay trắng màn hình.
    - Khi tài khoản mới kích hoạt Firebase mới qua `set_up_firebase`, ứng dụng tự động nhận diện cấu hình trong `firebase-applet-config.json`.
-3. **Tài khoản Master Quản trị viên (Root Admin) đồng nhất trên mọi Repo / Mọi Account**:
+3. **Tài khoản Master Quản trị viên (Root Admin) & Đội ngũ Kiểm Duyệt Viên (Mods)**:
    - Dù ở bất kỳ tài khoản hay repo nào, tài khoản Quản trị viên tối cao luôn cố định và sẵn sàng:
      - **ID 9 số**: `000000000`
-     - **Email**: `admin@admin.vn`
+     - **Email**: `admin@gigme.vn` (hỗ trợ kèm alias `admin@admin.vn`)
      - **Số điện thoại**: `0909120918`
      - **Mật khẩu**: `admin1507`
-   - Đảm bảo người dùng luôn có thể đăng nhập ngay vào Trung Tâm Điều Hành Quản Trị trên bất kỳ bản sao/instance nào.
+   - Đội ngũ Kiểm Duyệt Viên (Mods) mặc định:
+     - **mod1**: ID `000000001` • Email `mod1@gigme.vn` • Mật khẩu `mod1999`
+     - **mod2**: ID `000000002` • Email `mod2@gigme.vn` • Mật khẩu `mod4444`
+     - **mod3**: ID `000000003` • Email `mod3@gigme.vn` • Mật khẩu `mod0308`
+   - Đảm bảo người dùng luôn có thể đăng nhập ngay vào Trung Tâm Điều Hành Quản Trị & Kiểm Duyệt trên bất kỳ bản sao/instance nào.
 4. **Email Chủ sở hữu (Owner/Developer Email)**:
    - Email chính: `vnlandserver@gmail.com` (và các tài khoản liên kết thuộc quyền sở hữu của user).
 

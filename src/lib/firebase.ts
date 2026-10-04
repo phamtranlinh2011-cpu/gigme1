@@ -287,41 +287,115 @@ export function subscribeToMessages(
   );
 }
 
-// --- TRANSACTIONS ---
+// --- TRANSACTIONS & SUBCOLLECTION ---
 export async function syncTransactionToCloud(tx: WalletTransactionEntity): Promise<void> {
   const path = `transactions/${tx.id}`;
   try {
     const cleanData = JSON.parse(JSON.stringify(tx));
+    // 1. Write to root transactions collection
     await setDoc(doc(db, 'transactions', tx.id), cleanData, { merge: true });
+    // 2. Write to user's dedicated sub-collection: users/{userId}/transactions/{txId}
+    if (tx.userId) {
+      await setDoc(doc(db, 'users', tx.userId, 'transactions', tx.id), cleanData, { merge: true });
+    }
   } catch (err) {
     handleFirestoreError(err, OperationType.WRITE, path);
   }
 }
 
+/**
+ * Lắng nghe sub-collection 'transactions' của người dùng: users/{userId}/transactions
+ * Kèm fallback tự động sang root 'transactions' collection
+ */
 export function subscribeToTransactions(
   userId: string,
   onUpdate: (transactions: WalletTransactionEntity[]) => void,
   onError?: (err: unknown) => void
 ) {
-  const txRef = collection(db, 'transactions');
+  const subRef = collection(db, 'users', userId, 'transactions');
   return onSnapshot(
-    txRef,
+    subRef,
     (snapshot) => {
       const list: WalletTransactionEntity[] = [];
       snapshot.forEach((doc) => {
         const data = doc.data() as WalletTransactionEntity;
-        if (data.userId === userId) {
-          list.push(data);
-        }
+        list.push(data);
       });
-      list.sort((a, b) => b.timestamp - a.timestamp);
-      onUpdate(list);
+
+      // Nếu subcollection chưa có dữ liệu, fallback sang root transactions collection
+      if (list.length === 0) {
+        const rootRef = collection(db, 'transactions');
+        getDocs(rootRef)
+          .then((rootSnap) => {
+            const rootList: WalletTransactionEntity[] = [];
+            rootSnap.forEach((d) => {
+              const data = d.data() as WalletTransactionEntity;
+              if (data.userId === userId) {
+                rootList.push(data);
+              }
+            });
+            rootList.sort((a, b) => b.timestamp - a.timestamp);
+            if (rootList.length > 0) {
+              onUpdate(rootList);
+            } else {
+              onUpdate([]);
+            }
+          })
+          .catch(() => onUpdate([]));
+      } else {
+        list.sort((a, b) => b.timestamp - a.timestamp);
+        onUpdate(list);
+      }
     },
     (err: FirestoreError) => {
-      handleFirestoreError(err, OperationType.LIST, `transactions?userId=${userId}`);
-      if (onError) onError(err);
+      // Fallback khi subcollection gặp lỗi
+      const rootRef = collection(db, 'transactions');
+      getDocs(rootRef)
+        .then((rootSnap) => {
+          const rootList: WalletTransactionEntity[] = [];
+          rootSnap.forEach((d) => {
+            const data = d.data() as WalletTransactionEntity;
+            if (data.userId === userId) {
+              rootList.push(data);
+            }
+          });
+          rootList.sort((a, b) => b.timestamp - a.timestamp);
+          onUpdate(rootList);
+        })
+        .catch((fallbackErr) => {
+          handleFirestoreError(err, OperationType.LIST, `users/${userId}/transactions`);
+          if (onError) onError(fallbackErr || err);
+        });
     }
   );
+}
+
+/**
+ * Đọc trực tiếp danh sách giao dịch từ sub-collection users/{userId}/transactions một lần
+ */
+export async function fetchUserTransactionsFromFirestore(userId: string): Promise<WalletTransactionEntity[]> {
+  try {
+    const subRef = collection(db, 'users', userId, 'transactions');
+    const snap = await getDocs(subRef);
+    if (!snap.empty) {
+      const list: WalletTransactionEntity[] = [];
+      snap.forEach((d) => list.push(d.data() as WalletTransactionEntity));
+      list.sort((a, b) => b.timestamp - a.timestamp);
+      return list;
+    }
+    // Fallback sang root transactions
+    const rootRef = collection(db, 'transactions');
+    const rootSnap = await getDocs(rootRef);
+    const list: WalletTransactionEntity[] = [];
+    rootSnap.forEach((d) => {
+      const data = d.data() as WalletTransactionEntity;
+      if (data.userId === userId) list.push(data);
+    });
+    list.sort((a, b) => b.timestamp - a.timestamp);
+    return list;
+  } catch {
+    return [];
+  }
 }
 
 export function subscribeToAllTransactions(

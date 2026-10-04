@@ -25,6 +25,10 @@ import {
   WifiOff,
   Navigation,
   Scale,
+  ChevronLeft,
+  ChevronRight,
+  LayoutGrid,
+  Layers,
 } from 'lucide-react';
 import { useGigMe } from '../context/GigMeContext';
 import { useTranslation } from '../context/LanguageContext';
@@ -33,6 +37,7 @@ import { VIETNAM_HUBS } from '../utils/geo';
 import { triggerHaptic } from '../utils/haptics';
 import { PullToRefresh } from '../components/PullToRefresh';
 import { VerifiedIdentityBadge } from '../components/VerifiedIdentityBadge';
+import { FlashGigsSkeleton, GigListSkeleton } from '../components/GigCardSkeleton';
 
 // Lazy load heavy components for instant initial page render (Code-Splitting)
 const InteractiveRadar = lazy(() =>
@@ -103,6 +108,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   onOpenDownloadApp,
 }) => {
   const {
+    isGigsLoading,
     filteredGigs,
     selectedGigId,
     selectGig,
@@ -172,6 +178,305 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [isOfflineModalOpen, setIsOfflineModalOpen] = useState(false);
   const isClient = roleMode === 'CLIENT';
+
+  // Mobile Smooth Scroll-Snap View Mode ('SNAP' or 'GRID')
+  const [viewMode, setViewMode] = useState<'SNAP' | 'GRID'>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('gigme_home_view_mode');
+        if (saved === 'SNAP' || saved === 'GRID') return saved;
+      } catch {}
+    }
+    return 'SNAP';
+  });
+
+  const handleSetViewMode = (mode: 'SNAP' | 'GRID') => {
+    triggerHaptic('light');
+    setViewMode(mode);
+    try {
+      localStorage.setItem('gigme_home_view_mode', mode);
+    } catch {}
+  };
+
+  const gigsCarouselRef = React.useRef<HTMLDivElement>(null);
+  const flashCarouselRef = React.useRef<HTMLDivElement>(null);
+  const categoriesCarouselRef = React.useRef<HTMLDivElement>(null);
+  const [currentSnapIndex, setCurrentSnapIndex] = useState(0);
+  const [currentFlashSnapIndex, setCurrentFlashSnapIndex] = useState(0);
+  const scrollSnapRafRef = React.useRef<number | null>(null);
+  const flashSnapRafRef = React.useRef<number | null>(null);
+
+  const handleScrollSnap = () => {
+    if (!gigsCarouselRef.current) return;
+    if (scrollSnapRafRef.current) cancelAnimationFrame(scrollSnapRafRef.current);
+    scrollSnapRafRef.current = requestAnimationFrame(() => {
+      const container = gigsCarouselRef.current;
+      if (!container) return;
+      const children = Array.from(container.children) as HTMLElement[];
+      if (children.length === 0) return;
+
+      const containerRect = container.getBoundingClientRect();
+      const containerCenter = containerRect.left + containerRect.width / 2;
+
+      let closestIndex = 0;
+      let minDistance = Infinity;
+
+      children.forEach((child, idx) => {
+        const childRect = child.getBoundingClientRect();
+        const childCenter = childRect.left + childRect.width / 2;
+        const distance = Math.abs(childCenter - containerCenter);
+        if (distance < minDistance) {
+          minDistance = distance;
+          closestIndex = idx;
+        }
+      });
+
+      setCurrentSnapIndex((prev) => {
+        if (prev !== closestIndex) {
+          triggerHaptic('selection');
+        }
+        return closestIndex;
+      });
+    });
+  };
+
+  const scrollToGig = (index: number) => {
+    if (!gigsCarouselRef.current) return;
+    const container = gigsCarouselRef.current;
+    const children = Array.from(container.children) as HTMLElement[];
+    const targetChild = children[index];
+    triggerHaptic('light');
+    if (targetChild) {
+      const containerPaddingLeft = parseFloat(getComputedStyle(container).paddingLeft || '0');
+      const targetLeft = targetChild.offsetLeft - containerPaddingLeft;
+      container.scrollTo({
+        left: targetLeft,
+        behavior: 'smooth',
+      });
+    } else {
+      const cardWidth = children[0]?.offsetWidth ? children[0].offsetWidth + 16 : 320;
+      container.scrollTo({
+        left: index * cardWidth,
+        behavior: 'smooth',
+      });
+    }
+    setCurrentSnapIndex(index);
+  };
+
+  const handleFlashScrollSnap = () => {
+    if (!flashCarouselRef.current) return;
+    if (flashSnapRafRef.current) cancelAnimationFrame(flashSnapRafRef.current);
+    flashSnapRafRef.current = requestAnimationFrame(() => {
+      const container = flashCarouselRef.current;
+      if (!container) return;
+      const children = Array.from(container.children) as HTMLElement[];
+      if (children.length === 0) return;
+
+      const containerRect = container.getBoundingClientRect();
+      const containerCenter = containerRect.left + containerRect.width / 2;
+
+      let closestIndex = 0;
+      let minDistance = Infinity;
+
+      children.forEach((child, idx) => {
+        const childRect = child.getBoundingClientRect();
+        const childCenter = childRect.left + childRect.width / 2;
+        const distance = Math.abs(childCenter - containerCenter);
+        if (distance < minDistance) {
+          minDistance = distance;
+          closestIndex = idx;
+        }
+      });
+
+      setCurrentFlashSnapIndex((prev) => {
+        if (prev !== closestIndex) {
+          triggerHaptic('selection');
+        }
+        return closestIndex;
+      });
+    });
+  };
+
+  const scrollToFlashGig = (index: number) => {
+    if (!flashCarouselRef.current) return;
+    const container = flashCarouselRef.current;
+    const children = Array.from(container.children) as HTMLElement[];
+    const targetChild = children[index];
+    triggerHaptic('light');
+    if (targetChild) {
+      const containerPaddingLeft = parseFloat(getComputedStyle(container).paddingLeft || '0');
+      container.scrollTo({
+        left: targetChild.offsetLeft - containerPaddingLeft,
+        behavior: 'smooth',
+      });
+    }
+    setCurrentFlashSnapIndex(index);
+  };
+
+  const flashGigs = React.useMemo(() => {
+    return filteredGigs.filter((g) => g.isFlash || g.isBoosted || g.auctionRoomOpen);
+  }, [filteredGigs]);
+
+  const renderGigCard = (gig: GigEntity, isSnapCard = false, isActiveSnap = false) => {
+    const isSelected = selectedGigId === gig.id;
+    const isBoosted = !!(gig.isBoosted && gig.boostedUntil && gig.boostedUntil > Date.now());
+
+    return (
+      <div
+        key={gig.id}
+        onClick={() => selectGig(gig.id)}
+        className={`relative rounded-2xl p-4 transition-all duration-300 cursor-pointer flex flex-col justify-between border ${
+          isSnapCard
+            ? `scroll-snap-card snap-center sm:snap-start shrink-0 w-[84vw] max-w-[340px] sm:w-[320px] md:w-[340px] shadow-lg select-none ${
+                isActiveSnap
+                  ? 'ring-2 ring-[#C5E5EC]/80 border-[#C5E5EC] scale-[1.01] shadow-2xl shadow-[#3064AE]/20'
+                  : 'opacity-95 hover:opacity-100'
+              }`
+            : ''
+        } ${
+          isBoosted
+            ? 'bg-gradient-to-b from-[#1E1228] to-[#0E1B2E] border-rose-400/50 shadow-xl ring-1 ring-rose-400/30'
+            : isSelected
+            ? 'bg-[#13243C] border-[#C5E5EC] shadow-2xl ring-2 ring-[#3064AE]/60'
+            : 'bg-[#0E1B2E] border-[#C5E5EC]/20 hover:border-[#C5E5EC]/50 hover:bg-[#12233B] shadow-lg shadow-[#0A1424]/40'
+        }`}
+      >
+        {/* Top tags */}
+        <div>
+          <div className="flex flex-wrap items-center justify-between gap-1.5 mb-2.5">
+            <div className="flex flex-wrap items-center gap-1.5">
+              {isBoosted && (
+                <span className="flex items-center text-[10px] font-black text-white bg-gradient-to-r from-red-600 to-rose-600 px-2 py-0.5 rounded-md shadow-xs animate-pulse">
+                  <Rocket className="w-3 h-3 mr-1 text-yellow-300" /> {t('hotBoost')}
+                </span>
+              )}
+              {gig.auctionRoomOpen && (
+                <span className="flex items-center text-[10px] font-black text-white bg-red-600 px-2 py-0.5 rounded-md shadow-xs">
+                  <Radio className="w-3 h-3 mr-1 animate-pulse" /> {t('auctionOpen')}
+                </span>
+              )}
+              {gig.isFlash && !isBoosted && (
+                <span className="flex items-center text-[10px] font-extrabold text-white bg-gradient-to-r from-amber-500 to-orange-500 px-2 py-0.5 rounded-md shadow-xs">
+                  <Zap className="w-3 h-3 mr-0.5 fill-current" /> {t('urgentBadge')}
+                </span>
+              )}
+              <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-md border shadow-2xs ${getCategoryBadgeStyle(gig.category)}`}>
+                {getCategoryLabel(gig.category)}
+              </span>
+            </div>
+
+            <span className="text-[11px] font-mono text-[#C5E5EC] font-black flex items-center space-x-0.5 bg-[#3064AE]/20 px-2 py-0.5 rounded-md border border-[#C5E5EC]/25">
+              <MapPin className="w-3 h-3 text-[#C5E5EC]" />
+              <span>{gig.distanceMeters}m</span>
+            </span>
+          </div>
+
+          {/* Title */}
+          <h4 className="text-sm font-bold text-white leading-snug line-clamp-2 mb-1.5 hover:text-[#C5E5EC] transition">
+            {gig.title}
+          </h4>
+
+          {/* Poster Info & Verification Badge */}
+          <div className="flex items-center space-x-1.5 flex-wrap gap-y-1 mb-2">
+            <span className="text-[11px] font-bold text-slate-300">
+              {gig.clientName}
+            </span>
+            {(() => {
+              const poster = users.find((u) => u.id === gig.clientId);
+              const isCccd = poster?.isNfcVerified || gig.clientTier === 'CCCD_VERIFIED' || gig.clientTier === 'PRO';
+              const isStudent = poster?.isStudentVerified || poster?.isEduVerified || gig.clientTier === 'STUDENT';
+              const school = poster?.studentSchool || '';
+
+              if (isCccd || isStudent) {
+                return (
+                  <VerifiedIdentityBadge
+                    isCccdVerified={isCccd}
+                    isStudentVerified={isStudent}
+                    school={school}
+                    size="sm"
+                    showText={true}
+                  />
+                );
+              }
+              return null;
+            })()}
+          </div>
+
+          {/* Description */}
+          <p className="text-xs text-[#C5E5EC]/75 line-clamp-2 mb-3 leading-relaxed">
+            {gig.description}
+          </p>
+        </div>
+
+        {/* Metadata & Pricing footer */}
+        <div>
+          <div className="flex items-center justify-between text-[11px] text-[#C5E5EC]/70 py-2 border-t border-[#C5E5EC]/15 mb-3">
+            <div className="flex items-center space-x-1">
+              <Clock className="w-3.5 h-3.5 text-[#C5E5EC]" />
+              <span className="font-semibold text-[#C5E5EC]/90">
+                ~{gig.estimatedDurationMinutes} {language === 'vi' ? 'phút' : 'mins'}
+              </span>
+            </div>
+
+            {gig.totalWorkersNeeded > 1 && (
+              <div className="flex items-center space-x-1 text-[#E0FAEB] font-bold bg-teal-950/60 px-2 py-0.5 rounded-md border border-teal-400/30">
+                <Users className="w-3.5 h-3.5 text-teal-300" />
+                <span>
+                  {language === 'vi'
+                    ? `Nhóm ${gig.multiWorkers?.length || 0}/${gig.totalWorkersNeeded} bạn`
+                    : `Team ${gig.multiWorkers?.length || 0}/${gig.totalWorkersNeeded} students`}
+                </span>
+              </div>
+            )}
+
+            {gig.isRecurringWeekly && (
+              <div className="flex items-center space-x-1 text-[#C5E5EC] font-bold bg-[#3064AE]/25 px-2 py-0.5 rounded-md border border-[#C5E5EC]/30">
+                <Repeat className="w-3.5 h-3.5 text-[#C5E5EC]" />
+                <span>{t('weekly')}</span>
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-[10px] text-[#C5E5EC]/70 block font-bold mb-0.5">
+                {gig.isReverseAuction ? t('reverseAuction') : t('escrowReward')}
+              </span>
+              <div className="inline-flex items-center px-2 py-0.5 rounded-lg bg-[#12233B] border border-[#E0FAEB]/30 shadow-2xs">
+                <span className="text-base font-black text-[#E0FAEB] font-mono">
+                  {formatVnd(gig.isReverseAuction && gig.lowestBidPrice ? gig.lowestBidPrice : gig.price)}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-1.5">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  triggerHaptic('medium');
+                  onSelectGigDetail(gig.id);
+                }}
+                className={`px-3.5 py-1.5 rounded-xl font-extrabold text-xs shadow-md transition flex items-center space-x-1 active:scale-95 cursor-pointer ${
+                  gig.auctionRoomOpen
+                    ? 'bg-gradient-to-r from-red-600 to-rose-600 text-white hover:brightness-105 shadow-red-500/20'
+                    : 'bg-gradient-to-r from-[#3064AE] via-[#417AC6] to-[#C5E5EC] text-white hover:brightness-110 shadow-[#3064AE]/30 border border-[#E0FAEB]/30'
+                }`}
+              >
+                <span>
+                  {gig.auctionRoomOpen
+                    ? t('joinAuction')
+                    : gig.isReverseAuction
+                    ? t('bid')
+                    : t('viewGig')}
+                </span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   const handlePullRefresh = async () => {
     try {
@@ -261,7 +566,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         </div>
         <div
           data-swipeable="true"
-          className="flex overflow-x-auto gap-2.5 pb-2 scrollbar-none snap-x sm:grid sm:grid-cols-4 lg:grid-cols-7 touch-pan-x overscroll-x-contain"
+          className="scroll-snap-x snap-x snap-mandatory flex overflow-x-auto gap-2.5 pb-2 scrollbar-none sm:grid sm:grid-cols-4 lg:grid-cols-7 touch-pan-x overscroll-x-contain scroll-smooth"
         >
           {onOpenMarketplace && (
             <button
@@ -471,19 +776,23 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
         {/* Categories Carousel */}
         <div
+          ref={categoriesCarouselRef}
           data-swipeable="true"
-          className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none touch-pan-x overscroll-x-contain"
+          className="scroll-snap-x snap-x flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none touch-pan-x overscroll-x-contain scroll-smooth px-0.5"
         >
           {CATEGORIES.map((cat) => {
             const isSelected = selectedCategory === cat;
             return (
               <button
                 key={cat}
-                onClick={() => {
+                onClick={(e) => {
                   triggerHaptic('light');
                   setCategory(cat);
+                  try {
+                    e.currentTarget.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                  } catch {}
                 }}
-                className={`flex items-center space-x-1 px-3.5 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap border shadow-xs active:scale-95 cursor-pointer ${
+                className={`scroll-snap-start snap-start flex items-center space-x-1 px-3.5 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap border shadow-xs active:scale-95 cursor-pointer ${
                   isSelected
                     ? cat === 'Flash Gigs'
                       ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white border-amber-400 shadow-md shadow-amber-500/30'
@@ -591,9 +900,68 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         )}
       </div>
 
-      {/* Gigs List Section */}
+      {/* Flash Gigs Snap Carousel (if loading or any flash/boosted gigs exist) */}
+      {isGigsLoading ? (
+        <FlashGigsSkeleton />
+      ) : flashGigs.length > 0 ? (
+        <div className="space-y-2.5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <span className="p-1 rounded-lg bg-gradient-to-r from-amber-500 to-rose-500 text-white shadow-xs">
+                <Zap className="w-3.5 h-3.5 fill-current" />
+              </span>
+              <h4 className="text-xs sm:text-sm font-black text-white uppercase tracking-wider flex items-center gap-1.5">
+                <span>{language === 'vi' ? 'Kèo Hỏa Tốc & Hot Boost' : 'Urgent & Hot Boost Gigs'}</span>
+                <span className="px-1.5 py-0.5 rounded-full bg-rose-500/20 text-rose-300 font-mono text-[10px] font-bold border border-rose-500/30">
+                  {flashGigs.length}
+                </span>
+              </h4>
+            </div>
+
+            {flashGigs.length > 1 ? (
+              <div className="flex items-center space-x-1.5">
+                <span className="text-[10px] font-mono text-amber-300 font-bold hidden sm:inline">
+                  {currentFlashSnapIndex + 1}/{flashGigs.length}
+                </span>
+                <button
+                  type="button"
+                  disabled={currentFlashSnapIndex <= 0}
+                  onClick={() => scrollToFlashGig(currentFlashSnapIndex - 1)}
+                  className="p-1 rounded-lg bg-[#0E1B2E] border border-[#C5E5EC]/20 text-[#C5E5EC] disabled:opacity-30 disabled:cursor-not-allowed hover:bg-[#12233B] active:scale-90 transition cursor-pointer"
+                  aria-label="Previous Flash Gig"
+                >
+                  <ChevronLeft className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  disabled={currentFlashSnapIndex >= flashGigs.length - 1}
+                  onClick={() => scrollToFlashGig(currentFlashSnapIndex + 1)}
+                  className="p-1 rounded-lg bg-[#0E1B2E] border border-[#C5E5EC]/20 text-[#C5E5EC] disabled:opacity-30 disabled:cursor-not-allowed hover:bg-[#12233B] active:scale-90 transition cursor-pointer"
+                  aria-label="Next Flash Gig"
+                >
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ) : (
+              <span className="text-[10px] text-[#C5E5EC]/60 font-semibold sm:hidden">
+                {language === 'vi' ? 'Trượt ngang ➔' : 'Swipe ➔'}
+              </span>
+            )}
+          </div>
+          <div
+            ref={flashCarouselRef}
+            onScroll={handleFlashScrollSnap}
+            data-swipeable="true"
+            className="scroll-snap-x snap-x snap-mandatory flex overflow-x-auto gap-3.5 pb-2 pt-1 touch-pan-x overscroll-x-contain scrollbar-none px-0.5 scroll-smooth"
+          >
+            {flashGigs.map((gig, idx) => renderGigCard(gig, true, idx === currentFlashSnapIndex))}
+          </div>
+        </div>
+      ) : null}
+
+      {/* Main Gigs List Section */}
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center space-x-2">
             <h3 className="text-sm sm:text-base font-extrabold text-white">{t('availableGigsTitle')}</h3>
             <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-[#3064AE]/30 text-[#C5E5EC] border border-[#C5E5EC]/25 shadow-2xs">
@@ -601,15 +969,49 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             </span>
           </div>
 
-          <button
-            onClick={onOpenCreateGig}
-            className="text-xs font-bold text-[#C5E5EC] hover:text-[#E0FAEB] flex items-center space-x-1 cursor-pointer transition"
-          >
-            <span>+ {t('navCreateGig')}</span>
-          </button>
+          <div className="flex items-center space-x-2">
+            {/* View Mode Toggle: Snap Carousel vs Grid */}
+            <div className="flex items-center bg-[#0E1B2E] p-0.5 rounded-xl border border-[#C5E5EC]/20 text-[10px] font-bold">
+              <button
+                type="button"
+                onClick={() => handleSetViewMode('SNAP')}
+                className={`px-2 py-1 rounded-lg flex items-center space-x-1 transition cursor-pointer ${
+                  viewMode === 'SNAP'
+                    ? 'bg-[#3064AE] text-white shadow-xs font-black'
+                    : 'text-[#C5E5EC]/70 hover:text-white'
+                }`}
+                title={language === 'vi' ? 'Lướt thẻ Snap mượt mà' : 'Smooth Snap Carousel'}
+              >
+                <Layers className="w-3 h-3" />
+                <span>{language === 'vi' ? 'Lướt Snap' : 'Snap'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSetViewMode('GRID')}
+                className={`px-2 py-1 rounded-lg flex items-center space-x-1 transition cursor-pointer ${
+                  viewMode === 'GRID'
+                    ? 'bg-[#3064AE] text-white shadow-xs font-black'
+                    : 'text-[#C5E5EC]/70 hover:text-white'
+                }`}
+                title={language === 'vi' ? 'Dạng lưới' : 'Grid layout'}
+              >
+                <LayoutGrid className="w-3 h-3" />
+                <span>{language === 'vi' ? 'Lưới' : 'Grid'}</span>
+              </button>
+            </div>
+
+            <button
+              onClick={onOpenCreateGig}
+              className="text-xs font-bold text-[#C5E5EC] hover:text-[#E0FAEB] flex items-center space-x-1 cursor-pointer transition"
+            >
+              <span>+ {t('navCreateGig')}</span>
+            </button>
+          </div>
         </div>
 
-        {filteredGigs.length === 0 ? (
+        {isGigsLoading ? (
+          <GigListSkeleton viewMode={viewMode} count={viewMode === 'SNAP' ? 3 : 6} />
+        ) : filteredGigs.length === 0 ? (
           <div className="text-center py-16 px-4 rounded-3xl bg-[#0E1B2E] border border-[#C5E5EC]/20 shadow-xl">
             <div className="w-16 h-16 rounded-2xl bg-[#3064AE]/30 text-[#C5E5EC] border border-[#C5E5EC]/20 flex items-center justify-center mx-auto mb-3.5 shadow-md">
               <MapPin className="w-8 h-8" />
@@ -637,159 +1039,87 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               </button>
             </div>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredGigs.map((gig) => {
-              const isSelected = selectedGigId === gig.id;
-              const isBoosted = !!(gig.isBoosted && gig.boostedUntil && gig.boostedUntil > Date.now());
-              return (
-                <div
-                  key={gig.id}
-                  onClick={() => selectGig(gig.id)}
-                  className={`relative rounded-2xl p-4 transition-all duration-200 cursor-pointer flex flex-col justify-between border ${
-                    isBoosted
-                      ? 'bg-gradient-to-b from-[#1E1228] to-[#0E1B2E] border-rose-400/50 shadow-xl ring-1 ring-rose-400/30'
-                      : isSelected
-                      ? 'bg-[#13243C] border-[#C5E5EC] shadow-2xl ring-2 ring-[#3064AE]/60'
-                      : 'bg-[#0E1B2E] border-[#C5E5EC]/20 hover:border-[#C5E5EC]/50 hover:bg-[#12233B] shadow-lg shadow-[#0A1424]/40'
+        ) : viewMode === 'SNAP' ? (
+          <div className="space-y-3">
+            {/* Mobile swipe helper hint */}
+            <div className="flex items-center justify-between px-1 text-[11px] text-[#C5E5EC]/70">
+              <span className="flex items-center gap-1 font-medium">
+                <span>👈</span>
+                <span>{language === 'vi' ? 'Vuốt ngang lướt nhanh kèo' : 'Swipe horizontally to browse gigs'}</span>
+              </span>
+              <span className="text-[10px] font-mono text-[#E0FAEB] font-bold">
+                {filteredGigs.length} {language === 'vi' ? 'kèo' : 'gigs'}
+              </span>
+            </div>
+
+            {/* Scroll-Snap Carousel Container */}
+            <div
+              ref={gigsCarouselRef}
+              onScroll={handleScrollSnap}
+              data-swipeable="true"
+              className="scroll-snap-x snap-x snap-mandatory flex overflow-x-auto gap-4 pb-4 pt-1 touch-pan-x overscroll-x-contain scrollbar-none px-0.5 scroll-smooth"
+            >
+              {filteredGigs.map((gig, idx) => renderGigCard(gig, true, idx === currentSnapIndex))}
+            </div>
+
+            {/* Mobile Snap Navigation & Progress Controller */}
+            {filteredGigs.length > 1 && (
+              <div className="flex items-center justify-between px-1 text-xs">
+                <button
+                  type="button"
+                  disabled={currentSnapIndex <= 0}
+                  onClick={() => scrollToGig(currentSnapIndex - 1)}
+                  className={`p-2 rounded-xl bg-[#0E1B2E] border border-[#C5E5EC]/25 text-[#C5E5EC] transition flex items-center space-x-1 active:scale-95 cursor-pointer ${
+                    currentSnapIndex <= 0 ? 'opacity-40 cursor-not-allowed' : 'hover:bg-[#12233B] hover:text-white'
                   }`}
+                  aria-label="Previous Gig"
                 >
-                  {/* Top tags */}
-                  <div>
-                    <div className="flex flex-wrap items-center justify-between gap-1.5 mb-2.5">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        {isBoosted && (
-                          <span className="flex items-center text-[10px] font-black text-white bg-gradient-to-r from-red-600 to-rose-600 px-2 py-0.5 rounded-md shadow-xs animate-pulse">
-                            <Rocket className="w-3 h-3 mr-1 text-yellow-300" /> {t('hotBoost')}
-                          </span>
-                        )}
-                        {gig.auctionRoomOpen && (
-                          <span className="flex items-center text-[10px] font-black text-white bg-red-600 px-2 py-0.5 rounded-md shadow-xs">
-                            <Radio className="w-3 h-3 mr-1 animate-pulse" /> {t('auctionOpen')}
-                          </span>
-                        )}
-                        {gig.isFlash && !isBoosted && (
-                          <span className="flex items-center text-[10px] font-extrabold text-white bg-gradient-to-r from-amber-500 to-orange-500 px-2 py-0.5 rounded-md shadow-xs">
-                            <Zap className="w-3 h-3 mr-0.5 fill-current" /> {t('urgentBadge')}
-                          </span>
-                        )}
-                        <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-md border shadow-2xs ${getCategoryBadgeStyle(gig.category)}`}>
-                          {getCategoryLabel(gig.category)}
-                        </span>
-                      </div>
+                  <ChevronLeft className="w-4 h-4" />
+                  <span className="text-[11px] font-bold hidden sm:inline">{language === 'vi' ? 'Kèo trước' : 'Previous'}</span>
+                </button>
 
-                      <span className="text-[11px] font-mono text-[#C5E5EC] font-black flex items-center space-x-0.5 bg-[#3064AE]/20 px-2 py-0.5 rounded-md border border-[#C5E5EC]/25">
-                        <MapPin className="w-3 h-3 text-[#C5E5EC]" />
-                        <span>{gig.distanceMeters}m</span>
-                      </span>
-                    </div>
-
-                    {/* Title */}
-                    <h4 className="text-sm font-bold text-white leading-snug line-clamp-2 mb-1.5 hover:text-[#C5E5EC] transition">
-                      {gig.title}
-                    </h4>
-
-                    {/* Poster Info & Verification Badge */}
-                    <div className="flex items-center space-x-1.5 flex-wrap gap-y-1 mb-2">
-                      <span className="text-[11px] font-bold text-slate-300">
-                        {gig.clientName}
-                      </span>
-                      {(() => {
-                        const poster = users.find((u) => u.id === gig.clientId);
-                        const isCccd = poster?.isNfcVerified || gig.clientTier === 'CCCD_VERIFIED' || gig.clientTier === 'PRO';
-                        const isStudent = poster?.isStudentVerified || poster?.isEduVerified || gig.clientTier === 'STUDENT';
-                        const school = poster?.studentSchool || '';
-
-                        if (isCccd || isStudent) {
-                          return (
-                            <VerifiedIdentityBadge
-                              isCccdVerified={isCccd}
-                              isStudentVerified={isStudent}
-                              school={school}
-                              size="sm"
-                              showText={true}
-                            />
-                          );
-                        }
-                        return null;
-                      })()}
-                    </div>
-
-                    {/* Description */}
-                    <p className="text-xs text-[#C5E5EC]/75 line-clamp-2 mb-3 leading-relaxed">
-                      {gig.description}
-                    </p>
-                  </div>
-
-                  {/* Metadata & Pricing footer */}
-                  <div>
-                    <div className="flex items-center justify-between text-[11px] text-[#C5E5EC]/70 py-2 border-t border-[#C5E5EC]/15 mb-3">
-                      <div className="flex items-center space-x-1">
-                        <Clock className="w-3.5 h-3.5 text-[#C5E5EC]" />
-                        <span className="font-semibold text-[#C5E5EC]/90">
-                          ~{gig.estimatedDurationMinutes} {language === 'vi' ? 'phút' : 'mins'}
-                        </span>
-                      </div>
-
-                      {gig.totalWorkersNeeded > 1 && (
-                        <div className="flex items-center space-x-1 text-[#E0FAEB] font-bold bg-teal-950/60 px-2 py-0.5 rounded-md border border-teal-400/30">
-                          <Users className="w-3.5 h-3.5 text-teal-300" />
-                          <span>
-                            {language === 'vi'
-                              ? `Nhóm ${gig.multiWorkers?.length || 0}/${gig.totalWorkersNeeded} bạn`
-                              : `Team ${gig.multiWorkers?.length || 0}/${gig.totalWorkersNeeded} students`}
-                          </span>
-                        </div>
-                      )}
-
-                      {gig.isRecurringWeekly && (
-                        <div className="flex items-center space-x-1 text-[#C5E5EC] font-bold bg-[#3064AE]/25 px-2 py-0.5 rounded-md border border-[#C5E5EC]/30">
-                          <Repeat className="w-3.5 h-3.5 text-[#C5E5EC]" />
-                          <span>{t('weekly')}</span>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <span className="text-[10px] text-[#C5E5EC]/70 block font-bold mb-0.5">
-                          {gig.isReverseAuction ? t('reverseAuction') : t('escrowReward')}
-                        </span>
-                        <div className="inline-flex items-center px-2 py-0.5 rounded-lg bg-[#12233B] border border-[#E0FAEB]/30 shadow-2xs">
-                          <span className="text-base font-black text-[#E0FAEB] font-mono">
-                            {formatVnd(gig.isReverseAuction && gig.lowestBidPrice ? gig.lowestBidPrice : gig.price)}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center space-x-1.5">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            triggerHaptic('medium');
-                            onSelectGigDetail(gig.id);
-                          }}
-                          className={`px-3.5 py-1.5 rounded-xl font-extrabold text-xs shadow-md transition flex items-center space-x-1 active:scale-95 cursor-pointer ${
-                            gig.auctionRoomOpen
-                              ? 'bg-gradient-to-r from-red-600 to-rose-600 text-white hover:brightness-105 shadow-red-500/20'
-                              : 'bg-gradient-to-r from-[#3064AE] via-[#417AC6] to-[#C5E5EC] text-white hover:brightness-110 shadow-[#3064AE]/30 border border-[#E0FAEB]/30'
-                          }`}
-                        >
-                          <span>
-                            {gig.auctionRoomOpen
-                              ? t('joinAuction')
-                              : gig.isReverseAuction
-                              ? t('bid')
-                              : t('viewGig')}
-                          </span>
-                          <ArrowRight className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
+                <div className="flex items-center space-x-1.5">
+                  <span className="text-[11px] font-mono font-bold text-[#C5E5EC]">
+                    {language === 'vi' ? `Kèo ${currentSnapIndex + 1}/${filteredGigs.length}` : `Gig ${currentSnapIndex + 1}/${filteredGigs.length}`}
+                  </span>
+                  <div className="flex items-center space-x-1 max-w-[120px] overflow-hidden">
+                    {filteredGigs.slice(0, 10).map((_, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => scrollToGig(idx)}
+                        className={`h-1.5 rounded-full transition-all cursor-pointer ${
+                          idx === currentSnapIndex
+                            ? 'w-4 bg-[#E0FAEB]'
+                            : 'w-1.5 bg-[#C5E5EC]/30 hover:bg-[#C5E5EC]/60'
+                        }`}
+                        aria-label={`Go to slide ${idx + 1}`}
+                      />
+                    ))}
+                    {filteredGigs.length > 10 && (
+                      <span className="text-[9px] text-[#C5E5EC]/60">+</span>
+                    )}
                   </div>
                 </div>
-              );
-            })}
+
+                <button
+                  type="button"
+                  disabled={currentSnapIndex >= filteredGigs.length - 1}
+                  onClick={() => scrollToGig(currentSnapIndex + 1)}
+                  className={`p-2 rounded-xl bg-[#0E1B2E] border border-[#C5E5EC]/25 text-[#C5E5EC] transition flex items-center space-x-1 active:scale-95 cursor-pointer ${
+                    currentSnapIndex >= filteredGigs.length - 1 ? 'opacity-40 cursor-not-allowed' : 'hover:bg-[#12233B] hover:text-white'
+                  }`}
+                  aria-label="Next Gig"
+                >
+                  <span className="text-[11px] font-bold hidden sm:inline">{language === 'vi' ? 'Kèo tiếp' : 'Next'}</span>
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredGigs.map((gig) => renderGigCard(gig, false))}
           </div>
         )}
       </div>

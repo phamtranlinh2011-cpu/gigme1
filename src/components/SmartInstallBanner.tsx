@@ -3,6 +3,7 @@ import { Smartphone, Download, X, Sparkles, CheckCircle2 } from 'lucide-react';
 import { usePWAInstall } from '../hooks/usePWAInstall';
 import { triggerHaptic } from '../utils/haptics';
 import { useGigMe } from '../context/GigMeContext';
+import { useTranslation } from '../context/LanguageContext';
 
 interface SmartInstallBannerProps {
   onOpenDownloadAppModal?: () => void;
@@ -10,7 +11,7 @@ interface SmartInstallBannerProps {
 
 export const SmartInstallBanner: React.FC<SmartInstallBannerProps> = ({ onOpenDownloadAppModal }) => {
   const { isInstallable, isInstalled, isIOS, install } = usePWAInstall();
-  const { language } = useGigMe();
+  const { language, t } = useTranslation();
   const [dismissed, setDismissed] = useState(false);
   const [isInstalling, setIsInstalling] = useState(false);
   const [installedSuccess, setInstalledSuccess] = useState(false);

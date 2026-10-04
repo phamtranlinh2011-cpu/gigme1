@@ -13,6 +13,7 @@ import {
   FileJson,
 } from 'lucide-react';
 import { useGigMe } from '../context/GigMeContext';
+import { useTranslation } from '../context/LanguageContext';
 import { playNotificationSound } from '../utils/audio';
 
 interface FriendBackupRestoreModalProps {
@@ -42,8 +43,8 @@ export const FriendBackupRestoreModal: React.FC<FriendBackupRestoreModalProps> =
     addFriendById,
     updateUserProfile,
     showNotification,
-    language,
   } = useGigMe();
+  const { language, t } = useTranslation();
 
   const [activeTab, setActiveTab] = useState<'BACKUP' | 'RESTORE'>(defaultTab);
   const [copiedToken, setCopiedToken] = useState(false);

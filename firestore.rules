@@ -13,9 +13,16 @@ service cloud.firestore {
 
     function isAdmin() {
       return isAuthenticated() && (
+        request.auth.token.email == 'admin@gigme.vn' ||
         request.auth.token.email == 'admin@admin.vn' ||
+        request.auth.token.email == 'mod1@gigme.vn' ||
+        request.auth.token.email == 'mod2@gigme.vn' ||
+        request.auth.token.email == 'mod3@gigme.vn' ||
         request.auth.token.email == 'vnlandserver@gmail.com' ||
-        request.auth.uid == '000000000'
+        request.auth.uid == '000000000' ||
+        request.auth.uid == '000000001' ||
+        request.auth.uid == '000000002' ||
+        request.auth.uid == '000000003'
       );
     }
 
@@ -32,6 +39,11 @@ service cloud.firestore {
       allow update: if (!('trustScore' in request.resource.data) || request.resource.data.trustScore <= 100)
                     && (isAdmin() || request.resource.data.role == resource.data.role || request.resource.data.role != 'ADMIN');
       allow delete: if userId != '000000000';
+
+      // Subcollection for user transactions
+      match /transactions/{transactionId} {
+        allow read, write: if true;
+      }
     }
 
     // Gigs & jobs: Realtime job board

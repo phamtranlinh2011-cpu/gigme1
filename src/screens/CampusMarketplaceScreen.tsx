@@ -32,6 +32,7 @@ import {
   Eye,
 } from 'lucide-react';
 import { useGigMe } from '../context/GigMeContext';
+import { useTranslation } from '../context/LanguageContext';
 import { formatVnd, MarketplaceItemEntity, MarketplaceMediaItem } from '../types';
 import { playNotificationSound } from '../utils/audio';
 import { triggerHaptic } from '../utils/haptics';
@@ -44,7 +45,8 @@ export const CampusMarketplaceScreen: React.FC<{
   onOpenWallet?: () => void;
   onOpenLaw?: () => void;
 }> = ({ onOpenChat, onOpenWallet, onOpenLaw }) => {
-  const { currentUser, showNotification, sendChat, updateUserProfile, language, t } = useGigMe();
+  const { currentUser, showNotification, sendChat, updateUserProfile } = useGigMe();
+  const { language, t } = useTranslation();
   const [items, setItems] = useState<MarketplaceItemEntity[]>(() => {
     try {
       const saved = localStorage.getItem('gigme_marketplace_items_real_v4');

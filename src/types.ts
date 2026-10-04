@@ -46,6 +46,22 @@ export const USER_TIERS: Record<UserTierKey, UserTierConfig> = {
   },
 };
 
+export interface ModPermission {
+  canApproveKyc?: boolean;      // Duyệt thẻ sinh viên & CCCD
+  canResolveDisputes?: boolean; // Phân xử tranh chấp Kèo Escrow
+  canModerateUsers?: boolean;   // Khóa / Mở khóa tài khoản vi phạm
+  canModerateGigs?: boolean;    // Ẩn / Gỡ bài đăng vi phạm
+  canManageFinance?: boolean;   // Tra soát nạp / rút ví
+}
+
+export const DEFAULT_MOD_PERMISSIONS: ModPermission = {
+  canApproveKyc: true,
+  canResolveDisputes: true,
+  canModerateUsers: true,
+  canModerateGigs: true,
+  canManageFinance: false,
+};
+
 export interface UserEntity {
   id: string;
   name: string;
@@ -57,7 +73,8 @@ export interface UserEntity {
   gender: string;
   birthDate: string;
   tier: UserTierKey;
-  role: 'USER' | 'ADMIN';
+  role: 'USER' | 'ADMIN' | 'MOD';
+  modPermissions?: ModPermission;
   kycName: string;
   isKycApproved: boolean;
   isNfcVerified: boolean; // Quét CCCD gắn chip NFC

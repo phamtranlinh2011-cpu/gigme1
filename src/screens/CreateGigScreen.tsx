@@ -18,6 +18,7 @@ import {
   Check,
 } from 'lucide-react';
 import { useGigMe } from '../context/GigMeContext';
+import { useTranslation } from '../context/LanguageContext';
 import { formatVnd } from '../types';
 import { DynamicVietQrDialog } from '../components/AdvancedDialogs';
 import { GeminiTaskEstimatorModal } from '../components/GeminiTaskEstimatorModal';
@@ -64,9 +65,8 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
     roleMode,
     toggleRoleMode,
     showNotification,
-    language,
-    t,
   } = useGigMe();
+  const { language, t } = useTranslation();
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [isVietQrOpen, setIsVietQrOpen] = useState(false);

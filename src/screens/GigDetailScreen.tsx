@@ -31,6 +31,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { useGigMe } from '../context/GigMeContext';
+import { useTranslation } from '../context/LanguageContext';
 import { formatVnd, USER_TIERS } from '../types';
 import { LiveReverseBiddingModal } from '../components/LiveReverseBiddingModal';
 import { MultiWorkerCheckInModal } from '../components/MultiWorkerCheckInModal';
@@ -65,9 +66,8 @@ export const GigDetailScreen: React.FC<GigDetailScreenProps> = ({
     acceptGigDirectly,
     placeBid,
     boostGig,
-    language,
-    t,
   } = useGigMe();
+  const { language, t } = useTranslation();
 
   const gig = rawGigs.find((g) => g.id === gigId);
 

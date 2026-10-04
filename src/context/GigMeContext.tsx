@@ -78,27 +78,27 @@ export const clampTrustScore = (current: number, delta: number = 0): number => {
 const DEFAULT_ADMIN: UserEntity = {
   id: '000000000', // Tài khoản Admin cố định 9 chữ số 000000000
   name: 'Ban Quản Trị GigMe',
-  email: 'admin@admin.vn',
+  email: 'admin@gigme.vn', // Sửa theo yêu cầu người dùng (hỗ trợ cả alias admin@admin.vn)
   phone: '0909120918',
   password: 'admin1507',
   gender: 'Khác',
   birthDate: '01/01/2000',
   role: 'ADMIN',
-  tier: 'NEWBIE',
+  tier: 'PRO',
   kycName: 'QUẢN TRỊ VIÊN HỆ THỐNG',
-  isKycApproved: false,
-  isNfcVerified: false,
-  isFaceLivenessPassed: false,
-  isStudentVerified: false,
-  studentSchool: '',
+  isKycApproved: true,
+  isNfcVerified: true,
+  isFaceLivenessPassed: true,
+  isStudentVerified: true,
+  studentSchool: 'Đại Học Quốc Gia',
   isBiometricsEnabled: false,
   isBusinessAccount: false,
   businessName: '',
   businessTaxId: '',
   trustScore: 100,
-  eloRating: 0,
-  eloTier: 'BRONZE',
-  winStreak: 0,
+  eloRating: 1500,
+  eloTier: 'CHALLENGER',
+  winStreak: 10,
   notificationSound: 'BANK_TING',
   connectedMoMo: '0909120918',
   connectedZaloPay: '',
@@ -106,13 +106,13 @@ const DEFAULT_ADMIN: UserEntity = {
   lastDeviceName: 'Master Admin Command Center (MacOS / Chrome)',
   lastLoginLocation: 'Hà Nội, Việt Nam',
   hasUnusualDeviceAlert: false,
-  rating: 0,
-  reviewCount: 0,
-  completedGigs: 0,
-  onTimeRate: 0,
-  postedGigsCount: 0,
+  rating: 5,
+  reviewCount: 999,
+  completedGigs: 999,
+  onTimeRate: 100,
+  postedGigsCount: 10,
   totalSpent: 0,
-  walletBalance: 0,
+  walletBalance: 999999999,
   escrowLockedBalance: 0,
   securityPin: '123456',
   badges: 'Quản Trị Viên Tối Cao',
@@ -120,15 +120,174 @@ const DEFAULT_ADMIN: UserEntity = {
   createdAt: 1700000000000,
 };
 
-// Hàm sinh ID độc nhất 9 chữ số từ 000000001 -> 999999999 (000000000 dành riêng cho Admin)
+export const DEFAULT_MODS: UserEntity[] = [
+  {
+    id: '000000001',
+    name: 'Kiểm Duyệt Viên 1 (Mod 1)',
+    email: 'mod1@gigme.vn',
+    phone: '0901000001',
+    password: 'mod1999',
+    gender: 'Nam',
+    birthDate: '01/01/2001',
+    role: 'MOD',
+    modPermissions: {
+      canApproveKyc: true,
+      canResolveDisputes: true,
+      canModerateUsers: true,
+      canModerateGigs: true,
+      canManageFinance: false,
+    },
+    tier: 'PRO',
+    kycName: 'MODERATOR 1',
+    isKycApproved: true,
+    isNfcVerified: true,
+    isFaceLivenessPassed: true,
+    isStudentVerified: true,
+    studentSchool: 'Đại Học Bách Khoa',
+    isBiometricsEnabled: false,
+    isBusinessAccount: false,
+    businessName: '',
+    businessTaxId: '',
+    trustScore: 100,
+    eloRating: 1200,
+    eloTier: 'MASTER',
+    winStreak: 5,
+    notificationSound: 'BANK_TING',
+    connectedMoMo: '0901000001',
+    connectedZaloPay: '',
+    connectedViettelMoney: '',
+    lastDeviceName: 'Mod Command Center 1',
+    lastLoginLocation: 'TP. Hồ Chí Minh',
+    hasUnusualDeviceAlert: false,
+    rating: 5,
+    reviewCount: 100,
+    completedGigs: 100,
+    onTimeRate: 100,
+    postedGigsCount: 0,
+    totalSpent: 0,
+    walletBalance: 1000000,
+    escrowLockedBalance: 0,
+    securityPin: '111111',
+    badges: 'Kiểm Duyệt Viên • Mod 1',
+    isLocked: false,
+    createdAt: 1700000000001,
+  },
+  {
+    id: '000000002',
+    name: 'Kiểm Duyệt Viên 2 (Mod 2)',
+    email: 'mod2@gigme.vn',
+    phone: '0902000002',
+    password: 'mod4444',
+    gender: 'Nữ',
+    birthDate: '02/02/2002',
+    role: 'MOD',
+    modPermissions: {
+      canApproveKyc: true,
+      canResolveDisputes: true,
+      canModerateUsers: true,
+      canModerateGigs: true,
+      canManageFinance: false,
+    },
+    tier: 'PRO',
+    kycName: 'MODERATOR 2',
+    isKycApproved: true,
+    isNfcVerified: true,
+    isFaceLivenessPassed: true,
+    isStudentVerified: true,
+    studentSchool: 'Đại Học Kinh Tế',
+    isBiometricsEnabled: false,
+    isBusinessAccount: false,
+    businessName: '',
+    businessTaxId: '',
+    trustScore: 100,
+    eloRating: 1200,
+    eloTier: 'MASTER',
+    winStreak: 5,
+    notificationSound: 'BANK_TING',
+    connectedMoMo: '0902000002',
+    connectedZaloPay: '',
+    connectedViettelMoney: '',
+    lastDeviceName: 'Mod Command Center 2',
+    lastLoginLocation: 'Đà Nẵng',
+    hasUnusualDeviceAlert: false,
+    rating: 5,
+    reviewCount: 100,
+    completedGigs: 100,
+    onTimeRate: 100,
+    postedGigsCount: 0,
+    totalSpent: 0,
+    walletBalance: 1000000,
+    escrowLockedBalance: 0,
+    securityPin: '222222',
+    badges: 'Kiểm Duyệt Viên • Mod 2',
+    isLocked: false,
+    createdAt: 1700000000002,
+  },
+  {
+    id: '000000003',
+    name: 'Kiểm Duyệt Viên 3 (Mod 3)',
+    email: 'mod3@gigme.vn',
+    phone: '0903000003',
+    password: 'mod0308',
+    gender: 'Khác',
+    birthDate: '03/03/2003',
+    role: 'MOD',
+    modPermissions: {
+      canApproveKyc: true,
+      canResolveDisputes: true,
+      canModerateUsers: true,
+      canModerateGigs: true,
+      canManageFinance: false,
+    },
+    tier: 'PRO',
+    kycName: 'MODERATOR 3',
+    isKycApproved: true,
+    isNfcVerified: true,
+    isFaceLivenessPassed: true,
+    isStudentVerified: true,
+    studentSchool: 'Đại Học Khoa Học Tự Nhiên',
+    isBiometricsEnabled: false,
+    isBusinessAccount: false,
+    businessName: '',
+    businessTaxId: '',
+    trustScore: 100,
+    eloRating: 1200,
+    eloTier: 'MASTER',
+    winStreak: 5,
+    notificationSound: 'BANK_TING',
+    connectedMoMo: '0903000003',
+    connectedZaloPay: '',
+    connectedViettelMoney: '',
+    lastDeviceName: 'Mod Command Center 3',
+    lastLoginLocation: 'Cần Thơ',
+    hasUnusualDeviceAlert: false,
+    rating: 5,
+    reviewCount: 100,
+    completedGigs: 100,
+    onTimeRate: 100,
+    postedGigsCount: 0,
+    totalSpent: 0,
+    walletBalance: 1000000,
+    escrowLockedBalance: 0,
+    securityPin: '333333',
+    badges: 'Kiểm Duyệt Viên • Mod 3',
+    isLocked: false,
+    createdAt: 1700000000003,
+  },
+];
+
+// Hàm sinh ID độc nhất 9 chữ số (000000000 dành riêng cho Admin, 000000001-000000003 dành riêng cho Mods)
 export const generateUniqueUserId = (existingUsers: UserEntity[]): string => {
   const existingIds = new Set(existingUsers.map((u) => u.id));
   existingIds.add('000000000'); // ID độc quyền của Admin
+  existingIds.add('000000001'); // ID độc quyền Mod 1
+  existingIds.add('000000002'); // ID độc quyền Mod 2
+  existingIds.add('000000003'); // ID độc quyền Mod 3
   existingIds.add('admin_root');
 
   let attempts = 0;
   while (attempts < 10000) {
-    const randomNum = Math.floor(1 + Math.random() * 999999998);
+    const randomNum = Math.floor(4 + Math.random() * 999999995);
     const idStr = String(randomNum).padStart(9, '0');
     if (!existingIds.has(idStr)) {
       return idStr;
@@ -141,6 +300,7 @@ export const generateUniqueUserId = (existingUsers: UserEntity[]): string => {
 
 const INITIAL_USERS: UserEntity[] = [
   DEFAULT_ADMIN,
+  ...DEFAULT_MODS,
 ];
 
 // Dữ liệu việc làm thực tế: Bắt đầu trống 100%, không dùng dữ liệu ảo
@@ -153,10 +313,12 @@ const INITIAL_TRANSACTIONS: WalletTransactionEntity[] = [];
 
 interface GigMeContextType {
   // State
+  isGigsLoading: boolean;
   isCloudConnected: boolean;
   cloudStatus: CloudConnectionStatus;
   refreshCloudConnection: () => Promise<void>;
   users: UserEntity[];
+  mods: UserEntity[];
   currentUser: UserEntity | null;
   isAuthenticated: boolean;
   isAdminRole: boolean;
@@ -407,6 +569,12 @@ interface GigMeContextType {
   // Admin Manual Withdrawal Processing (Cách 1)
   adminApproveWithdrawal: (txId: string) => Promise<boolean> | boolean;
   adminRejectWithdrawal: (txId: string, reason: string) => Promise<boolean> | boolean;
+
+  // Mod Management (Tạo, Sửa, Xóa, Phân quyền)
+  createModUser: (modData: { name: string; email: string; password?: string; permissions?: ModPermission }) => Promise<{ success: boolean; mod?: UserEntity; error?: string }>;
+  updateModUser: (modId: string, updates: Partial<UserEntity>) => Promise<{ success: boolean; error?: string }>;
+  deleteModUser: (modId: string) => Promise<{ success: boolean; error?: string }>;
+  updateModPermissions: (modId: string, permissions: ModPermission) => Promise<{ success: boolean; error?: string }>;
 }
 
 const GigMeContext = createContext<GigMeContextType | undefined>(undefined);
@@ -470,19 +638,34 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       try {
         const parsed = JSON.parse(saved);
         const adminFound = parsed.find(
-          (u: UserEntity) => u.id === '000000000' || u.id === 'admin_root' || u.email === 'admin@admin.vn' || u.role === 'ADMIN'
+          (u: UserEntity) => u.id === '000000000' || u.id === 'admin_root' || u.email === 'admin@gigme.vn' || u.email === 'admin@admin.vn' || u.role === 'ADMIN'
         );
         const consolidatedAdmin: UserEntity = adminFound
-          ? { ...DEFAULT_ADMIN, ...adminFound, id: '000000000', email: 'admin@admin.vn', role: 'ADMIN' }
+          ? { ...DEFAULT_ADMIN, ...adminFound, id: '000000000', email: 'admin@gigme.vn', role: 'ADMIN' }
           : DEFAULT_ADMIN;
+
+        // Đảm bảo các tài khoản Mod mặc định luôn sẵn sàng
+        const modMap = new Map<string, UserEntity>();
+        DEFAULT_MODS.forEach((m) => modMap.set(m.id, m));
+        parsed.forEach((u: UserEntity) => {
+          if (u.role === 'MOD' || u.id === '000000001' || u.id === '000000002' || u.id === '000000003') {
+            const defaultMod = modMap.get(u.id);
+            modMap.set(u.id, { ...(defaultMod || {}), ...u, role: 'MOD' });
+          }
+        });
 
         const cleaned: UserEntity[] = parsed
           .filter(
             (u: UserEntity) =>
               u.id !== '000000000' &&
+              u.id !== '000000001' &&
+              u.id !== '000000002' &&
+              u.id !== '000000003' &&
               u.id !== 'admin_root' &&
               u.email !== 'admin@admin.vn' &&
+              u.email !== 'admin@gigme.vn' &&
               u.role !== 'ADMIN' &&
+              u.role !== 'MOD' &&
               u.id !== 'user_526h0044' &&
               u.id !== 'user_freelancer_lan' &&
               u.id !== 'user_cafe_passio' &&
@@ -496,9 +679,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             trustScore: clampTrustScore(u.trustScore),
           }));
 
-        // Luôn chỉ có 1 tài khoản Admin duy nhất id: 000000000 ở vị trí đầu tiên
-        cleaned.unshift(consolidatedAdmin);
-        return cleaned;
+        return [consolidatedAdmin, ...Array.from(modMap.values()), ...cleaned];
       } catch {
         return INITIAL_USERS;
       }
@@ -512,8 +693,11 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const saved = localStorage.getItem(STORAGE_KEYS.CURRENT_USER_ID);
     const adminSession = sessionStorage.getItem('gigme_admin_active_session');
 
-    if (saved === '000000000' && adminSession === 'true') {
-      return '000000000';
+    if (
+      (saved === '000000000' || saved === '000000001' || saved === '000000002' || saved === '000000003') &&
+      adminSession === 'true'
+    ) {
+      return saved;
     }
 
     if (
@@ -1518,9 +1702,10 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return false;
     }
 
-    // Admin Root check: admin@admin.vn | 0909120918 | 000000000 | admin1507
+    // 1. Admin Root check: admin@gigme.vn | admin@admin.vn | 0909120918 | 000000000 | admin1507
     if (
-      (trimmedContact === 'admin@admin.vn' ||
+      (trimmedContact === 'admin@gigme.vn' ||
+        trimmedContact === 'admin@admin.vn' ||
         normalizedPhone === '0909120918' ||
         trimmedContact === '000000000' ||
         trimmedContact === 'admin') &&
@@ -1529,6 +1714,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       let admin = users.find(
         (u) =>
           u.id === '000000000' ||
+          u.email === 'admin@gigme.vn' ||
           u.email === 'admin@admin.vn' ||
           u.phone === '0909120918' ||
           u.id === 'admin_root'
@@ -1537,7 +1723,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         admin = DEFAULT_ADMIN;
         setUsers((prev) => [...prev.filter((u) => u.id !== '000000000'), DEFAULT_ADMIN]);
       } else {
-        admin = { ...admin, id: '000000000' };
+        admin = { ...admin, id: '000000000', email: 'admin@gigme.vn', role: 'ADMIN' };
       }
       if (typeof window !== 'undefined') {
         sessionStorage.setItem('gigme_admin_active_session', 'true');
@@ -1546,6 +1732,55 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
       setCurrentUserId('000000000');
       showNotification('Chào mừng Quản trị viên!', 'Đã đăng nhập Trung Tâm Điều Hành Admin GigMe (ID: 000000000).', true);
+      return true;
+    }
+
+    // 2. Mod accounts check:
+    // mod1: ID 000000001, Email mod1@gigme.vn, Pass mod1999
+    if (
+      (trimmedContact === 'mod1@gigme.vn' || trimmedContact === '000000001' || trimmedContact === 'mod1') &&
+      trimmedPass === 'mod1999'
+    ) {
+      let mod = users.find((u) => u.id === '000000001') || DEFAULT_MODS[0];
+      setUsers((prev) => [...prev.filter((u) => u.id !== '000000001'), mod]);
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('gigme_admin_active_session', 'true');
+        localStorage.setItem(STORAGE_KEYS.CURRENT_USER_ID, '000000001');
+      }
+      setCurrentUserId('000000001');
+      showNotification('Chào mừng Kiểm Duyệt Viên 1!', 'Đã đăng nhập tài khoản Mod 1 (ID: 000000001).', true);
+      return true;
+    }
+
+    // mod2: ID 000000002, Email mod2@gigme.vn, Pass mod4444
+    if (
+      (trimmedContact === 'mod2@gigme.vn' || trimmedContact === '000000002' || trimmedContact === 'mod2') &&
+      trimmedPass === 'mod4444'
+    ) {
+      let mod = users.find((u) => u.id === '000000002') || DEFAULT_MODS[1];
+      setUsers((prev) => [...prev.filter((u) => u.id !== '000000002'), mod]);
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('gigme_admin_active_session', 'true');
+        localStorage.setItem(STORAGE_KEYS.CURRENT_USER_ID, '000000002');
+      }
+      setCurrentUserId('000000002');
+      showNotification('Chào mừng Kiểm Duyệt Viên 2!', 'Đã đăng nhập tài khoản Mod 2 (ID: 000000002).', true);
+      return true;
+    }
+
+    // mod3: ID 000000003, Email mod3@gigme.vn, Pass mod0308
+    if (
+      (trimmedContact === 'mod3@gigme.vn' || trimmedContact === '000000003' || trimmedContact === 'mod3') &&
+      trimmedPass === 'mod0308'
+    ) {
+      let mod = users.find((u) => u.id === '000000003') || DEFAULT_MODS[2];
+      setUsers((prev) => [...prev.filter((u) => u.id !== '000000003'), mod]);
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('gigme_admin_active_session', 'true');
+        localStorage.setItem(STORAGE_KEYS.CURRENT_USER_ID, '000000003');
+      }
+      setCurrentUserId('000000003');
+      showNotification('Chào mừng Kiểm Duyệt Viên 3!', 'Đã đăng nhập tài khoản Mod 3 (ID: 000000003).', true);
       return true;
     }
 
@@ -1596,7 +1831,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return false;
     }
 
-    if (user.id === '000000000' || user.email === 'admin@admin.vn' || user.role === 'ADMIN') {
+    if (user.id === '000000000' || user.email === 'admin@gigme.vn' || user.email === 'admin@admin.vn' || user.role === 'ADMIN') {
       if (typeof window !== 'undefined') {
         sessionStorage.setItem('gigme_admin_active_session', 'true');
         sessionStorage.setItem('gigme_admin_session_time', String(Date.now()));
@@ -1604,6 +1839,17 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
       setCurrentUserId('000000000');
       showNotification('Chào mừng Quản trị viên!', 'Đã đăng nhập Trung Tâm Điều Hành Admin GigMe (ID: 000000000).', true);
+      return true;
+    }
+
+    if (user.role === 'MOD') {
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('gigme_admin_active_session', 'true');
+        sessionStorage.setItem('gigme_admin_session_time', String(Date.now()));
+        localStorage.setItem(STORAGE_KEYS.CURRENT_USER_ID, user.id);
+      }
+      setCurrentUserId(user.id);
+      showNotification('Chào mừng Kiểm Duyệt Viên!', `Đã đăng nhập tài khoản Mod: ${user.name} (ID: ${user.id}).`, true);
       return true;
     }
 
@@ -5101,16 +5347,21 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       ...adminUser,
       id: '000000000',
       role: 'ADMIN',
-      email: 'admin@admin.vn',
+      email: 'admin@gigme.vn',
       phone: '0909120918',
       name: 'Quản Trị Viên Tối Cao',
       trustScore: 100,
       isLocked: false,
     };
 
-    setUsers([sanitizedAdmin]);
+    // Giữ lại admin và các tài khoản Mod
+    const currentMods = users.filter((u) => u.role === 'MOD' || u.id === '000000001' || u.id === '000000002' || u.id === '000000003');
+    const preservedMods = currentMods.length > 0 ? currentMods : DEFAULT_MODS;
+    const preservedUsers = [sanitizedAdmin, ...preservedMods];
+
+    setUsers(preservedUsers);
     try {
-      localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify([sanitizedAdmin]));
+      localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(preservedUsers));
     } catch {}
 
     // Dọn sạch gigs, bids, chats, transactions của các người dùng khác để hệ thống sạch 100%
@@ -5127,7 +5378,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     showNotification(
       'Đã Xóa Toàn Bộ Dữ Liệu!',
-      'Hệ thống đã dọn sạch tất cả dữ liệu người dùng, chỉ giữ lại duy nhất 1 tài khoản Quản trị viên tối cao (000000000).',
+      'Hệ thống đã dọn sạch tất cả dữ liệu người dùng, chỉ giữ lại tài khoản Quản trị viên tối cao (000000000) và các Mod.',
       true,
       true
     );
@@ -5137,6 +5388,166 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const adminDeleteGig = (gigId: string) => {
     setGigs((prev) => prev.filter((g) => g.id !== gigId));
     showNotification('Admin: Đã Xóa Đơn Hàng', 'Đã gỡ bỏ công việc vi phạm tiêu chuẩn cộng đồng.', true);
+  };
+
+  // --- MOD MANAGEMENT (CRUD & PHÂN QUYỀN) ---
+  const mods = useMemo(() => {
+    return users.filter((u) => u.role === 'MOD' || u.id === '000000001' || u.id === '000000002' || u.id === '000000003');
+  }, [users]);
+
+  const createModUser = async (modData: {
+    name: string;
+    email: string;
+    password?: string;
+    permissions?: ModPermission;
+  }): Promise<{ success: boolean; mod?: UserEntity; error?: string }> => {
+    try {
+      const emailLower = modData.email.trim().toLowerCase();
+      const existing = users.find((u) => u.email.toLowerCase() === emailLower);
+      if (existing) {
+        return { success: false, error: 'Email này đã tồn tại trong hệ thống!' };
+      }
+      const newId = generateUniqueUserId(users);
+      const newMod: UserEntity = {
+        id: newId,
+        name: modData.name.trim(),
+        email: emailLower,
+        phone: '090' + newId.slice(-7),
+        password: modData.password || 'mod123456',
+        gender: 'Khác',
+        birthDate: '01/01/2000',
+        role: 'MOD',
+        modPermissions: modData.permissions || {
+          canApproveKyc: true,
+          canResolveDisputes: true,
+          canModerateUsers: true,
+          canModerateGigs: true,
+          canManageFinance: false,
+        },
+        tier: 'PRO',
+        kycName: modData.name.trim().toUpperCase(),
+        isKycApproved: true,
+        isNfcVerified: true,
+        isFaceLivenessPassed: true,
+        isStudentVerified: true,
+        studentSchool: 'Ban Kiểm Duyệt GigMe',
+        isBiometricsEnabled: false,
+        isBusinessAccount: false,
+        businessName: '',
+        businessTaxId: '',
+        trustScore: 100,
+        eloRating: 1200,
+        eloTier: 'MASTER',
+        winStreak: 5,
+        notificationSound: 'BANK_TING',
+        connectedMoMo: '',
+        connectedZaloPay: '',
+        connectedViettelMoney: '',
+        lastDeviceName: 'Mod Command Center',
+        lastLoginLocation: 'Việt Nam',
+        hasUnusualDeviceAlert: false,
+        rating: 5,
+        reviewCount: 0,
+        completedGigs: 0,
+        onTimeRate: 100,
+        postedGigsCount: 0,
+        totalSpent: 0,
+        walletBalance: 1000000,
+        escrowLockedBalance: 0,
+        securityPin: '123456',
+        badges: 'Kiểm Duyệt Viên • Moderator',
+        isLocked: false,
+        createdAt: Date.now(),
+      };
+
+      setUsers((prev) => {
+        const next = [...prev, newMod];
+        try {
+          localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(next));
+        } catch {}
+        return next;
+      });
+
+      await cloudService.saveUser(newMod);
+      showNotification('Tạo Mod Thành Công', `Đã tạo tài khoản kiểm duyệt: ${newMod.name} (ID: ${newMod.id})`, true);
+      return { success: true, mod: newMod };
+    } catch (err: any) {
+      return { success: false, error: err?.message || 'Lỗi khi tạo mod' };
+    }
+  };
+
+  const updateModUser = async (modId: string, updates: Partial<UserEntity>): Promise<{ success: boolean; error?: string }> => {
+    try {
+      let updatedMod: UserEntity | null = null;
+      setUsers((prev) => {
+        const next = prev.map((u) => {
+          if (u.id === modId) {
+            updatedMod = { ...u, ...updates };
+            return updatedMod;
+          }
+          return u;
+        });
+        try {
+          localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(next));
+        } catch {}
+        return next;
+      });
+
+      if (updatedMod) {
+        await cloudService.saveUser(updatedMod);
+      }
+      showNotification('Cập Nhật Thành Công', `Đã lưu thông tin kiểm duyệt viên (ID: ${modId})`, true);
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err?.message || 'Lỗi cập nhật mod' };
+    }
+  };
+
+  const deleteModUser = async (modId: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      if (modId === '000000000') {
+        return { success: false, error: 'Không thể xóa tài khoản Quản trị viên tối cao!' };
+      }
+      setUsers((prev) => {
+        const next = prev.filter((u) => u.id !== modId);
+        try {
+          localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(next));
+        } catch {}
+        return next;
+      });
+      await cloudService.deleteUser(modId);
+      showNotification('Đã Xóa Mod', `Đã thu hồi quyền và xóa tài khoản kiểm duyệt (ID: ${modId})`, true);
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err?.message || 'Lỗi xóa mod' };
+    }
+  };
+
+  const updateModPermissions = async (modId: string, permissions: ModPermission): Promise<{ success: boolean; error?: string }> => {
+    try {
+      let updatedMod: UserEntity | null = null;
+      setUsers((prev) => {
+        const next = prev.map((u) => {
+          if (u.id === modId) {
+            updatedMod = { ...u, modPermissions: permissions };
+            return updatedMod;
+          }
+          return u;
+        });
+        try {
+          localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(next));
+        } catch {}
+        return next;
+      });
+
+      if (updatedMod) {
+        await cloudService.saveUser(updatedMod);
+      }
+      showNotification('Phân Quyền Thành Công', `Đã cập nhật bảng phân quyền cho ID ${modId}`, true);
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err?.message || 'Lỗi phân quyền mod' };
+    }
   };
 
   // CHAT & AI WITH ANTI-LEAKAGE OFF-PLATFORM FILTER
@@ -5828,6 +6239,12 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         sendWebPushNotification,
         adminApproveWithdrawal,
         adminRejectWithdrawal,
+        isGigsLoading,
+        mods,
+        createModUser,
+        updateModUser,
+        deleteModUser,
+        updateModPermissions,
       }}
     >
       {children}

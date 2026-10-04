@@ -8,6 +8,7 @@ import {
   Scale,
 } from 'lucide-react';
 import { useGigMe } from '../context/GigMeContext';
+import { useTranslation } from '../context/LanguageContext';
 
 interface TermsAndRefundPolicyModalProps {
   isOpen: boolean;
@@ -20,7 +21,7 @@ export const TermsAndRefundPolicyModal: React.FC<TermsAndRefundPolicyModalProps>
   onClose,
   defaultTab = 'REFUND',
 }) => {
-  const { language } = useGigMe();
+  const { language, t } = useTranslation();
   const [activeTab, setActiveTab] = useState<'REFUND' | 'TERMS' | 'PRIVACY' | 'APP_STORE_COMPLIANCE'>(
     defaultTab
   );

@@ -29,6 +29,7 @@ import {
   Globe,
 } from 'lucide-react';
 import { useGigMe } from '../context/GigMeContext';
+import { useTranslation } from '../context/LanguageContext';
 import { MoSmsSession } from '../types';
 import { cloudService } from '../services/cloudSync';
 
@@ -48,9 +49,8 @@ export const AuthScreen: React.FC = () => {
     otpTargetContact,
     otpExpiresAt,
     showNotification,
-    language,
-    toggleLanguage,
   } = useGigMe();
+  const { language, toggleLanguage, t } = useTranslation();
 
   const [activeTab, setActiveTab] = useState<'LOGIN' | 'REGISTER' | 'PHONE_OTP' | 'FORGOT'>('LOGIN');
 

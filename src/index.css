@@ -619,4 +619,52 @@ body {
   will-change: transform, opacity;
 }
 
+/* Mobile Smooth Scroll-Snap Utilities */
+.scroll-snap-x {
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
+  overscroll-behavior-x: contain;
+  scroll-padding-left: 1rem;
+  scroll-padding-right: 1rem;
+}
 
+@media (min-width: 640px) {
+  .scroll-snap-x {
+    scroll-padding-left: 0.5rem;
+    scroll-padding-right: 0.5rem;
+  }
+}
+
+.scroll-snap-start {
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+
+.scroll-snap-center {
+  scroll-snap-align: center;
+  scroll-snap-stop: normal;
+}
+
+.scroll-snap-card {
+  scroll-snap-align: center;
+  scroll-snap-stop: always;
+  transition: transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.28s ease, border-color 0.25s ease;
+  will-change: transform;
+}
+
+@media (min-width: 640px) {
+  .scroll-snap-card {
+    scroll-snap-align: start;
+  }
+}
+
+/* Hide scrollbar while preserving smooth snap gestures */
+.scroll-snap-x::-webkit-scrollbar {
+  display: none;
+}
+.scroll-snap-x {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

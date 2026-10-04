@@ -42,6 +42,7 @@ import {
   ChevronDown,
 } from 'lucide-react';
 import { useGigMe } from '../context/GigMeContext';
+import { useTranslation } from '../context/LanguageContext';
 import { formatVnd, ChatMessageEntity, UserEntity } from '../types';
 import { generateSynthesizedVoiceWav, playSynthesizedVoiceTone } from '../utils/audio';
 import { rateLimiter } from '../utils/rateLimiter';
@@ -99,9 +100,8 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
     startVoipCall,
     selectGig,
     showNotification,
-    language,
-    t,
   } = useGigMe();
+  const { language, t } = useTranslation();
 
   // Search & Filters
   const [searchQuery, setSearchQuery] = useState('');
