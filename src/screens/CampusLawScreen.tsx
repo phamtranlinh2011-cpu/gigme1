@@ -375,55 +375,6 @@ export const CampusLawScreen: React.FC<CampusLawScreenProps> = ({
               </p>
             </div>
           </div>
-
-          {/* Key Pillars Highlights (4 summary cards) */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2">
-            <div className="p-2.5 rounded-2xl bg-[#0D1B30] border border-[#C5E5EC]/20 text-center space-y-1">
-              <div className="w-7 h-7 mx-auto rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
-                <Lock className="w-4 h-4" />
-              </div>
-              <div className="font-extrabold text-[11px] text-white">Smart Escrow 100%</div>
-              <div className="text-[10px] text-[#C5E5EC]/70 leading-tight">
-                {language === 'vi' ? 'Khóa tiền an toàn, cấm lách sàn' : 'Safe pre-lock, no off-platforming'}
-              </div>
-            </div>
-
-            <div className="p-2.5 rounded-2xl bg-[#0D1B30] border border-[#C5E5EC]/20 text-center space-y-1">
-              <div className="w-7 h-7 mx-auto rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
-                <ShoppingBag className="w-4 h-4 text-emerald-400" />
-              </div>
-              <div className="font-extrabold text-[11px] text-white">
-                {language === 'vi' ? 'Quy Chế Chợ KTX' : 'Dorm Flea Market'}
-              </div>
-              <div className="text-[10px] text-[#C5E5EC]/70 leading-tight">
-                {language === 'vi' ? 'Điều 18: Cọc giữ đồ & tặng 0đ' : 'Article 18: Escrow holds & free 0đ'}
-              </div>
-            </div>
-
-            <div className="p-2.5 rounded-2xl bg-[#0D1B30] border border-[#C5E5EC]/20 text-center space-y-1">
-              <div className="w-7 h-7 mx-auto rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center">
-                <ShieldAlert className="w-4 h-4" />
-              </div>
-              <div className="font-extrabold text-[11px] text-white">
-                {language === 'vi' ? 'Chống Fake GPS' : 'Anti-Mock GPS'}
-              </div>
-              <div className="text-[10px] text-[#C5E5EC]/70 leading-tight">
-                {language === 'vi' ? 'Bằng chứng Blockchain Hash' : 'Blockchain proof watermarking'}
-              </div>
-            </div>
-
-            <div className="p-2.5 rounded-2xl bg-[#0D1B30] border border-[#C5E5EC]/20 text-center space-y-1">
-              <div className="w-7 h-7 mx-auto rounded-lg bg-rose-500/20 text-rose-400 flex items-center justify-center">
-                <Gavel className="w-4 h-4" />
-              </div>
-              <div className="font-extrabold text-[11px] text-white">
-                {language === 'vi' ? 'Khung 5 Mức Phạt' : '5-Tier Sanctions'}
-              </div>
-              <div className="text-[10px] text-[#C5E5EC]/70 leading-tight">
-                {language === 'vi' ? 'Khóa tài khoản & Xử lý hình sự' : 'Account freeze to criminal referral'}
-              </div>
-            </div>
-          </div>
         </div>
       </div>
 

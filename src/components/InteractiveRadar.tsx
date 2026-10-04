@@ -701,38 +701,8 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
           </div>
         </div>
 
-        {/* Action controls right: Automatic Live GPS badge & Fullscreen */}
+        {/* Action controls right: Fullscreen */}
         <div className="flex items-center space-x-2 shrink-0">
-          {/* Trạng thái GPS Tự Động (Tự động quét ngầm không cần bấm) */}
-          <div
-            onClick={() => setShowMockDetectorDialog(true)}
-            className="cursor-pointer px-2.5 py-1 rounded-xl bg-[#3064AE]/20 hover:bg-[#3064AE]/35 border border-[#C5E5EC]/25 text-[11px] font-bold flex items-center space-x-1.5 transition text-[#E0FAEB] shadow-2xs"
-            title={language === 'vi' ? 'Định vị GPS tự động & Bảo mật vị trí' : 'Automatic GPS & Location Security'}
-          >
-            {isGpsLoading ? (
-              <>
-                <Crosshair className="w-3 h-3 text-[#C5E5EC] animate-spin" />
-                <span className="text-[#C5E5EC]">
-                  {language === 'vi' ? 'GPS Tự Động...' : 'Auto GPS...'}
-                </span>
-              </>
-            ) : gpsReport?.isMock ? (
-              <>
-                <ShieldAlert className="w-3.5 h-3.5 text-amber-400 animate-bounce" />
-                <span className="text-amber-300">
-                  {language === 'vi' ? 'GPS Tự Động (Cảnh báo)' : 'Auto GPS (Warning)'}
-                </span>
-              </>
-            ) : (
-              <>
-                <span className="w-2 h-2 rounded-full bg-[#E0FAEB] animate-pulse" />
-                <span className="text-[#E0FAEB] font-extrabold">
-                  {language === 'vi' ? 'GPS Tự Động' : 'Auto GPS'}
-                </span>
-              </>
-            )}
-          </div>
-
           {/* Fullscreen Button */}
           <button
             onClick={() => setIsFullscreen((prev) => !prev)}
@@ -982,12 +952,12 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
             <div className="p-3 rounded-2xl bg-[#12233B] border border-[#E0FAEB]/30 shadow-xs flex items-center justify-between gap-2 animate-fade-in">
               <div className="flex items-center space-x-2.5 min-w-0">
                 <div className="w-8 h-8 rounded-full bg-[#3064AE]/40 border border-[#C5E5EC]/30 flex items-center justify-center text-base shrink-0 animate-bounce">
-                  {selectedGig.category === 'Đưa đón & SafeWalk' ? '🚶‍♂️' : selectedGig.isFlash || selectedGig.category === 'Vận chuyển & Ship' ? '🛵' : '🚴‍♂️'}
+                  {selectedGig.category === 'Đưa đón sinh viên' ? '🚶‍♂️' : selectedGig.isFlash || selectedGig.category === 'Vận chuyển & Ship' ? '🛵' : '🚴‍♂️'}
                 </div>
                 <div className="min-w-0">
                   <div className="flex items-center space-x-1.5">
                     <span className="text-white font-black text-xs truncate">
-                      {selectedGig.category === 'Đưa đón & SafeWalk' ? '🚶‍♂️' : selectedGig.isFlash || selectedGig.category === 'Vận chuyển & Ship' ? '🛵' : '🚴‍♂️'}{' '}
+                      {selectedGig.category === 'Đưa đón sinh viên' ? '🚶‍♂️' : selectedGig.isFlash || selectedGig.category === 'Vận chuyển & Ship' ? '🛵' : '🚴‍♂️'}{' '}
                       {language === 'vi' ? 'Người làm đang cách bạn ' : 'Worker is away from you '}
                       <strong className="text-[#E0FAEB]">
                         {(() => {
@@ -1004,7 +974,7 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
                     {(() => {
                       const totalD = osrmRouteDetails?.distanceMeters ?? routeStats.distanceMeters ?? 450;
                       const rem = Math.max(30, Math.round(totalD * (1 - trackingProgress)));
-                      const isWalk = selectedGig.category === 'Đưa đón & SafeWalk';
+                      const isWalk = selectedGig.category === 'Đưa đón sinh viên';
                       return Math.max(1, Math.ceil(rem / (isWalk ? 75 : 350)));
                     })()}
                     {language === 'vi'
@@ -1019,7 +989,7 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
                   {(() => {
                     const totalD = osrmRouteDetails?.distanceMeters ?? routeStats.distanceMeters ?? 450;
                     const rem = Math.max(30, Math.round(totalD * (1 - trackingProgress)));
-                    const isWalk = selectedGig.category === 'Đưa đón & SafeWalk';
+                    const isWalk = selectedGig.category === 'Đưa đón sinh viên';
                     return Math.max(1, Math.ceil(rem / (isWalk ? 75 : 350)));
                   })()}{' '}
                   {language === 'vi' ? 'PHÚT' : 'MINS'}

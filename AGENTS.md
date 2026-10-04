@@ -20,10 +20,10 @@
      - **Email**: `admin@gigme.vn` (hỗ trợ kèm alias `admin@admin.vn`)
      - **Số điện thoại**: `0909120918`
      - **Mật khẩu**: `admin1507`
-   - Đội ngũ Kiểm Duyệt Viên (Mods) mặc định:
-     - **mod1**: ID `000000001` • Email `mod1@gigme.vn` • Mật khẩu `mod1999`
-     - **mod2**: ID `000000002` • Email `mod2@gigme.vn` • Mật khẩu `mod4444`
-     - **mod3**: ID `000000003` • Email `mod3@gigme.vn` • Mật khẩu `mod0308`
+   - Đội ngũ Kiểm Duyệt Viên (Mods) mặc định (Số dư khởi tạo: 500.000 VNĐ, Chưa liên kết SĐT, 15 Quyền hạn kiểm duyệt/dữ liệu/người dùng):
+     - **mod1**: ID `000000001` • Email `mod1@gigme.vn` • Mật khẩu `mod1999` • Số dư: `500.000 VNĐ` • SĐT: Chưa thêm
+     - **mod2**: ID `000000002` • Email `mod2@gigme.vn` • Mật khẩu `mod4444` • Số dư: `500.000 VNĐ` • SĐT: Chưa thêm
+     - **mod3**: ID `000000003` • Email `mod3@gigme.vn` • Mật khẩu `mod0308` • Số dư: `500.000 VNĐ` • SĐT: Chưa thêm
    - Đảm bảo người dùng luôn có thể đăng nhập ngay vào Trung Tâm Điều Hành Quản Trị & Kiểm Duyệt trên bất kỳ bản sao/instance nào.
 4. **Email Chủ sở hữu (Owner/Developer Email)**:
    - Email chính: `vnlandserver@gmail.com` (và các tài khoản liên kết thuộc quyền sở hữu của user).

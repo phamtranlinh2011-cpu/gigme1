@@ -25,7 +25,6 @@ import {
   WalletTransactionEntity,
   BidEntity,
   MarketplaceItemEntity,
-  SafeWalkSessionEntity,
   SystemMaintenanceConfig,
   FirestoreNotificationEntity
 } from '../types';
@@ -513,38 +512,6 @@ export function subscribeToMarketplace(
     },
     (err: FirestoreError) => {
       handleFirestoreError(err, OperationType.LIST, 'marketplace');
-      if (onError) onError(err);
-    }
-  );
-}
-
-// --- SAFE WALK ---
-export async function syncSafeWalkToCloud(session: SafeWalkSessionEntity): Promise<void> {
-  const path = `safewalk/${session.id}`;
-  try {
-    const cleanData = JSON.parse(JSON.stringify(session));
-    await setDoc(doc(db, 'safewalk', session.id), cleanData, { merge: true });
-  } catch (err) {
-    handleFirestoreError(err, OperationType.WRITE, path);
-  }
-}
-
-export function subscribeToSafeWalk(
-  onUpdate: (sessions: SafeWalkSessionEntity[]) => void,
-  onError?: (err: unknown) => void
-) {
-  const safeWalkRef = collection(db, 'safewalk');
-  return onSnapshot(
-    safeWalkRef,
-    (snapshot) => {
-      const list: SafeWalkSessionEntity[] = [];
-      snapshot.forEach((doc) => {
-        list.push(doc.data() as SafeWalkSessionEntity);
-      });
-      onUpdate(list);
-    },
-    (err: FirestoreError) => {
-      handleFirestoreError(err, OperationType.LIST, 'safewalk');
       if (onError) onError(err);
     }
   );

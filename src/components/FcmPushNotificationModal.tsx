@@ -46,7 +46,7 @@ export const FcmPushNotificationModal: React.FC<FcmPushNotificationModalProps> =
   const [subFlashGigs, setSubFlashGigs] = useState(true);
   const [subEscrow, setSubEscrow] = useState(true);
   const [subReverseAuction, setSubReverseAuction] = useState(true);
-  const [subSafeWalk, setSubSafeWalk] = useState(true);
+  const [subKycAlert, setSubKycAlert] = useState(true);
 
   const [history, setHistory] = useState<
     Array<{ id: string; title: string; body: string; time: string; type: string }>
@@ -178,7 +178,7 @@ export const FcmPushNotificationModal: React.FC<FcmPushNotificationModalProps> =
     }, 1000);
   };
 
-  const triggerTestNotification = (type: 'FLASH' | 'ESCROW' | 'AUCTION' | 'SOS') => {
+  const triggerTestNotification = (type: 'FLASH' | 'ESCROW' | 'AUCTION' | 'KYC') => {
     let title = '';
     let body = '';
 
@@ -196,9 +196,9 @@ export const FcmPushNotificationModal: React.FC<FcmPushNotificationModalProps> =
           title = '📉 ĐẤU GIÁ NGƯỢC: GIÁ MỚI SIÊU HẤP DẪN';
           body = 'Freelancer Minh Tuấn vừa giảm giá chào thầu đơn còn 95.000đ!';
           break;
-        case 'SOS':
-          title = '🚨 SOS SAFEWALK BẢO VỆ ĐÊM';
-          body = 'Bạn cùng phòng báo đã về đến phòng KTX an toàn lúc 23:45.';
+        case 'KYC':
+          title = '🛡️ XÁC MINH DANH TÍNH KYC HOÀN TẤT';
+          body = 'Hồ sơ thẻ sinh viên & CCCD chính chủ của bạn đã được kiểm duyệt viên phê duyệt!';
           break;
       }
     } else {
@@ -215,9 +215,9 @@ export const FcmPushNotificationModal: React.FC<FcmPushNotificationModalProps> =
           title = '📉 REVERSE AUCTION: ATTRACTIVE NEW BID';
           body = 'Freelancer Minh Tuan undercut current bid to 95,000 VND!';
           break;
-        case 'SOS':
-          title = '🚨 SOS SAFEWALK NIGHT SHIELD';
-          body = 'Your roommate arrived safely at dorm at 23:45.';
+        case 'KYC':
+          title = '🛡️ IDENTITY KYC VERIFICATION APPROVED';
+          body = 'Your student card & official citizen ID verification has been approved!';
           break;
       }
     }
@@ -511,14 +511,14 @@ export const FcmPushNotificationModal: React.FC<FcmPushNotificationModalProps> =
               <label className="flex items-center space-x-2.5 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/60 cursor-pointer">
                 <input
                   type="checkbox"
-                  checked={subSafeWalk}
-                  onChange={(e) => setSubSafeWalk(e.target.checked)}
+                  checked={subKycAlert}
+                  onChange={(e) => setSubKycAlert(e.target.checked)}
                   className="rounded text-orange-500 focus:ring-orange-500 w-4 h-4"
                 />
                 <div className="flex items-center space-x-2">
-                  <ShieldAlert className="w-4 h-4 text-red-500" />
+                  <ShieldAlert className="w-4 h-4 text-emerald-500" />
                   <span className="font-bold">
-                    {language === 'vi' ? 'Cảnh báo SOS SafeWalk' : 'SOS SafeWalk alerts'}
+                    {language === 'vi' ? 'Cảnh báo Duyệt KYC & Hồ sơ' : 'KYC & Profile alerts'}
                   </span>
                 </div>
               </label>
@@ -598,11 +598,11 @@ export const FcmPushNotificationModal: React.FC<FcmPushNotificationModalProps> =
                 <span>{language === 'vi' ? 'Đấu Giá Ngược' : 'Reverse Auction'}</span>
               </button>
               <button
-                onClick={() => triggerTestNotification('SOS')}
-                className="p-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-700 dark:text-red-400 border border-red-500/30 font-bold flex items-center justify-center space-x-1.5 transition cursor-pointer"
+                onClick={() => triggerTestNotification('KYC')}
+                className="p-2.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 font-bold flex items-center justify-center space-x-1.5 transition cursor-pointer"
               >
-                <ShieldAlert className="w-3.5 h-3.5" />
-                <span>{language === 'vi' ? 'Cảnh Báo SafeWalk' : 'SafeWalk SOS'}</span>
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>{language === 'vi' ? 'Duyệt Hồ Sơ KYC' : 'KYC Approved'}</span>
               </button>
             </div>
           </div>
@@ -624,8 +624,8 @@ export const FcmPushNotificationModal: React.FC<FcmPushNotificationModalProps> =
                         ? 'bg-amber-500/20 text-amber-500'
                         : h.type === 'ESCROW'
                         ? 'bg-emerald-500/20 text-emerald-500'
-                        : h.type === 'SOS'
-                        ? 'bg-red-500/20 text-red-500'
+                        : h.type === 'KYC'
+                        ? 'bg-emerald-500/20 text-emerald-500'
                         : 'bg-blue-500/20 text-blue-500'
                     }`}
                   >

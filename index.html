@@ -3,6 +3,44 @@
   <head>
     <meta charset="UTF-8" />
     <script>
+      // 1. Safe fetch property patch: Ensure fetch on window/global has both getter & setter
+      // Prevents "Cannot set property fetch of #<Window> which has only a getter" when polyfills or tools attempt to set fetch
+      (function() {
+        try {
+          if (typeof window !== 'undefined') {
+            var origFetch = window.fetch ? window.fetch.bind(window) : undefined;
+            var fetchHolder = origFetch;
+
+            var defineSafeFetch = function(target) {
+              if (!target) return;
+              try {
+                var desc = Object.getOwnPropertyDescriptor(target, 'fetch');
+                if (!desc || desc.configurable) {
+                  Object.defineProperty(target, 'fetch', {
+                    get: function() {
+                      return fetchHolder || (origFetch ? (fetchHolder = origFetch) : undefined);
+                    },
+                    set: function(val) {
+                      fetchHolder = val;
+                    },
+                    configurable: true,
+                    enumerable: true
+                  });
+                }
+              } catch (e) {}
+            };
+
+            defineSafeFetch(window);
+            if (typeof Window !== 'undefined' && Window.prototype) {
+              defineSafeFetch(Window.prototype);
+            }
+            if (typeof globalThis !== 'undefined' && globalThis !== window) {
+              defineSafeFetch(globalThis);
+            }
+          }
+        } catch (e) {}
+      })();
+
       // Gracefully neutralize benign Vite HMR websocket disconnection in AI Studio container environment
       (function() {
         try {
@@ -42,16 +80,20 @@
           }
         } catch (e) {}
 
-        function isViteLog(arg) {
+        function isIgnorableLog(arg) {
           if (!arg) return false;
           var s = typeof arg === 'string' ? arg : (arg.message || String(arg));
-          return s.indexOf('[vite]') !== -1 || s.indexOf('websocket') !== -1 || s.indexOf('WebSocket') !== -1;
+          return s.indexOf('[vite]') !== -1 || 
+                 s.indexOf('websocket') !== -1 || 
+                 s.indexOf('WebSocket') !== -1 ||
+                 s.indexOf('Cannot set property fetch') !== -1 ||
+                 s.indexOf('which has only a getter') !== -1;
         }
 
         var origErr = console.error;
         console.error = function() {
           for (var i = 0; i < arguments.length; i++) {
-            if (isViteLog(arguments[i])) return;
+            if (isIgnorableLog(arguments[i])) return;
           }
           origErr.apply(console, arguments);
         };
@@ -59,13 +101,13 @@
         var origWarn = console.warn;
         console.warn = function() {
           for (var i = 0; i < arguments.length; i++) {
-            if (isViteLog(arguments[i])) return;
+            if (isIgnorableLog(arguments[i])) return;
           }
           origWarn.apply(console, arguments);
         };
 
         window.addEventListener('error', function(e) {
-          if (isViteLog(e.message) || isViteLog(e.error)) {
+          if (isIgnorableLog(e.message) || isIgnorableLog(e.error)) {
             e.stopImmediatePropagation();
             e.preventDefault();
           }

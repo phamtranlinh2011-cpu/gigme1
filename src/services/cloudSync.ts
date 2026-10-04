@@ -5,7 +5,6 @@ import {
   UserEntity,
   MarketplaceItemEntity,
   WalletTransactionEntity,
-  SafeWalkSessionEntity,
   SystemMaintenanceConfig,
   MoSmsSession,
   FirestoreNotificationEntity,
@@ -30,8 +29,6 @@ import {
   syncMarketplaceItemToCloud,
   deleteMarketplaceItemFromCloud,
   subscribeToMarketplace,
-  syncSafeWalkToCloud,
-  subscribeToSafeWalk,
   updateMaintenanceInCloud,
   subscribeToMaintenance,
   sendNotificationToCloud,
@@ -115,7 +112,6 @@ class RealtimeSyncManager {
         'user_updated',
         'marketplace_saved',
         'transaction_saved',
-        'safewalk_saved',
         'push_notification',
       ];
 
@@ -675,29 +671,6 @@ export const cloudService = {
       unsub();
       if (interval) clearInterval(interval);
     };
-  },
-
-  // SAFEWALK: Bảo vệ đêm khuya SOS
-  async saveSafeWalk(session: SafeWalkSessionEntity): Promise<void> {
-    await syncSafeWalkToCloud(session).catch((e) => console.warn('Firestore syncSafeWalk error:', e));
-
-    if (this.isExpressAvailable()) {
-      try {
-        await fetch('/api/safewalk', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(session),
-        });
-      } catch {
-        // Safe ignore
-      }
-    }
-  },
-
-  subscribeSafeWalk(callback: (sessions: SafeWalkSessionEntity[]) => void): Unsubscribe {
-    return subscribeToSafeWalk((sessions) => {
-      if (sessions) callback(sessions);
-    });
   },
 
   // OTP Authentication

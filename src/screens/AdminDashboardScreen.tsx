@@ -43,10 +43,34 @@ import {
   MessageSquare,
   Sparkles,
   Clock,
+  UserPlus,
+  Edit,
+  Shield,
+  Key,
+  EyeOff,
+  CheckSquare,
+  Square,
+  Scale,
+  Database,
+  ShoppingBag,
+  FileSpreadsheet,
+  LifeBuoy,
+  Wallet,
+  FileText,
 } from 'lucide-react';
 import { useGigMe } from '../context/GigMeContext';
 import { useTranslation } from '../context/LanguageContext';
-import { formatVnd, USER_TIERS, UserEntity, VIETNAMESE_BANKS, WalletTransactionEntity } from '../types';
+import {
+  formatVnd,
+  USER_TIERS,
+  UserEntity,
+  VIETNAMESE_BANKS,
+  WalletTransactionEntity,
+  ModPermission,
+  DEFAULT_MOD_PERMISSIONS,
+  ALL_MOD_PERMISSIONS,
+  ALL_FALSE_PERMISSIONS,
+} from '../types';
 import { auditSybilAndReviewRings, SybilAuditSummary } from '../utils/sybilDetector';
 import { AdminMaintenanceModal } from '../components/AdminMaintenanceModal';
 import { cloudService } from '../services/cloudSync';
@@ -55,6 +79,111 @@ import { triggerHaptic } from '../utils/haptics';
 interface AdminDashboardScreenProps {
   onBack: () => void;
 }
+
+export const MOD_PERMISSIONS_CONFIG: Array<{
+  key: keyof ModPermission;
+  label: string;
+  desc: string;
+  category: 'KIỂM DUYỆT CỐT LÕI' | 'QUẢN TRỊ NGƯỜI DÙNG & DỮ LIỆU' | 'VẬN HÀNH CAMPUS & AN NINH';
+}> = [
+  // 1. Kiểm duyệt cốt lõi (5 quyền)
+  {
+    key: 'canApproveKyc',
+    label: 'Duyệt Thẻ SV & CCCD Chip',
+    desc: 'Xét duyệt định danh KYC sinh viên campus',
+    category: 'KIỂM DUYỆT CỐT LÕI',
+  },
+  {
+    key: 'canResolveDisputes',
+    label: 'Phán Xử Tranh Chấp Kèo',
+    desc: 'Trọng tài quỹ Escrow & hòa giải tranh chấp',
+    category: 'KIỂM DUYỆT CỐT LÕI',
+  },
+  {
+    key: 'canModerateUsers',
+    label: 'Khóa / Mở Khóa Tài Khoản',
+    desc: 'Đình chỉ hoặc mở khóa tài khoản vi phạm',
+    category: 'KIỂM DUYỆT CỐT LÕI',
+  },
+  {
+    key: 'canModerateGigs',
+    label: 'Ẩn / Gỡ Bài Đăng Vi Phạm',
+    desc: 'Dọn dẹp bài đăng việc làm vi phạm, spam',
+    category: 'KIỂM DUYỆT CỐT LÕI',
+  },
+  {
+    key: 'canManageFinance',
+    label: 'Tra Soát Ví Nạp & Rút Tiền',
+    desc: 'Kiểm tra lịch sử nạp rút tiền ngân hàng',
+    category: 'KIỂM DUYỆT CỐT LÕI',
+  },
+
+  // 2. Quản trị Tài Khoản & Người Dùng (3 quyền mới)
+  {
+    key: 'canCreateUsers',
+    label: 'Tạo Tài Khoản Người Dùng Mới',
+    desc: 'Cấp tài khoản sinh viên/đối tác trực tiếp',
+    category: 'QUẢN TRỊ NGƯỜI DÙNG & DỮ LIỆU',
+  },
+  {
+    key: 'canDeleteUsers',
+    label: 'Xóa Vĩnh Viễn Tài Khoản',
+    desc: 'Xóa hoàn toàn tài khoản gian lận/ảo',
+    category: 'QUẢN TRỊ NGƯỜI DÙNG & DỮ LIỆU',
+  },
+  {
+    key: 'canEditUsers',
+    label: 'Chỉnh Sửa Hồ Sơ & Số Dư',
+    desc: 'Cập nhật thông tin & điều chỉnh ví người dùng',
+    category: 'QUẢN TRỊ NGƯỜI DÙNG & DỮ LIỆU',
+  },
+
+  // 3. Quản trị CSDL & Dữ Liệu (2 quyền mới)
+  {
+    key: 'canManageDatabase',
+    label: 'Quản Trị CSDL & Backup Data',
+    desc: 'Sao lưu & kiểm tra toàn vẹn dữ liệu Firestore',
+    category: 'QUẢN TRỊ NGƯỜI DÙNG & DỮ LIỆU',
+  },
+  {
+    key: 'canPurgeData',
+    label: 'Xóa / Làm Sạch Dữ Liệu Rác (Purge)',
+    desc: 'Làm sạch bài rác, tin nhắn rác & log cũ',
+    category: 'QUẢN TRỊ NGƯỜI DÙNG & DỮ LIỆU',
+  },
+
+  // 4. Vận hành Dịch Vụ Campus & An Ninh (5 quyền mới)
+  {
+    key: 'canManageMarketplace',
+    label: 'Quản Lý Chợ KTX Campus',
+    desc: 'Duyệt/Gỡ tin bán đồ cũ sinh viên thanh lý',
+    category: 'VẬN HÀNH CAMPUS & AN NINH',
+  },
+  {
+    key: 'canSendPushBroadcast',
+    label: 'Gửi Thông Báo Broadcast',
+    desc: 'Đẩy thông báo tới toàn thể sinh viên',
+    category: 'VẬN HÀNH CAMPUS & AN NINH',
+  },
+  {
+    key: 'canAuditTransactions',
+    label: 'Giám Sát Giao Dịch Bất Thường',
+    desc: 'Phát hiện rửa tiền, cọc bất thường & phòng chống gian lận',
+    category: 'VẬN HÀNH CAMPUS & AN NINH',
+  },
+  {
+    key: 'canConfigureMaintenance',
+    label: 'Cấu Hình Bảo Trì Hệ Thống',
+    desc: 'Bật/tắt chế độ bảo trì toàn bộ sàn',
+    category: 'VẬN HÀNH CAMPUS & AN NINH',
+  },
+  {
+    key: 'canExportAuditLogs',
+    label: 'Xem & Xuất Nhật Ký Kiểm Toán',
+    desc: 'Trích xuất file báo cáo kiểm toán & đối soát',
+    category: 'VẬN HÀNH CAMPUS & AN NINH',
+  },
+];
 
 export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onBack }) => {
   const {
@@ -73,6 +202,11 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onBa
     showNotification,
     maintenanceConfig,
     isMaintenanceActive,
+    mods,
+    createModUser,
+    updateModUser,
+    deleteModUser,
+    updateModPermissions,
   } = useGigMe();
   const { language, t } = useTranslation();
 
@@ -102,8 +236,164 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onBa
   const totalEscrowLockedVault = allUsers.reduce((sum, u) => sum + (u.escrowLockedBalance || 0), 0);
   const totalPlatformFeesCollected = allUsers.reduce((sum, u) => sum + Math.round((u.totalSpent || 0) * 0.1), 0);
 
-  const [activeTab, setActiveTab] = useState<'DISPUTES' | 'WITHDRAWALS' | 'USERS' | 'VAULT' | 'ANALYTICS' | 'SYBIL_DETECTION' | 'BANK_BOT'>('DISPUTES');
+  const [activeTab, setActiveTab] = useState<'DISPUTES' | 'WITHDRAWALS' | 'USERS' | 'MODS' | 'VAULT' | 'ANALYTICS' | 'SYBIL_DETECTION' | 'BANK_BOT'>('DISPUTES');
   const [userSearch, setUserSearch] = useState('');
+
+  // --- MOD MANAGEMENT STATE & HANDLERS ---
+  const [modSearch, setModSearch] = useState('');
+  const [modStatusFilter, setModStatusFilter] = useState<'ALL' | 'ACTIVE' | 'LOCKED'>('ALL');
+  const [showCreateModModal, setShowCreateModModal] = useState(false);
+  const [editingMod, setEditingMod] = useState<UserEntity | null>(null);
+  const [modToDelete, setModToDelete] = useState<UserEntity | null>(null);
+  const [revealedModPasswords, setRevealedModPasswords] = useState<Record<string, boolean>>({});
+  const [copiedModId, setCopiedModId] = useState<string | null>(null);
+
+  // Create form state
+  const [newModId, setNewModId] = useState('');
+  const [newModName, setNewModName] = useState('');
+  const [newModEmail, setNewModEmail] = useState('');
+  const [newModPhone, setNewModPhone] = useState('');
+  const [newModPassword, setNewModPassword] = useState('');
+  const [newModPermissions, setNewModPermissions] = useState<ModPermission>(DEFAULT_MOD_PERMISSIONS);
+
+  // Edit form state
+  const [editModName, setEditModName] = useState('');
+  const [editModEmail, setEditModEmail] = useState('');
+  const [editModPhone, setEditModPhone] = useState('');
+  const [editModPassword, setEditModPassword] = useState('');
+  const [editModPermissions, setEditModPermissions] = useState<ModPermission>(DEFAULT_MOD_PERMISSIONS);
+
+  // All mod users list reactive to adminAllUsers
+  const allMods = useMemo(() => {
+    const list = (adminAllUsers || []).filter(
+      (u) => u.role === 'MOD' || u.id === '000000001' || u.id === '000000002' || u.id === '000000003'
+    );
+    return list;
+  }, [adminAllUsers]);
+
+  const filteredMods = useMemo(() => {
+    return allMods.filter((m) => {
+      if (modStatusFilter === 'ACTIVE' && m.isLocked) return false;
+      if (modStatusFilter === 'LOCKED' && !m.isLocked) return false;
+      if (modSearch.trim()) {
+        const q = modSearch.toLowerCase();
+        const mName = (m.name || '').toLowerCase().includes(q);
+        const mEmail = (m.email || '').toLowerCase().includes(q);
+        const mId = (m.id || '').includes(q);
+        const mPhone = (m.phone || '').includes(q);
+        return mName || mEmail || mId || mPhone;
+      }
+      return true;
+    });
+  }, [allMods, modStatusFilter, modSearch]);
+
+  const handleOpenCreateMod = () => {
+    const existingIds = new Set(allUsers.map((u) => u.id));
+    let nextNum = 1;
+    while (existingIds.has(String(nextNum).padStart(9, '0'))) {
+      nextNum++;
+    }
+    const defaultId = String(nextNum).padStart(9, '0');
+    setNewModId(defaultId);
+    setNewModName(`Kiểm Duyệt Viên ${nextNum}`);
+    setNewModEmail(`mod${nextNum}@gigme.vn`);
+    setNewModPhone('');
+    setNewModPassword(`mod${nextNum}${nextNum}${nextNum}`);
+    setNewModPermissions(DEFAULT_MOD_PERMISSIONS);
+    setShowCreateModModal(true);
+  };
+
+  const handleCreateModSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newModName.trim()) {
+      showNotification('Thiếu thông tin', 'Vui lòng nhập họ tên kiểm duyệt viên!');
+      return;
+    }
+    if (!newModEmail.trim() || !newModEmail.includes('@')) {
+      showNotification('Email không hợp lệ', 'Vui lòng nhập địa chỉ email hợp lệ!');
+      return;
+    }
+    triggerHaptic('medium');
+    const res = await createModUser({
+      id: newModId.trim() || undefined,
+      name: newModName.trim(),
+      email: newModEmail.trim(),
+      phone: newModPhone.trim() || undefined,
+      password: newModPassword.trim() || undefined,
+      permissions: newModPermissions,
+    });
+    if (res.success) {
+      setShowCreateModModal(false);
+    } else {
+      showNotification('Không thể tạo mod', res.error || 'Có lỗi xảy ra khi tạo mod');
+    }
+  };
+
+  const handleOpenEditMod = (mod: UserEntity) => {
+    setEditingMod(mod);
+    setEditModName(mod.name || '');
+    setEditModEmail(mod.email || '');
+    setEditModPhone(mod.phone || '');
+    setEditModPassword(mod.password || '');
+    setEditModPermissions(mod.modPermissions || DEFAULT_MOD_PERMISSIONS);
+  };
+
+  const handleEditModSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingMod) return;
+    triggerHaptic('medium');
+    const res = await updateModUser(editingMod.id, {
+      name: editModName.trim(),
+      email: editModEmail.trim(),
+      phone: editModPhone.trim(),
+      password: editModPassword.trim() || editingMod.password,
+      modPermissions: editModPermissions,
+    });
+    if (res.success) {
+      setEditingMod(null);
+    } else {
+      showNotification('Lỗi cập nhật', res.error || 'Không thể lưu thay đổi!');
+    }
+  };
+
+  const handleToggleSinglePermission = async (mod: UserEntity, permKey: keyof ModPermission) => {
+    triggerHaptic('light');
+    const current = mod.modPermissions || DEFAULT_MOD_PERMISSIONS;
+    const updated: ModPermission = {
+      ...current,
+      [permKey]: !current[permKey],
+    };
+    await updateModPermissions(mod.id, updated);
+  };
+
+  const handleGrantAllPermissions = async (mod: UserEntity) => {
+    triggerHaptic('medium');
+    await updateModPermissions(mod.id, ALL_MOD_PERMISSIONS);
+  };
+
+  const handleRevokeAllPermissions = async (mod: UserEntity) => {
+    triggerHaptic('medium');
+    await updateModPermissions(mod.id, ALL_FALSE_PERMISSIONS);
+  };
+
+  const handleConfirmDeleteMod = async () => {
+    if (!modToDelete) return;
+    triggerHaptic('error');
+    const res = await deleteModUser(modToDelete.id);
+    if (res.success) {
+      setModToDelete(null);
+    } else {
+      showNotification('Lỗi xóa mod', res.error || 'Không thể xóa tài khoản này');
+    }
+  };
+
+  const handleCopyModId = (id: string) => {
+    triggerHaptic('selection');
+    navigator.clipboard.writeText(id);
+    setCopiedModId(id);
+    setTimeout(() => setCopiedModId(null), 2000);
+    showNotification('Đã sao chép ID', `Đã chép ID 9 số "${id}" vào khay nhớ tạm.`);
+  };
 
   // WITHDRAWALS MANAGEMENT (CÁCH 1: DUYỆT THỦ CÔNG & CHUYỂN KHOẢN QUA VIETQR)
   const [withdrawalFilter, setWithdrawalFilter] = useState<'ALL' | 'PENDING' | 'COMPLETED' | 'REJECTED'>('PENDING');
@@ -808,12 +1098,18 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onBa
         </button>
 
         <button
-          onClick={() => setActiveTab('VAULT')}
-          className={`flex-1 min-w-[120px] py-2 px-3 rounded-xl transition cursor-pointer ${
-            activeTab === 'VAULT' ? 'bg-gradient-to-r from-[#3064AE] via-[#2A5594] to-[#25735B] text-white shadow border border-[#E0FAEB]/30' : 'text-[#C5E5EC]/70 hover:text-white'
+          onClick={() => setActiveTab('MODS')}
+          className={`flex-1 min-w-[130px] py-2 px-3 rounded-xl transition flex items-center justify-center space-x-1.5 cursor-pointer ${
+            activeTab === 'MODS'
+              ? 'bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 text-white shadow-lg shadow-purple-950/40 border border-purple-400/40'
+              : 'text-[#C5E5EC]/70 hover:text-white'
           }`}
         >
-          Kiểm Toán Quỹ
+          <ShieldCheck className="w-3.5 h-3.5 text-purple-300" />
+          <span>Quản Lý Mods</span>
+          <span className="px-1.5 py-0.2 rounded-full bg-purple-500/30 text-purple-200 text-[10px] font-mono font-bold border border-purple-400/30">
+            {allMods.length}
+          </span>
         </button>
 
         <button
@@ -1388,6 +1684,372 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onBa
                 })
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB: QUẢN LÝ MODS & PHÂN QUYỀN HỆ THỐNG */}
+      {activeTab === 'MODS' && (
+        <div className="space-y-4 animate-fade-in">
+          {/* Header Card */}
+          <div className="rounded-3xl bg-gradient-to-r from-purple-950/70 via-[#12233B] to-[#0A1628] border border-purple-500/30 p-5 shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-80 h-80 bg-purple-600/10 rounded-full blur-3xl pointer-events-none" />
+            <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <div className="flex items-center space-x-2">
+                  <span className="p-2 rounded-xl bg-purple-500/20 text-purple-300 border border-purple-500/40">
+                    <ShieldCheck className="w-5 h-5" />
+                  </span>
+                  <h3 className="text-base font-black text-white flex items-center gap-2">
+                    <span>Quản Lý Đội Ngũ Kiểm Duyệt Viên (Mods)</span>
+                    <span className="px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 font-mono text-xs font-bold border border-purple-500/40">
+                      {allMods.length} Tài Khoản
+                    </span>
+                  </h3>
+                </div>
+                <p className="text-xs text-[#C5E5EC]/80 max-w-2xl leading-relaxed">
+                  Thiết lập, chỉnh sửa, phân quyền (Duyệt KYC, Phán xử tranh chấp Escrow, Khóa người dùng vi phạm, Ẩn kèo, Tra soát ví) và quản lý tài khoản cho đội ngũ Moderator.
+                </p>
+              </div>
+
+              <div className="flex items-center space-x-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleOpenCreateMod}
+                  className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 hover:brightness-110 text-white font-extrabold text-xs shadow-lg shadow-purple-900/40 border border-purple-400/40 flex items-center space-x-1.5 transition active:scale-95 cursor-pointer"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  <span>+ Tạo Tài Khoản Mod Mới</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Metrics */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            <div className="p-3.5 rounded-2xl bg-[#0E1B2E] border border-purple-500/20 shadow-md">
+              <span className="text-[11px] font-bold text-[#C5E5EC]/70 block mb-0.5">Tổng Số Mods</span>
+              <span className="text-xl font-black text-white font-mono">{allMods.length}</span>
+              <p className="text-[10px] text-purple-300 mt-0.5">Bao gồm mod1, mod2, mod3</p>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-[#0E1B2E] border border-emerald-500/20 shadow-md">
+              <span className="text-[11px] font-bold text-[#C5E5EC]/70 block mb-0.5">Đang Hoạt Động</span>
+              <span className="text-xl font-black text-emerald-400 font-mono">
+                {allMods.filter((m) => !m.isLocked).length}
+              </span>
+              <p className="text-[10px] text-emerald-300/80 mt-0.5">Sẵn sàng trực ca campus</p>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-[#0E1B2E] border border-rose-500/20 shadow-md">
+              <span className="text-[11px] font-bold text-[#C5E5EC]/70 block mb-0.5">Tạm Khóa Quyền</span>
+              <span className="text-xl font-black text-rose-400 font-mono">
+                {allMods.filter((m) => m.isLocked).length}
+              </span>
+              <p className="text-[10px] text-rose-300/80 mt-0.5">Bị đình chỉ quyền hạn</p>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-[#0E1B2E] border border-cyan-500/20 shadow-md">
+              <span className="text-[11px] font-bold text-[#C5E5EC]/70 block mb-0.5">Trọng Tài Escrow</span>
+              <span className="text-xl font-black text-cyan-300 font-mono">
+                {allMods.filter((m) => m.modPermissions?.canResolveDisputes).length}
+              </span>
+              <p className="text-[10px] text-cyan-300/80 mt-0.5">Có quyền phán quyết kèo</p>
+            </div>
+          </div>
+
+          {/* Search & Filter Bar */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 bg-[#0E1B2E] p-3 rounded-2xl border border-[#C5E5EC]/20 shadow-sm">
+            <div className="relative flex-1">
+              <Search className="w-3.5 h-3.5 text-[#C5E5EC]/60 absolute left-3 top-2.5" />
+              <input
+                type="text"
+                value={modSearch}
+                onChange={(e) => setModSearch(e.target.value)}
+                placeholder="Tìm kiếm mod theo ID 9 số (000000001...), tên, email, SĐT..."
+                className="w-full pl-9 pr-3 py-2 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-white text-xs placeholder:text-[#C5E5EC]/40 focus:outline-none focus:border-[#C5E5EC]"
+              />
+              {modSearch && (
+                <button
+                  type="button"
+                  onClick={() => setModSearch('')}
+                  className="absolute right-2.5 top-2 text-[#C5E5EC]/50 hover:text-white"
+                >
+                  &times;
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center space-x-1.5 text-xs font-bold shrink-0">
+              <button
+                type="button"
+                onClick={() => setModStatusFilter('ALL')}
+                className={`px-3 py-1.5 rounded-xl border transition cursor-pointer ${
+                  modStatusFilter === 'ALL'
+                    ? 'bg-purple-600 text-white border-purple-400'
+                    : 'bg-[#12233B] text-[#C5E5EC] border-[#C5E5EC]/20 hover:text-white'
+                }`}
+              >
+                Tất cả ({allMods.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setModStatusFilter('ACTIVE')}
+                className={`px-3 py-1.5 rounded-xl border transition cursor-pointer ${
+                  modStatusFilter === 'ACTIVE'
+                    ? 'bg-emerald-600 text-white border-emerald-400'
+                    : 'bg-[#12233B] text-[#C5E5EC] border-[#C5E5EC]/20 hover:text-white'
+                }`}
+              >
+                Hoạt động ({allMods.filter((m) => !m.isLocked).length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setModStatusFilter('LOCKED')}
+                className={`px-3 py-1.5 rounded-xl border transition cursor-pointer ${
+                  modStatusFilter === 'LOCKED'
+                    ? 'bg-rose-600 text-white border-rose-400'
+                    : 'bg-[#12233B] text-[#C5E5EC] border-[#C5E5EC]/20 hover:text-white'
+                }`}
+              >
+                Bị khóa ({allMods.filter((m) => m.isLocked).length})
+              </button>
+            </div>
+          </div>
+
+          {/* Mod Cards List */}
+          <div className="space-y-3">
+            {filteredMods.length === 0 ? (
+              <div className="py-12 text-center rounded-3xl bg-[#0E1B2E] border border-[#C5E5EC]/20 text-[#C5E5EC]/70 text-xs shadow-lg">
+                <ShieldCheck className="w-8 h-8 mx-auto mb-2 text-[#C5E5EC]/30" />
+                <p className="font-bold">Không tìm thấy tài khoản Mod nào phù hợp</p>
+                <p className="text-[11px] text-[#C5E5EC]/50 mt-1">
+                  Nhấn "+ Tạo Tài Khoản Mod Mới" để thêm kiểm duyệt viên vào hệ thống.
+                </p>
+              </div>
+            ) : (
+              filteredMods.map((mod) => {
+                const perms = mod.modPermissions || {
+                  canApproveKyc: true,
+                  canResolveDisputes: true,
+                  canModerateUsers: true,
+                  canModerateGigs: true,
+                  canManageFinance: false,
+                };
+                const isPasswordShown = !!revealedModPasswords[mod.id];
+                const activePermCount = Object.values(perms).filter(Boolean).length;
+
+                return (
+                  <div
+                    key={mod.id}
+                    className="p-4 sm:p-5 rounded-3xl bg-[#0E1B2E] border border-purple-500/25 hover:border-purple-500/40 transition shadow-xl space-y-4"
+                  >
+                    {/* Top Row: Info & Status */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#C5E5EC]/15">
+                      <div className="flex items-start sm:items-center space-x-3 min-w-0">
+                        <div className="w-10 h-10 rounded-2xl bg-purple-500/20 text-purple-300 border border-purple-500/40 flex items-center justify-center shrink-0 font-black text-sm">
+                          <Shield className="w-5 h-5 text-purple-300" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <h4 className="font-black text-white text-sm truncate">{mod.name}</h4>
+                            <span className="px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 font-mono text-[10px] font-black border border-purple-500/30">
+                              MOD
+                            </span>
+                            {mod.isLocked ? (
+                              <span className="px-2 py-0.5 rounded-full bg-rose-600/20 text-rose-300 font-bold text-[10px] border border-rose-500/40 animate-pulse">
+                                BỊ KHÓA
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded-full bg-emerald-600/20 text-emerald-300 font-bold text-[10px] border border-emerald-500/40">
+                                HOẠT ĐỘNG
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-2 text-xs text-[#C5E5EC]/70 mt-1">
+                            {/* ID 9 Số with 1-click copy */}
+                            <button
+                              type="button"
+                              onClick={() => handleCopyModId(mod.id)}
+                              className="font-mono text-white font-bold bg-[#12233B] px-2 py-0.5 rounded-lg border border-[#C5E5EC]/20 hover:border-[#C5E5EC]/50 flex items-center space-x-1 cursor-pointer"
+                              title="Sao chép ID 9 số"
+                            >
+                              <span>ID: {mod.id}</span>
+                              {copiedModId === mod.id ? (
+                                <Check className="w-3 h-3 text-emerald-400" />
+                              ) : (
+                                <Copy className="w-3 h-3 text-[#C5E5EC]/60" />
+                              )}
+                            </button>
+                            <span>•</span>
+                            <span className="font-semibold text-white">{mod.email}</span>
+                            <span>•</span>
+                            {mod.phone ? (
+                              <span className="font-mono text-white">{mod.phone}</span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-300 text-[10px] font-medium border border-amber-500/30">
+                                Chưa thêm SĐT
+                              </span>
+                            )}
+                            <span>•</span>
+                            <span className="font-mono font-bold text-emerald-400 bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-500/30 text-[11px]">
+                              Ví: {formatVnd(mod.walletBalance ?? 500000)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Password reveal & management */}
+                      <div className="flex items-center space-x-2 text-xs bg-[#12233B] p-2 rounded-2xl border border-[#C5E5EC]/20 self-start sm:self-auto">
+                        <Key className="w-3.5 h-3.5 text-purple-300" />
+                        <span className="text-[#C5E5EC]/70 text-[11px] font-semibold">Mật khẩu:</span>
+                        <span className="font-mono font-bold text-white text-xs">
+                          {isPasswordShown ? mod.password || 'mod123456' : '••••••••'}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setRevealedModPasswords((prev) => ({ ...prev, [mod.id]: !prev[mod.id] }))
+                          }
+                          className="p-1 rounded-md text-[#C5E5EC]/70 hover:text-white cursor-pointer"
+                          title={isPasswordShown ? 'Ẩn mật khẩu' : 'Xem mật khẩu'}
+                        >
+                          {isPasswordShown ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Permissions Matrix Block (Phân Quyền / Add Quyền / Xóa Quyền - 15 Quyền) */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <div className="flex items-center space-x-2">
+                          <span className="font-black text-xs text-white">Ma Trận Phân Quyền Hạn (15 Quyền):</span>
+                          <span className="px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 font-mono text-[10px] font-bold border border-purple-500/30">
+                            {activePermCount}/15 Quyền Được Cấp
+                          </span>
+                        </div>
+
+                        {/* Quick Grant/Revoke All Buttons */}
+                        <div className="flex items-center space-x-1.5 text-[11px]">
+                          <button
+                            type="button"
+                            onClick={() => handleGrantAllPermissions(mod)}
+                            className="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 font-bold transition cursor-pointer active:scale-95"
+                          >
+                            + Cấp Tất Cả 15 Quyền
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleRevokeAllPermissions(mod)}
+                            className="px-2.5 py-1 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 font-bold transition cursor-pointer active:scale-95"
+                          >
+                            - Thu Hồi Hết Quyền
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* 15 Permission Toggle Badges */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 text-xs">
+                        {MOD_PERMISSIONS_CONFIG.map((pConf) => {
+                          const isGranted = Boolean(perms[pConf.key]);
+                          return (
+                            <button
+                              key={pConf.key}
+                              type="button"
+                              onClick={() => handleToggleSinglePermission(mod, pConf.key)}
+                              className={`p-2.5 rounded-2xl border text-left transition flex items-center justify-between cursor-pointer active:scale-[0.99] ${
+                                isGranted
+                                  ? 'bg-purple-950/30 border-purple-500/50 text-white shadow-xs'
+                                  : 'bg-[#12233B]/60 border-slate-700/60 text-slate-400 hover:border-slate-600'
+                              }`}
+                            >
+                              <div className="flex items-center space-x-2 min-w-0 pr-1">
+                                {isGranted ? (
+                                  <CheckSquare className="w-4 h-4 text-purple-400 shrink-0" />
+                                ) : (
+                                  <Square className="w-4 h-4 text-slate-500 shrink-0" />
+                                )}
+                                <div className="truncate">
+                                  <span className={`block font-bold text-xs truncate ${isGranted ? 'text-white' : 'text-slate-400'}`}>
+                                    {pConf.label}
+                                  </span>
+                                  <span className="text-[10px] text-[#C5E5EC]/60 block truncate">
+                                    {pConf.desc}
+                                  </span>
+                                </div>
+                              </div>
+                              <span
+                                className={`text-[9px] font-black px-1.5 py-0.5 rounded uppercase shrink-0 ${
+                                  isGranted ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' : 'bg-slate-800 text-slate-500'
+                                }`}
+                              >
+                                {isGranted ? 'ĐÃ CẤP' : 'CHƯA CẤP'}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Bottom Action Controls */}
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-[#C5E5EC]/15">
+                      <div className="text-[11px] text-[#C5E5EC]/60">
+                        <span>Đăng nhập qua </span>
+                        <code className="bg-[#12233B] px-1.5 py-0.5 rounded text-white font-mono">{mod.email}</code>
+                        <span> hoặc ID </span>
+                        <code className="bg-[#12233B] px-1.5 py-0.5 rounded text-purple-300 font-mono font-bold">{mod.id}</code>
+                      </div>
+
+                      <div className="flex items-center space-x-2">
+                        {/* Edit Mod */}
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEditMod(mod)}
+                          className="px-3 py-1.5 rounded-xl bg-[#12233B] hover:bg-[#162B48] text-[#C5E5EC] hover:text-white border border-[#C5E5EC]/20 text-xs font-bold transition flex items-center space-x-1 cursor-pointer"
+                        >
+                          <Edit className="w-3.5 h-3.5" />
+                          <span>Sửa Thông Tin</span>
+                        </button>
+
+                        {/* Lock / Unlock */}
+                        <button
+                          type="button"
+                          onClick={() => adminToggleLockUser(mod.id)}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center space-x-1 border cursor-pointer ${
+                            mod.isLocked
+                              ? 'bg-emerald-950/50 hover:bg-emerald-900/60 text-emerald-300 border-emerald-500/40'
+                              : 'bg-amber-950/50 hover:bg-amber-900/60 text-amber-300 border-amber-500/40'
+                          }`}
+                        >
+                          {mod.isLocked ? (
+                            <>
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              <span>Mở Khóa Mod</span>
+                            </>
+                          ) : (
+                            <>
+                              <Ban className="w-3.5 h-3.5" />
+                              <span>Khóa Tạm Thời</span>
+                            </>
+                          )}
+                        </button>
+
+                        {/* Delete Mod */}
+                        <button
+                          type="button"
+                          onClick={() => setModToDelete(mod)}
+                          className="p-1.5 rounded-xl bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 border border-rose-500/40 transition cursor-pointer"
+                          title="Xóa tài khoản mod"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
       )}
@@ -3399,6 +4061,380 @@ send_bank_alert("MB: TK 0909120918 +100,000VND. ND: GIGME 0909120918")`,
                 className="flex-1 py-2 rounded-xl bg-rose-600 text-white font-extrabold text-xs hover:bg-rose-500 transition shadow-lg"
               >
                 Xác Nhận Từ Chối
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: TẠO TÀI KHOẢN MOD MỚI */}
+      {showCreateModModal && (
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowCreateModModal(false);
+          }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fade-in"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-lg rounded-3xl bg-[#0B1528] border border-purple-500/40 p-6 text-white shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto"
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-[#C5E5EC]/15">
+              <div className="flex items-center space-x-2">
+                <span className="p-2 rounded-xl bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                  <UserPlus className="w-5 h-5" />
+                </span>
+                <div>
+                  <h3 className="font-black text-sm text-white">Tạo Tài Khoản Kiểm Duyệt Viên Mới</h3>
+                  <p className="text-[11px] text-[#C5E5EC]/70">Khởi tạo Mod và thiết lập phân quyền hạn ngay lập tức</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCreateModModal(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateModSubmit} className="space-y-3.5 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[#C5E5EC]/80 font-bold mb-1">
+                    ID 9 Chữ Số <span className="text-purple-300 font-mono">(Tự động hoặc tùy chỉnh)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={newModId}
+                    onChange={(e) => setNewModId(e.target.value.replace(/\D/g, '').slice(0, 9))}
+                    placeholder="VD: 000000004"
+                    maxLength={9}
+                    className="w-full px-3 py-2 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-white font-mono font-bold focus:border-purple-400 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[#C5E5EC]/80 font-bold mb-1">Họ Và Tên Kiểm Duyệt Viên *</label>
+                  <input
+                    type="text"
+                    required
+                    value={newModName}
+                    onChange={(e) => setNewModName(e.target.value)}
+                    placeholder="VD: Kiểm Duyệt Viên 4"
+                    className="w-full px-3 py-2 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-white focus:border-purple-400 focus:outline-none font-semibold"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[#C5E5EC]/80 font-bold mb-1">Email Đăng Nhập *</label>
+                  <input
+                    type="email"
+                    required
+                    value={newModEmail}
+                    onChange={(e) => setNewModEmail(e.target.value)}
+                    placeholder="mod4@gigme.vn"
+                    className="w-full px-3 py-2 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-white focus:border-purple-400 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[#C5E5EC]/80 font-bold mb-1">Số Điện Thoại</label>
+                  <input
+                    type="text"
+                    value={newModPhone}
+                    onChange={(e) => setNewModPhone(e.target.value)}
+                    placeholder="0904000004"
+                    className="w-full px-3 py-2 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-white font-mono focus:border-purple-400 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[#C5E5EC]/80 font-bold mb-1">Mật Khẩu Đăng Nhập *</label>
+                <input
+                  type="text"
+                  required
+                  value={newModPassword}
+                  onChange={(e) => setNewModPassword(e.target.value)}
+                  placeholder="mod4444"
+                  className="w-full px-3 py-2 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-white font-mono font-bold focus:border-purple-400 focus:outline-none"
+                />
+              </div>
+
+              {/* Permissions Checkboxes - 15 Permissions */}
+              <div className="pt-2 border-t border-[#C5E5EC]/15 space-y-2">
+                <div className="flex items-center justify-between flex-wrap gap-1">
+                  <span className="font-extrabold text-[#E0FAEB] text-xs">Phân Quyền Cho Mod Mới (15 Quyền):</span>
+                  <div className="space-x-1.5 text-[10px]">
+                    <button
+                      type="button"
+                      onClick={() => setNewModPermissions(ALL_MOD_PERMISSIONS)}
+                      className="text-purple-300 hover:underline font-bold"
+                    >
+                      Cấp tất cả (15)
+                    </button>
+                    <span>•</span>
+                    <button
+                      type="button"
+                      onClick={() => setNewModPermissions(ALL_FALSE_PERMISSIONS)}
+                      className="text-rose-300 hover:underline font-bold"
+                    >
+                      Thu hồi hết
+                    </button>
+                    <span>•</span>
+                    <button
+                      type="button"
+                      onClick={() => setNewModPermissions(DEFAULT_MOD_PERMISSIONS)}
+                      className="text-[#C5E5EC] hover:underline font-bold"
+                    >
+                      Mặc định
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5 bg-[#0E1B2E] p-3 rounded-2xl border border-[#C5E5EC]/15 max-h-60 overflow-y-auto pr-1 divide-y divide-[#C5E5EC]/10">
+                  {MOD_PERMISSIONS_CONFIG.map((pConf) => (
+                    <label
+                      key={pConf.key}
+                      className="flex items-start space-x-2.5 cursor-pointer hover:bg-[#12233B]/60 p-2 rounded-xl transition"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={Boolean(newModPermissions[pConf.key])}
+                        onChange={(e) =>
+                          setNewModPermissions((p) => ({ ...p, [pConf.key]: e.target.checked }))
+                        }
+                        className="w-4 h-4 accent-purple-500 rounded mt-0.5 shrink-0"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="font-bold text-white text-xs">{pConf.label}</span>
+                          <span className="text-[9px] px-1.5 py-0.2 rounded font-mono bg-[#12233B] text-[#C5E5EC]/70 shrink-0">
+                            {pConf.category}
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-[#C5E5EC]/60 block leading-tight">{pConf.desc}</span>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end space-x-2 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateModModal(false)}
+                  className="px-4 py-2 rounded-xl bg-[#12233B] hover:bg-[#162B48] text-[#C5E5EC] font-bold text-xs cursor-pointer"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 hover:brightness-110 text-white font-black text-xs shadow-lg shadow-purple-900/50 border border-purple-400/40 cursor-pointer"
+                >
+                  Tạo Tài Khoản Mod Ngay
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: CHỈNH SỬA THÔNG TIN & PHÂN QUYỀN MOD */}
+      {editingMod && (
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setEditingMod(null);
+          }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fade-in"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-lg rounded-3xl bg-[#0B1528] border border-purple-500/40 p-6 text-white shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto"
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-[#C5E5EC]/15">
+              <div className="flex items-center space-x-2">
+                <span className="p-2 rounded-xl bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                  <Edit className="w-5 h-5" />
+                </span>
+                <div>
+                  <h3 className="font-black text-sm text-white">Chỉnh Sửa Thông Tin Mod</h3>
+                  <p className="text-[11px] text-purple-300 font-mono">ID: {editingMod.id}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingMod(null)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleEditModSubmit} className="space-y-3.5 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[#C5E5EC]/80 font-bold mb-1">Họ Và Tên</label>
+                  <input
+                    type="text"
+                    required
+                    value={editModName}
+                    onChange={(e) => setEditModName(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-white focus:border-purple-400 focus:outline-none font-semibold"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[#C5E5EC]/80 font-bold mb-1">Số Điện Thoại</label>
+                  <input
+                    type="text"
+                    value={editModPhone}
+                    onChange={(e) => setEditModPhone(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-white font-mono focus:border-purple-400 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[#C5E5EC]/80 font-bold mb-1">Email</label>
+                  <input
+                    type="email"
+                    required
+                    value={editModEmail}
+                    onChange={(e) => setEditModEmail(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-white focus:border-purple-400 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[#C5E5EC]/80 font-bold mb-1">Mật Khẩu Mới (Nếu muốn đổi)</label>
+                  <input
+                    type="text"
+                    value={editModPassword}
+                    onChange={(e) => setEditModPassword(e.target.value)}
+                    placeholder="Giữ nguyên hoặc nhập mới"
+                    className="w-full px-3 py-2 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-white font-mono focus:border-purple-400 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Permissions Checklist - 15 Permissions */}
+              <div className="pt-2 border-t border-[#C5E5EC]/15 space-y-2">
+                <div className="flex items-center justify-between flex-wrap gap-1">
+                  <span className="font-extrabold text-[#E0FAEB] text-xs">Cập Nhật Bảng Phân Quyền (15 Quyền):</span>
+                  <div className="space-x-1.5 text-[10px]">
+                    <button
+                      type="button"
+                      onClick={() => setEditModPermissions(ALL_MOD_PERMISSIONS)}
+                      className="text-purple-300 hover:underline font-bold"
+                    >
+                      Cấp tất cả (15)
+                    </button>
+                    <span>•</span>
+                    <button
+                      type="button"
+                      onClick={() => setEditModPermissions(ALL_FALSE_PERMISSIONS)}
+                      className="text-rose-300 hover:underline font-bold"
+                    >
+                      Thu hồi hết
+                    </button>
+                    <span>•</span>
+                    <button
+                      type="button"
+                      onClick={() => setEditModPermissions(DEFAULT_MOD_PERMISSIONS)}
+                      className="text-[#C5E5EC] hover:underline font-bold"
+                    >
+                      Mặc định
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5 bg-[#0E1B2E] p-3 rounded-2xl border border-[#C5E5EC]/15 max-h-60 overflow-y-auto pr-1 divide-y divide-[#C5E5EC]/10">
+                  {MOD_PERMISSIONS_CONFIG.map((pConf) => (
+                    <label
+                      key={pConf.key}
+                      className="flex items-start space-x-2.5 cursor-pointer hover:bg-[#12233B]/60 p-2 rounded-xl transition"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={Boolean(editModPermissions[pConf.key])}
+                        onChange={(e) =>
+                          setEditModPermissions((p) => ({ ...p, [pConf.key]: e.target.checked }))
+                        }
+                        className="w-4 h-4 accent-purple-500 rounded mt-0.5 shrink-0"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="font-bold text-white text-xs">{pConf.label}</span>
+                          <span className="text-[9px] px-1.5 py-0.2 rounded font-mono bg-[#12233B] text-[#C5E5EC]/70 shrink-0">
+                            {pConf.category}
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-[#C5E5EC]/60 block leading-tight">{pConf.desc}</span>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end space-x-2 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setEditingMod(null)}
+                  className="px-4 py-2 rounded-xl bg-[#12233B] hover:bg-[#162B48] text-[#C5E5EC] font-bold text-xs cursor-pointer"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 hover:brightness-110 text-white font-black text-xs shadow-lg shadow-purple-900/50 border border-purple-400/40 cursor-pointer"
+                >
+                  Lưu Thay Đổi
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: XÁC NHẬN XÓA TÀI KHOẢN MOD */}
+      {modToDelete && (
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setModToDelete(null);
+          }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fade-in"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-sm rounded-3xl bg-[#0B1528] border-2 border-rose-500/50 p-6 text-white shadow-2xl space-y-4"
+          >
+            <div className="flex items-center space-x-2 text-rose-400 font-bold text-sm">
+              <AlertTriangle className="w-5 h-5 shrink-0" />
+              <span>Xác Nhận Xóa Tài Khoản Mod</span>
+            </div>
+            <p className="text-xs text-slate-300 leading-relaxed">
+              Bạn có chắc chắn muốn xóa vĩnh viễn tài khoản kiểm duyệt <strong>{modToDelete.name}</strong> (ID:{' '}
+              <code className="text-purple-300 font-mono">{modToDelete.id}</code>)? Mọi quyền hạn sẽ bị thu hồi ngay lập tức.
+            </p>
+            <div className="flex space-x-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setModToDelete(null)}
+                className="flex-1 py-2 rounded-xl bg-slate-800 text-slate-300 font-bold text-xs hover:bg-slate-700 transition"
+              >
+                Hủy Bỏ
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDeleteMod}
+                className="flex-1 py-2 rounded-xl bg-rose-600 text-white font-extrabold text-xs hover:bg-rose-500 transition shadow-lg"
+              >
+                Xác Nhận Xóa
               </button>
             </div>
           </div>

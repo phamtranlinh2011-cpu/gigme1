@@ -47,11 +47,28 @@ export const USER_TIERS: Record<UserTierKey, UserTierConfig> = {
 };
 
 export interface ModPermission {
-  canApproveKyc?: boolean;      // Duyệt thẻ sinh viên & CCCD
-  canResolveDisputes?: boolean; // Phân xử tranh chấp Kèo Escrow
-  canModerateUsers?: boolean;   // Khóa / Mở khóa tài khoản vi phạm
-  canModerateGigs?: boolean;    // Ẩn / Gỡ bài đăng vi phạm
-  canManageFinance?: boolean;   // Tra soát nạp / rút ví
+  // Nhóm Kiểm duyệt cốt lõi (5 quyền)
+  canApproveKyc?: boolean;          // Duyệt thẻ sinh viên & CCCD
+  canResolveDisputes?: boolean;     // Phân xử tranh chấp Kèo Escrow
+  canModerateUsers?: boolean;       // Khóa / Mở khóa tài khoản vi phạm
+  canModerateGigs?: boolean;        // Ẩn / Gỡ bài đăng việc làm vi phạm
+  canManageFinance?: boolean;       // Tra soát nạp / rút tiền ví sinh viên
+
+  // Nhóm Quản trị Tài khoản & Người dùng (3 quyền mới)
+  canCreateUsers?: boolean;         // Tạo tài khoản người dùng mới
+  canDeleteUsers?: boolean;         // Xóa vĩnh viễn tài khoản người dùng
+  canEditUsers?: boolean;           // Chỉnh sửa hồ sơ, thông tin & số dư người dùng
+
+  // Nhóm Quản trị Dữ liệu & Hệ thống (3 quyền mới)
+  canManageDatabase?: boolean;      // Quản trị cơ sở dữ liệu & Sao lưu Data Firestore
+  canPurgeData?: boolean;           // Xóa & Làm sạch dữ liệu hệ thống / Purge Data
+  canConfigureMaintenance?: boolean;// Thiết lập cấu hình Bảo trì hệ thống (Maintenance Mode)
+
+  // Nhóm Vận hành Dịch vụ Campus & An ninh (4 quyền mới)
+  canManageMarketplace?: boolean;   // Quản lý Chợ Campus Marketplace (Duyệt/Gỡ vật phẩm)
+  canSendPushBroadcast?: boolean;   // Gửi thông báo đẩy Broadcast toàn hệ thống
+  canAuditTransactions?: boolean;   // Giám sát giao dịch bất thường & phòng chống gian lận
+  canExportAuditLogs?: boolean;     // Xem & Xuất nhật ký kiểm toán hệ thống
 }
 
 export const DEFAULT_MOD_PERMISSIONS: ModPermission = {
@@ -60,6 +77,52 @@ export const DEFAULT_MOD_PERMISSIONS: ModPermission = {
   canModerateUsers: true,
   canModerateGigs: true,
   canManageFinance: false,
+  canCreateUsers: false,
+  canDeleteUsers: false,
+  canEditUsers: false,
+  canManageDatabase: false,
+  canPurgeData: false,
+  canConfigureMaintenance: false,
+  canManageMarketplace: true,
+  canSendPushBroadcast: false,
+  canAuditTransactions: true,
+  canExportAuditLogs: false,
+};
+
+export const ALL_MOD_PERMISSIONS: ModPermission = {
+  canApproveKyc: true,
+  canResolveDisputes: true,
+  canModerateUsers: true,
+  canModerateGigs: true,
+  canManageFinance: true,
+  canCreateUsers: true,
+  canDeleteUsers: true,
+  canEditUsers: true,
+  canManageDatabase: true,
+  canPurgeData: true,
+  canConfigureMaintenance: true,
+  canManageMarketplace: true,
+  canSendPushBroadcast: true,
+  canAuditTransactions: true,
+  canExportAuditLogs: true,
+};
+
+export const ALL_FALSE_PERMISSIONS: ModPermission = {
+  canApproveKyc: false,
+  canResolveDisputes: false,
+  canModerateUsers: false,
+  canModerateGigs: false,
+  canManageFinance: false,
+  canCreateUsers: false,
+  canDeleteUsers: false,
+  canEditUsers: false,
+  canManageDatabase: false,
+  canPurgeData: false,
+  canConfigureMaintenance: false,
+  canManageMarketplace: false,
+  canSendPushBroadcast: false,
+  canAuditTransactions: false,
+  canExportAuditLogs: false,
 };
 
 export interface UserEntity {
@@ -118,7 +181,6 @@ export interface UserEntity {
   studentBadges?: string[]; // Danh sách huy hiệu vinh danh ELO
   fcmEnabled?: boolean; // Bật thông báo đẩy FCM
   fcmToken?: string;
-  safeWalkContact?: { name: string; phone: string }; // Người liên hệ khẩn cấp SafeWalk
   avatarUrl?: string; // Ảnh đại diện người dùng tùy chỉnh
   bio?: string; // Giới thiệu bản thân / Slogan cá nhân sinh viên
   themePreference?: 'CYBER_DARK' | 'AMOLED' | 'DAYLIGHT'; // Tùy chọn giao diện
@@ -380,24 +442,6 @@ export interface WalletTransactionEntity {
   status?: 'PENDING' | 'APPROVED' | 'COMPLETED' | 'REJECTED';
   rejectionReason?: string;
   approvedAt?: number;
-}
-
-export interface SafeWalkSessionEntity {
-  id: string;
-  userId: string;
-  userName: string;
-  isActive: boolean;
-  startedAt: number;
-  durationMinutes: number;
-  endsAt: number;
-  originName: string;
-  destinationName: string;
-  currentLocation?: { lat: number; lng: number; address?: string };
-  emergencyContactName: string;
-  emergencyContactPhone: string;
-  lastCheckInAt: number;
-  isAlarmTriggered: boolean;
-  notes?: string;
 }
 
 export type TransactionEntity = WalletTransactionEntity;

@@ -20,11 +20,11 @@ import {
   UserTierKey,
   USER_TIERS,
   formatVnd,
-  SafeWalkSessionEntity,
   SystemMaintenanceConfig,
   MoSmsSession,
+  ModPermission,
 } from '../types';
-import { playNotificationSound, startSosSiren, stopSosSiren } from '../utils/audio';
+import { playNotificationSound } from '../utils/audio';
 import {
   GeoLocation,
   DEFAULT_USER_LOCATION,
@@ -125,7 +125,7 @@ export const DEFAULT_MODS: UserEntity[] = [
     id: '000000001',
     name: 'Kiểm Duyệt Viên 1 (Mod 1)',
     email: 'mod1@gigme.vn',
-    phone: '0901000001',
+    phone: '',
     password: 'mod1999',
     gender: 'Nam',
     birthDate: '01/01/2001',
@@ -136,6 +136,16 @@ export const DEFAULT_MODS: UserEntity[] = [
       canModerateUsers: true,
       canModerateGigs: true,
       canManageFinance: false,
+      canCreateUsers: false,
+      canDeleteUsers: false,
+      canEditUsers: false,
+      canManageDatabase: false,
+      canPurgeData: false,
+      canConfigureMaintenance: false,
+      canManageMarketplace: true,
+      canSendPushBroadcast: false,
+      canAuditTransactions: true,
+      canExportAuditLogs: false,
     },
     tier: 'PRO',
     kycName: 'MODERATOR 1',
@@ -150,10 +160,10 @@ export const DEFAULT_MODS: UserEntity[] = [
     businessTaxId: '',
     trustScore: 100,
     eloRating: 1200,
-    eloTier: 'MASTER',
+    eloTier: 'DIAMOND',
     winStreak: 5,
     notificationSound: 'BANK_TING',
-    connectedMoMo: '0901000001',
+    connectedMoMo: '',
     connectedZaloPay: '',
     connectedViettelMoney: '',
     lastDeviceName: 'Mod Command Center 1',
@@ -165,7 +175,7 @@ export const DEFAULT_MODS: UserEntity[] = [
     onTimeRate: 100,
     postedGigsCount: 0,
     totalSpent: 0,
-    walletBalance: 1000000,
+    walletBalance: 500000,
     escrowLockedBalance: 0,
     securityPin: '111111',
     badges: 'Kiểm Duyệt Viên • Mod 1',
@@ -176,7 +186,7 @@ export const DEFAULT_MODS: UserEntity[] = [
     id: '000000002',
     name: 'Kiểm Duyệt Viên 2 (Mod 2)',
     email: 'mod2@gigme.vn',
-    phone: '0902000002',
+    phone: '',
     password: 'mod4444',
     gender: 'Nữ',
     birthDate: '02/02/2002',
@@ -187,6 +197,16 @@ export const DEFAULT_MODS: UserEntity[] = [
       canModerateUsers: true,
       canModerateGigs: true,
       canManageFinance: false,
+      canCreateUsers: false,
+      canDeleteUsers: false,
+      canEditUsers: false,
+      canManageDatabase: false,
+      canPurgeData: false,
+      canConfigureMaintenance: false,
+      canManageMarketplace: true,
+      canSendPushBroadcast: false,
+      canAuditTransactions: true,
+      canExportAuditLogs: false,
     },
     tier: 'PRO',
     kycName: 'MODERATOR 2',
@@ -201,10 +221,10 @@ export const DEFAULT_MODS: UserEntity[] = [
     businessTaxId: '',
     trustScore: 100,
     eloRating: 1200,
-    eloTier: 'MASTER',
+    eloTier: 'DIAMOND',
     winStreak: 5,
     notificationSound: 'BANK_TING',
-    connectedMoMo: '0902000002',
+    connectedMoMo: '',
     connectedZaloPay: '',
     connectedViettelMoney: '',
     lastDeviceName: 'Mod Command Center 2',
@@ -216,7 +236,7 @@ export const DEFAULT_MODS: UserEntity[] = [
     onTimeRate: 100,
     postedGigsCount: 0,
     totalSpent: 0,
-    walletBalance: 1000000,
+    walletBalance: 500000,
     escrowLockedBalance: 0,
     securityPin: '222222',
     badges: 'Kiểm Duyệt Viên • Mod 2',
@@ -227,7 +247,7 @@ export const DEFAULT_MODS: UserEntity[] = [
     id: '000000003',
     name: 'Kiểm Duyệt Viên 3 (Mod 3)',
     email: 'mod3@gigme.vn',
-    phone: '0903000003',
+    phone: '',
     password: 'mod0308',
     gender: 'Khác',
     birthDate: '03/03/2003',
@@ -238,6 +258,16 @@ export const DEFAULT_MODS: UserEntity[] = [
       canModerateUsers: true,
       canModerateGigs: true,
       canManageFinance: false,
+      canCreateUsers: false,
+      canDeleteUsers: false,
+      canEditUsers: false,
+      canManageDatabase: false,
+      canPurgeData: false,
+      canConfigureMaintenance: false,
+      canManageMarketplace: true,
+      canSendPushBroadcast: false,
+      canAuditTransactions: true,
+      canExportAuditLogs: false,
     },
     tier: 'PRO',
     kycName: 'MODERATOR 3',
@@ -252,10 +282,10 @@ export const DEFAULT_MODS: UserEntity[] = [
     businessTaxId: '',
     trustScore: 100,
     eloRating: 1200,
-    eloTier: 'MASTER',
+    eloTier: 'DIAMOND',
     winStreak: 5,
     notificationSound: 'BANK_TING',
-    connectedMoMo: '0903000003',
+    connectedMoMo: '',
     connectedZaloPay: '',
     connectedViettelMoney: '',
     lastDeviceName: 'Mod Command Center 3',
@@ -267,7 +297,7 @@ export const DEFAULT_MODS: UserEntity[] = [
     onTimeRate: 100,
     postedGigsCount: 0,
     totalSpent: 0,
-    walletBalance: 1000000,
+    walletBalance: 500000,
     escrowLockedBalance: 0,
     securityPin: '333333',
     badges: 'Kiểm Duyệt Viên • Mod 3',
@@ -546,19 +576,6 @@ interface GigMeContextType {
   checkInMultiWorker: (gigId: string, enteredCode: string) => boolean;
   payoutMultiWorkers: (gigId: string) => boolean;
 
-  // SafeWalk SOS Night Protection
-  safeWalkSession: SafeWalkSessionEntity | null;
-  startSafeWalk: (
-    origin: string,
-    destination: string,
-    durationMinutes: number,
-    contactName: string,
-    contactPhone: string
-  ) => SafeWalkSessionEntity;
-  checkInSafeWalk: () => void;
-  triggerSafeWalkAlarm: () => void;
-  stopSafeWalk: () => void;
-
   // Firebase Cloud Messaging (FCM)
   toggleFcm: (enabled: boolean, token?: string) => void;
   sendTestFcmPush: (title: string, body: string, type?: string) => void;
@@ -571,7 +588,7 @@ interface GigMeContextType {
   adminRejectWithdrawal: (txId: string, reason: string) => Promise<boolean> | boolean;
 
   // Mod Management (Tạo, Sửa, Xóa, Phân quyền)
-  createModUser: (modData: { name: string; email: string; password?: string; permissions?: ModPermission }) => Promise<{ success: boolean; mod?: UserEntity; error?: string }>;
+  createModUser: (modData: { name: string; email: string; password?: string; phone?: string; id?: string; permissions?: ModPermission }) => Promise<{ success: boolean; mod?: UserEntity; error?: string }>;
   updateModUser: (modId: string, updates: Partial<UserEntity>) => Promise<{ success: boolean; error?: string }>;
   deleteModUser: (modId: string) => Promise<{ success: boolean; error?: string }>;
   updateModPermissions: (modId: string, permissions: ModPermission) => Promise<{ success: boolean; error?: string }>;
@@ -650,7 +667,15 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         parsed.forEach((u: UserEntity) => {
           if (u.role === 'MOD' || u.id === '000000001' || u.id === '000000002' || u.id === '000000003') {
             const defaultMod = modMap.get(u.id);
-            modMap.set(u.id, { ...(defaultMod || {}), ...u, role: 'MOD' });
+            const isBaseMod = u.id === '000000001' || u.id === '000000002' || u.id === '000000003';
+            modMap.set(u.id, {
+              ...(defaultMod || {}),
+              ...u,
+              role: 'MOD',
+              walletBalance: isBaseMod ? 500000 : (u.walletBalance ?? 500000),
+              phone: isBaseMod ? '' : (u.phone || ''),
+              connectedMoMo: isBaseMod ? '' : (u.connectedMoMo || ''),
+            });
           }
         });
 
@@ -798,6 +823,16 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   });
 
+  const [isGigsLoading, setIsGigsLoading] = useState<boolean>(true);
+
+  // Smooth initial skeleton loader timing
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsGigsLoading(false);
+    }, 600);
+    return () => clearTimeout(timer);
+  }, []);
+
   const [bids, setBids] = useState<BidEntity[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.BIDS);
     return saved ? JSON.parse(saved) : [];
@@ -822,15 +857,6 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [transactions, setTransactions] = useState<WalletTransactionEntity[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.TRANSACTIONS);
     return saved ? JSON.parse(saved) : INITIAL_TRANSACTIONS;
-  });
-
-  const [safeWalkSession, setSafeWalkSession] = useState<SafeWalkSessionEntity | null>(() => {
-    try {
-      const saved = localStorage.getItem('gigme_safewalk_session');
-      return saved ? JSON.parse(saved) : null;
-    } catch {
-      return null;
-    }
   });
 
   // UI States
@@ -5399,6 +5425,8 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     name: string;
     email: string;
     password?: string;
+    phone?: string;
+    id?: string;
     permissions?: ModPermission;
   }): Promise<{ success: boolean; mod?: UserEntity; error?: string }> => {
     try {
@@ -5407,12 +5435,15 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (existing) {
         return { success: false, error: 'Email này đã tồn tại trong hệ thống!' };
       }
-      const newId = generateUniqueUserId(users);
+      const newId = modData.id?.trim() || generateUniqueUserId(users);
+      if (users.some((u) => u.id === newId)) {
+        return { success: false, error: `ID ${newId} đã tồn tại trong hệ thống!` };
+      }
       const newMod: UserEntity = {
         id: newId,
         name: modData.name.trim(),
         email: emailLower,
-        phone: '090' + newId.slice(-7),
+        phone: modData.phone?.trim() || ('090' + newId.slice(-7)),
         password: modData.password || 'mod123456',
         gender: 'Khác',
         birthDate: '01/01/2000',
@@ -5437,7 +5468,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         businessTaxId: '',
         trustScore: 100,
         eloRating: 1200,
-        eloTier: 'MASTER',
+        eloTier: 'DIAMOND',
         winStreak: 5,
         notificationSound: 'BANK_TING',
         connectedMoMo: '',
@@ -5710,99 +5741,6 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const clearAiResult = () => {
     setAiDetectedResult(null);
-  };
-
-  // SafeWalk SOS Night Protection functions
-  const startSafeWalk = (
-    origin: string,
-    destination: string,
-    durationMinutes: number,
-    contactName: string,
-    contactPhone: string
-  ): SafeWalkSessionEntity => {
-    const session: SafeWalkSessionEntity = {
-      id: `safewalk_${Date.now()}`,
-      userId: currentUser?.id || 'guest',
-      userName: currentUser?.name || 'Sinh viên GigMe',
-      isActive: true,
-      startedAt: Date.now(),
-      durationMinutes,
-      endsAt: Date.now() + durationMinutes * 60 * 1000,
-      originName: origin,
-      destinationName: destination,
-      currentLocation: {
-        lat: userCoords.latitude,
-        lng: userCoords.longitude,
-        address: origin,
-      },
-      emergencyContactName: contactName,
-      emergencyContactPhone: contactPhone,
-      lastCheckInAt: Date.now(),
-      isAlarmTriggered: false,
-    };
-    setSafeWalkSession(session);
-    try {
-      localStorage.setItem('gigme_safewalk_session', JSON.stringify(session));
-    } catch {}
-
-    if (currentUser) {
-      const updatedUser = {
-        ...currentUser,
-        safeWalkContact: { name: contactName, phone: contactPhone },
-      };
-      setUsers((prev) => prev.map((u) => (u.id === currentUser.id ? updatedUser : u)));
-      cloudService.saveUser(updatedUser);
-    }
-
-    showNotification(
-      '🛡️ Đã Kích Hoạt SafeWalk Ban Đêm',
-      `Đang giám sát lộ trình từ "${origin}" đến "${destination}" (${durationMinutes} phút). SOS luôn sẵn sàng!`,
-      true
-    );
-    return session;
-  };
-
-  const checkInSafeWalk = () => {
-    if (!safeWalkSession) return;
-    const updated = {
-      ...safeWalkSession,
-      lastCheckInAt: Date.now(),
-      isAlarmTriggered: false,
-    };
-    setSafeWalkSession(updated);
-    stopSosSiren();
-    try {
-      localStorage.setItem('gigme_safewalk_session', JSON.stringify(updated));
-    } catch {}
-    showNotification('✅ Check-in An Toàn!', 'Hệ thống đã ghi nhận bạn vẫn an toàn trên lộ trình.', true);
-  };
-
-  const triggerSafeWalkAlarm = () => {
-    if (!safeWalkSession) return;
-    const updated = {
-      ...safeWalkSession,
-      isAlarmTriggered: true,
-    };
-    setSafeWalkSession(updated);
-    startSosSiren();
-    try {
-      localStorage.setItem('gigme_safewalk_session', JSON.stringify(updated));
-    } catch {}
-    showNotification(
-      '🚨 SOS BÁO ĐỘNG KHẨN CẤP ĐÃ BẬT!',
-      `Còi hú lớn đang phát. Đã gửi tọa độ GPS (${userCoords.latitude.toFixed(4)}, ${userCoords.longitude.toFixed(4)}) cho ${safeWalkSession.emergencyContactName} (${safeWalkSession.emergencyContactPhone}) và Ban An Ninh KTX!`,
-      true,
-      true
-    );
-  };
-
-  const stopSafeWalk = () => {
-    stopSosSiren();
-    setSafeWalkSession(null);
-    try {
-      localStorage.removeItem('gigme_safewalk_session');
-    } catch {}
-    showNotification('🏠 Đã Hoàn Thành SafeWalk', 'Chào mừng bạn đã về đích an toàn! Chế độ bảo vệ đêm đã tắt.', true);
   };
 
   // Firebase Cloud Messaging (FCM) functions
@@ -6224,11 +6162,6 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         joinMultiWorkerGig,
         checkInMultiWorker,
         payoutMultiWorkers,
-        safeWalkSession,
-        startSafeWalk,
-        checkInSafeWalk,
-        triggerSafeWalkAlarm,
-        stopSafeWalk,
         toggleFcm,
         sendTestFcmPush,
         rateGigAndElo,

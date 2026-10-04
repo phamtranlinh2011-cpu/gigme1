@@ -9,7 +9,7 @@
         "name": { "type": "string", "maxLength": 100 },
         "email": { "type": "string", "maxLength": 120 },
         "phone": { "type": "string", "maxLength": 20 },
-        "role": { "type": "string", "enum": ["USER", "ADMIN"] },
+        "role": { "type": "string", "enum": ["USER", "ADMIN", "MOD"] },
         "studentSchool": { "type": "string", "maxLength": 150 },
         "studentId": { "type": "string", "maxLength": 50 },
         "walletBalance": { "type": "number" },
@@ -128,6 +128,10 @@
     "/users/{userId}": {
       "schema": "User",
       "description": "User profile collection"
+    },
+    "/users/{userId}/transactions/{transactionId}": {
+      "schema": "WalletTransaction",
+      "description": "User individual sub-collection transactions"
     },
     "/gigs/{gigId}": {
       "schema": "Gig",

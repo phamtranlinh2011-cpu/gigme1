@@ -8,7 +8,8 @@ export type HapticType =
   | 'success'
   | 'escrow'
   | 'nfc'
-  | 'error';
+  | 'error'
+  | 'selection';
 
 export function triggerHaptic(type: HapticType = 'light'): void {
   if (typeof window === 'undefined') return;
@@ -17,6 +18,7 @@ export function triggerHaptic(type: HapticType = 'light'): void {
   if ('navigator' in window && typeof navigator.vibrate === 'function') {
     try {
       switch (type) {
+        case 'selection':
         case 'light':
           // Rung cực nhẹ khi chạm nút hoặc tương tác thông thường
           navigator.vibrate(15);

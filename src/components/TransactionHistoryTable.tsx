@@ -134,7 +134,7 @@ export const TransactionHistoryTable: React.FC<TransactionHistoryTableProps> = (
         if (!isEscrow) return false;
       } else if (filterType === 'REFUND') {
         const isRefund =
-          tx.type === 'REFUND' ||
+          tx.type === 'ADMIN_REFUND' ||
           (tx.title && tx.title.toLowerCase().includes('hoàn')) ||
           (tx.description && tx.description.toLowerCase().includes('hoàn'));
         if (!isRefund) return false;
@@ -215,46 +215,6 @@ export const TransactionHistoryTable: React.FC<TransactionHistoryTableProps> = (
 
   return (
     <div className="space-y-3.5 animate-fade-in">
-      {/* Real-time Subcollection Sync Indicator */}
-      <div className="flex items-center justify-between p-2.5 rounded-2xl bg-[#0E1B2E] border border-[#C5E5EC]/20 text-[11px] shadow-sm">
-        <div className="flex items-center space-x-2">
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-          </span>
-          <span className="text-[#C5E5EC] font-semibold flex items-center gap-1">
-            <Database className="w-3.5 h-3.5 text-[#E0FAEB]" />
-            <span>
-              {language === 'vi'
-                ? `Firestore Sub-collection: users/${userId || '...'}/transactions`
-                : `Firestore Sub-collection: users/${userId || '...'}/transactions`}
-            </span>
-          </span>
-        </div>
-
-        <div className="flex items-center space-x-2">
-          <button
-            type="button"
-            onClick={handleManualRefresh}
-            disabled={isLoading}
-            className="p-1.5 rounded-lg bg-[#12233B] hover:bg-[#162B48] text-[#C5E5EC] border border-[#C5E5EC]/20 transition cursor-pointer active:scale-95 disabled:opacity-40"
-            title={language === 'vi' ? 'Làm mới từ Firestore' : 'Refresh from Firestore'}
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-[#E0FAEB]' : ''}`} />
-          </button>
-          {onOpenStatementModal && (
-            <button
-              type="button"
-              onClick={onOpenStatementModal}
-              className="px-2.5 py-1 rounded-lg bg-[#3064AE]/30 hover:bg-[#3064AE]/50 text-[#C5E5EC] border border-[#C5E5EC]/25 font-bold flex items-center space-x-1 transition text-[10px] cursor-pointer"
-            >
-              <FileSpreadsheet className="w-3 h-3 text-[#E0FAEB]" />
-              <span>{language === 'vi' ? 'Xuất Báo Cáo' : 'Export Report'}</span>
-            </button>
-          )}
-        </div>
-      </div>
-
       {/* Header, Search & Filter Bar */}
       <div className="space-y-2.5">
         <div className="flex items-center justify-between flex-wrap gap-2">

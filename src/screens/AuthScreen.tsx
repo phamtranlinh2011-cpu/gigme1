@@ -637,29 +637,67 @@ export const AuthScreen: React.FC = () => {
           {/* 1. LOGIN */}
           {activeTab === 'LOGIN' && (
             <div className="space-y-4">
-              {/* Cổng Quản Trị Viên Hệ Thống - Chỉ hiển thị khi có tham số bí mật (?admin=1) hoặc chạm logo 5 lần */}
+              {/* Cổng Quản Trị Viên & Kiểm Duyệt Viên - Hiển thị khi có (?admin=1) hoặc chạm logo 5 lần */}
               {isAdminMode && (
-                <div className="flex items-center justify-between p-2.5 rounded-xl bg-purple-950/50 border border-purple-500/40 text-xs animate-fade-in shadow-lg shadow-purple-950/40">
-                  <span className="text-[11px] text-purple-200 font-semibold flex items-center">
-                    <Sparkles className="w-3.5 h-3.5 mr-1 text-purple-400" />
-                    {language === 'vi' ? 'Cổng Quản Trị Hệ Thống (Admin)' : 'Master Admin Command Gate'}
-                  </span>
-                  <div className="flex items-center space-x-1.5">
-                    <button
-                      type="button"
-                      onClick={() => handleQuickLogin('admin@admin.vn', 'admin1507')}
-                      disabled={isLoggingIn}
-                      className="px-2.5 py-1 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-[11px] font-bold transition active:scale-95 shadow-xs cursor-pointer"
-                    >
-                      {language === 'vi' ? 'Đăng Nhập Admin' : 'Admin Login'}
-                    </button>
+                <div className="p-3 rounded-2xl bg-purple-950/60 border border-purple-500/40 text-xs animate-fade-in shadow-xl shadow-purple-950/50 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] text-purple-200 font-extrabold flex items-center">
+                      <Sparkles className="w-3.5 h-3.5 mr-1 text-purple-400" />
+                      {language === 'vi' ? 'Cổng Quản Trị & Kiểm Duyệt (Admin & Mods)' : 'Admin & Moderators Gate'}
+                    </span>
                     <button
                       type="button"
                       onClick={() => setIsAdminMode(false)}
                       className="p-1 rounded-md text-slate-400 hover:text-white cursor-pointer"
-                      title={language === 'vi' ? 'Ẩn cổng admin' : 'Hide admin portal'}
+                      title={language === 'vi' ? 'Ẩn cổng quản trị' : 'Hide portal'}
                     >
                       &times;
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-1.5 pt-1">
+                    {/* Admin */}
+                    <button
+                      type="button"
+                      onClick={() => handleQuickLogin('admin@gigme.vn', 'admin1507')}
+                      disabled={isLoggingIn}
+                      className="px-2.5 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-[10px] font-bold transition active:scale-95 shadow-xs flex flex-col items-center cursor-pointer disabled:opacity-50"
+                    >
+                      <span className="font-black">Quản Trị Tối Cao</span>
+                      <span className="font-mono text-[9px] text-purple-200">000000000 • admin1507</span>
+                    </button>
+
+                    {/* Mod 1 */}
+                    <button
+                      type="button"
+                      onClick={() => handleQuickLogin('mod1@gigme.vn', 'mod1999')}
+                      disabled={isLoggingIn}
+                      className="px-2.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold transition active:scale-95 shadow-xs flex flex-col items-center cursor-pointer disabled:opacity-50"
+                    >
+                      <span className="font-black">Kiểm Duyệt 1 (Mod 1)</span>
+                      <span className="font-mono text-[9px] text-indigo-200">000000001 • mod1999</span>
+                    </button>
+
+                    {/* Mod 2 */}
+                    <button
+                      type="button"
+                      onClick={() => handleQuickLogin('mod2@gigme.vn', 'mod4444')}
+                      disabled={isLoggingIn}
+                      className="px-2.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-bold transition active:scale-95 shadow-xs flex flex-col items-center cursor-pointer disabled:opacity-50"
+                    >
+                      <span className="font-black">Kiểm Duyệt 2 (Mod 2)</span>
+                      <span className="font-mono text-[9px] text-blue-200">000000002 • mod4444</span>
+                    </button>
+
+                    {/* Mod 3 */}
+                    <button
+                      type="button"
+                      onClick={() => handleQuickLogin('mod3@gigme.vn', 'mod0308')}
+                      disabled={isLoggingIn}
+                      className="px-2.5 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white text-[10px] font-bold transition active:scale-95 shadow-xs flex flex-col items-center cursor-pointer disabled:opacity-50"
+                    >
+                      <span className="font-black">Kiểm Duyệt 3 (Mod 3)</span>
+                      <span className="font-mono text-[9px] text-teal-200">000000003 • mod0308</span>
                     </button>
                   </div>
                 </div>
