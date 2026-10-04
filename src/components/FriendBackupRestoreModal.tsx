@@ -42,6 +42,7 @@ export const FriendBackupRestoreModal: React.FC<FriendBackupRestoreModalProps> =
     addFriendById,
     updateUserProfile,
     showNotification,
+    language,
   } = useGigMe();
 
   const [activeTab, setActiveTab] = useState<'BACKUP' | 'RESTORE'>(defaultTab);
@@ -61,7 +62,7 @@ export const FriendBackupRestoreModal: React.FC<FriendBackupRestoreModalProps> =
     const payload: BackupPayload = {
       version: '2.0-campus',
       userId: currentUser?.id || '000000000',
-      userName: currentUser?.name || 'Sinh Viên',
+      userName: currentUser?.name || (language === 'vi' ? 'Sinh Viên' : 'Student'),
       createdAt: Date.now(),
       friendCount: currentFriendIds.length,
       friendIds: currentFriendIds,
@@ -81,7 +82,10 @@ export const FriendBackupRestoreModal: React.FC<FriendBackupRestoreModalProps> =
     navigator.clipboard.writeText(backupCompactCode);
     setCopiedToken(true);
     playNotificationSound('DING_DEFAULT');
-    showNotification('Đã sao chép mã sao lưu', 'Mã sao lưu danh bạ đã được lưu vào bộ nhớ tạm.');
+    showNotification(
+      language === 'vi' ? 'Đã sao chép mã sao lưu' : 'Backup Code Copied',
+      language === 'vi' ? 'Mã sao lưu danh bạ đã được lưu vào bộ nhớ tạm.' : 'Contacts backup code copied to clipboard.'
+    );
     setTimeout(() => setCopiedToken(false), 2500);
   };
 
@@ -96,7 +100,10 @@ export const FriendBackupRestoreModal: React.FC<FriendBackupRestoreModalProps> =
       .slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    showNotification('Tải tệp thành công', 'Tệp danh bạ bạn bè .json đã được lưu về máy.');
+    showNotification(
+      language === 'vi' ? 'Tải tệp thành công' : 'File Downloaded',
+      language === 'vi' ? 'Tệp danh bạ bạn bè .json đã được lưu về máy.' : 'Contacts .json file saved to your device.'
+    );
   };
 
   // Cloud Sync
@@ -110,8 +117,10 @@ export const FriendBackupRestoreModal: React.FC<FriendBackupRestoreModalProps> =
     }
     playNotificationSound('LEVEL_UP');
     showNotification(
-      'Đồng Bộ Đám Mây An Toàn',
-      `Đã đồng bộ ${currentFriendIds.length} bạn bè lên Cloud Firestore.`
+      language === 'vi' ? 'Đồng Bộ Đám Mây An Toàn' : 'Cloud Sync Complete',
+      language === 'vi'
+        ? `Đã đồng bộ ${currentFriendIds.length} bạn bè lên Cloud Firestore.`
+        : `Synced ${currentFriendIds.length} contacts to Cloud Firestore.`
     );
     setTimeout(() => setCloudSynced(false), 3000);
   };
@@ -120,7 +129,11 @@ export const FriendBackupRestoreModal: React.FC<FriendBackupRestoreModalProps> =
   const handleRestore = () => {
     const clean = restoreInput.trim();
     if (!clean) {
-      setRestoreError('Vui lòng nhập mã sao lưu hoặc dán nội dung tệp JSON vào ô bên dưới.');
+      setRestoreError(
+        language === 'vi'
+          ? 'Vui lòng nhập mã sao lưu hoặc dán nội dung tệp JSON vào ô bên dưới.'
+          : 'Please enter a backup code or paste the JSON content below.'
+      );
       return;
     }
 
@@ -145,7 +158,11 @@ export const FriendBackupRestoreModal: React.FC<FriendBackupRestoreModalProps> =
       }
 
       if (incomingIds.length === 0) {
-        setRestoreError('Không tìm thấy danh sách ID bạn bè hợp lệ trong dữ liệu được cung cấp.');
+        setRestoreError(
+          language === 'vi'
+            ? 'Không tìm thấy danh sách ID bạn bè hợp lệ trong dữ liệu được cung cấp.'
+            : 'No valid friend IDs found in the provided backup data.'
+        );
         return;
       }
 
@@ -161,12 +178,18 @@ export const FriendBackupRestoreModal: React.FC<FriendBackupRestoreModalProps> =
       setRestoreSuccessCount(addedCount);
       playNotificationSound('SUCCESS_CHIME');
       showNotification(
-        'Khôi Phục Danh Bạ Thành Công',
-        `Đã nạp thành công ${incomingIds.length} bạn bè (thêm mới: ${addedCount}).`
+        language === 'vi' ? 'Khôi Phục Danh Bạ Thành Công' : 'Contacts Restored Successfully',
+        language === 'vi'
+          ? `Đã nạp thành công ${incomingIds.length} bạn bè (thêm mới: ${addedCount}).`
+          : `Processed ${incomingIds.length} contacts (${addedCount} newly added).`
       );
       setRestoreInput('');
     } catch (err: any) {
-      setRestoreError('Mã sao lưu hoặc định dạng JSON không hợp lệ: ' + (err?.message || 'Lỗi xử lý'));
+      setRestoreError(
+        language === 'vi'
+          ? 'Mã sao lưu hoặc định dạng JSON không hợp lệ: ' + (err?.message || 'Lỗi xử lý')
+          : 'Invalid backup code or JSON format: ' + (err?.message || 'Processing error')
+      );
     }
   };
 
@@ -189,19 +212,22 @@ export const FriendBackupRestoreModal: React.FC<FriendBackupRestoreModalProps> =
             </div>
             <div>
               <h3 className="font-black text-sm sm:text-base text-white flex items-center space-x-1.5">
-                <span>Sao Lưu & Khôi Phục Danh Bạ</span>
+                <span>{language === 'vi' ? 'Sao Lưu & Khôi Phục Danh Bạ' : 'Backup & Restore Contacts'}</span>
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30">
-                  ID 9 Số
+                  {language === 'vi' ? 'ID 9 Số' : '9-Digit ID'}
                 </span>
               </h3>
               <p className="text-[11px] text-[#C5E5EC]/70">
-                Bảo vệ danh bạ bạn bè khi đổi điện thoại hoặc cài lại ứng dụng
+                {language === 'vi'
+                  ? 'Bảo vệ danh bạ bạn bè khi đổi điện thoại hoặc cài lại ứng dụng'
+                  : 'Safeguard contacts when switching phones or reinstalling the app'}
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
             className="p-1.5 rounded-xl hover:bg-white/10 text-[#C5E5EC]/70 hover:text-white transition cursor-pointer"
+            aria-label="Close"
           >
             <X className="w-5 h-5" />
           </button>
@@ -221,7 +247,7 @@ export const FriendBackupRestoreModal: React.FC<FriendBackupRestoreModalProps> =
             }`}
           >
             <Download className="w-3.5 h-3.5" />
-            <span>1. Sao Lưu Lên Đám Mây</span>
+            <span>{language === 'vi' ? '1. Sao Lưu Lên Đám Mây' : '1. Cloud Backup'}</span>
           </button>
           <button
             onClick={() => setActiveTab('RESTORE')}
@@ -232,7 +258,7 @@ export const FriendBackupRestoreModal: React.FC<FriendBackupRestoreModalProps> =
             }`}
           >
             <Upload className="w-3.5 h-3.5" />
-            <span>2. Khôi Phục Danh Bạ</span>
+            <span>{language === 'vi' ? '2. Khôi Phục Danh Bạ' : '2. Restore Contacts'}</span>
           </button>
         </div>
 
@@ -248,10 +274,12 @@ export const FriendBackupRestoreModal: React.FC<FriendBackupRestoreModalProps> =
                   </div>
                   <div>
                     <span className="font-extrabold text-white text-xs block">
-                      Tổng bạn bè hiện tại: {currentFriendIds.length} người
+                      {language === 'vi' ? 'Tổng bạn bè hiện tại: ' : 'Total active contacts: '}
+                      {currentFriendIds.length} {language === 'vi' ? 'người' : 'friends'}
                     </span>
                     <span className="text-[10px] text-[#C5E5EC]/70">
-                      Tài khoản của bạn: ID {currentUser?.id}
+                      {language === 'vi' ? 'Tài khoản của bạn: ID ' : 'Your account ID: '}
+                      {currentUser?.id}
                     </span>
                   </div>
                 </div>
@@ -261,14 +289,18 @@ export const FriendBackupRestoreModal: React.FC<FriendBackupRestoreModalProps> =
                   className="px-3 py-1.5 rounded-xl bg-emerald-600/30 hover:bg-emerald-600/50 border border-emerald-500/40 text-[#E0FAEB] font-bold text-xs flex items-center space-x-1 transition cursor-pointer"
                 >
                   <RefreshCw className={`w-3.5 h-3.5 ${cloudSynced ? 'animate-spin text-emerald-300' : ''}`} />
-                  <span>{cloudSynced ? 'Đã Đồng Bộ' : 'Đồng Bộ Cloud'}</span>
+                  <span>
+                    {cloudSynced
+                      ? language === 'vi' ? 'Đã Đồng Bộ' : 'Synced'
+                      : language === 'vi' ? 'Đồng Bộ Cloud' : 'Cloud Sync'}
+                  </span>
                 </button>
               </div>
 
               {/* Compact Backup Token */}
               <div className="space-y-1.5">
                 <label className="block text-xs font-bold text-[#C5E5EC]">
-                  Mã Sao Lưu Bảo Mật (Portable Backup Code):
+                  {language === 'vi' ? 'Mã Sao Lưu Bảo Mật (Portable Backup Code):' : 'Portable Encrypted Backup Code:'}
                 </label>
                 <div className="p-2.5 rounded-xl bg-[#0A1322] border border-[#C5E5EC]/30 font-mono text-[11px] text-[#E0FAEB] break-all select-all">
                   {backupCompactCode}
@@ -280,16 +312,20 @@ export const FriendBackupRestoreModal: React.FC<FriendBackupRestoreModalProps> =
                     className="flex-1 py-2 px-3 rounded-xl bg-[#3064AE] hover:bg-[#255294] text-white font-bold text-xs border border-[#C5E5EC]/30 flex items-center justify-center space-x-1.5 transition cursor-pointer"
                   >
                     <Copy className="w-3.5 h-3.5" />
-                    <span>{copiedToken ? 'Đã Sao Chép!' : 'Sao Chép Mã Nhanh'}</span>
+                    <span>
+                      {copiedToken
+                        ? language === 'vi' ? 'Đã Sao Chép!' : 'Copied!'
+                        : language === 'vi' ? 'Sao Chép Mã Nhanh' : 'Copy Code'}
+                    </span>
                   </button>
 
                   <button
                     onClick={handleDownloadJson}
                     className="py-2 px-3 rounded-xl bg-[#12233B] hover:bg-[#1b345a] text-[#C5E5EC] hover:text-white font-bold text-xs border border-[#C5E5EC]/20 flex items-center space-x-1.5 transition cursor-pointer"
-                    title="Tải tệp tin dự phòng .JSON"
+                    title={language === 'vi' ? 'Tải tệp tin dự phòng .JSON' : 'Download .JSON file'}
                   >
                     <FileJson className="w-3.5 h-3.5 text-amber-400" />
-                    <span>Tải File .JSON</span>
+                    <span>{language === 'vi' ? 'Tải File .JSON' : 'Download JSON'}</span>
                   </button>
                 </div>
               </div>
@@ -298,7 +334,9 @@ export const FriendBackupRestoreModal: React.FC<FriendBackupRestoreModalProps> =
               <div className="p-3 rounded-2xl bg-sky-950/30 border border-sky-500/25 flex items-start space-x-2 text-[11px] text-[#C5E5EC]/80">
                 <ShieldCheck className="w-4 h-4 text-sky-400 shrink-0 mt-0.5" />
                 <span>
-                  Mã sao lưu đã được mã hóa an toàn. Khi đổi máy điện thoại khác, chỉ cần nhập mã này là danh bạ sẽ khôi phục 100% trong 1 giây.
+                  {language === 'vi'
+                    ? 'Mã sao lưu đã được mã hóa an toàn. Khi đổi máy điện thoại khác, chỉ cần nhập mã này là danh bạ sẽ khôi phục 100% trong 1 giây.'
+                    : 'Encrypted securely. On any other phone or device, simply paste this code to restore 100% of your campus contacts in seconds.'}
                 </span>
               </div>
             </div>
@@ -308,7 +346,9 @@ export const FriendBackupRestoreModal: React.FC<FriendBackupRestoreModalProps> =
             <div className="space-y-4 animate-fade-in">
               <div className="space-y-1.5">
                 <label className="block text-xs font-bold text-[#C5E5EC]">
-                  Dán Mã Sao Lưu hoặc Nội Dung File .JSON vào đây:
+                  {language === 'vi'
+                    ? 'Dán Mã Sao Lưu hoặc Nội Dung File .JSON vào đây:'
+                    : 'Paste Backup Code or JSON content below:'}
                 </label>
                 <textarea
                   rows={4}
@@ -317,7 +357,11 @@ export const FriendBackupRestoreModal: React.FC<FriendBackupRestoreModalProps> =
                     setRestoreInput(e.target.value);
                     setRestoreError('');
                   }}
-                  placeholder="Dán mã sao lưu bắt đầu bằng GIGME-BAK-... hoặc nội dung JSON tệp sao lưu..."
+                  placeholder={
+                    language === 'vi'
+                      ? 'Dán mã sao lưu bắt đầu bằng GIGME-BAK-... hoặc nội dung JSON tệp sao lưu...'
+                      : 'Paste code starting with GIGME-BAK-... or raw backup JSON...'
+                  }
                   className="w-full p-3 rounded-xl bg-[#12233B] border border-[#C5E5EC]/30 text-white placeholder:text-[#C5E5EC]/40 text-xs font-mono focus:border-sky-400 focus:outline-none transition"
                 />
               </div>
@@ -333,7 +377,9 @@ export const FriendBackupRestoreModal: React.FC<FriendBackupRestoreModalProps> =
                 <div className="p-3 rounded-2xl bg-emerald-950/40 border border-emerald-500/40 text-emerald-300 text-xs flex items-center space-x-2">
                   <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
                   <span>
-                    Khôi phục thành công! Đã thêm mới <strong>{restoreSuccessCount}</strong> người bạn vào danh bạ của bạn.
+                    {language === 'vi'
+                      ? `Khôi phục thành công! Đã thêm mới ${restoreSuccessCount} người bạn vào danh bạ của bạn.`
+                      : `Successfully restored! Added ${restoreSuccessCount} new contacts.`}
                   </span>
                 </div>
               )}
@@ -343,14 +389,16 @@ export const FriendBackupRestoreModal: React.FC<FriendBackupRestoreModalProps> =
                 className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#3064AE] via-[#417AC6] to-[#C5E5EC] text-white font-extrabold text-xs sm:text-sm hover:brightness-110 shadow-lg shadow-[#3064AE]/30 transition flex items-center justify-center space-x-2 cursor-pointer"
               >
                 <Upload className="w-4 h-4" />
-                <span>Nạp & Đồng Bộ Danh Bạ Ngay &rarr;</span>
+                <span>{language === 'vi' ? 'Nạp & Đồng Bộ Danh Bạ Ngay →' : 'Restore & Sync Contacts Now →'}</span>
               </button>
 
               <div className="p-3 rounded-2xl bg-[#12233B] border border-[#C5E5EC]/15 text-[11px] text-[#C5E5EC]/70 space-y-1">
-                <span className="font-bold text-white block">Hướng dẫn khôi phục:</span>
-                <p>1. Sao chép mã sao lưu từ máy cũ (hoặc mở tệp .json sao lưu).</p>
-                <p>2. Dán vào khung phía trên rồi bấm "Nạp & Đồng Bộ Danh Bạ".</p>
-                <p>3. Hệ thống sẽ tự động ghép nối bạn bè không bị trùng lặp.</p>
+                <span className="font-bold text-white block">
+                  {language === 'vi' ? 'Hướng dẫn khôi phục:' : 'Restore Instructions:'}
+                </span>
+                <p>{language === 'vi' ? '1. Sao chép mã sao lưu từ máy cũ (hoặc mở tệp .json sao lưu).' : '1. Copy the backup code from your previous device (or open .json).'}</p>
+                <p>{language === 'vi' ? '2. Dán vào khung phía trên rồi bấm "Nạp & Đồng Bộ Danh Bạ".' : '2. Paste into the box above and tap "Restore & Sync Contacts".'}</p>
+                <p>{language === 'vi' ? '3. Hệ thống sẽ tự động ghép nối bạn bè không bị trùng lặp.' : '3. Contacts will merge automatically without duplicates.'}</p>
               </div>
             </div>
           )}

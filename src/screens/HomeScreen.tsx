@@ -27,6 +27,7 @@ import {
   Scale,
 } from 'lucide-react';
 import { useGigMe } from '../context/GigMeContext';
+import { useTranslation } from '../context/LanguageContext';
 import { formatVnd, GigEntity } from '../types';
 import { VIETNAM_HUBS } from '../utils/geo';
 import { triggerHaptic } from '../utils/haptics';
@@ -128,9 +129,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     setUserCoords,
     refreshCloudConnection,
     users,
-    language,
-    t,
   } = useGigMe();
+  const { language, t } = useTranslation();
 
   const getCategoryLabel = (cat: string) => {
     if (language === 'vi') return cat;

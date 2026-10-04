@@ -1,6 +1,7 @@
 import React from 'react';
 import { ShieldCheck, GraduationCap, SmartphoneNfc } from 'lucide-react';
 import { triggerHaptic } from '../utils/haptics';
+import { useGigMe } from '../context/GigMeContext';
 
 export type VerificationType = 'BOTH' | 'CCCD' | 'STUDENT';
 
@@ -27,6 +28,7 @@ export const VerifiedIdentityBadge: React.FC<VerifiedIdentityBadgeProps> = ({
   onBadgeClick,
   className = '',
 }) => {
+  const { language } = useGigMe();
   const isSm = size === 'sm';
   const isLg = size === 'lg';
 
@@ -61,7 +63,11 @@ export const VerifiedIdentityBadge: React.FC<VerifiedIdentityBadgeProps> = ({
         } bg-gradient-to-r from-emerald-500/20 via-sky-500/25 to-teal-500/20 text-[#E0FAEB] border-emerald-400/40 select-none ${
           interactive ? 'cursor-pointer hover:border-emerald-400 hover:scale-105 active:scale-95 transition' : ''
         } ${className}`}
-        title={`Đã xác thực CCCD gắn chip (Bộ Công An C06) và Thẻ SV/Email chính quy trường ${school || 'Đại học'}`}
+        title={
+          language === 'vi'
+            ? `Đã xác thực CCCD gắn chip (Bộ Công An C06) và Thẻ SV/Email chính quy trường ${school || 'Đại học'}`
+            : `Verified NFC Chip ID Card and Student ID at ${school || 'University'}`
+        }
       >
         <span className="flex items-center text-emerald-400">
           <SmartphoneNfc className={isSm ? 'w-3 h-3' : isLg ? 'w-3.5 h-3.5' : 'w-3 h-3'} />
@@ -70,7 +76,9 @@ export const VerifiedIdentityBadge: React.FC<VerifiedIdentityBadgeProps> = ({
         </span>
         {showText && (
           <span className="truncate max-w-[150px] sm:max-w-[200px] tracking-tight">
-            {school ? `CCCD & ${school} ✓` : 'Đã Xác Thực CCCD / Thẻ SV ✓'}
+            {school
+              ? `${language === 'vi' ? 'CCCD & ' : 'ID & '}${school} ✓`
+              : language === 'vi' ? 'Đã Xác Thực CCCD / Thẻ SV ✓' : 'ID & Student Verified ✓'}
           </span>
         )}
       </span>
@@ -91,7 +99,11 @@ export const VerifiedIdentityBadge: React.FC<VerifiedIdentityBadgeProps> = ({
         } bg-gradient-to-r from-teal-500/20 via-emerald-600/25 to-teal-500/20 text-emerald-300 border-emerald-400/40 select-none ${
           interactive ? 'cursor-pointer hover:border-emerald-400 hover:scale-105 active:scale-95 transition' : ''
         } ${className}`}
-        title="Đã xác thực Căn cước công dân gắn chip NFC (Chuẩn C06 Bộ Công An)"
+        title={
+          language === 'vi'
+            ? 'Đã xác thực Căn cước công dân gắn chip NFC (Chuẩn C06 Bộ Công An)'
+            : 'National ID Chip NFC Verified'
+        }
       >
         <span className="flex items-center text-emerald-400">
           <SmartphoneNfc className={isSm ? 'w-3 h-3' : isLg ? 'w-3.5 h-3.5' : 'w-3 h-3'} />
@@ -99,7 +111,7 @@ export const VerifiedIdentityBadge: React.FC<VerifiedIdentityBadgeProps> = ({
         </span>
         {showText && (
           <span className="truncate max-w-[130px] sm:max-w-[160px] tracking-tight">
-            Đã Xác Thực CCCD Chip ✓
+            {language === 'vi' ? 'Đã Xác Thực CCCD Chip ✓' : 'Chip ID Verified ✓'}
           </span>
         )}
       </span>
@@ -119,7 +131,11 @@ export const VerifiedIdentityBadge: React.FC<VerifiedIdentityBadgeProps> = ({
       } bg-gradient-to-r from-sky-500/20 via-blue-600/25 to-cyan-500/20 text-sky-300 border-sky-400/40 select-none ${
         interactive ? 'cursor-pointer hover:border-sky-400 hover:scale-105 active:scale-95 transition' : ''
       } ${className}`}
-      title={`Sinh viên chính quy trường ${school || 'Đại học'} đã xác thực qua Cổng trường / Thẻ SV`}
+      title={
+        language === 'vi'
+          ? `Sinh viên chính quy trường ${school || 'Đại học'} đã xác thực qua Cổng trường / Thẻ SV`
+          : `Student verified at ${school || 'University'} via portal / student ID`
+      }
     >
       <span className="flex items-center text-sky-400">
         <GraduationCap className={isSm ? 'w-3 h-3' : isLg ? 'w-4 h-4' : 'w-3.5 h-3.5'} />
@@ -127,7 +143,7 @@ export const VerifiedIdentityBadge: React.FC<VerifiedIdentityBadgeProps> = ({
       </span>
       {showText && (
         <span className="truncate max-w-[130px] sm:max-w-[160px] tracking-tight">
-          {school ? `${school} ✓` : 'Đã Xác Thực Thẻ SV ✓'}
+          {school ? `${school} ✓` : language === 'vi' ? 'Đã Xác Thực Thẻ SV ✓' : 'Student Verified ✓'}
         </span>
       )}
     </span>

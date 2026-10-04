@@ -30,7 +30,8 @@ interface ExtractedStudentData {
 
 const PRESET_CARDS = [
   {
-    name: 'Thẻ SV ĐH Tôn Đức Thắng (TDTU)',
+    nameVi: 'Thẻ SV ĐH Tôn Đức Thắng (TDTU)',
+    nameEn: 'Ton Duc Thang Univ Card (TDTU)',
     image: 'https://images.unsplash.com/photo-1544717305-2782549b5136?w=600&auto=format&fit=crop&q=80',
     data: {
       schoolName: 'Đại học Tôn Đức Thắng (TDTU)',
@@ -42,7 +43,8 @@ const PRESET_CARDS = [
     },
   },
   {
-    name: 'Thẻ SV ĐH Bách Khoa TP.HCM (HCMUT)',
+    nameVi: 'Thẻ SV ĐH Bách Khoa TP.HCM (HCMUT)',
+    nameEn: 'HCMUT Polytechnic Univ Card',
     image: 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=600&auto=format&fit=crop&q=80',
     data: {
       schoolName: 'Đại học Bách Khoa TP.HCM (HCMUT)',
@@ -54,7 +56,8 @@ const PRESET_CARDS = [
     },
   },
   {
-    name: 'Thẻ SV ĐH Kinh Tế TP.HCM (UEH)',
+    nameVi: 'Thẻ SV ĐH Kinh Tế TP.HCM (UEH)',
+    nameEn: 'UEH Economics Univ Card',
     image: 'https://images.unsplash.com/photo-1517486808906-6ca8b3f04846?w=600&auto=format&fit=crop&q=80',
     data: {
       schoolName: 'Đại học Kinh Tế TP.HCM (UEH)',
@@ -71,7 +74,7 @@ export const GeminiVisionStudentIdModal: React.FC<GeminiVisionStudentIdModalProp
   isOpen,
   onClose,
 }) => {
-  const { currentUser, verifyStudentSso, showNotification } = useGigMe();
+  const { currentUser, verifyStudentSso, showNotification, language } = useGigMe();
   const [selectedImage, setSelectedImage] = useState<string>(PRESET_CARDS[0].image);
   const [isScanning, setIsScanning] = useState(false);
   const [extractedData, setExtractedData] = useState<ExtractedStudentData | null>(null);
@@ -96,12 +99,19 @@ export const GeminiVisionStudentIdModal: React.FC<GeminiVisionStudentIdModalProp
 
   const handleStartGeminiVisionOCR = async () => {
     setIsScanning(true);
-    setScanStep('Đang tải ảnh thẻ lên Gemini 2.5 Flash Vision...');
+    setScanStep(
+      language === 'vi'
+        ? 'Đang tải ảnh thẻ lên Gemini 2.5 Flash Vision...'
+        : 'Uploading card image to Gemini 2.5 Flash Vision...'
+    );
 
     try {
-      // Step feedback
       const timer1 = setTimeout(() => {
-        setScanStep('Gemini 2.5 Flash đang phân tích kết cấu phông chữ, con dấu & MSSV...');
+        setScanStep(
+          language === 'vi'
+            ? 'Gemini 2.5 Flash đang phân tích kết cấu phông chữ, con dấu & MSSV...'
+            : 'Gemini 2.5 Flash analyzing fonts, seal authenticity & student ID...'
+        );
       }, 700);
 
       const res = await fetch('/api/gemini/ocr-student-card', {
@@ -147,8 +157,10 @@ export const GeminiVisionStudentIdModal: React.FC<GeminiVisionStudentIdModalProp
     const email = `${extractedData.studentId.toLowerCase()}@student.${extractedData.schoolName.toLowerCase().includes('tôn đức thắng') ? 'tdtu' : 'edu'}.vn`;
     verifyStudentSso(extractedData.schoolName, email);
     showNotification(
-      '🎓 Xác thực Thẻ Sinh Viên thành công!',
-      `Gemini Vision OCR đã duyệt thẻ sinh viên ${extractedData.studentId} - ${extractedData.studentName}. Bạn đã đạt Cấp 2: Verified!`,
+      language === 'vi' ? '🎓 Xác thực Thẻ Sinh Viên thành công!' : '🎓 Student ID Verification Successful!',
+      language === 'vi'
+        ? `Gemini Vision OCR đã duyệt thẻ sinh viên ${extractedData.studentId} - ${extractedData.studentName}. Bạn đã đạt Cấp 2: Verified!`
+        : `Gemini Vision OCR verified ID ${extractedData.studentId} - ${extractedData.studentName}. You reached Tier 2: Verified!`,
       true,
       true
     );
@@ -175,20 +187,25 @@ export const GeminiVisionStudentIdModal: React.FC<GeminiVisionStudentIdModalProp
             <div>
               <div className="flex items-center space-x-2">
                 <h3 className="font-extrabold text-sm sm:text-base text-white">
-                  Gemini Vision OCR Kiểm Tra Thẻ Sinh Viên
+                  {language === 'vi'
+                    ? 'Gemini Vision OCR Kiểm Tra Thẻ Sinh Viên'
+                    : 'Gemini Vision OCR Student ID Scanner'}
                 </h3>
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/20 text-[#00E5FF] font-black border border-[#00E5FF]/40">
                   AI 2.5 Vision
                 </span>
               </div>
               <p className="text-xs text-slate-400 mt-0.5">
-                Quét tự động thẻ sinh viên hoặc CCCD sinh viên toàn quốc
+                {language === 'vi'
+                  ? 'Quét tự động thẻ sinh viên hoặc CCCD sinh viên toàn quốc'
+                  : 'Automated optical scan for Vietnamese student ID cards'}
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
             className="p-1.5 rounded-xl bg-slate-800 text-slate-400 hover:text-white"
+            aria-label="Close"
           >
             <X className="w-5 h-5" />
           </button>
@@ -199,7 +216,7 @@ export const GeminiVisionStudentIdModal: React.FC<GeminiVisionStudentIdModalProp
           <div className="relative rounded-2xl overflow-hidden border-2 border-dashed border-cyan-500/50 bg-slate-950 p-2 group">
             <img
               src={selectedImage}
-              alt="Thẻ sinh viên"
+              alt="Student ID Card"
               className="w-full h-52 object-cover rounded-xl brightness-90 group-hover:brightness-100 transition"
             />
 
@@ -208,7 +225,10 @@ export const GeminiVisionStudentIdModal: React.FC<GeminiVisionStudentIdModalProp
               <div className="absolute inset-2 pointer-events-none rounded-xl border border-emerald-400/80 bg-emerald-500/5 flex flex-col justify-between p-3 animate-fade-in">
                 <div className="inline-flex self-start items-center space-x-1 px-2 py-0.5 rounded bg-emerald-500 text-black font-extrabold text-[10px] shadow">
                   <ShieldCheck className="w-3 h-3" />
-                  <span>XÁC THỰC CHÍNH CHỦ: {extractedData.confidenceScore}%</span>
+                  <span>
+                    {language === 'vi' ? 'XÁC THỰC CHÍNH CHỦ: ' : 'AUTHENTICITY: '}
+                    {extractedData.confidenceScore}%
+                  </span>
                 </div>
                 <div className="text-right">
                   <span className="inline-block px-2 py-0.5 rounded bg-black/80 text-cyan-300 font-mono text-[11px] font-bold">
@@ -226,7 +246,9 @@ export const GeminiVisionStudentIdModal: React.FC<GeminiVisionStudentIdModalProp
                   <Sparkles className="w-8 h-8 text-[#00E5FF] absolute inset-0 m-auto animate-pulse" />
                 </div>
                 <span className="font-bold text-sm text-[#00E5FF]">{scanStep}</span>
-                <span className="text-[11px] text-slate-400 mt-1">Mô hình thị giác Gemini 2.5 Flash</span>
+                <span className="text-[11px] text-slate-400 mt-1">
+                  {language === 'vi' ? 'Mô hình thị giác Gemini 2.5 Flash' : 'Gemini 2.5 Flash Vision Model'}
+                </span>
               </div>
             )}
           </div>
@@ -234,7 +256,9 @@ export const GeminiVisionStudentIdModal: React.FC<GeminiVisionStudentIdModalProp
           {/* Preset Sample Selector */}
           <div>
             <label className="block text-slate-300 font-semibold mb-1.5">
-              Hoặc chọn phôi thẻ sinh viên mẫu chuẩn:
+              {language === 'vi'
+                ? 'Hoặc chọn phôi thẻ sinh viên mẫu chuẩn:'
+                : 'Or select a standard sample student card:'}
             </label>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               {PRESET_CARDS.map((card, idx) => (
@@ -245,13 +269,13 @@ export const GeminiVisionStudentIdModal: React.FC<GeminiVisionStudentIdModalProp
                     setSelectedImage(card.image);
                     setExtractedData(null);
                   }}
-                  className={`p-2 rounded-xl border text-left transition text-[11px] ${
+                  className={`p-2 rounded-xl border text-left transition text-[11px] cursor-pointer ${
                     selectedImage === card.image
                       ? 'bg-cyan-500/20 border-[#00E5FF] text-white font-bold'
                       : 'bg-[#131E30] border-slate-700 text-slate-400 hover:text-white'
                   }`}
                 >
-                  <p className="line-clamp-1">{card.name}</p>
+                  <p className="line-clamp-1">{language === 'vi' ? card.nameVi : card.nameEn}</p>
                 </button>
               ))}
             </div>
@@ -262,10 +286,10 @@ export const GeminiVisionStudentIdModal: React.FC<GeminiVisionStudentIdModalProp
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center space-x-1.5 transition text-xs font-semibold"
+              className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center space-x-1.5 transition text-xs font-semibold cursor-pointer"
             >
               <Upload className="w-3.5 h-3.5 text-[#00E5FF]" />
-              <span>Tải ảnh thẻ từ thiết bị</span>
+              <span>{language === 'vi' ? 'Tải ảnh thẻ từ thiết bị' : 'Upload Card from Device'}</span>
             </button>
             <input
               ref={fileInputRef}
@@ -279,10 +303,10 @@ export const GeminiVisionStudentIdModal: React.FC<GeminiVisionStudentIdModalProp
               type="button"
               disabled={isScanning}
               onClick={handleStartGeminiVisionOCR}
-              className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-[#00E5FF] to-blue-500 text-black font-extrabold text-xs hover:brightness-110 shadow-md shadow-cyan-500/20 transition flex items-center justify-center space-x-1.5 disabled:opacity-50"
+              className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-[#00E5FF] to-blue-500 text-black font-extrabold text-xs hover:brightness-110 shadow-md shadow-cyan-500/20 transition flex items-center justify-center space-x-1.5 disabled:opacity-50 cursor-pointer"
             >
               <Sparkles className="w-4 h-4 fill-current" />
-              <span>Quét Bằng Gemini Vision OCR</span>
+              <span>{language === 'vi' ? 'Quét Bằng Gemini Vision OCR' : 'Scan with Gemini Vision'}</span>
             </button>
           </div>
 
@@ -292,28 +316,28 @@ export const GeminiVisionStudentIdModal: React.FC<GeminiVisionStudentIdModalProp
               <div className="flex items-center justify-between pb-2 border-b border-slate-800">
                 <span className="font-extrabold text-white flex items-center space-x-1 text-emerald-400">
                   <CheckCircle2 className="w-4 h-4" />
-                  <span>Dữ Liệu Thẻ Sinh Viên Đã Trích Xuất</span>
+                  <span>{language === 'vi' ? 'Dữ Liệu Thẻ Sinh Viên Đã Trích Xuất' : 'Extracted Student Card Data'}</span>
                 </span>
                 <span className="font-mono text-[11px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold">
-                  Khớp: {extractedData.confidenceScore}%
+                  {language === 'vi' ? 'Khớp: ' : 'Match: '}{extractedData.confidenceScore}%
                 </span>
               </div>
 
               <div className="grid grid-cols-2 gap-2 text-[11px]">
                 <div>
-                  <span className="text-slate-400 block">Trường Đại học:</span>
+                  <span className="text-slate-400 block">{language === 'vi' ? 'Trường Đại học:' : 'University:'}</span>
                   <span className="font-bold text-white">{extractedData.schoolName}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block">Họ và tên:</span>
+                  <span className="text-slate-400 block">{language === 'vi' ? 'Họ và tên:' : 'Full Name:'}</span>
                   <span className="font-bold text-white">{extractedData.studentName}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block">Mã số sinh viên (MSSV):</span>
+                  <span className="text-slate-400 block">{language === 'vi' ? 'Mã số sinh viên (MSSV):' : 'Student ID (MSSV):'}</span>
                   <span className="font-mono font-bold text-[#00E5FF]">{extractedData.studentId}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block">Khoa / Ngành:</span>
+                  <span className="text-slate-400 block">{language === 'vi' ? 'Khoa / Ngành:' : 'Faculty / Major:'}</span>
                   <span className="font-bold text-slate-200">{extractedData.faculty}</span>
                 </div>
               </div>
@@ -321,9 +345,9 @@ export const GeminiVisionStudentIdModal: React.FC<GeminiVisionStudentIdModalProp
               <button
                 type="button"
                 onClick={handleConfirmVerification}
-                className="w-full mt-2 py-2.5 rounded-xl bg-gradient-to-r from-emerald-400 to-teal-400 text-black font-extrabold text-xs hover:brightness-110 shadow-lg shadow-emerald-500/25 transition"
+                className="w-full mt-2 py-2.5 rounded-xl bg-gradient-to-r from-emerald-400 to-teal-400 text-black font-extrabold text-xs hover:brightness-110 shadow-lg shadow-emerald-500/25 transition cursor-pointer"
               >
-                Xác Nhận & Cập Nhật Hồ Sơ Cấp 2 (Verified)
+                {language === 'vi' ? 'Xác Nhận & Cập Nhật Hồ Sơ Cấp 2 (Verified)' : 'Confirm & Upgrade to Tier 2 (Verified)'}
               </button>
             </div>
           )}

@@ -11,7 +11,7 @@ export const SystemMaintenanceOverlay: React.FC<SystemMaintenanceOverlayProps> =
   onGoToProfile,
   onGoToAdmin,
 }) => {
-  const { maintenanceConfig, currentUser, setMaintenanceMode } = useGigMe();
+  const { maintenanceConfig, currentUser, setMaintenanceMode, language } = useGigMe();
   const [timeLeft, setTimeLeft] = useState<{ hours: number; minutes: number; seconds: number }>({
     hours: 0,
     minutes: 0,
@@ -38,12 +38,12 @@ export const SystemMaintenanceOverlay: React.FC<SystemMaintenanceOverlayProps> =
     return () => clearInterval(timer);
   }, [maintenanceConfig.endTime]);
 
-  const formattedEndTime = new Date(maintenanceConfig.endTime).toLocaleTimeString('vi-VN', {
+  const formattedEndTime = new Date(maintenanceConfig.endTime).toLocaleTimeString(language === 'vi' ? 'vi-VN' : 'en-US', {
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
   });
-  const formattedEndDate = new Date(maintenanceConfig.endTime).toLocaleDateString('vi-VN', {
+  const formattedEndDate = new Date(maintenanceConfig.endTime).toLocaleDateString(language === 'vi' ? 'vi-VN' : 'en-US', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -61,7 +61,9 @@ export const SystemMaintenanceOverlay: React.FC<SystemMaintenanceOverlayProps> =
         <div className="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 font-bold text-xs mb-6">
           <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
           <Wrench className="w-3.5 h-3.5 text-amber-400" />
-          <span className="tracking-wide uppercase">Chế Độ Bảo Trì Hệ Thống Đang Bật</span>
+          <span className="tracking-wide uppercase">
+            {language === 'vi' ? 'Chế Độ Bảo Trì Hệ Thống Đang Bật' : 'System Maintenance Mode Active'}
+          </span>
         </div>
 
         {/* Main Icon */}
@@ -74,18 +76,23 @@ export const SystemMaintenanceOverlay: React.FC<SystemMaintenanceOverlayProps> =
 
         {/* Title & Message */}
         <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight mb-3">
-          {maintenanceConfig.title || 'Hệ Thống Đang Nâng Cấp & Bảo Trì Kỹ Thuật'}
+          {maintenanceConfig.title || (language === 'vi' ? 'Hệ Thống Đang Nâng Cấp & Bảo Trì Kỹ Thuật' : 'System Upgrade & Maintenance')}
         </h2>
         <p className="text-sm text-[#C5E5EC]/85 leading-relaxed mb-6 max-w-md mx-auto">
-          {maintenanceConfig.message ||
-            'GigMe đang tiến hành bảo trì cơ sở hạ tầng đám mây và tối ưu hóa hệ thống khớp việc sinh viên. Các chức năng giao dịch tạm khóa.'}
+          {maintenanceConfig.message || (
+            language === 'vi'
+              ? 'GigMe đang tiến hành bảo trì cơ sở hạ tầng đám mây và tối ưu hóa hệ thống khớp việc sinh viên. Các chức năng giao dịch tạm khóa.'
+              : 'GigMe is undergoing maintenance to enhance cloud scalability and campus matching. Transaction functions are temporarily paused.'
+          )}
         </p>
 
         {/* Realtime Countdown Display */}
         <div className="bg-[#081120] border border-[#C5E5EC]/20 rounded-2xl p-4 mb-6 max-w-md mx-auto">
           <div className="flex items-center justify-center space-x-2 text-xs font-semibold text-[#C5E5EC]/70 mb-3">
             <Clock className="w-4 h-4 text-amber-400" />
-            <span>Thời gian đếm ngược dự kiến mở lại:</span>
+            <span>
+              {language === 'vi' ? 'Thời gian đếm ngược dự kiến mở lại:' : 'Estimated Countdown until Reopening:'}
+            </span>
           </div>
 
           <div className="grid grid-cols-3 gap-3">
@@ -93,24 +100,32 @@ export const SystemMaintenanceOverlay: React.FC<SystemMaintenanceOverlayProps> =
               <span className="block text-2xl font-mono font-black text-amber-300">
                 {String(timeLeft.hours).padStart(2, '0')}
               </span>
-              <span className="text-[10px] text-[#C5E5EC]/70 font-bold uppercase tracking-wider">Giờ</span>
+              <span className="text-[10px] text-[#C5E5EC]/70 font-bold uppercase tracking-wider">
+                {language === 'vi' ? 'Giờ' : 'Hours'}
+              </span>
             </div>
             <div className="bg-[#12233B] border border-[#C5E5EC]/20 rounded-xl p-2.5">
               <span className="block text-2xl font-mono font-black text-amber-300">
                 {String(timeLeft.minutes).padStart(2, '0')}
               </span>
-              <span className="text-[10px] text-[#C5E5EC]/70 font-bold uppercase tracking-wider">Phút</span>
+              <span className="text-[10px] text-[#C5E5EC]/70 font-bold uppercase tracking-wider">
+                {language === 'vi' ? 'Phút' : 'Minutes'}
+              </span>
             </div>
             <div className="bg-[#12233B] border border-[#C5E5EC]/20 rounded-xl p-2.5">
               <span className="block text-2xl font-mono font-black text-amber-300">
                 {String(timeLeft.seconds).padStart(2, '0')}
               </span>
-              <span className="text-[10px] text-[#C5E5EC]/70 font-bold uppercase tracking-wider">Giây</span>
+              <span className="text-[10px] text-[#C5E5EC]/70 font-bold uppercase tracking-wider">
+                {language === 'vi' ? 'Giây' : 'Seconds'}
+              </span>
             </div>
           </div>
 
           <div className="mt-3 text-[11px] text-[#C5E5EC]/70">
-            Dự kiến mở cửa: <span className="text-white font-bold">{formattedEndTime}</span> ngày{' '}
+            {language === 'vi' ? 'Dự kiến mở cửa: ' : 'Expected reopening: '}
+            <span className="text-white font-bold">{formattedEndTime}</span>{' '}
+            {language === 'vi' ? 'ngày ' : 'on '}
             <span className="text-white font-bold">{formattedEndDate}</span>
           </div>
         </div>
@@ -119,9 +134,19 @@ export const SystemMaintenanceOverlay: React.FC<SystemMaintenanceOverlayProps> =
         <div className="bg-amber-950/30 border border-amber-500/20 rounded-xl p-3.5 text-xs text-amber-200/90 text-left mb-6 max-w-md mx-auto flex items-start space-x-2.5">
           <ShieldAlert className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
           <div className="space-y-1">
-            <div className="font-bold text-amber-300">Quyền truy cập trong thời gian bảo trì:</div>
+            <div className="font-bold text-amber-300">
+              {language === 'vi' ? 'Quyền truy cập trong thời gian bảo trì:' : 'Access Policy During Maintenance:'}
+            </div>
             <div className="text-[11px] text-[#C5E5EC]/80">
-              Chỉ tính năng <span className="text-[#E0FAEB] font-bold">Xem thông tin cá nhân</span> được phép hoạt động. Tất cả các trang tạo việc, ví tiền, chat và chợ sinh viên sẽ tạm ẩn để bảo vệ dữ liệu tài chính.
+              {language === 'vi' ? (
+                <>
+                  Chỉ tính năng <span className="text-[#E0FAEB] font-bold">Xem thông tin cá nhân</span> được phép hoạt động. Tất cả các trang tạo việc, ví tiền, chat và chợ sinh viên sẽ tạm ẩn để bảo vệ dữ liệu tài chính.
+                </>
+              ) : (
+                <>
+                  Only <span className="text-[#E0FAEB] font-bold">Profile Viewing</span> is permitted. Job creation, wallet transactions, chat, and marketplace are paused to protect financial state.
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -133,14 +158,14 @@ export const SystemMaintenanceOverlay: React.FC<SystemMaintenanceOverlayProps> =
             className="w-full py-3 px-5 rounded-2xl bg-gradient-to-r from-[#3064AE] to-[#255294] text-[#E0FAEB] border border-[#C5E5EC]/30 font-extrabold text-sm shadow-[0_4px_20px_rgba(48,100,174,0.35)] hover:brightness-110 active:scale-[0.98] transition flex items-center justify-center space-x-2 cursor-pointer"
           >
             <User className="w-4 h-4" />
-            <span>Xem Thông Tin Cá Nhân Của Tôi</span>
+            <span>{language === 'vi' ? 'Xem Thông Tin Cá Nhân Của Tôi' : 'View My Profile'}</span>
             <ArrowRight className="w-4 h-4" />
           </button>
 
           {isAdmin && (
             <div className="pt-2 border-t border-[#C5E5EC]/20">
               <div className="text-[11px] text-[#E0FAEB] font-bold mb-2">
-                Root Admin Bypass: Bạn có quyền quản trị tối cao
+                {language === 'vi' ? 'Root Admin Bypass: Bạn có quyền quản trị tối cao' : 'Root Admin Bypass: You have supreme privileges'}
               </div>
               <div className="flex gap-2">
                 {onGoToAdmin && (
@@ -149,7 +174,7 @@ export const SystemMaintenanceOverlay: React.FC<SystemMaintenanceOverlayProps> =
                     className="flex-1 py-2 px-3 rounded-xl bg-[#12233B] hover:bg-[#152844] text-[#C5E5EC] border border-[#C5E5EC]/20 font-bold text-xs transition flex items-center justify-center space-x-1.5 cursor-pointer"
                   >
                     <ShieldCheck className="w-3.5 h-3.5 text-[#E0FAEB]" />
-                    <span>Vào Admin Console</span>
+                    <span>{language === 'vi' ? 'Vào Admin Console' : 'Open Admin Console'}</span>
                   </button>
                 )}
                 <button
@@ -157,7 +182,7 @@ export const SystemMaintenanceOverlay: React.FC<SystemMaintenanceOverlayProps> =
                   className="flex-1 py-2 px-3 rounded-xl bg-rose-950/60 border border-rose-500/40 text-rose-300 hover:bg-rose-900/60 font-bold text-xs transition flex items-center justify-center space-x-1.5 cursor-pointer"
                 >
                   <RefreshCw className="w-3.5 h-3.5" />
-                  <span>Tắt Bảo Trì Ngay</span>
+                  <span>{language === 'vi' ? 'Tắt Bảo Trì Ngay' : 'Disable Maintenance'}</span>
                 </button>
               </div>
             </div>
@@ -167,7 +192,11 @@ export const SystemMaintenanceOverlay: React.FC<SystemMaintenanceOverlayProps> =
         {/* Real Cloud Link Status */}
         <div className="mt-6 pt-4 border-t border-[#C5E5EC]/20 flex items-center justify-center space-x-2 text-[10px] text-[#C5E5EC]/60 font-mono">
           <div className="w-1.5 h-1.5 rounded-full bg-[#E0FAEB] animate-pulse" />
-          <span>Liên kết thật thời gian thực: Firestore Cloud & SSE Stream Engine</span>
+          <span>
+            {language === 'vi'
+              ? 'Liên kết thật thời gian thực: Firestore Cloud & SSE Stream Engine'
+              : 'Realtime live sync: Firestore Cloud & SSE Stream Engine'}
+          </span>
         </div>
       </div>
     </div>

@@ -15,7 +15,7 @@ import {
 import { useGigMe } from '../context/GigMeContext';
 
 export const VoipCallOverlay: React.FC = () => {
-  const { activeVoipCall, endVoipCall, toggleMuteVoip } = useGigMe();
+  const { activeVoipCall, endVoipCall, toggleMuteVoip, language } = useGigMe();
   const [seconds, setSeconds] = useState(0);
   const [isSpeakerOn, setIsSpeakerOn] = useState(true);
   const [connectionState, setConnectionState] = useState<'CONNECTING' | 'ICE_CHECKING' | 'CONNECTED'>('CONNECTING');
@@ -103,50 +103,29 @@ export const VoipCallOverlay: React.FC = () => {
             analyser.getByteFrequencyData(dataArray);
 
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            const barWidth = (canvas.width / bufferLength) * 1.5;
+            const barWidth = (canvas.width / bufferLength) * 2.2;
+            let barHeight: number;
             let x = 0;
 
             for (let i = 0; i < bufferLength; i++) {
-              const barHeight = (dataArray[i] / 255) * (canvas.height * 0.85);
+              barHeight = (dataArray[i] / 255) * canvas.height * 0.85;
 
-              // Cyber cyan gradient bars
-              const grad = ctx.createLinearGradient(0, canvas.height - barHeight, 0, canvas.height);
-              grad.addColorStop(0, '#00E5FF');
-              grad.addColorStop(1, '#0077B6');
+              // Gradient color based on intensity
+              const gradient = ctx.createLinearGradient(0, canvas.height, 0, 0);
+              gradient.addColorStop(0, '#00E5FF');
+              gradient.addColorStop(1, '#3B82F6');
 
-              ctx.fillStyle = grad;
-              ctx.fillRect(x, canvas.height - barHeight, barWidth - 2, barHeight);
+              ctx.fillStyle = gradient;
+              ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
 
-              x += barWidth;
+              x += barWidth + 1;
             }
           };
 
           draw();
         }
-      } catch {
-        // Fallback simulated visualizer if mic permission not granted
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
-
-        const drawSimulated = () => {
-          if (!isSubscribed) return;
-          animFrameIdRef.current = requestAnimationFrame(drawSimulated);
-
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          const count = 16;
-          const barWidth = canvas.width / count;
-
-          for (let i = 0; i < count; i++) {
-            const h = Math.sin(Date.now() / 200 + i) * 15 + 20 + Math.random() * 8;
-            ctx.fillStyle = '#00E5FF';
-            ctx.fillRect(i * barWidth, canvas.height - h, barWidth - 3, h);
-          }
-        };
-
-        drawSimulated();
+      } catch (err) {
+        console.warn('Microphone visualization unavailable:', err);
       }
     };
 
@@ -201,7 +180,8 @@ export const VoipCallOverlay: React.FC = () => {
 
         <h3 className="text-xl font-extrabold text-white">{activeVoipCall.partnerName}</h3>
         <p className="text-xs text-[#00E5FF] font-semibold mt-0.5">
-          Số che danh tính: {activeVoipCall.maskedPhoneNumber}
+          {language === 'vi' ? 'Số che danh tính: ' : 'Masked Caller ID: '}
+          {activeVoipCall.maskedPhoneNumber}
         </p>
 
         {/* Connection status indicator */}
@@ -215,8 +195,8 @@ export const VoipCallOverlay: React.FC = () => {
           />
           <span className="text-slate-300 font-medium">
             {connectionState === 'CONNECTED'
-              ? 'Đã kết nối WebRTC trực tiếp (Direct Audio P2P)'
-              : 'Đang bắt tay WebRTC STUN/ICE Server...'}
+              ? language === 'vi' ? 'Đã kết nối WebRTC trực tiếp (Direct Audio P2P)' : 'Direct WebRTC Connected (P2P Audio)'
+              : language === 'vi' ? 'Đang bắt tay WebRTC STUN/ICE Server...' : 'Handshaking WebRTC STUN/ICE Server...'}
           </span>
         </div>
 
@@ -230,7 +210,7 @@ export const VoipCallOverlay: React.FC = () => {
           <div className="flex items-center justify-between px-2 mb-1 text-[10px] text-slate-400">
             <span className="flex items-center space-x-1">
               <Activity className="w-3 h-3 text-[#00E5FF]" />
-              <span>Phổ âm thanh giọng nói (Voice Wave)</span>
+              <span>{language === 'vi' ? 'Phổ âm thanh giọng nói (Voice Wave)' : 'Realtime Voice Waveform'}</span>
             </span>
             <span className="font-mono text-cyan-400">Opus 48kHz</span>
           </div>
@@ -247,12 +227,13 @@ export const VoipCallOverlay: React.FC = () => {
           {/* Mute Button */}
           <button
             onClick={toggleMuteVoip}
-            className={`p-3.5 rounded-full border transition transform active:scale-95 ${
+            className={`p-3.5 rounded-full border transition transform active:scale-95 cursor-pointer ${
               activeVoipCall.isMuted
                 ? 'bg-red-500/20 text-red-400 border-red-500 shadow-md shadow-red-500/20'
                 : 'bg-slate-800 text-slate-200 border-slate-700 hover:bg-slate-700'
             }`}
-            title={activeVoipCall.isMuted ? 'Bật micro' : 'Tắt micro'}
+            title={activeVoipCall.isMuted ? (language === 'vi' ? 'Bật micro' : 'Unmute') : (language === 'vi' ? 'Tắt micro' : 'Mute')}
+            aria-label="Toggle Mute"
           >
             {activeVoipCall.isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
           </button>
@@ -260,12 +241,13 @@ export const VoipCallOverlay: React.FC = () => {
           {/* Speaker Button */}
           <button
             onClick={() => setIsSpeakerOn((p) => !p)}
-            className={`p-3.5 rounded-full border transition transform active:scale-95 ${
+            className={`p-3.5 rounded-full border transition transform active:scale-95 cursor-pointer ${
               isSpeakerOn
                 ? 'bg-cyan-500/20 text-[#00E5FF] border-[#00E5FF]/50 shadow-md shadow-cyan-500/20'
                 : 'bg-slate-800 text-slate-400 border-slate-700'
             }`}
-            title="Loa ngoài"
+            title={language === 'vi' ? 'Loa ngoài' : 'Speaker'}
+            aria-label="Toggle Speaker"
           >
             {isSpeakerOn ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
           </button>
@@ -274,8 +256,9 @@ export const VoipCallOverlay: React.FC = () => {
           <button
             id="end-voip-call-btn"
             onClick={endVoipCall}
-            className="p-4 rounded-full bg-red-600 hover:bg-red-500 text-white shadow-[0_0_25px_rgba(239,68,68,0.6)] transition transform hover:scale-105 active:scale-95"
-            title="Kết thúc cuộc gọi"
+            className="p-4 rounded-full bg-red-600 hover:bg-red-500 text-white shadow-[0_0_25px_rgba(239,68,68,0.6)] transition transform hover:scale-105 active:scale-95 cursor-pointer"
+            title={language === 'vi' ? 'Kết thúc cuộc gọi' : 'End Call'}
+            aria-label="End Call"
           >
             <PhoneOff className="w-6 h-6" />
           </button>

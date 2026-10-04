@@ -399,6 +399,10 @@ export interface UiNotification {
   id: string;
   title: string;
   message: string;
+  titleVi?: string;
+  messageVi?: string;
+  titleEn?: string;
+  messageEn?: string;
   isDingSound?: boolean;
   isCelebration?: boolean;
 }

@@ -59,7 +59,7 @@ export const NfcCccdScanDialog: React.FC<{
   onClose,
   onContinueToFaceLiveness,
 }) => {
-  const { currentUser, verifyNfcCccd, showNotification } = useGigMe();
+  const { currentUser, verifyNfcCccd, showNotification, language } = useGigMe();
   const [activeTab, setActiveTab] = useState<'SCAN' | 'NATIVE_DOCS'>('SCAN');
   const [step, setStep] = useState<1 | 2>(1); // 1: Quét Camera MRZ lấy khóa BAC | 2: Áp mặt lưng máy vào chíp NFC
 
@@ -280,13 +280,17 @@ export const NfcCccdScanDialog: React.FC<{
             </div>
             <div>
               <div className="flex items-center space-x-2">
-                <h3 className="font-black text-sm sm:text-base text-white">Quét Chíp CCCD • Phương Án 2</h3>
+                <h3 className="font-black text-sm sm:text-base text-white">
+                  {language === 'vi' ? 'Quét Chíp CCCD • Phương Án 2' : 'CCCD Chip Scan • Solution 2'}
+                </h3>
                 <span className="px-2 py-0.5 rounded-md bg-gradient-to-r from-[#00E5FF] to-blue-600 text-black text-[10px] font-black uppercase tracking-tight">
                   Native App
                 </span>
               </div>
               <p className="text-[11px] text-slate-400">
-                Quy trình 2 bước: Quét Camera MRZ &rarr; Áp mặt sau điện thoại đọc Chíp NFC
+                {language === 'vi'
+                  ? 'Quy trình 2 bước: Quét Camera MRZ → Áp mặt sau điện thoại đọc Chíp NFC'
+                  : '2-step flow: Scan Camera MRZ → Tap back of phone to read NFC Chip'}
               </p>
             </div>
           </div>
@@ -316,7 +320,7 @@ export const NfcCccdScanDialog: React.FC<{
             }`}
           >
             <Radio className="w-3.5 h-3.5" />
-            <span>Quy Trình Quét Thẻ (Phương Án 2)</span>
+            <span>{language === 'vi' ? 'Quy Trình Quét Thẻ (Phương Án 2)' : 'Card Scan Flow (Option 2)'}</span>
           </button>
           <button
             type="button"
@@ -331,7 +335,7 @@ export const NfcCccdScanDialog: React.FC<{
             }`}
           >
             <FileCode className="w-3.5 h-3.5" />
-            <span>Cấu Hình Native App (Capacitor)</span>
+            <span>{language === 'vi' ? 'Cấu Hình Native App (Capacitor)' : 'Native App Config (Capacitor)'}</span>
           </button>
         </div>
 
@@ -354,9 +358,11 @@ export const NfcCccdScanDialog: React.FC<{
                     <span className="w-4 h-4 rounded-full bg-cyan-500 text-black flex items-center justify-center font-black text-[9px]">
                       1
                     </span>
-                    <span>Bước 1: Khóa BAC</span>
+                    <span>{language === 'vi' ? 'Bước 1: Khóa BAC' : 'Step 1: BAC Key'}</span>
                   </div>
-                  <div className="font-extrabold text-xs text-white truncate">Quét Camera Mã MRZ</div>
+                  <div className="font-extrabold text-xs text-white truncate">
+                    {language === 'vi' ? 'Quét Camera Mã MRZ' : 'Camera Scan MRZ Code'}
+                  </div>
                 </button>
 
                 <button
@@ -372,9 +378,11 @@ export const NfcCccdScanDialog: React.FC<{
                     <span className="w-4 h-4 rounded-full bg-cyan-500 text-black flex items-center justify-center font-black text-[9px]">
                       2
                     </span>
-                    <span>Bước 2: NFC Mặt Lưng</span>
+                    <span>{language === 'vi' ? 'Bước 2: NFC Mặt Lưng' : 'Step 2: Back NFC'}</span>
                   </div>
-                  <div className="font-extrabold text-xs text-white truncate">Áp Chíp Vào Lưng Máy</div>
+                  <div className="font-extrabold text-xs text-white truncate">
+                    {language === 'vi' ? 'Áp Chíp Vào Lưng Máy' : 'Touch Chip to Phone Back'}
+                  </div>
                 </button>
               </div>
 
@@ -731,7 +739,7 @@ export const FaceLivenessDialog: React.FC<{ isOpen: boolean; onClose: () => void
   isOpen,
   onClose,
 }) => {
-  const { verifyFaceLiveness, showNotification } = useGigMe();
+  const { verifyFaceLiveness, showNotification, language } = useGigMe();
   const [step, setStep] = useState(0);
   const [progress, setProgress] = useState(0);
   const [isScanning, setIsScanning] = useState(false);
@@ -741,10 +749,34 @@ export const FaceLivenessDialog: React.FC<{ isOpen: boolean; onClose: () => void
   const streamRef = useRef<MediaStream | null>(null);
 
   const stepsData = [
-    { title: 'Sẵn sàng quét khuôn mặt AI', desc: 'Đặt khuôn mặt vừa vặn vào giữa khung tròn', icon: Camera },
-    { title: 'Nhìn thẳng & Chớp mắt 2 lần...', desc: 'AI đang phân tích phản xạ đồng tử', icon: Eye },
-    { title: 'Quay nhẹ mặt sang trái rồi sang phải...', desc: 'AI đang dựng mô hình 3D góc cạnh khuôn mặt', icon: RefreshCw },
-    { title: 'Mỉm cười nhẹ để đối chiếu...', desc: 'AI đang kiểm tra vi biểu cảm sống động', icon: Smile },
+    {
+      titleVi: 'Sẵn sàng quét khuôn mặt AI',
+      titleEn: 'Ready for AI Face Scan',
+      descVi: 'Đặt khuôn mặt vừa vặn vào giữa khung tròn',
+      descEn: 'Position your face centered within the circular frame',
+      icon: Camera,
+    },
+    {
+      titleVi: 'Nhìn thẳng & Chớp mắt 2 lần...',
+      titleEn: 'Look straight & blink twice...',
+      descVi: 'AI đang phân tích phản xạ đồng tử',
+      descEn: 'AI is analyzing pupillary light reflexes',
+      icon: Eye,
+    },
+    {
+      titleVi: 'Quay nhẹ mặt sang trái rồi sang phải...',
+      titleEn: 'Gently turn face left then right...',
+      descVi: 'AI đang dựng mô hình 3D góc cạnh khuôn mặt',
+      descEn: 'AI is rendering 3D facial depth angles',
+      icon: RefreshCw,
+    },
+    {
+      titleVi: 'Mỉm cười nhẹ để đối chiếu...',
+      titleEn: 'Smile gently to confirm liveness...',
+      descVi: 'AI đang kiểm tra vi biểu cảm sống động',
+      descEn: 'AI is validating micro-expression liveness',
+      icon: Smile,
+    },
   ];
 
   useEffect(() => {
@@ -809,8 +841,10 @@ export const FaceLivenessDialog: React.FC<{ isOpen: boolean; onClose: () => void
           verifyFaceLiveness();
 
           showNotification(
-            '👤 Face Liveness Thành Công!',
-            'Đã hoàn tất đối chiếu sinh trắc học khuôn mặt AI chuẩn Quốc gia.',
+            language === 'vi' ? '👤 Face Liveness Thành Công!' : '👤 Face Liveness Success!',
+            language === 'vi'
+              ? 'Đã hoàn tất đối chiếu sinh trắc học khuôn mặt AI chuẩn Quốc gia.'
+              : 'AI biometric face verification successfully completed.',
             true,
             true
           );
@@ -853,7 +887,7 @@ export const FaceLivenessDialog: React.FC<{ isOpen: boolean; onClose: () => void
               <Sparkles className="w-4 h-4" />
             </div>
             <h3 className="font-extrabold text-sm text-slate-900 dark:text-white">
-              AI Face Liveness Verification
+              {language === 'vi' ? 'Xác Minh Sinh Trắc Học AI' : 'AI Face Liveness Verification'}
             </h3>
           </div>
           <button
@@ -912,7 +946,9 @@ export const FaceLivenessDialog: React.FC<{ isOpen: boolean; onClose: () => void
           {isCompleted && (
             <div className="absolute inset-0 bg-emerald-500/85 backdrop-blur-sm flex flex-col items-center justify-center text-white animate-fade-in">
               <CheckCircle2 className="w-14 h-14 animate-bounce text-white" />
-              <span className="text-xs font-black mt-1">ĐẠT CHUẨN SINH TRẮC HỌC</span>
+              <span className="text-xs font-black mt-1">
+                {language === 'vi' ? 'ĐẠT CHUẨN SINH TRẮC HỌC' : 'BIOMETRIC VERIFIED'}
+              </span>
             </div>
           )}
         </div>
@@ -921,10 +957,10 @@ export const FaceLivenessDialog: React.FC<{ isOpen: boolean; onClose: () => void
         <div className="mt-4 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
           <div className="flex items-center justify-center space-x-2 text-sky-600 dark:text-sky-400 font-bold text-xs sm:text-sm">
             <CurrentIcon className="w-4 h-4 animate-spin-slow" />
-            <span>{stepsData[step]?.title}</span>
+            <span>{language === 'vi' ? stepsData[step]?.titleVi : stepsData[step]?.titleEn}</span>
           </div>
           <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
-            {stepsData[step]?.desc}
+            {language === 'vi' ? stepsData[step]?.descVi : stepsData[step]?.descEn}
           </p>
         </div>
 
@@ -933,14 +969,18 @@ export const FaceLivenessDialog: React.FC<{ isOpen: boolean; onClose: () => void
             onClick={handleStartCheck}
             className="w-full mt-4 py-3 rounded-xl bg-gradient-to-r from-sky-500 to-emerald-500 text-white font-extrabold text-sm hover:opacity-95 shadow-md shadow-sky-500/20 active:scale-[0.98] transition"
           >
-            Bắt Đầu Quét Khuôn Mặt Ngay
+            {language === 'vi' ? 'Bắt Đầu Quét Khuôn Mặt Ngay' : 'Start Face Scan Now'}
           </button>
         )}
 
         {isScanning && !isCompleted && (
           <div className="mt-4 flex items-center justify-center space-x-2 text-xs text-slate-500 font-medium">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-            <span>AI đang đối chiếu sinh trắc học thời gian thực ({progress}%)...</span>
+            <span>
+              {language === 'vi'
+                ? `AI đang đối chiếu sinh trắc học thời gian thực (${progress}%)...`
+                : `AI real-time biometric matching (${progress}%)...`}
+            </span>
           </div>
         )}
       </div>
@@ -953,7 +993,7 @@ export const StudentSsoDialog: React.FC<{ isOpen: boolean; onClose: () => void }
   isOpen,
   onClose,
 }) => {
-  const { verifyStudentSso, showNotification } = useGigMe();
+  const { verifyStudentSso, showNotification, language } = useGigMe();
   const [school, setSchool] = useState('Đại học Bách Khoa Hà Nội');
   const [studentEmail, setStudentEmail] = useState('');
   const [studentId, setStudentId] = useState('');
@@ -965,13 +1005,18 @@ export const StudentSsoDialog: React.FC<{ isOpen: boolean; onClose: () => void }
     const cleanEmail = studentEmail.trim().toLowerCase();
     if (!cleanEmail.includes('@') || (!cleanEmail.endsWith('.edu.vn') && !cleanEmail.includes('.edu'))) {
       showNotification(
-        'Email sinh viên không hợp lệ',
-        'Vui lòng nhập đúng email sinh viên do trường cấp (ví dụ: tenban@student.hust.edu.vn, *.edu.vn).'
+        language === 'vi' ? 'Email sinh viên không hợp lệ' : 'Invalid Student Email',
+        language === 'vi'
+          ? 'Vui lòng nhập đúng email sinh viên do trường cấp (ví dụ: tenban@student.hust.edu.vn, *.edu.vn).'
+          : 'Please enter a valid official university email (e.g. yourname@student.edu.vn, *.edu).'
       );
       return;
     }
     if (!studentId.trim()) {
-      showNotification('Thiếu MSSV', 'Vui lòng điền mã số sinh viên hợp lệ của bạn.');
+      showNotification(
+        language === 'vi' ? 'Thiếu MSSV' : 'Missing Student ID',
+        language === 'vi' ? 'Vui lòng điền mã số sinh viên hợp lệ của bạn.' : 'Please enter your valid student ID.'
+      );
       return;
     }
     verifyStudentSso(school, cleanEmail);
@@ -1003,18 +1048,24 @@ export const StudentSsoDialog: React.FC<{ isOpen: boolean; onClose: () => void }
               <GraduationCap className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-extrabold text-sm">Cổng Xác Thực Sinh Viên (SSO)</h3>
-              <p className="text-[11px] text-slate-400">Kết nối mạng lưới KTX & Campus toàn quốc</p>
+              <h3 className="font-extrabold text-sm">
+                {language === 'vi' ? 'Cổng Xác Thực Sinh Viên (SSO)' : 'Student SSO Portal Verification'}
+              </h3>
+              <p className="text-[11px] text-slate-400">
+                {language === 'vi' ? 'Kết nối mạng lưới KTX & Campus toàn quốc' : 'Connect campus & dorm networks nationwide'}
+              </p>
             </div>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-white">
+          <button onClick={onClose} className="text-slate-400 hover:text-white cursor-pointer" aria-label="Close">
             <X className="w-5 h-5" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="py-4 space-y-3.5 text-xs">
           <div>
-            <label className="block text-slate-400 mb-1 font-semibold">Chọn Trường Đại học / Cao đẳng</label>
+            <label className="block text-slate-400 mb-1 font-semibold">
+              {language === 'vi' ? 'Chọn Trường Đại học / Cao đẳng' : 'Select University / College'}
+            </label>
             <select
               value={school}
               onChange={(e) => setSchool(e.target.value)}
@@ -1029,7 +1080,9 @@ export const StudentSsoDialog: React.FC<{ isOpen: boolean; onClose: () => void }
           </div>
 
           <div>
-            <label className="block text-slate-400 mb-1 font-semibold">Email sinh viên chính thức (*.edu.vn)</label>
+            <label className="block text-slate-400 mb-1 font-semibold">
+              {language === 'vi' ? 'Email sinh viên chính thức (*.edu.vn)' : 'Official Student Email (*.edu / *.edu.vn)'}
+            </label>
             <input
               type="email"
               required
@@ -1041,7 +1094,9 @@ export const StudentSsoDialog: React.FC<{ isOpen: boolean; onClose: () => void }
           </div>
 
           <div>
-            <label className="block text-slate-400 mb-1 font-semibold">Mã số sinh viên (MSSV)</label>
+            <label className="block text-slate-400 mb-1 font-semibold">
+              {language === 'vi' ? 'Mã số sinh viên (MSSV)' : 'Student ID (MSSV)'}
+            </label>
             <input
               type="text"
               required
@@ -1053,14 +1108,16 @@ export const StudentSsoDialog: React.FC<{ isOpen: boolean; onClose: () => void }
           </div>
 
           <div className="p-3 rounded-xl bg-orange-500/10 border border-orange-500/20 text-orange-300 text-[11px]">
-            🎓 Mở khóa huy hiệu <strong>Sinh Viên Ưu Tú</strong>, nhận kèo kèm học tập/cày game trong ký túc xá và miễn 100% phí bảo lãnh đơn đầu!
+            {language === 'vi'
+              ? '🎓 Mở khóa huy hiệu Sinh Viên Ưu Tú, nhận kèo kèm học tập/cày game trong ký túc xá và miễn 100% phí bảo lãnh đơn đầu!'
+              : '🎓 Unlock Student Verified Badge, dormitory tutor gigs, and 0% escrow fee on your first task!'}
           </div>
 
           <button
             type="submit"
-            className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#FF6B00] to-amber-500 text-black font-extrabold text-sm hover:brightness-110 shadow-lg shadow-orange-500/20 transition"
+            className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#FF6B00] to-amber-500 text-black font-extrabold text-sm hover:brightness-110 shadow-lg shadow-orange-500/20 transition cursor-pointer"
           >
-            Xác Nhận & Kết Nối Cổng Trường
+            {language === 'vi' ? 'Xác Nhận & Kết Nối Cổng Trường' : 'Confirm & Connect Campus SSO'}
           </button>
         </form>
       </div>
@@ -1074,15 +1131,26 @@ export const VoiceSearchDialog: React.FC<{
   onClose: () => void;
   onSelectQuery: (q: string) => void;
 }> = ({ isOpen, onClose, onSelectQuery }) => {
+  const { language } = useGigMe();
   if (!isOpen) return null;
 
-  const suggestions = [
+  const suggestionsVi = [
     'Kéo rank liên quân',
     'Giải bài tập Giải tích 2',
     'Edit video TikTok review quán cafe',
     'Giao tài liệu hỏa tốc sang KTX',
     'Trợ thủ dọn phòng ký túc xá',
   ];
+
+  const suggestionsEn = [
+    'Rank boosting Arena of Valor',
+    'Calculus 2 assignment helper',
+    'Edit cafe review TikTok video',
+    'Express delivery to dorm room',
+    'Dorm room cleaning assistant',
+  ];
+
+  const suggestions = language === 'vi' ? suggestionsVi : suggestionsEn;
 
   return (
     <div
@@ -1106,9 +1174,13 @@ export const VoiceSearchDialog: React.FC<{
           </div>
         </div>
 
-        <h3 className="text-base font-extrabold text-white">Đang lắng nghe giọng nói...</h3>
+        <h3 className="text-base font-extrabold text-white">
+          {language === 'vi' ? 'Đang lắng nghe giọng nói...' : 'Listening to your voice...'}
+        </h3>
         <p className="text-xs text-slate-400 mt-1">
-          Nói từ khóa công việc bạn đang muốn tìm kiếm (Ví dụ: &quot;Tìm người cày rank&quot;)
+          {language === 'vi'
+            ? 'Nói từ khóa công việc bạn đang muốn tìm kiếm (Ví dụ: "Tìm người cày rank")'
+            : 'Speak the job keyword you want to search (e.g. "Find calculus tutor")'}
         </p>
 
         {/* Waveform animation */}
@@ -1126,7 +1198,9 @@ export const VoiceSearchDialog: React.FC<{
         </div>
 
         <div className="mt-4 pt-3 border-t border-slate-800 text-left">
-          <span className="text-[11px] text-slate-400 block mb-2 font-semibold">Hoặc bấm chọn nhanh gợi ý:</span>
+          <span className="text-[11px] text-slate-400 block mb-2 font-semibold">
+            {language === 'vi' ? 'Hoặc bấm chọn nhanh gợi ý:' : 'Or tap a quick suggestion:'}
+          </span>
           <div className="flex flex-wrap gap-1.5">
             {suggestions.map((s) => (
               <button
@@ -1161,7 +1235,7 @@ export const BankWithdrawDialog: React.FC<{ isOpen: boolean; onClose: () => void
   isOpen,
   onClose,
 }) => {
-  const { currentUser, withdrawToBank, checkWithdrawalEligibility, isOverBalanceLimit, showNotification } = useGigMe();
+  const { currentUser, withdrawToBank, checkWithdrawalEligibility, isOverBalanceLimit, showNotification, language } = useGigMe();
   const [bankName, setBankName] = useState('Vietcombank');
   const [accountNumber, setAccountNumber] = useState('');
   const [accountHolderName, setAccountHolderName] = useState(currentUser?.kycName || '');
@@ -1221,18 +1295,27 @@ export const BankWithdrawDialog: React.FC<{ isOpen: boolean; onClose: () => void
     e.preventDefault();
     if (!accountNumber.trim()) {
       triggerHaptic('error');
-      showNotification('Thiếu số tài khoản', 'Vui lòng nhập số tài khoản ngân hàng thụ hưởng.');
+      showNotification(
+        language === 'vi' ? 'Thiếu số tài khoản' : 'Missing Account Number',
+        language === 'vi' ? 'Vui lòng nhập số tài khoản ngân hàng thụ hưởng.' : 'Please enter the beneficiary account number.'
+      );
       return;
     }
     if (!accountHolderName.trim()) {
       triggerHaptic('error');
-      showNotification('Thiếu tên chủ tài khoản', 'Vui lòng nhập họ tên chủ tài khoản.');
+      showNotification(
+        language === 'vi' ? 'Thiếu tên chủ tài khoản' : 'Missing Account Holder',
+        language === 'vi' ? 'Vui lòng nhập họ tên chủ tài khoản.' : 'Please enter the account holder name.'
+      );
       return;
     }
     const targetAmount = Number(amount);
     if (!targetAmount || targetAmount < 10000) {
       triggerHaptic('error');
-      showNotification('Số tiền không hợp lệ', 'Số tiền rút tối thiểu là 10.000đ.');
+      showNotification(
+        language === 'vi' ? 'Số tiền không hợp lệ' : 'Invalid Amount',
+        language === 'vi' ? 'Số tiền rút tối thiểu là 10.000đ.' : 'Minimum withdrawal amount is 10,000 VND.'
+      );
       return;
     }
 
@@ -1240,21 +1323,29 @@ export const BankWithdrawDialog: React.FC<{ isOpen: boolean; onClose: () => void
     const check = checkWithdrawalEligibility(targetAmount);
     if (!check.allowed) {
       triggerHaptic('error');
-      showNotification('Không đủ điều kiện rút tiền ⚠️', check.reason || 'Yêu cầu không hợp lệ');
+      showNotification(
+        language === 'vi' ? 'Không đủ điều kiện rút tiền ⚠️' : 'Withdrawal Eligibility Issue ⚠️',
+        check.reason || (language === 'vi' ? 'Yêu cầu không hợp lệ' : 'Withdrawal conditions not met')
+      );
       return;
     }
 
     if (useBiometrics && !currentUser?.isBiometricsEnabled) {
       triggerHaptic('error');
       showNotification(
-        'Sinh trắc học chưa kích hoạt',
-        'Bạn chưa bật xác thực sinh trắc học trong phần Cài đặt tài khoản. Vui lòng bật hoặc nhập mã PIN 6 số.'
+        language === 'vi' ? 'Sinh trắc học chưa kích hoạt' : 'Biometrics Not Active',
+        language === 'vi'
+          ? 'Bạn chưa bật xác thực sinh trắc học trong phần Cài đặt tài khoản. Vui lòng bật hoặc nhập mã PIN 6 số.'
+          : 'Biometrics is not enabled in your account settings. Please enable it or enter your 6-digit PIN.'
       );
       return;
     }
     if (!useBiometrics && (!pin || pin.length < 6)) {
       triggerHaptic('error');
-      showNotification('Mã PIN chưa đủ', 'Vui lòng nhập đủ 6 chữ số mã PIN ví.');
+      showNotification(
+        language === 'vi' ? 'Mã PIN chưa đủ' : 'Incomplete PIN',
+        language === 'vi' ? 'Vui lòng nhập đủ 6 chữ số mã PIN ví.' : 'Please enter all 6 digits of your wallet PIN.'
+      );
       return;
     }
 
@@ -1268,7 +1359,7 @@ export const BankWithdrawDialog: React.FC<{ isOpen: boolean; onClose: () => void
         account: accountNumber,
         holder: accountHolderName,
         amount: targetAmount,
-        time: new Date().toLocaleTimeString('vi-VN'),
+        time: new Date().toLocaleTimeString(language === 'vi' ? 'vi-VN' : 'en-US'),
       });
     } else {
       triggerHaptic('error');
@@ -1290,17 +1381,22 @@ export const BankWithdrawDialog: React.FC<{ isOpen: boolean; onClose: () => void
             </div>
             <div>
               <div className="flex items-center space-x-1.5">
-                <h3 className="font-extrabold text-sm sm:text-base text-white">Rút Tiền Napas 247 Siêu Tốc</h3>
+                <h3 className="font-extrabold text-sm sm:text-base text-white">
+                  {language === 'vi' ? 'Rút Tiền Napas 247 Siêu Tốc' : 'Napas 247 Instant Bank Withdrawal'}
+                </h3>
                 <span className="px-1.5 py-0.5 rounded bg-red-500 text-white text-[9px] font-black">
-                  &lt; 3 GIÂY
+                  &lt; 3s
                 </span>
               </div>
               <p className="text-[11px] text-slate-400">
-                Khả dụng: <strong className="text-emerald-400 font-mono">{currentUser ? formatVnd(currentUser.walletBalance) : '0đ'}</strong>
+                {language === 'vi' ? 'Khả dụng: ' : 'Available: '}
+                <strong className="text-emerald-400 font-mono">
+                  {currentUser ? formatVnd(currentUser.walletBalance) : '0đ'}
+                </strong>
               </p>
             </div>
           </div>
-          <button onClick={onClose} className="p-1 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition">
+          <button onClick={onClose} className="p-1 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer" aria-label="Close">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -1313,9 +1409,13 @@ export const BankWithdrawDialog: React.FC<{ isOpen: boolean; onClose: () => void
                 <CheckCircle2 className="w-6 h-6" />
               </div>
               <div>
-                <h4 className="font-extrabold text-white text-sm">Lệnh Rút Tiền Đã Tiếp Nhận!</h4>
+                <h4 className="font-extrabold text-white text-sm">
+                  {language === 'vi' ? 'Lệnh Rút Tiền Đã Tiếp Nhận!' : 'Withdrawal Request Received!'}
+                </h4>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  Số dư ví đã được tạm giữ an toàn. Quản trị viên đang thực hiện chuyển tiền thật qua Napas 247 tới tài khoản của bạn (dự kiến 5 - 15 phút).
+                  {language === 'vi'
+                    ? 'Số dư ví đã được tạm giữ an toàn. Quản trị viên đang thực hiện chuyển tiền thật qua Napas 247 tới tài khoản của bạn (dự kiến 5 - 15 phút).'
+                    : 'Wallet balance placed in escrow. Admin is processing bank payout via Napas 247 to your account (5 - 15 mins).'}
                 </p>
               </div>
 
@@ -1325,27 +1425,29 @@ export const BankWithdrawDialog: React.FC<{ isOpen: boolean; onClose: () => void
 
               <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800 text-[11px] space-y-1.5 text-left font-mono">
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Mã giao dịch:</span>
+                  <span className="text-slate-400">{language === 'vi' ? 'Mã giao dịch:' : 'Tx ID:'}</span>
                   <span className="text-[#00E5FF] font-bold">{receiptTx.id}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Trạng thái:</span>
-                  <span className="text-amber-400 font-bold">⏳ Chờ Admin chuyển khoản</span>
+                  <span className="text-slate-400">{language === 'vi' ? 'Trạng thái:' : 'Status:'}</span>
+                  <span className="text-amber-400 font-bold">
+                    {language === 'vi' ? '⏳ Chờ Admin chuyển khoản' : '⏳ Pending Admin Payout'}
+                  </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Ngân hàng nhận:</span>
+                  <span className="text-slate-400">{language === 'vi' ? 'Ngân hàng nhận:' : 'Beneficiary Bank:'}</span>
                   <span className="text-white font-bold">{receiptTx.bank}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Số tài khoản:</span>
+                  <span className="text-slate-400">{language === 'vi' ? 'Số tài khoản:' : 'Account Number:'}</span>
                   <span className="text-white font-bold">{receiptTx.account}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Chủ tài khoản:</span>
+                  <span className="text-slate-400">{language === 'vi' ? 'Chủ tài khoản:' : 'Account Holder:'}</span>
                   <span className="text-white font-bold">{receiptTx.holder}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Thời gian tạo:</span>
+                  <span className="text-slate-400">{language === 'vi' ? 'Thời gian tạo:' : 'Created Time:'}</span>
                   <span className="text-slate-300">{receiptTx.time}</span>
                 </div>
               </div>
@@ -1353,9 +1455,9 @@ export const BankWithdrawDialog: React.FC<{ isOpen: boolean; onClose: () => void
 
             <button
               onClick={onClose}
-              className="w-full py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-extrabold text-xs hover:brightness-110 transition shadow-lg"
+              className="w-full py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-extrabold text-xs hover:brightness-110 transition shadow-lg cursor-pointer"
             >
-              Tôi Đã Hiểu & Đóng
+              {language === 'vi' ? 'Tôi Đã Hiểu & Đóng' : 'Understood & Close'}
             </button>
           </div>
         ) : (
@@ -1365,7 +1467,10 @@ export const BankWithdrawDialog: React.FC<{ isOpen: boolean; onClose: () => void
               <div className="flex items-center space-x-2 p-2.5 rounded-xl bg-gradient-to-r from-purple-900/60 to-indigo-900/60 border border-purple-400/50 text-[11px] text-purple-200">
                 <Sparkles className="w-4 h-4 text-purple-300 shrink-0" />
                 <span>
-                  <strong>👑 QUYỀN ADMIN:</strong> Đã bypass toàn bộ điều kiện rút tiền &amp; trần 200 triệu (Dùng để kiểm thử).
+                  <strong>{language === 'vi' ? '👑 QUYỀN ADMIN:' : '👑 ADMIN PRIVILEGE:'}</strong>{' '}
+                  {language === 'vi'
+                    ? 'Đã bypass toàn bộ điều kiện rút tiền & trần 200 triệu (Dùng để kiểm thử).'
+                    : 'Bypassed all withdrawal eligibility requirements & 200M limit for testing.'}
                 </span>
               </div>
             )}
@@ -1375,10 +1480,16 @@ export const BankWithdrawDialog: React.FC<{ isOpen: boolean; onClose: () => void
               <div className="p-3 rounded-2xl bg-rose-950/80 border-2 border-rose-500 text-rose-200 space-y-1 animate-pulse">
                 <div className="flex items-center space-x-2 font-black text-xs text-white">
                   <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
-                  <span>⚠️ VƯỢT HẠN MỨC 200 TRIỆU (ÉP RÚT TIỀN)</span>
+                  <span>
+                    {language === 'vi'
+                      ? '⚠️ VƯỢT HẠN MỨC 200 TRIỆU (ÉP RÚT TIỀN)'
+                      : '⚠️ BALANCE EXCEEDS 200M CEILING (MANDATORY WITHDRAWAL)'}
+                  </span>
                 </div>
                 <p className="text-[11px] text-rose-200/90 leading-relaxed">
-                  Số dư của bạn ({formatVnd(currentUser?.walletBalance || 0)}) đã vượt mức trần 200.000.000đ. Hệ thống tạm khóa đăng việc và nhận việc, yêu cầu bạn rút bớt tiền về tài khoản ngân hàng để tiếp tục sử dụng.
+                  {language === 'vi'
+                    ? `Số dư của bạn (${formatVnd(currentUser?.walletBalance || 0)}) đã vượt mức trần 200.000.000đ. Hệ thống tạm khóa đăng việc và nhận việc, yêu cầu bạn rút bớt tiền về tài khoản ngân hàng để tiếp tục sử dụng.`
+                    : `Your balance (${formatVnd(currentUser?.walletBalance || 0)}) exceeds 200,000,000 VND. Job posting/claiming is paused until you withdraw funds to your bank.`}
                 </p>
               </div>
             )}
@@ -1388,31 +1499,33 @@ export const BankWithdrawDialog: React.FC<{ isOpen: boolean; onClose: () => void
               <div className="flex items-center justify-between text-slate-300 font-bold border-b border-slate-800 pb-1">
                 <span className="flex items-center space-x-1 text-[#00E5FF]">
                   <ShieldCheck className="w-3.5 h-3.5" />
-                  <span>Quy Định Rút Tiền Bảo Mật</span>
+                  <span>{language === 'vi' ? 'Quy Định Rút Tiền Bảo Mật' : 'Secure Withdrawal Policy'}</span>
                 </span>
-                <span className="text-amber-400 font-mono">Tối đa 3.000.000đ / lần</span>
+                <span className="text-amber-400 font-mono">
+                  {language === 'vi' ? 'Tối đa 3.000.000đ / lần' : 'Max 3,000,000 VND / txn'}
+                </span>
               </div>
               <div className="grid grid-cols-2 gap-1 text-slate-400">
                 <span className="flex items-center space-x-1">
                   <span className={`w-1.5 h-1.5 rounded-full ${eligibility.completedGigsCount >= 1 ? 'bg-emerald-400' : 'bg-slate-600'}`} />
-                  <span>Đã làm việc: {eligibility.completedGigsCount}/1 việc</span>
+                  <span>{language === 'vi' ? 'Đã làm việc: ' : 'Completed gigs: '}{eligibility.completedGigsCount}/1</span>
                 </span>
                 <span className="flex items-center space-x-1">
                   <span className={`w-1.5 h-1.5 rounded-full ${eligibility.daysActive >= 5 ? 'bg-emerald-400' : 'bg-slate-600'}`} />
-                  <span>Tuổi tài khoản: {eligibility.daysActive}/5 ngày</span>
+                  <span>{language === 'vi' ? 'Tuổi tài khoản: ' : 'Account age: '}{eligibility.daysActive}/5 {language === 'vi' ? 'ngày' : 'days'}</span>
                 </span>
                 <span className="flex items-center space-x-1">
                   <span className={`w-1.5 h-1.5 rounded-full ${eligibility.hoursOnline >= 3 ? 'bg-emerald-400' : 'bg-slate-600'}`} />
-                  <span>Online: {eligibility.hoursOnline.toFixed(1)}/3.0 giờ</span>
+                  <span>Online: {eligibility.hoursOnline.toFixed(1)}/3.0 {language === 'vi' ? 'giờ' : 'hrs'}</span>
                 </span>
                 <span className="flex items-center space-x-1">
                   <span className={`w-1.5 h-1.5 rounded-full ${(currentUser?.walletBalance || 0) > 50000 ? 'bg-emerald-400' : 'bg-slate-600'}`} />
-                  <span>Số dư ví: &gt; 50.000đ</span>
+                  <span>{language === 'vi' ? 'Số dư ví: > 50.000đ' : 'Balance: > 50,000 VND'}</span>
                 </span>
               </div>
               <div className="pt-0.5 text-slate-400/80 text-[9px] flex justify-between">
-                <span>⏱️ Giãn cách: 15 phút/lần rút</span>
-                <span>🛡️ Chống rửa tiền: Cách 1h sau nạp</span>
+                <span>{language === 'vi' ? '⏱️ Giãn cách: 15 phút/lần rút' : '⏱️ Cooldown: 15 mins'}</span>
+                <span>{language === 'vi' ? '🛡️ Chống rửa tiền: Cách 1h sau nạp' : '🛡️ Anti-laundering: 1h after deposit'}</span>
               </div>
             </div>
 
@@ -1421,7 +1534,9 @@ export const BankWithdrawDialog: React.FC<{ isOpen: boolean; onClose: () => void
               <div className="p-2.5 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-200 text-[11px] flex items-start space-x-2">
                 <Clock className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
                 <div className="space-y-0.5">
-                  <strong className="block text-amber-300 font-bold">Chưa đủ điều kiện rút tiền:</strong>
+                  <strong className="block text-amber-300 font-bold">
+                    {language === 'vi' ? 'Chưa đủ điều kiện rút tiền:' : 'Withdrawal criteria not yet met:'}
+                  </strong>
                   <span>{eligibility.reason}</span>
                 </div>
               </div>
@@ -1434,13 +1549,17 @@ export const BankWithdrawDialog: React.FC<{ isOpen: boolean; onClose: () => void
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                 </span>
-                <span>Cổng Rút Tiền Napas 247 (Cách 1: Admin Duyệt)</span>
+                <span>{language === 'vi' ? 'Cổng Rút Tiền Napas 247 (Cách 1: Admin Duyệt)' : 'Napas 247 Gateway (Admin Verified)'}</span>
               </div>
-              <span className="text-emerald-300/80 font-mono font-bold">T0 • Miễn phí 0đ</span>
+              <span className="text-emerald-300/80 font-mono font-bold">
+                {language === 'vi' ? 'T0 • Miễn phí 0đ' : 'T0 • Free'}
+              </span>
             </div>
 
             <div>
-              <label className="block text-slate-300 mb-1 font-semibold">Ngân hàng thụ hưởng Napas 247</label>
+              <label className="block text-slate-300 mb-1 font-semibold">
+                {language === 'vi' ? 'Ngân hàng thụ hưởng Napas 247' : 'Beneficiary Bank (Napas 247)'}
+              </label>
               <select
                 value={bankName}
                 onChange={(e) => setBankName(e.target.value)}
@@ -1455,7 +1574,9 @@ export const BankWithdrawDialog: React.FC<{ isOpen: boolean; onClose: () => void
             </div>
 
             <div>
-              <label className="block text-slate-300 mb-1 font-semibold">Số tài khoản ngân hàng</label>
+              <label className="block text-slate-300 mb-1 font-semibold">
+                {language === 'vi' ? 'Số tài khoản ngân hàng' : 'Bank Account Number'}
+              </label>
               <input
                 type="text"
                 required
@@ -1463,20 +1584,22 @@ export const BankWithdrawDialog: React.FC<{ isOpen: boolean; onClose: () => void
                 onBlur={handleAccountBlur}
                 onChange={(e) => setAccountNumber(e.target.value)}
                 className="w-full px-3 py-2 rounded-xl bg-[#131E30] border border-slate-700 text-white font-mono font-bold"
-                placeholder="Nhập số tài khoản ngân hàng..."
+                placeholder={language === 'vi' ? 'Nhập số tài khoản ngân hàng...' : 'Enter bank account number...'}
               />
             </div>
 
             <div>
               <div className="flex justify-between items-center mb-1">
-                <label className="text-slate-300 font-semibold">Họ tên chủ tài khoản (Tra cứu Napas)</label>
+                <label className="text-slate-300 font-semibold">
+                  {language === 'vi' ? 'Họ tên chủ tài khoản (Tra cứu Napas)' : 'Account Holder Name (Napas Verified)'}
+                </label>
                 {isLookingUp ? (
                   <span className="text-[10px] text-cyan-400 flex items-center space-x-1">
                     <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
-                    <span>Đang tra cứu Napas 247...</span>
+                    <span>{language === 'vi' ? 'Đang tra cứu Napas 247...' : 'Verifying via Napas 247...'}</span>
                   </span>
                 ) : (
-                  <span className="text-[10px] text-emerald-400 font-semibold">✓ Khớp E-KYC</span>
+                  <span className="text-[10px] text-emerald-400 font-semibold">✓ {language === 'vi' ? 'Khớp E-KYC' : 'Matches E-KYC'}</span>
                 )}
               </div>
               <input
@@ -1491,9 +1614,12 @@ export const BankWithdrawDialog: React.FC<{ isOpen: boolean; onClose: () => void
 
             <div>
               <div className="flex justify-between items-center mb-1">
-                <label className="text-slate-300 font-semibold">Số tiền muốn rút (Tối đa 3.000.000đ/lần)</label>
+                <label className="text-slate-300 font-semibold">
+                  {language === 'vi' ? 'Số tiền muốn rút (Tối đa 3.000.000đ/lần)' : 'Withdrawal Amount (Max 3,000,000 VND)'}
+                </label>
                 <span className="text-[10px] text-slate-400">
-                  Khả dụng: <strong className="text-emerald-400">{currentUser ? formatVnd(currentUser.walletBalance) : '0đ'}</strong>
+                  {language === 'vi' ? 'Khả dụng: ' : 'Available: '}
+                  <strong className="text-emerald-400">{currentUser ? formatVnd(currentUser.walletBalance) : '0đ'}</strong>
                 </span>
               </div>
               <input
@@ -1504,7 +1630,7 @@ export const BankWithdrawDialog: React.FC<{ isOpen: boolean; onClose: () => void
                 value={amount}
                 onChange={(e) => setAmount(e.target.value ? Number(e.target.value) : '')}
                 className="w-full px-3 py-2 rounded-xl bg-[#131E30] border border-slate-700 text-white font-mono font-bold text-sm"
-                placeholder="Nhập số tiền (tối đa 3.000.000đ)..."
+                placeholder={language === 'vi' ? 'Nhập số tiền (tối đa 3.000.000đ)...' : 'Enter amount (max 3,000,000 VND)...'}
               />
 
               {/* Quick Amount Chips (tối đa 3M) */}
@@ -1514,7 +1640,7 @@ export const BankWithdrawDialog: React.FC<{ isOpen: boolean; onClose: () => void
                     key={preset}
                     type="button"
                     onClick={() => setAmount(preset)}
-                    className={`px-2 py-1 rounded-lg border text-[10px] font-bold font-mono transition ${
+                    className={`px-2 py-1 rounded-lg border text-[10px] font-bold font-mono transition cursor-pointer ${
                       amount === preset
                         ? 'bg-red-500/20 border-red-500 text-red-300'
                         : 'bg-[#131E30] border-slate-700 text-slate-400 hover:text-white'
@@ -1533,18 +1659,28 @@ export const BankWithdrawDialog: React.FC<{ isOpen: boolean; onClose: () => void
                         setAmount(Math.min(currentUser.walletBalance, 3000000));
                       }
                     }}
-                    className="px-2 py-1 rounded-lg bg-cyan-500/10 border border-cyan-500/30 text-[#00E5FF] text-[10px] font-bold transition hover:bg-cyan-500/20"
+                    className="px-2 py-1 rounded-lg bg-cyan-500/10 border border-cyan-500/30 text-[#00E5FF] text-[10px] font-bold transition hover:bg-cyan-500/20 cursor-pointer"
                   >
                     {currentUser.walletBalance > 3000000 && !eligibility.isAdminBypass
-                      ? 'Rút Tối Đa (3.000.000đ)'
-                      : 'Rút Hết Số Dư'}
+                      ? language === 'vi' ? 'Rút Tối Đa (3.000.000đ)' : 'Max Limit (3,000,000 VND)'
+                      : language === 'vi' ? 'Rút Hết Số Dư' : 'Withdraw Full Balance'}
                   </button>
                 )}
               </div>
 
               <div className="flex justify-between items-center text-[10px] text-slate-400 pt-1.5 px-0.5">
-                <span>Phí giao dịch rút tiền: <strong className="text-emerald-400">0đ (Miễn phí)</strong></span>
-                <span>Hạn mức: <strong className="text-amber-300">Tối đa 3M / lần</strong></span>
+                <span>
+                  {language === 'vi' ? 'Phí giao dịch rút tiền: ' : 'Withdrawal fee: '}
+                  <strong className="text-emerald-400">
+                    {language === 'vi' ? '0đ (Miễn phí)' : '0đ (Free)'}
+                  </strong>
+                </span>
+                <span>
+                  {language === 'vi' ? 'Hạn mức: ' : 'Limit: '}
+                  <strong className="text-amber-300">
+                    {language === 'vi' ? 'Tối đa 3M / lần' : 'Max 3M / txn'}
+                  </strong>
+                </span>
               </div>
             </div>
 
@@ -1553,7 +1689,7 @@ export const BankWithdrawDialog: React.FC<{ isOpen: boolean; onClose: () => void
               <div className="flex items-center justify-between">
                 <span className="font-semibold text-slate-300 flex items-center space-x-1.5">
                   <Fingerprint className="w-4 h-4 text-[#00E5FF]" />
-                  <span>Xác thực vân tay / FaceID</span>
+                  <span>{language === 'vi' ? 'Xác thực vân tay / FaceID' : 'Biometric FaceID / Fingerprint'}</span>
                 </span>
                 <input
                   type="checkbox"
@@ -1565,7 +1701,9 @@ export const BankWithdrawDialog: React.FC<{ isOpen: boolean; onClose: () => void
 
               {!useBiometrics && (
                 <div>
-                  <label className="block text-slate-400 mb-1 font-semibold">Mã PIN giao dịch (6 chữ số)</label>
+                  <label className="block text-slate-400 mb-1 font-semibold">
+                    {language === 'vi' ? 'Mã PIN giao dịch (6 chữ số)' : 'Transaction PIN (6 digits)'}
+                  </label>
                   <input
                     type="password"
                     maxLength={6}
@@ -1590,8 +1728,8 @@ export const BankWithdrawDialog: React.FC<{ isOpen: boolean; onClose: () => void
               <Zap className="w-4 h-4 fill-current" />
               <span>
                 {eligibility.allowed || eligibility.isAdminBypass
-                  ? 'Xác Nhận Tạo Lệnh Rút Tiền Napas 247'
-                  : eligibility.reason || 'Chưa đủ điều kiện rút tiền'}
+                  ? language === 'vi' ? 'Xác Nhận Tạo Lệnh Rút Tiền Napas 247' : 'Confirm Napas 247 Withdrawal'
+                  : eligibility.reason || (language === 'vi' ? 'Chưa đủ điều kiện rút tiền' : 'Withdrawal conditions not met')}
               </span>
             </button>
           </form>
@@ -1606,7 +1744,7 @@ export const EWalletDialog: React.FC<{ isOpen: boolean; onClose: () => void }> =
   isOpen,
   onClose,
 }) => {
-  const { currentUser, linkEWallet, depositEWallet, withdrawEWallet, showNotification } = useGigMe();
+  const { currentUser, linkEWallet, depositEWallet, withdrawEWallet, showNotification, language } = useGigMe();
   const [walletType, setWalletType] = useState('MoMo');
   const existingConnected = walletType === 'MoMo' ? currentUser?.connectedMoMo : currentUser?.connectedZaloPay;
   const [phone, setPhone] = useState(existingConnected || currentUser?.phone || '');
@@ -1618,7 +1756,10 @@ export const EWalletDialog: React.FC<{ isOpen: boolean; onClose: () => void }> =
   const handleAction = () => {
     if (!phone.trim()) {
       triggerHaptic('error');
-      showNotification('Thiếu SĐT ví', 'Vui lòng nhập số điện thoại liên kết ví.');
+      showNotification(
+        language === 'vi' ? 'Thiếu SĐT ví' : 'Missing e-wallet phone',
+        language === 'vi' ? 'Vui lòng nhập số điện thoại liên kết ví.' : 'Please enter your e-wallet registered phone number.'
+      );
       return;
     }
     const numAmount = Number(amount);
@@ -1629,7 +1770,10 @@ export const EWalletDialog: React.FC<{ isOpen: boolean; onClose: () => void }> =
     } else if (mode === 'DEPOSIT') {
       if (!numAmount || numAmount < 10000) {
         triggerHaptic('error');
-        showNotification('Số tiền không hợp lệ', 'Số tiền nạp tối thiểu là 10.000đ.');
+        showNotification(
+          language === 'vi' ? 'Số tiền không hợp lệ' : 'Invalid amount',
+          language === 'vi' ? 'Số tiền nạp tối thiểu là 10.000đ.' : 'Minimum deposit is 10,000 VND.'
+        );
         return;
       }
       triggerHaptic('success');
@@ -1638,7 +1782,10 @@ export const EWalletDialog: React.FC<{ isOpen: boolean; onClose: () => void }> =
     } else {
       if (!numAmount || numAmount < 10000) {
         triggerHaptic('error');
-        showNotification('Số tiền không hợp lệ', 'Số tiền rút tối thiểu là 10.000đ.');
+        showNotification(
+          language === 'vi' ? 'Số tiền không hợp lệ' : 'Invalid amount',
+          language === 'vi' ? 'Số tiền rút tối thiểu là 10.000đ.' : 'Minimum withdrawal is 10,000 VND.'
+        );
         return;
       }
       triggerHaptic('success');
@@ -1656,7 +1803,9 @@ export const EWalletDialog: React.FC<{ isOpen: boolean; onClose: () => void }> =
     >
       <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md rounded-2xl bg-[#0F172A] border border-[#1E293B] p-6 text-white shadow-2xl">
         <div className="flex justify-between items-center pb-3 border-b border-slate-800">
-          <h3 className="font-extrabold text-sm">Liên Kết & Giao Dịch Ví Điện Tử</h3>
+          <h3 className="font-extrabold text-sm">
+            {language === 'vi' ? 'Liên Kết & Giao Dịch Ví Điện Tử' : 'E-Wallet Integration & Transactions'}
+          </h3>
           <button onClick={onClose} className="text-slate-400 hover:text-white">
             <X className="w-5 h-5" />
           </button>
@@ -1687,7 +1836,7 @@ export const EWalletDialog: React.FC<{ isOpen: boolean; onClose: () => void }> =
               mode === 'DEPOSIT' ? 'bg-[#00E5FF] text-black' : 'text-slate-400'
             }`}
           >
-            Nạp Tiền
+            {language === 'vi' ? 'Nạp Tiền' : 'Deposit'}
           </button>
           <button
             onClick={() => setMode('WITHDRAW')}
@@ -1695,7 +1844,7 @@ export const EWalletDialog: React.FC<{ isOpen: boolean; onClose: () => void }> =
               mode === 'WITHDRAW' ? 'bg-[#FF6B00] text-black' : 'text-slate-400'
             }`}
           >
-            Rút Tiền
+            {language === 'vi' ? 'Rút Tiền' : 'Withdraw'}
           </button>
           <button
             onClick={() => setMode('LINK')}
@@ -1703,25 +1852,29 @@ export const EWalletDialog: React.FC<{ isOpen: boolean; onClose: () => void }> =
               mode === 'LINK' ? 'bg-purple-500 text-white' : 'text-slate-400'
             }`}
           >
-            Đổi SĐT Ví
+            {language === 'vi' ? 'Đổi SĐT Ví' : 'Change Phone'}
           </button>
         </div>
 
         <div className="space-y-3 text-xs">
           <div>
-            <label className="block text-slate-400 mb-1 font-semibold">Số điện thoại đăng ký {walletType}</label>
+            <label className="block text-slate-400 mb-1 font-semibold">
+              {language === 'vi' ? `Số điện thoại đăng ký ${walletType}` : `Registered phone number for ${walletType}`}
+            </label>
             <input
               type="text"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               className="w-full px-3 py-2 rounded-xl bg-[#131E30] border border-slate-700 text-white font-mono font-bold"
-              placeholder="Nhập SĐT ví (VD: 0909120918)..."
+              placeholder={language === 'vi' ? 'Nhập SĐT ví (VD: 0909120918)...' : 'Enter e-wallet phone (e.g. 0909120918)...'}
             />
           </div>
 
           {mode !== 'LINK' && (
             <div>
-              <label className="block text-slate-400 mb-1 font-semibold">Số tiền (VND)</label>
+              <label className="block text-slate-400 mb-1 font-semibold">
+                {language === 'vi' ? 'Số tiền (VND)' : 'Amount (VND)'}
+              </label>
               <input
                 type="number"
                 step="10000"
@@ -1738,10 +1891,10 @@ export const EWalletDialog: React.FC<{ isOpen: boolean; onClose: () => void }> =
             className="w-full mt-4 py-2.5 rounded-xl bg-gradient-to-r from-pink-500 via-purple-600 to-indigo-600 text-white font-extrabold text-sm hover:brightness-110 shadow-lg shadow-pink-600/20 transition"
           >
             {mode === 'DEPOSIT'
-              ? `Xác Nhận Nạp ${formatVnd(Number(amount) || 0)} Từ ${walletType}`
+              ? language === 'vi' ? `Xác Nhận Nạp ${formatVnd(Number(amount) || 0)} Từ ${walletType}` : `Confirm Deposit ${formatVnd(Number(amount) || 0)} via ${walletType}`
               : mode === 'WITHDRAW'
-              ? `Rút ${formatVnd(Number(amount) || 0)} Về ${walletType}`
-              : `Cập Nhật Liên Kết ${walletType}`}
+              ? language === 'vi' ? `Rút ${formatVnd(Number(amount) || 0)} Về ${walletType}` : `Withdraw ${formatVnd(Number(amount) || 0)} to ${walletType}`
+              : language === 'vi' ? `Cập Nhật Liên Kết ${walletType}` : `Update ${walletType} Link`}
           </button>
         </div>
       </div>
@@ -1754,7 +1907,7 @@ export const SoundSettingsDialog: React.FC<{ isOpen: boolean; onClose: () => voi
   isOpen,
   onClose,
 }) => {
-  const { currentUser, setNotificationSound, showNotification } = useGigMe();
+  const { currentUser, setNotificationSound, showNotification, language } = useGigMe();
   const [muted, setMuted] = useState(isAudioMuted());
   const [playingKey, setPlayingKey] = useState<string | null>(null);
 
@@ -1768,8 +1921,12 @@ export const SoundSettingsDialog: React.FC<{ isOpen: boolean; onClose: () => voi
       playNotificationSound('BUTTON_CLICK');
     }
     showNotification(
-      next ? '🔇 Đã tắt toàn bộ âm thanh' : '🔊 Đã bật âm thanh Retro Cyber',
-      next ? 'Hệ thống sẽ chạy ở chế độ im lặng' : 'Sẵn sàng trải nghiệm âm thanh sinh động!'
+      next
+        ? language === 'vi' ? '🔇 Đã tắt toàn bộ âm thanh' : '🔇 Muted all sounds'
+        : language === 'vi' ? '🔊 Đã bật âm thanh Retro Cyber' : '🔊 Retro Cyber sounds enabled',
+      next
+        ? language === 'vi' ? 'Hệ thống sẽ chạy ở chế độ im lặng' : 'System running in silent mode'
+        : language === 'vi' ? 'Sẵn sàng trải nghiệm âm thanh sinh động!' : 'Ready for rich cyber sound effects!'
     );
   };
 
@@ -1781,64 +1938,82 @@ export const SoundSettingsDialog: React.FC<{ isOpen: boolean; onClose: () => voi
 
   const RETRO_CYBER_CUES: Array<{
     key: SoundEffectType;
-    label: string;
-    desc: string;
+    labelVi: string;
+    labelEn: string;
+    descVi: string;
+    descEn: string;
     tag: string;
     color: string;
   }> = [
     {
       key: 'BANK_TING',
-      label: 'Ting Ting Napas 247',
-      desc: 'Chuông cao pha lê báo giải ngân ví & nạp tiền thành công',
+      labelVi: 'Ting Ting Napas 247',
+      labelEn: 'Napas 247 Chime',
+      descVi: 'Chuông cao pha lê báo giải ngân ví & nạp tiền thành công',
+      descEn: 'Crystal chime for disbursements & successful top-ups',
       tag: 'FINANCE',
       color: 'text-emerald-400 border-emerald-500/40 bg-emerald-500/10',
     },
     {
       key: 'CASH_COUNT',
-      label: 'Máy Đếm Tiền Rào Rạo',
-      desc: 'Hiệu ứng xào tiền polymer cực sướng tai khi nhận thù lao',
+      labelVi: 'Máy Đếm Tiền Rào Rạo',
+      labelEn: 'Cash Counter Flutter',
+      descVi: 'Hiệu ứng xào tiền polymer cực sướng tai khi nhận thù lao',
+      descEn: 'Polymer cash counting flutter on reward payout',
       tag: 'EARNINGS',
       color: 'text-amber-400 border-amber-500/40 bg-amber-500/10',
     },
     {
       key: 'RADAR_PING',
-      label: 'Radar Sonar Ping Quét Việc',
-      desc: 'Sóng âm viễn tưởng phát ra khi quét campus jobs xung quanh',
+      labelVi: 'Radar Sonar Ping Quét Việc',
+      labelEn: 'Radar Sonar Job Scan Ping',
+      descVi: 'Sóng âm viễn tưởng phát ra khi quét campus jobs xung quanh',
+      descEn: 'Sci-fi sonar wave when pinging campus jobs nearby',
       tag: 'RADAR',
       color: 'text-[#00E5FF] border-cyan-500/40 bg-cyan-500/10',
     },
     {
       key: 'ESCROW_LOCK',
-      label: 'Khóa Kỹ Thuật Số Smart Escrow',
-      desc: 'Tiếng cơ khí 2 nhịp bảo chứng hợp đồng ký quỹ sinh viên',
+      labelVi: 'Khóa Kỹ Thuật Số Smart Escrow',
+      labelEn: 'Smart Escrow Lock',
+      descVi: 'Tiếng cơ khí 2 nhịp bảo chứng hợp đồng ký quỹ sinh viên',
+      descEn: 'Two-stage mechanical lock securing student escrow',
       tag: 'ESCROW',
       color: 'text-purple-400 border-purple-500/40 bg-purple-500/10',
     },
     {
       key: 'LEVEL_UP',
-      label: 'Fanfare 8-bit Thăng Hạng ELO',
-      desc: 'Hợp âm vinh danh khi tăng điểm tín nhiệm & mở huy hiệu',
+      labelVi: 'Fanfare 8-bit Thăng Hạng ELO',
+      labelEn: '8-bit ELO Rank Up Fanfare',
+      descVi: 'Hợp âm vinh danh khi tăng điểm tín nhiệm & mở huy hiệu',
+      descEn: 'Chiptune fanfare when trust score & badges level up',
       tag: 'RANKING',
       color: 'text-yellow-400 border-yellow-500/40 bg-yellow-500/10',
     },
     {
       key: 'SUCCESS_CHIME',
-      label: 'Nghiệm Thu Công Việc Thành Công',
-      desc: 'Âm thanh 2 nốt trong trẻo khi hoàn tất gig và ký biên bản',
+      labelVi: 'Nghiệm Thu Công Việc Thành Công',
+      labelEn: 'Job Completion Chime',
+      descVi: 'Âm thanh 2 nốt trong trẻo khi hoàn tất gig và ký biên bản',
+      descEn: 'Dual-tone chime when signing off a completed gig',
       tag: 'GIGS',
       color: 'text-blue-400 border-blue-500/40 bg-blue-500/10',
     },
     {
       key: 'BUTTON_CLICK',
-      label: 'Phím Bấm Haptic Pop',
-      desc: 'Phản hồi tactile haptic pop khi bấm phím tương tác',
+      labelVi: 'Phím Bấm Haptic Pop',
+      labelEn: 'Haptic Pop Click',
+      descVi: 'Phản hồi tactile haptic pop khi bấm phím tương tác',
+      descEn: 'Crisp tactile haptic pop on key interaction',
       tag: 'UI FX',
       color: 'text-slate-300 border-slate-700 bg-slate-800',
     },
     {
       key: 'SOFT_VIBRATE',
-      label: 'Rung Nhẹ Êm Dịu Thư Viện',
-      desc: 'Âm bass tần số thấp phù hợp khi làm việc trong phòng đọc',
+      labelVi: 'Rung Nhẹ Êm Dịu Thư Viện',
+      labelEn: 'Quiet Library Vibrate',
+      descVi: 'Âm bass tần số thấp phù hợp khi làm việc trong phòng đọc',
+      descEn: 'Gentle low-frequency tone tailored for study halls',
       tag: 'QUIET',
       color: 'text-rose-400 border-rose-500/40 bg-rose-500/10',
     },
@@ -1859,8 +2034,12 @@ export const SoundSettingsDialog: React.FC<{ isOpen: boolean; onClose: () => voi
               <Volume2 className="w-5 h-5 stroke-[2.5]" />
             </div>
             <div>
-              <h3 className="font-extrabold text-sm sm:text-base text-white">Chế Độ Âm Thanh Độc Quyền</h3>
-              <p className="text-[10px] text-slate-400">Retro Cyber Audio Cues sinh động</p>
+              <h3 className="font-extrabold text-sm sm:text-base text-white">
+                {language === 'vi' ? 'Chế Độ Âm Thanh Độc Quyền' : 'Custom Sound Settings'}
+              </h3>
+              <p className="text-[10px] text-slate-400">
+                {language === 'vi' ? 'Retro Cyber Audio Cues sinh động' : 'Vivid Retro Cyber Audio Cues'}
+              </p>
             </div>
           </div>
           <button onClick={onClose} className="p-1 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition">
@@ -1876,8 +2055,14 @@ export const SoundSettingsDialog: React.FC<{ isOpen: boolean; onClose: () => voi
                 {muted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
               </div>
               <div>
-                <h4 className="text-xs font-bold text-white">Âm Lượng Toàn Ứng Dụng</h4>
-                <p className="text-[10px] text-slate-400">{muted ? 'Đang tắt âm (Mute)' : 'Đang phát âm thanh đầy đủ'}</p>
+                <h4 className="text-xs font-bold text-white">
+                  {language === 'vi' ? 'Âm Lượng Toàn Ứng Dụng' : 'Master App Volume'}
+                </h4>
+                <p className="text-[10px] text-slate-400">
+                  {muted
+                    ? language === 'vi' ? 'Đang tắt âm (Mute)' : 'Muted (Silent mode)'
+                    : language === 'vi' ? 'Đang phát âm thanh đầy đủ' : 'Audio enabled'}
+                </p>
               </div>
             </div>
             <button
@@ -1888,7 +2073,9 @@ export const SoundSettingsDialog: React.FC<{ isOpen: boolean; onClose: () => voi
                   : 'bg-emerald-500 text-black border-emerald-400 hover:brightness-110 shadow-md shadow-emerald-500/20'
               }`}
             >
-              {muted ? 'Bật Lại' : 'Đang Bật'}
+              {muted
+                ? language === 'vi' ? 'Bật Lại' : 'Unmute'
+                : language === 'vi' ? 'Đang Bật' : 'Enabled'}
             </button>
           </div>
 
@@ -1920,9 +2107,13 @@ export const SoundSettingsDialog: React.FC<{ isOpen: boolean; onClose: () => voi
                       <span className={`text-[9px] font-mono px-1.5 py-0.2 rounded font-black border ${cue.color}`}>
                         {cue.tag}
                       </span>
-                      <h4 className="text-xs font-bold text-white truncate">{cue.label}</h4>
+                      <h4 className="text-xs font-bold text-white truncate">
+                        {language === 'vi' ? cue.labelVi : cue.labelEn}
+                      </h4>
                     </div>
-                    <p className="text-[10px] text-slate-400 mt-0.5 line-clamp-1">{cue.desc}</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5 line-clamp-1">
+                      {language === 'vi' ? cue.descVi : cue.descEn}
+                    </p>
                   </div>
 
                   <button
@@ -1938,7 +2129,11 @@ export const SoundSettingsDialog: React.FC<{ isOpen: boolean; onClose: () => voi
                     }`}
                   >
                     <Play className="w-3 h-3 fill-current" />
-                    <span>{isPlaying ? 'Đang thử' : 'Thử nghe'}</span>
+                    <span>
+                      {isPlaying
+                        ? language === 'vi' ? 'Đang thử' : 'Testing'
+                        : language === 'vi' ? 'Thử nghe' : 'Preview'}
+                    </span>
                   </button>
                 </div>
               );
@@ -1950,7 +2145,7 @@ export const SoundSettingsDialog: React.FC<{ isOpen: boolean; onClose: () => voi
           onClick={onClose}
           className="w-full mt-2 py-2.5 rounded-2xl bg-gradient-to-r from-[#00E5FF] to-blue-500 text-black font-extrabold text-xs hover:brightness-110 shadow-lg shadow-cyan-500/20 transition"
         >
-          Áp Dụng & Đóng
+          {language === 'vi' ? 'Áp Dụng & Đóng' : 'Apply & Close'}
         </button>
       </div>
     </div>
@@ -1962,7 +2157,7 @@ export const StatementDialog: React.FC<{ isOpen: boolean; onClose: () => void }>
   isOpen,
   onClose,
 }) => {
-  const { exportStatement } = useGigMe();
+  const { exportStatement, language } = useGigMe();
   if (!isOpen) return null;
 
   return (
@@ -1983,9 +2178,13 @@ export const StatementDialog: React.FC<{ isOpen: boolean; onClose: () => void }>
           <FileSpreadsheet className="w-6 h-6" />
         </div>
 
-        <h3 className="text-base font-extrabold text-white">Xuất Sao Kê Tài Chính GigMe</h3>
+        <h3 className="text-base font-extrabold text-white">
+          {language === 'vi' ? 'Xuất Sao Kê Tài Chính GigMe' : 'Export GigMe Financial Statement'}
+        </h3>
         <p className="text-xs text-slate-400 mt-1">
-          Bảng kê có đóng dấu mã QR đối soát điện tử, được các ngân hàng & đối tác chấp nhận xác minh thu nhập.
+          {language === 'vi'
+            ? 'Bảng kê có đóng dấu mã QR đối soát điện tử, được các ngân hàng & đối tác chấp nhận xác minh thu nhập.'
+            : 'Statement stamped with electronic QR verification, accepted by banks & partners for income proof.'}
         </p>
 
         <div className="space-y-2 mt-6">
@@ -1996,7 +2195,7 @@ export const StatementDialog: React.FC<{ isOpen: boolean; onClose: () => void }>
             }}
             className="w-full py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 text-white font-extrabold text-xs hover:brightness-110 shadow-md transition"
           >
-            Xuất File PDF (Đối Soát Thu Nhập)
+            {language === 'vi' ? 'Xuất File PDF (Đối Soát Thu Nhập)' : 'Export PDF (Income Audit Proof)'}
           </button>
 
           <button
@@ -2006,7 +2205,7 @@ export const StatementDialog: React.FC<{ isOpen: boolean; onClose: () => void }>
             }}
             className="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-extrabold text-xs hover:brightness-110 shadow-md transition"
           >
-            Xuất File Excel (.XLSX)
+            {language === 'vi' ? 'Xuất File Excel (.XLSX)' : 'Export Excel (.XLSX)'}
           </button>
         </div>
       </div>
@@ -2019,7 +2218,7 @@ export const BusinessUpgradeDialog: React.FC<{ isOpen: boolean; onClose: () => v
   isOpen,
   onClose,
 }) => {
-  const { upgradeToBusinessAccount } = useGigMe();
+  const { upgradeToBusinessAccount, language } = useGigMe();
   const [businessName, setBusinessName] = useState('Quán Trà Sữa KTX Bách Khoa');
   const [taxId, setTaxId] = useState('0109887766');
 
@@ -2042,7 +2241,9 @@ export const BusinessUpgradeDialog: React.FC<{ isOpen: boolean; onClose: () => v
         <div className="flex justify-between items-center pb-3 border-b border-slate-800">
           <div className="flex items-center space-x-2">
             <Building2 className="w-5 h-5 text-amber-400" />
-            <h3 className="font-extrabold text-sm">Nâng Cấp GigMe For Business</h3>
+            <h3 className="font-extrabold text-sm">
+              {language === 'vi' ? 'Nâng Cấp GigMe For Business' : 'Upgrade to GigMe For Business'}
+            </h3>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-white">
             <X className="w-5 h-5" />
@@ -2051,28 +2252,43 @@ export const BusinessUpgradeDialog: React.FC<{ isOpen: boolean; onClose: () => v
 
         <form onSubmit={handleSubmit} className="py-4 space-y-3.5 text-xs">
           <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200">
-            🏢 Dành cho Hộ kinh doanh, Cửa hàng ăn uống, Studio media sinh viên:
+            {language === 'vi'
+              ? '🏢 Dành cho Hộ kinh doanh, Cửa hàng ăn uống, Studio media sinh viên:'
+              : '🏢 For Registered Merchants, Cafes & Campus Media Studios:'}
             <ul className="list-disc pl-4 mt-1 space-y-0.5">
-              <li>Phí nền tảng giảm còn <strong>7%</strong> (thay vì 10%)</li>
-              <li>Hạn mức cọc & giao dịch mở rộng lên <strong>100.000.000đ</strong></li>
-              <li>Đăng tuyển kèo ghép nhóm lên đến 10 người cùng lúc</li>
+              <li>
+                {language === 'vi' ? 'Phí nền tảng giảm còn ' : 'Platform fee reduced to '}
+                <strong>7%</strong>
+                {language === 'vi' ? ' (thay vì 10%)' : ' (instead of 10%)'}
+              </li>
+              <li>
+                {language === 'vi' ? 'Hạn mức cọc & giao dịch mở rộng lên ' : 'Deposit & transaction limit expanded to '}
+                <strong>100.000.000đ</strong>
+              </li>
+              <li>
+                {language === 'vi' ? 'Đăng tuyển kèo ghép nhóm lên đến 10 người cùng lúc' : 'Post group tasks for up to 10 workers at once'}
+              </li>
             </ul>
           </div>
 
           <div>
-            <label className="block text-slate-400 mb-1 font-semibold">Tên Doanh nghiệp / Cửa hàng</label>
+            <label className="block text-slate-400 mb-1 font-semibold">
+              {language === 'vi' ? 'Tên Doanh nghiệp / Cửa hàng' : 'Business / Store Name'}
+            </label>
             <input
               type="text"
               required
               value={businessName}
               onChange={(e) => setBusinessName(e.target.value)}
               className="w-full px-3 py-2 rounded-xl bg-[#131E30] border border-slate-700 text-white font-bold"
-              placeholder="VD: Quán Cà Phê Sinh Viên"
+              placeholder={language === 'vi' ? 'VD: Quán Cà Phê Sinh Viên' : 'e.g. Student Coffee Hub'}
             />
           </div>
 
           <div>
-            <label className="block text-slate-400 mb-1 font-semibold">Mã số thuế (MST) hoặc Số ĐKKD</label>
+            <label className="block text-slate-400 mb-1 font-semibold">
+              {language === 'vi' ? 'Mã số thuế (MST) hoặc Số ĐKKD' : 'Tax ID or Business Registration No.'}
+            </label>
             <input
               type="text"
               required
@@ -2087,7 +2303,7 @@ export const BusinessUpgradeDialog: React.FC<{ isOpen: boolean; onClose: () => v
             type="submit"
             className="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 text-black font-extrabold text-sm hover:brightness-110 shadow-lg shadow-amber-500/20 transition"
           >
-            Kích Hoạt Tài Khoản Doanh Nghiệp
+            {language === 'vi' ? 'Kích Hoạt Tài Khoản Doanh Nghiệp' : 'Activate Business Account'}
           </button>
         </form>
       </div>
@@ -2103,7 +2319,7 @@ export const MysteryBoxDialog: React.FC<{ isOpen: boolean; onClose: () => void }
   isOpen,
   onClose,
 }) => {
-  const { showNotification } = useGigMe();
+  const { showNotification, language } = useGigMe();
   const [isOpened, setIsOpened] = useState(false);
 
   if (!isOpen) return null;
@@ -2111,8 +2327,10 @@ export const MysteryBoxDialog: React.FC<{ isOpen: boolean; onClose: () => void }
   const handleOpenBox = () => {
     setIsOpened(true);
     showNotification(
-      '🎁 Hộp Quà Bí Ẩn Đã Mở!',
-      'Chúc mừng bạn nhận được Voucher miễn 100% phí sàn giao dịch tiếp theo!',
+      language === 'vi' ? '🎁 Hộp Quà Bí Ẩn Đã Mở!' : '🎁 Mystery Box Opened!',
+      language === 'vi'
+        ? 'Chúc mừng bạn nhận được Voucher miễn 100% phí sàn giao dịch tiếp theo!'
+        : 'Congratulations! You received a 100% platform fee waiver voucher for your next gig!',
       true,
       true
     );
@@ -2133,8 +2351,14 @@ export const MysteryBoxDialog: React.FC<{ isOpen: boolean; onClose: () => void }
           <X className="w-5 h-5" />
         </button>
 
-        <h3 className="text-base font-extrabold text-white mb-2">Hộp Quà May Mắn Sinh Viên</h3>
-        <p className="text-xs text-slate-400 mb-6">Mở hộp quà mỗi ngày khi hoàn thành ít nhất 1 kèo!</p>
+        <h3 className="text-base font-extrabold text-white mb-2">
+          {language === 'vi' ? 'Hộp Quà May Mắn Sinh Viên' : 'Student Mystery Lucky Box'}
+        </h3>
+        <p className="text-xs text-slate-400 mb-6">
+          {language === 'vi'
+            ? 'Mở hộp quà mỗi ngày khi hoàn thành ít nhất 1 kèo!'
+            : 'Open your daily lucky box whenever you complete at least 1 gig!'}
+        </p>
 
         {!isOpened ? (
           <div className="py-6 space-y-4">
@@ -2148,21 +2372,25 @@ export const MysteryBoxDialog: React.FC<{ isOpen: boolean; onClose: () => void }
               onClick={handleOpenBox}
               className="px-6 py-2.5 rounded-2xl bg-gradient-to-r from-[#00E5FF] to-[#FF6B00] text-black font-extrabold text-sm hover:brightness-110 shadow-lg shadow-cyan-500/25 transition"
             >
-              Chạm Để Mở Quà
+              {language === 'vi' ? 'Chạm Để Mở Quà' : 'Tap To Open Box'}
             </button>
           </div>
         ) : (
           <div className="py-4 space-y-3 animate-fade-in">
             <div className="text-5xl mb-2">🎉</div>
-            <h4 className="text-sm font-extrabold text-emerald-400">VOUCHER MIỄN 100% PHÍ SÀN</h4>
+            <h4 className="text-sm font-extrabold text-emerald-400">
+              {language === 'vi' ? 'VOUCHER MIỄN 100% PHÍ SÀN' : '100% FEE WAIVER VOUCHER'}
+            </h4>
             <p className="text-xs text-slate-300">
-              Đã cộng trực tiếp vào ví của bạn. Áp dụng tự động cho lần nghiệm thu tiếp theo!
+              {language === 'vi'
+                ? 'Đã cộng trực tiếp vào ví của bạn. Áp dụng tự động cho lần nghiệm thu tiếp theo!'
+                : 'Added directly to your wallet. Automatically applied to your next gig sign-off!'}
             </p>
             <button
               onClick={onClose}
               className="mt-3 px-6 py-2 rounded-xl bg-[#131E30] text-[#00E5FF] font-bold text-xs hover:bg-slate-800 transition"
             >
-              Tuyệt vời, Đóng lại
+              {language === 'vi' ? 'Tuyệt vời, Đóng lại' : 'Awesome, Close'}
             </button>
           </div>
         )}

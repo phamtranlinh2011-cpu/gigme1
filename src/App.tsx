@@ -1,5 +1,6 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { GigMeProvider, useGigMe } from './context/GigMeContext';
+import { LanguageProvider } from './context/LanguageContext';
 import { Header } from './components/Header';
 import { BottomNav, TabScreen } from './components/BottomNav';
 import { HomeScreen } from './screens/HomeScreen';
@@ -491,9 +492,11 @@ const MainLayout: React.FC = () => {
 export default function App() {
   return (
     <ErrorBoundary>
-      <GigMeProvider>
-        <MainLayout />
-      </GigMeProvider>
+      <LanguageProvider>
+        <GigMeProvider>
+          <MainLayout />
+        </GigMeProvider>
+      </LanguageProvider>
     </ErrorBoundary>
   );
 }

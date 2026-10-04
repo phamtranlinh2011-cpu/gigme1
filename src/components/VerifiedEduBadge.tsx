@@ -1,5 +1,6 @@
 import React from 'react';
 import { ShieldCheck, GraduationCap } from 'lucide-react';
+import { useGigMe } from '../context/GigMeContext';
 
 interface VerifiedEduBadgeProps {
   school?: string;
@@ -12,6 +13,7 @@ export const VerifiedEduBadge: React.FC<VerifiedEduBadgeProps> = ({
   size = 'sm',
   showText = true,
 }) => {
+  const { language } = useGigMe();
   const isSm = size === 'sm';
   const isLg = size === 'lg';
 
@@ -24,7 +26,11 @@ export const VerifiedEduBadge: React.FC<VerifiedEduBadgeProps> = ({
           ? 'px-3 py-1 text-xs'
           : 'px-2.5 py-0.5 text-[11px]'
       } bg-gradient-to-r from-sky-500/20 via-blue-600/25 to-cyan-500/20 text-sky-300 border-sky-400/40`}
-      title={`Sinh viên chính quy trường ${school || 'Đại học'} đã xác thực qua email .edu.vn`}
+      title={
+        language === 'vi'
+          ? `Sinh viên chính quy trường ${school || 'Đại học'} đã xác thực qua email .edu.vn`
+          : `Verified student of ${school || 'University'} via .edu.vn email`
+      }
     >
       <span className="flex items-center text-sky-400">
         <GraduationCap className={isSm ? 'w-3 h-3' : isLg ? 'w-4 h-4' : 'w-3.5 h-3.5'} />
@@ -32,7 +38,7 @@ export const VerifiedEduBadge: React.FC<VerifiedEduBadgeProps> = ({
       </span>
       {showText && (
         <span className="truncate max-w-[120px] sm:max-w-[160px]">
-          {school ? `${school} ✓` : 'Sinh Viên .edu.vn ✓'}
+          {school ? `${school} ✓` : language === 'vi' ? 'Sinh Viên .edu.vn ✓' : 'Student .edu.vn ✓'}
         </span>
       )}
     </span>

@@ -18,7 +18,7 @@ export const DoubleBlindReviewModal: React.FC<DoubleBlindReviewModalProps> = ({
   onClose,
   role,
 }) => {
-  const { submitDoubleBlindReview } = useGigMe();
+  const { submitDoubleBlindReview, language } = useGigMe();
   const [rating, setRating] = useState<number>(5);
   const [hoverRating, setHoverRating] = useState<number>(0);
   const [reviewText, setReviewText] = useState('');
@@ -33,10 +33,17 @@ export const DoubleBlindReviewModal: React.FC<DoubleBlindReviewModalProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    const defaultGood = language === 'vi'
+      ? 'Làm việc rất uy tín, đúng giờ và nhiệt tình!'
+      : 'Very reliable, punctual, and enthusiastic work!';
+    const defaultBad = language === 'vi'
+      ? 'Cần cải thiện chất lượng công việc.'
+      : 'Work quality needs improvement.';
+
     submitDoubleBlindReview(
       gig.id,
       rating,
-      reviewText.trim() || (rating >= 4 ? 'Làm việc rất uy tín, đúng giờ và nhiệt tình!' : 'Cần cải thiện chất lượng công việc.'),
+      reviewText.trim() || (rating >= 4 ? defaultGood : defaultBad),
       role
     );
     setIsSubmitting(false);
@@ -57,6 +64,7 @@ export const DoubleBlindReviewModal: React.FC<DoubleBlindReviewModalProps> = ({
         <button
           onClick={onClose}
           className="absolute top-4 right-4 p-1.5 rounded-xl bg-slate-800 text-slate-400 hover:text-white transition"
+          aria-label="Close"
         >
           <X className="w-5 h-5" />
         </button>
@@ -68,13 +76,16 @@ export const DoubleBlindReviewModal: React.FC<DoubleBlindReviewModalProps> = ({
           </div>
           <div>
             <div className="flex items-center space-x-2">
-              <h3 className="font-black text-base text-white">Đánh Giá Hai Chiều Mù</h3>
+              <h3 className="font-black text-base text-white">
+                {language === 'vi' ? 'Đánh Giá Hai Chiều Mù' : 'Double-Blind Mutual Review'}
+              </h3>
               <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-indigo-500/30 text-indigo-200 border border-indigo-400/40">
                 Double-Blind
               </span>
             </div>
             <p className="text-xs text-slate-400">
-              Đánh giá bí mật cho: <span className="text-cyan-300 font-bold">{targetName}</span>
+              {language === 'vi' ? 'Đánh giá bí mật cho: ' : 'Sealed review for: '}
+              <span className="text-cyan-300 font-bold">{targetName}</span>
             </p>
           </div>
         </div>
@@ -84,18 +95,29 @@ export const DoubleBlindReviewModal: React.FC<DoubleBlindReviewModalProps> = ({
           <div className="flex items-start space-x-2">
             <EyeOff className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
             <p>
-              <strong>Cơ chế Chống Trả Thù Đánh Giá Xấu:</strong> {targetName} sẽ <strong>hoàn toàn không thể xem</strong> số sao và lời nhận xét của bạn cho đến khi họ cũng hoàn tất đánh giá về bạn!
+              <strong>{language === 'vi' ? 'Cơ chế Chống Trả Thù Đánh Giá Xấu:' : 'Anti-Retaliation Protection:'}</strong>{' '}
+              {language === 'vi'
+                ? `${targetName} sẽ hoàn toàn không thể xem số sao và lời nhận xét của bạn cho đến khi họ cũng hoàn tất đánh giá về bạn!`
+                : `${targetName} cannot see your stars or review until they have also completed their review for you!`}
             </p>
           </div>
           {otherPartyAlreadyRated ? (
             <div className="p-2 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[11px] flex items-center space-x-1.5">
               <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-              <span>Đối phương đã hoàn tất phần đánh giá của họ! Khi bạn bấm gửi, toàn bộ kết quả sẽ được mở khóa công khai ngay lập tức.</span>
+              <span>
+                {language === 'vi'
+                  ? 'Đối phương đã hoàn tất phần đánh giá của họ! Khi bạn bấm gửi, toàn bộ kết quả sẽ được mở khóa công khai ngay lập tức.'
+                  : 'The other party has completed their review! Once you submit, both reviews will be unlocked simultaneously.'}
+              </span>
             </div>
           ) : (
             <div className="p-2 rounded-xl bg-slate-900/80 border border-slate-800 text-slate-400 text-[11px] flex items-center space-x-1.5">
               <Lock className="w-4 h-4 text-amber-400 shrink-0" />
-              <span>Đối phương chưa gửi đánh giá. Lời nhận xét của bạn sẽ được niêm phong cho đến khi họ gửi xong.</span>
+              <span>
+                {language === 'vi'
+                  ? 'Đối phương chưa gửi đánh giá. Lời nhận xét của bạn sẽ được niêm phong cho đến khi họ gửi xong.'
+                  : 'The other party has not reviewed yet. Your comments remain sealed until they submit theirs.'}
+              </span>
             </div>
           )}
         </div>
@@ -105,7 +127,9 @@ export const DoubleBlindReviewModal: React.FC<DoubleBlindReviewModalProps> = ({
           {/* Star selector */}
           <div className="text-center py-2 bg-slate-900/60 rounded-2xl border border-slate-800">
             <label className="block text-xs text-slate-400 mb-2 font-bold">
-              Chấm Điểm Tín Nhiệm & Chất Lượng (1 - 5 Sao)
+              {language === 'vi'
+                ? 'Chấm Điểm Tín Nhiệm & Chất Lượng (1 - 5 Sao)'
+                : 'Trust & Quality Rating (1 - 5 Stars)'}
             </label>
             <div className="flex items-center justify-center space-x-2">
               {[1, 2, 3, 4, 5].map((star) => (
@@ -128,24 +152,30 @@ export const DoubleBlindReviewModal: React.FC<DoubleBlindReviewModalProps> = ({
               ))}
             </div>
             <span className="text-xs font-black text-amber-300 mt-1 block">
-              {rating === 5 && '🌟 Hoàn hảo & Vượt kỳ vọng (5/5)'}
-              {rating === 4 && '👍 Rất tốt & Chuyên nghiệp (4/5)'}
-              {rating === 3 && '👌 Đạt yêu cầu cơ bản (3/5)'}
-              {rating === 2 && '⚠️ Còn nhiều thiếu sót (2/5)'}
-              {rating === 1 && '❌ Kém & Không đúng cam kết (1/5)'}
+              {rating === 5 && (language === 'vi' ? '🌟 Hoàn hảo & Vượt kỳ vọng (5/5)' : '🌟 Perfect & Exceeded Expectations (5/5)')}
+              {rating === 4 && (language === 'vi' ? '👍 Rất tốt & Chuyên nghiệp (4/5)' : '👍 Very Good & Professional (4/5)')}
+              {rating === 3 && (language === 'vi' ? '👌 Đạt yêu cầu cơ bản (3/5)' : '👌 Met Basic Requirements (3/5)')}
+              {rating === 2 && (language === 'vi' ? '⚠️ Còn nhiều thiếu sót (2/5)' : '⚠️ Below Expectations (2/5)')}
+              {rating === 1 && (language === 'vi' ? '❌ Kém & Không đúng cam kết (1/5)' : '❌ Poor & Uncommitted (1/5)')}
             </span>
           </div>
 
           {/* Comment text */}
           <div>
             <label className="block text-xs text-slate-300 mb-1 font-semibold">
-              Nhận xét chi tiết (Được giữ bí mật hai chiều)
+              {language === 'vi'
+                ? 'Nhận xét chi tiết (Được giữ bí mật hai chiều)'
+                : 'Detailed Feedback (Sealed until mutual submission)'}
             </label>
             <textarea
               rows={3}
               value={reviewText}
               onChange={(e) => setReviewText(e.target.value)}
-              placeholder="Chia sẻ trải nghiệm làm việc, thái độ và mức độ hoàn thành công việc..."
+              placeholder={
+                language === 'vi'
+                  ? 'Chia sẻ trải nghiệm làm việc, thái độ và mức độ hoàn thành công việc...'
+                  : 'Share working experience, communication attitude, and timeliness...'
+              }
               className="w-full px-3.5 py-2.5 rounded-2xl bg-[#131E30] border border-slate-700 text-white text-xs focus:border-indigo-400 focus:outline-none"
             />
           </div>
@@ -153,10 +183,14 @@ export const DoubleBlindReviewModal: React.FC<DoubleBlindReviewModalProps> = ({
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full py-3 rounded-2xl bg-gradient-to-r from-indigo-600 to-cyan-500 hover:from-indigo-500 hover:to-cyan-400 text-white font-extrabold text-sm shadow-xl shadow-indigo-500/25 transition-all flex items-center justify-center space-x-2 active:scale-98"
+            className="w-full py-3 rounded-2xl bg-gradient-to-r from-indigo-600 to-cyan-500 hover:from-indigo-500 hover:to-cyan-400 text-white font-extrabold text-sm shadow-xl shadow-indigo-500/25 transition-all flex items-center justify-center space-x-2 active:scale-98 cursor-pointer"
           >
             <Lock className="w-4 h-4" />
-            <span>Gửi Đánh Giá Niêm Phong Hai Chiều &rarr;</span>
+            <span>
+              {language === 'vi'
+                ? 'Gửi Đánh Giá Niêm Phong Hai Chiều →'
+                : 'Submit Sealed Mutual Review →'}
+            </span>
           </button>
         </form>
       </div>

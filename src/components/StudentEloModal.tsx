@@ -210,7 +210,7 @@ export const StudentEloModal: React.FC<StudentEloModalProps> = ({
 
   const currentElo = currentUser?.eloRating ?? 0;
   const currentStreak = currentUser?.winStreak ?? 0;
-  const userBadges = currentUser?.badges ?? [];
+  const userBadges: string[] = (currentUser as any)?.studentBadges || (currentUser?.badges ? currentUser.badges.split(',').map((s: string) => s.trim()) : []);
 
   // Determine Current Tier
   const currentTierInfo =

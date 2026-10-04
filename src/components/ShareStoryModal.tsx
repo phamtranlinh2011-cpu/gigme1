@@ -24,7 +24,7 @@ export const ShareStoryModal: React.FC<ShareStoryModalProps> = ({
   onClose,
   params,
 }) => {
-  const { showNotification } = useGigMe();
+  const { showNotification, language } = useGigMe();
   const [copied, setCopied] = useState(false);
   const [sharingPlatform, setSharingPlatform] = useState<string | null>(null);
 
@@ -40,15 +40,45 @@ export const ShareStoryModal: React.FC<ShareStoryModalProps> = ({
         if (platform === 'COPY') {
           setCopied(true);
           setTimeout(() => setCopied(false), 2500);
-          showNotification('Đã sao chép!', 'Đã sao chép nội dung & link cài app vào clipboard để bạn dán lên Story!', true);
+          showNotification(
+            language === 'vi' ? 'Đã sao chép!' : 'Copied!',
+            language === 'vi'
+              ? 'Đã sao chép nội dung & link cài app vào clipboard để bạn dán lên Story!'
+              : 'Caption and install link copied to clipboard for your story!',
+            true
+          );
         } else if (platform === 'INSTAGRAM') {
-          showNotification('Mở Instagram Story', 'Đã sao chép caption & link cài app! Hãy dán vào sticker link trên Story của bạn.', true);
+          showNotification(
+            language === 'vi' ? 'Mở Instagram Story' : 'Opening Instagram Story',
+            language === 'vi'
+              ? 'Đã sao chép caption & link cài app! Hãy dán vào sticker link trên Story của bạn.'
+              : 'Caption and link copied! Paste into link sticker on your story.',
+            true
+          );
         } else if (platform === 'TIKTOK') {
-          showNotification('Mở TikTok', 'Đã sao chép caption & link tải app! Hãy dán vào video/story TikTok của bạn.', true);
+          showNotification(
+            language === 'vi' ? 'Mở TikTok' : 'Opening TikTok',
+            language === 'vi'
+              ? 'Đã sao chép caption & link tải app! Hãy dán vào video/story TikTok của bạn.'
+              : 'Caption and app link copied! Paste into your TikTok post/story.',
+            true
+          );
         } else if (platform === 'FACEBOOK') {
-          showNotification('Chia sẻ Facebook', 'Đang mở cửa sổ chia sẻ Facebook kèm link cài ứng dụng GigMe.', true);
+          showNotification(
+            language === 'vi' ? 'Chia sẻ Facebook' : 'Facebook Share',
+            language === 'vi'
+              ? 'Đang mở cửa sổ chia sẻ Facebook kèm link cài ứng dụng GigMe.'
+              : 'Opening Facebook share dialog with GigMe app install link.',
+            true
+          );
         } else {
-          showNotification('Chia sẻ thành công', 'Cảm ơn bạn đã lan tỏa GigMe tới bạn bè campus!', true);
+          showNotification(
+            language === 'vi' ? 'Chia sẻ thành công' : 'Shared Successfully',
+            language === 'vi'
+              ? 'Cảm ơn bạn đã lan tỏa GigMe tới bạn bè campus!'
+              : 'Thank you for spreading GigMe to your campus friends!',
+            true
+          );
         }
       }
     } finally {
@@ -74,13 +104,18 @@ export const ShareStoryModal: React.FC<ShareStoryModalProps> = ({
               <Share2 className="w-5 h-5 text-yellow-300" />
             </div>
             <div>
-              <h3 className="font-extrabold text-sm text-white">Chia Sẻ Story 1 Chạm</h3>
-              <p className="text-[11px] text-[#C5E5EC]/80">Khoe khoảnh khắc kèm link cài app GigMe</p>
+              <h3 className="font-extrabold text-sm text-white">
+                {language === 'vi' ? 'Chia Sẻ Story 1 Chạm' : '1-Tap Story Share'}
+              </h3>
+              <p className="text-[11px] text-[#C5E5EC]/80">
+                {language === 'vi' ? 'Khoe khoảnh khắc kèm link cài app GigMe' : 'Share moments with GigMe install link'}
+              </p>
             </div>
           </div>
           <button
             onClick={onClose}
             className="p-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-[#C5E5EC] hover:text-white transition cursor-pointer"
+            aria-label="Close"
           >
             <X className="w-5 h-5" />
           </button>
@@ -108,7 +143,9 @@ export const ShareStoryModal: React.FC<ShareStoryModalProps> = ({
 
             <div>
               <span className="inline-block px-2.5 py-0.5 rounded-full bg-[#E0FAEB]/15 text-[#E0FAEB] border border-[#E0FAEB]/30 text-[10px] font-extrabold uppercase tracking-wider mb-1">
-                {params.type === 'TIP' ? '🎉 Tip Thưởng Campus' : '🌟 Thành Tựu Xuất Sắc'}
+                {params.type === 'TIP'
+                  ? language === 'vi' ? '🎉 Tip Thưởng Campus' : '🎉 Campus Reward Tip'
+                  : language === 'vi' ? '🌟 Thành Tựu Xuất Sắc' : '🌟 Outstanding Achievement'}
               </span>
               <h4 className="text-base font-black text-white">{headline}</h4>
               <p className="text-xs text-[#C5E5EC]/90 mt-1 leading-relaxed px-2">
@@ -119,7 +156,9 @@ export const ShareStoryModal: React.FC<ShareStoryModalProps> = ({
             {/* Link Preview Pill */}
             <div className="p-2.5 rounded-xl bg-[#09111D]/80 border border-[#C5E5EC]/20 flex items-center justify-between text-left">
               <div className="min-w-0 pr-2">
-                <p className="text-[10px] text-[#C5E5EC]/60 uppercase font-bold">Link Tải Ứng Dụng</p>
+                <p className="text-[10px] text-[#C5E5EC]/60 uppercase font-bold">
+                  {language === 'vi' ? 'Link Tải Ứng Dụng' : 'App Install Link'}
+                </p>
                 <p className="text-xs font-mono text-[#E0FAEB] truncate font-semibold">{installUrl}</p>
               </div>
               <span className="px-2 py-1 rounded-lg bg-[#3064AE]/40 text-[#C5E5EC] text-[10px] font-extrabold border border-[#C5E5EC]/30 shrink-0">
@@ -131,7 +170,7 @@ export const ShareStoryModal: React.FC<ShareStoryModalProps> = ({
           {/* Social Platforms 1-Tap Share Buttons */}
           <div className="space-y-2">
             <p className="text-[11px] font-bold text-[#C5E5EC]/80 uppercase tracking-wider">
-              Chọn nền tảng chia sẻ nhanh:
+              {language === 'vi' ? 'Chọn nền tảng chia sẻ nhanh:' : 'Select quick share platform:'}
             </p>
 
             <div className="grid grid-cols-3 gap-2.5">
@@ -179,7 +218,7 @@ export const ShareStoryModal: React.FC<ShareStoryModalProps> = ({
                 className="p-2.5 rounded-xl bg-gradient-to-r from-[#3064AE] to-[#255294] hover:brightness-110 border border-[#C5E5EC]/30 text-white text-xs font-bold flex items-center justify-center space-x-1.5 transition active:scale-95 cursor-pointer"
               >
                 <Smartphone className="w-3.5 h-3.5" />
-                <span>Chia Sẻ Thiết Bị</span>
+                <span>{language === 'vi' ? 'Chia Sẻ Thiết Bị' : 'Native Share'}</span>
               </button>
 
               <button
@@ -187,7 +226,11 @@ export const ShareStoryModal: React.FC<ShareStoryModalProps> = ({
                 className="p-2.5 rounded-xl bg-[#12233B] hover:bg-[#162B48] border border-[#C5E5EC]/20 text-[#C5E5EC] hover:text-white text-xs font-bold flex items-center justify-center space-x-1.5 transition active:scale-95 cursor-pointer"
               >
                 {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                <span>{copied ? 'Đã Sao Chép!' : 'Sao Chép Caption'}</span>
+                <span>
+                  {copied
+                    ? language === 'vi' ? 'Đã Sao Chép!' : 'Copied!'
+                    : language === 'vi' ? 'Sao Chép Caption' : 'Copy Caption'}
+                </span>
               </button>
             </div>
           </div>

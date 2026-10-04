@@ -48,6 +48,7 @@ import { triggerHaptic } from '../utils/haptics';
 import { offlineSyncManager } from '../utils/offlineSync';
 import { executeInstantDisbursement } from '../services/napasDisbursementService';
 import { Language, Translations, translations } from '../utils/i18n';
+export { LanguageProvider, useLanguage, useTranslation } from './LanguageContext';
 
 const STORAGE_KEYS = {
   USERS: 'gigme_users_real_v4',
@@ -162,6 +163,8 @@ interface GigMeContextType {
   isDarkMode: boolean;
   themeMode: 'CYBER_DARK' | 'AMOLED' | 'DAYLIGHT';
   language: Language;
+  isEnglish: boolean;
+  isVietnamese: boolean;
   isLanguageTransitioning: boolean;
   setLanguage: (lang: Language) => void;
   toggleLanguage: () => void;
@@ -220,7 +223,14 @@ interface GigMeContextType {
   setCategory: (category: string) => void;
   selectGig: (gigId: string | null) => void;
   dismissNotification: () => void;
-  showNotification: (title: string, message: string, isDingSound?: boolean, isCelebration?: boolean) => void;
+  showNotification: (
+    title: string,
+    message: string,
+    isDingSound?: boolean,
+    isCelebration?: boolean,
+    titleEn?: string,
+    messageEn?: string
+  ) => void;
   withdrawFunds: (bankName: string, accountNumber: string, accountHolderName: string, amount: number, pin?: string, useBiometrics?: boolean) => boolean;
 
   // Auth
@@ -536,30 +546,55 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Đa ngôn ngữ (Tiếng Việt / English)
   const [language, setLanguageState] = useState<Language>(() => {
-    return (localStorage.getItem(STORAGE_KEYS.LANGUAGE) as Language) || 'vi';
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.LANGUAGE) || localStorage.getItem('gigme_lang');
+      if (saved === 'en' || saved === 'vi') return saved;
+    } catch {}
+    return 'vi';
   });
   const [isLanguageTransitioning, setIsLanguageTransitioning] = useState<boolean>(false);
 
+  // Synchronize document lang attribute immediately
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.documentElement.lang = language;
+      document.documentElement.setAttribute('data-language', language);
+    }
+  }, [language]);
+
   const setLanguage = (lang: Language) => {
     if (lang === language) return;
-    setIsLanguageTransitioning(true);
+    setLanguageState(lang);
+    try {
+      localStorage.setItem(STORAGE_KEYS.LANGUAGE, lang);
+      localStorage.setItem('gigme_lang', lang);
+    } catch {}
+    if (typeof document !== 'undefined') {
+      document.documentElement.lang = lang;
+      document.documentElement.setAttribute('data-language', lang);
+    }
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('gigme_language_changed', { detail: lang }));
+    }
     triggerHaptic('light');
-    setTimeout(() => {
-      setLanguageState(lang);
-      try {
-        localStorage.setItem(STORAGE_KEYS.LANGUAGE, lang);
-      } catch {}
-      setTimeout(() => {
-        setIsLanguageTransitioning(false);
-      }, 180);
-    }, 120);
   };
 
   const toggleLanguage = () => {
     const next = language === 'vi' ? 'en' : 'vi';
     setLanguage(next);
-    triggerHaptic('light');
   };
+
+  // Sync with external language events (e.g. from LanguageContext or other components)
+  useEffect(() => {
+    const handleLangEvent = (e: any) => {
+      const newLang = e?.detail;
+      if ((newLang === 'en' || newLang === 'vi') && newLang !== language) {
+        setLanguageState(newLang);
+      }
+    };
+    window.addEventListener('gigme_language_changed' as any, handleLangEvent);
+    return () => window.removeEventListener('gigme_language_changed' as any, handleLangEvent);
+  }, [language]);
 
   const t = (key: keyof Translations): string => {
     const dict = translations[language] || translations.vi;
@@ -1110,11 +1145,22 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     filterMultiWorkerOnly,
   ]);
 
-  const showNotification = (title: string, message: string, isDingSound = false, isCelebration = false) => {
+  const showNotification = (
+    title: string,
+    message: string,
+    isDingSound = false,
+    isCelebration = false,
+    titleEn?: string,
+    messageEn?: string
+  ) => {
     const notif: UiNotification = {
       id: `notif_${Date.now()}`,
       title,
       message,
+      titleVi: title,
+      messageVi: message,
+      titleEn,
+      messageEn,
       isDingSound,
       isCelebration,
     };
@@ -5643,6 +5689,8 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setThemeMode,
         toggleThemeMode,
         language,
+        isEnglish: language === 'en',
+        isVietnamese: language === 'vi',
         isLanguageTransitioning,
         setLanguage,
         toggleLanguage,

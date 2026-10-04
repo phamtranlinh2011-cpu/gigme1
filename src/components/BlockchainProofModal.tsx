@@ -30,8 +30,12 @@ export const BlockchainProofModal: React.FC<BlockchainProofModalProps> = ({
   onClose,
   gigId,
 }) => {
-  const { currentSelectedGig, userCoords, submitProofOfWork, showNotification } = useGigMe();
-  const [proofNote, setProofNote] = useState('Đã hoàn thành công việc theo đúng yêu cầu cam kết.');
+  const { currentSelectedGig, userCoords, submitProofOfWork, showNotification, language } = useGigMe();
+  const [proofNote, setProofNote] = useState(
+    language === 'vi'
+      ? 'Đã hoàn thành công việc theo đúng yêu cầu cam kết.'
+      : 'Task completed as committed according to all requirements.'
+  );
   const [sampleImage, setSampleImage] = useState(
     'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=800&auto=format&fit=crop&q=80'
   );
@@ -123,7 +127,7 @@ export const BlockchainProofModal: React.FC<BlockchainProofModalProps> = ({
 
       const lat = userCoords?.latitude?.toFixed(4) || '10.7327';
       const lng = userCoords?.longitude?.toFixed(4) || '106.6992';
-      const timeStr = new Date().toLocaleString('vi-VN');
+      const timeStr = new Date().toLocaleString(language === 'vi' ? 'vi-VN' : 'en-US');
 
       ctx.fillStyle = '#94A3B8';
       ctx.font = '10px sans-serif';
@@ -144,8 +148,10 @@ export const BlockchainProofModal: React.FC<BlockchainProofModalProps> = ({
       setIsVerifying(false);
       setVerificationResult('SUCCESS');
       showNotification(
-        '🛡️ Chứng chỉ Blockchain Hash Hợp Lệ',
-        `Mã băm ${blockchainHash} khớp 100% với chữ ký điện tử. Ảnh nguyên bản, không qua chỉnh sửa/Photoshop.`,
+        language === 'vi' ? '🛡️ Chứng chỉ Blockchain Hash Hợp Lệ' : '🛡️ Blockchain Hash Certificate Valid',
+        language === 'vi'
+          ? `Mã băm ${blockchainHash} khớp 100% với chữ ký điện tử. Ảnh nguyên bản, không qua chỉnh sửa/Photoshop.`
+          : `Hash ${blockchainHash} matches electronic signature 100%. Authentic original photo, unmodified.`,
         true,
         true
       );
@@ -171,8 +177,10 @@ export const BlockchainProofModal: React.FC<BlockchainProofModalProps> = ({
     const gpsCheck = validateGpsAuthenticity(currentLoc, targetLoc);
     if (gpsCheck.status === 'BLOCKED') {
       showNotification(
-        '🚫 Chặn Nộp Bằng Chứng (Anti-Fake GPS)',
-        `Phát hiện vi phạm định vị: ${gpsCheck.reasons.join(' ')}. Vui lòng tắt phần mềm giả lập Mock Location!`,
+        language === 'vi' ? '🚫 Chặn Nộp Bằng Chứng (Anti-Fake GPS)' : '🚫 Proof Submission Blocked (Anti-Fake GPS)',
+        language === 'vi'
+          ? `Phát hiện vi phạm định vị: ${gpsCheck.reasons.join(' ')}. Vui lòng tắt phần mềm giả lập Mock Location!`
+          : `GPS spoofing detected: ${gpsCheck.reasons.join(' ')}. Please disable Mock Location simulators!`,
         false
       );
       return;
@@ -201,8 +209,10 @@ export const BlockchainProofModal: React.FC<BlockchainProofModalProps> = ({
     });
 
     showNotification(
-      '🚀 Đã Gửi Bằng Chứng Watermark GPS & Timestamp',
-      `Đã đóng dấu định vị (${coords.lat.toFixed(4)}°N, ${coords.lng.toFixed(4)}°E) và thời gian thực. Bằng chứng đã được nén chuẩn WebP tiết kiệm dữ liệu.`,
+      language === 'vi' ? '🚀 Đã Gửi Bằng Chứng Watermark GPS & Timestamp' : '🚀 Watermarked GPS Proof Submitted',
+      language === 'vi'
+        ? `Đã đóng dấu định vị (${coords.lat.toFixed(4)}°N, ${coords.lng.toFixed(4)}°E) và thời gian thực. Bằng chứng đã được nén chuẩn WebP tiết kiệm dữ liệu.`
+        : `Stamped GPS coords (${coords.lat.toFixed(4)}°N, ${coords.lng.toFixed(4)}°E) & real timestamp. Compressed with WebP.`,
       true,
       true
     );
@@ -216,8 +226,10 @@ export const BlockchainProofModal: React.FC<BlockchainProofModalProps> = ({
         const compressed = await compressImageToWebP(file, { maxWidth: 1280, maxHeight: 1280, quality: 0.82 });
         setSampleImage(compressed.dataUrl);
         showNotification(
-          '⚡ Nén Ảnh WebP Tự Động',
-          `Đã nén tiết kiệm ${compressed.savedPercent}% dữ liệu 4G (${compressed.originalSizeFormatted} ➔ ${compressed.compressedSizeFormatted}).`,
+          language === 'vi' ? '⚡ Nén Ảnh WebP Tự Động' : '⚡ Automatic WebP Compression',
+          language === 'vi'
+            ? `Đã nén tiết kiệm ${compressed.savedPercent}% dữ liệu 4G (${compressed.originalSizeFormatted} ➔ ${compressed.compressedSizeFormatted}).`
+            : `Saved ${compressed.savedPercent}% bandwidth (${compressed.originalSizeFormatted} ➔ ${compressed.compressedSizeFormatted}).`,
           true,
           true
         );
@@ -252,14 +264,22 @@ export const BlockchainProofModal: React.FC<BlockchainProofModalProps> = ({
             </div>
             <div>
               <h3 className="font-extrabold text-sm sm:text-base text-white">
-                Chống Giả Mạo Ảnh Bằng Watermark Blockchain Hash
+                {language === 'vi'
+                  ? 'Chống Giả Mạo Ảnh Bằng Watermark Blockchain Hash'
+                  : 'Anti-Tamper Photo Proof with Blockchain Hash'}
               </h3>
               <p className="text-xs text-slate-400">
-                Gắn mã băm SHA-256 + Tọa độ GPS thời gian thực vào minh chứng bàn giao
+                {language === 'vi'
+                  ? 'Gắn mã băm SHA-256 + Tọa độ GPS thời gian thực vào minh chứng bàn giao'
+                  : 'Stamps SHA-256 hash + live GPS coords into proof of work delivery'}
               </p>
             </div>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-xl bg-slate-800 text-slate-400 hover:text-white">
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-xl bg-slate-800 text-slate-400 hover:text-white"
+            aria-label="Close"
+          >
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -280,7 +300,7 @@ export const BlockchainProofModal: React.FC<BlockchainProofModalProps> = ({
             <div className="flex justify-between items-center">
               <span className="text-slate-400 flex items-center space-x-1">
                 <Hash className="w-3.5 h-3.5 text-[#00E5FF]" />
-                <span>Mã băm Blockchain:</span>
+                <span>{language === 'vi' ? 'Mã băm Blockchain:' : 'Blockchain Hash:'}</span>
               </span>
               <span className="font-mono font-bold text-[#00E5FF]">{blockchainHash}</span>
             </div>
@@ -288,7 +308,7 @@ export const BlockchainProofModal: React.FC<BlockchainProofModalProps> = ({
             <div className="flex justify-between items-center">
               <span className="text-slate-400 flex items-center space-x-1">
                 <MapPin className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Tọa độ Geostamp:</span>
+                <span>{language === 'vi' ? 'Tọa độ Geostamp:' : 'Geostamp Coords:'}</span>
               </span>
               <span className="text-slate-200 font-mono">
                 {userCoords?.latitude?.toFixed(4) || '10.7327'}°N, {userCoords?.longitude?.toFixed(4) || '106.6992'}°E
@@ -298,9 +318,11 @@ export const BlockchainProofModal: React.FC<BlockchainProofModalProps> = ({
             <div className="flex justify-between items-center">
               <span className="text-slate-400 flex items-center space-x-1">
                 <Clock className="w-3.5 h-3.5 text-amber-400" />
-                <span>Thời gian niêm phong:</span>
+                <span>{language === 'vi' ? 'Thời gian niêm phong:' : 'Timestamp Stamped:'}</span>
               </span>
-              <span className="text-slate-300 font-mono">{new Date().toLocaleString('vi-VN')}</span>
+              <span className="text-slate-300 font-mono">
+                {new Date().toLocaleString(language === 'vi' ? 'vi-VN' : 'en-US')}
+              </span>
             </div>
           </div>
 
@@ -317,7 +339,9 @@ export const BlockchainProofModal: React.FC<BlockchainProofModalProps> = ({
               ) : (
                 <Fingerprint className="w-3.5 h-3.5 text-[#00E5FF]" />
               )}
-              <span>Kiểm Tra Tính Toàn Vẹn Blockchain</span>
+              <span>
+                {language === 'vi' ? 'Kiểm Tra Tính Toàn Vẹn Blockchain' : 'Verify Blockchain Integrity'}
+              </span>
             </button>
 
             <button
@@ -326,7 +350,7 @@ export const BlockchainProofModal: React.FC<BlockchainProofModalProps> = ({
               className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 font-medium flex items-center space-x-1.5 transition text-xs"
             >
               <Upload className="w-3.5 h-3.5" />
-              <span>Thay ảnh khác</span>
+              <span>{language === 'vi' ? 'Thay ảnh khác' : 'Upload photo'}</span>
             </button>
             <input
               ref={fileInputRef}
@@ -341,20 +365,27 @@ export const BlockchainProofModal: React.FC<BlockchainProofModalProps> = ({
             <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs flex items-center space-x-2 animate-fade-in">
               <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
               <span>
-                <strong>Xác thực 100% toàn vẹn:</strong> Không có dấu hiệu can thiệp điểm ảnh (Photoshop), tọa độ GPS khớp với đơn đặt hàng.
+                <strong>{language === 'vi' ? 'Xác thực 100% toàn vẹn:' : '100% Authentic Verified:'}</strong>{' '}
+                {language === 'vi'
+                  ? 'Không có dấu hiệu can thiệp điểm ảnh (Photoshop), tọa độ GPS khớp với đơn đặt hàng.'
+                  : 'No tampering or Photoshop detected, GPS coordinates match delivery location.'}
               </span>
             </div>
           )}
 
           <div>
-            <label className="block text-slate-300 font-semibold mb-1">Ghi chú kết quả nghiệm thu</label>
+            <label className="block text-slate-300 font-semibold mb-1">
+              {language === 'vi' ? 'Ghi chú kết quả nghiệm thu' : 'Completion & Handover Notes'}
+            </label>
             <textarea
               rows={2}
               required
               value={proofNote}
               onChange={(e) => setProofNote(e.target.value)}
               className="w-full px-3 py-2 rounded-xl bg-[#131E30] border border-slate-700 text-white font-medium"
-              placeholder="Mô tả tóm tắt kết quả bàn giao..."
+              placeholder={
+                language === 'vi' ? 'Mô tả tóm tắt kết quả bàn giao...' : 'Brief description of handover result...'
+              }
             />
           </div>
 
@@ -363,7 +394,7 @@ export const BlockchainProofModal: React.FC<BlockchainProofModalProps> = ({
             className="w-full py-3 rounded-2xl bg-gradient-to-r from-[#FF6B00] via-amber-500 to-yellow-400 text-black font-extrabold text-sm hover:brightness-110 shadow-lg shadow-orange-500/25 transition flex items-center justify-center space-x-1.5"
           >
             <Lock className="w-4 h-4 fill-current" />
-            <span>Niêm Phong Blockchain & Nộp Nghiệm Thu</span>
+            <span>{language === 'vi' ? 'Niêm Phong Blockchain & Nộp Nghiệm Thu' : 'Seal with Blockchain & Submit Proof'}</span>
           </button>
         </form>
       </div>

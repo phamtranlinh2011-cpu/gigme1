@@ -23,15 +23,18 @@ export const AdminMaintenanceModal: React.FC<AdminMaintenanceModalProps> = ({
   isOpen,
   onClose,
 }) => {
-  const { maintenanceConfig, setMaintenanceMode } = useGigMe();
+  const { maintenanceConfig, setMaintenanceMode, language } = useGigMe();
 
   const [isActive, setIsActive] = useState<boolean>(maintenanceConfig.isActive);
   const [title, setTitle] = useState<string>(
-    maintenanceConfig.title || 'Hệ Thống Đang Nâng Cấp & Bảo Trì Kỹ Thuật'
+    maintenanceConfig.title || (language === 'vi' ? 'Hệ Thống Đang Nâng Cấp & Bảo Trì Kỹ Thuật' : 'System Upgrade & Technical Maintenance')
   );
   const [message, setMessage] = useState<string>(
-    maintenanceConfig.message ||
-      'GigMe đang tiến hành bảo trì cơ sở hạ tầng đám mây và nâng cấp tính năng khớp việc sinh viên. Các chức năng giao dịch tạm khóa.'
+    maintenanceConfig.message || (
+      language === 'vi'
+        ? 'GigMe đang tiến hành bảo trì cơ sở hạ tầng đám mây và nâng cấp tính năng khớp việc sinh viên. Các chức năng giao dịch tạm khóa.'
+        : 'GigMe is undergoing cloud infrastructure maintenance and student gig matching optimization. Financial and transaction actions are temporarily paused.'
+    )
   );
 
   // Time preset in minutes or custom
@@ -53,13 +56,13 @@ export const AdminMaintenanceModal: React.FC<AdminMaintenanceModalProps> = ({
   if (!isOpen) return null;
 
   const presets = [
-    { label: '15 Phút', minutes: 15 },
-    { label: '30 Phút', minutes: 30 },
-    { label: '1 Giờ', minutes: 60 },
-    { label: '2 Giờ', minutes: 120 },
-    { label: '4 Giờ', minutes: 240 },
-    { label: '12 Giờ', minutes: 720 },
-    { label: '24 Giờ', minutes: 1440 },
+    { labelVi: '15 Phút', labelEn: '15 Mins', minutes: 15 },
+    { labelVi: '30 Phút', labelEn: '30 Mins', minutes: 30 },
+    { labelVi: '1 Giờ', labelEn: '1 Hour', minutes: 60 },
+    { labelVi: '2 Giờ', labelEn: '2 Hours', minutes: 120 },
+    { labelVi: '4 Giờ', labelEn: '4 Hours', minutes: 240 },
+    { labelVi: '12 Giờ', labelEn: '12 Hours', minutes: 720 },
+    { labelVi: '24 Giờ', labelEn: '24 Hours', minutes: 1440 },
   ];
 
   const handleApply = async () => {
@@ -120,6 +123,7 @@ export const AdminMaintenanceModal: React.FC<AdminMaintenanceModalProps> = ({
         <button
           onClick={onClose}
           className="absolute top-5 right-5 p-2 rounded-xl bg-[#12233B] hover:bg-[#152844] text-[#C5E5EC] border border-[#C5E5EC]/20 hover:text-white transition cursor-pointer"
+          aria-label="Close"
         >
           <X className="w-5 h-5" />
         </button>
@@ -132,14 +136,18 @@ export const AdminMaintenanceModal: React.FC<AdminMaintenanceModalProps> = ({
           <div>
             <div className="flex items-center space-x-2">
               <h2 className="text-lg font-black text-white">
-                Bảo Trì Toàn Hệ Thống (Web & Mobile App)
+                {language === 'vi'
+                  ? 'Bảo Trì Toàn Hệ Thống (Web & Mobile App)'
+                  : 'System-Wide Maintenance (Web & Mobile App)'}
               </h2>
               <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-amber-500/20 text-amber-300 border border-amber-500/30">
                 MASTER ADMIN
               </span>
             </div>
             <p className="text-xs text-[#C5E5EC]/70 mt-0.5">
-              Liên kết thật qua Firestore & Realtime Engine. Khi kích hoạt, tất cả người dùng chỉ được phép xem thông tin cá nhân.
+              {language === 'vi'
+                ? 'Liên kết thật qua Firestore & Realtime Engine. Khi kích hoạt, tất cả người dùng chỉ được phép xem thông tin cá nhân.'
+                : 'Synced live via Firestore & Realtime Engine. When active, regular users can only view their profile.'}
             </p>
           </div>
         </div>
@@ -160,12 +168,15 @@ export const AdminMaintenanceModal: React.FC<AdminMaintenanceModalProps> = ({
             />
             <div>
               <div className="text-xs font-black">
-                Trạng thái: {isActive ? 'ĐANG BẢO TRÌ (Toàn sàn tạm dừng)' : 'ĐANG MỞ CỬA (Hoạt động bình thường)'}
+                {language === 'vi' ? 'Trạng thái: ' : 'Status: '}
+                {isActive
+                  ? language === 'vi' ? 'ĐANG BẢO TRÌ (Toàn sàn tạm dừng)' : 'MAINTENANCE ACTIVE (Platform Paused)'
+                  : language === 'vi' ? 'ĐANG MỞ CỬA (Hoạt động bình thường)' : 'ONLINE & NORMAL OPERATIONS'}
               </div>
               <div className="text-[11px] text-[#C5E5EC]/70">
                 {isActive
-                  ? `Dự kiến mở lại: ${new Date(maintenanceConfig.endTime).toLocaleString('vi-VN')}`
-                  : 'Người dùng có thể đăng việc, ứng tuyển và rút nạp tiền'}
+                  ? `${language === 'vi' ? 'Dự kiến mở lại: ' : 'Estimated re-opening: '}${new Date(maintenanceConfig.endTime).toLocaleString(language === 'vi' ? 'vi-VN' : 'en-US')}`
+                  : language === 'vi' ? 'Người dùng có thể đăng việc, ứng tuyển và rút nạp tiền' : 'Users can post gigs, apply, chat, and transact'}
               </div>
             </div>
           </div>
@@ -180,7 +191,11 @@ export const AdminMaintenanceModal: React.FC<AdminMaintenanceModalProps> = ({
             }`}
           >
             <Power className="w-4 h-4" />
-            <span>{isActive ? 'BẢO TRÌ: BẬT' : 'BẢO TRÌ: TẮT'}</span>
+            <span>
+              {isActive
+                ? language === 'vi' ? 'BẢO TRÌ: BẬT' : 'MAINTENANCE: ON'
+                : language === 'vi' ? 'BẢO TRÌ: TẮT' : 'MAINTENANCE: OFF'}
+            </span>
           </button>
         </div>
 
@@ -190,7 +205,11 @@ export const AdminMaintenanceModal: React.FC<AdminMaintenanceModalProps> = ({
           <div>
             <label className="block text-xs font-bold text-[#C5E5EC]/90 mb-2 flex items-center space-x-1.5">
               <Clock className="w-3.5 h-3.5 text-amber-400" />
-              <span>Thời Gian Dự Kiến Bảo Trì (Web & App tự động mở lại khi hết giờ)</span>
+              <span>
+                {language === 'vi'
+                  ? 'Thời Gian Dự Kiến Bảo Trì (Web & App tự động mở lại khi hết giờ)'
+                  : 'Estimated Maintenance Duration (Auto re-opens when countdown completes)'}
+              </span>
             </label>
             <div className="grid grid-cols-4 sm:grid-cols-7 gap-2 mb-3">
               {presets.map((preset) => {
@@ -209,7 +228,7 @@ export const AdminMaintenanceModal: React.FC<AdminMaintenanceModalProps> = ({
                         : 'bg-[#12233B] border-[#C5E5EC]/20 text-[#C5E5EC]/80 hover:border-[#C5E5EC]/50'
                     }`}
                   >
-                    {preset.label}
+                    {language === 'vi' ? preset.labelVi : preset.labelEn}
                   </button>
                 );
               })}
@@ -227,7 +246,7 @@ export const AdminMaintenanceModal: React.FC<AdminMaintenanceModalProps> = ({
                 }`}
               >
                 <Calendar className="w-3.5 h-3.5 inline mr-1" />
-                Tự Chọn Ngày & Giờ Cụ Thể
+                {language === 'vi' ? 'Tự Chọn Ngày & Giờ Cụ Thể' : 'Custom End Date & Time'}
               </button>
 
               {isCustomTime && (
@@ -244,13 +263,19 @@ export const AdminMaintenanceModal: React.FC<AdminMaintenanceModalProps> = ({
           {/* Title */}
           <div>
             <label className="block text-xs font-bold text-[#C5E5EC]/90 mb-1.5">
-              Tiêu Đề Thông Báo Bảo Trì (Hiển thị người dùng)
+              {language === 'vi'
+                ? 'Tiêu Đề Thông Báo Bảo Trì (Hiển thị người dùng)'
+                : 'Maintenance Announcement Title (Shown to users)'}
             </label>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="VD: Hệ Thống Đang Nâng Cấp & Bảo Trì Kỹ Thuật"
+              placeholder={
+                language === 'vi'
+                  ? 'VD: Hệ Thống Đang Nâng Cấp & Bảo Trì Kỹ Thuật'
+                  : 'E.g.: Scheduled System Upgrade & Maintenance'
+              }
               className="w-full px-3.5 py-2.5 rounded-xl bg-[#081120] border border-[#C5E5EC]/25 text-white text-xs focus:border-[#C5E5EC] focus:outline-none"
             />
           </div>
@@ -258,13 +283,17 @@ export const AdminMaintenanceModal: React.FC<AdminMaintenanceModalProps> = ({
           {/* Message */}
           <div>
             <label className="block text-xs font-bold text-[#C5E5EC]/90 mb-1.5">
-              Nội Dung Chi Tiết / Lý Do Bảo Trì
+              {language === 'vi' ? 'Nội Dung Chi Tiết / Lý Do Bảo Trì' : 'Detailed Explanation / Maintenance Purpose'}
             </label>
             <textarea
               rows={3}
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              placeholder="Giải thích lý do bảo trì, nâng cấp để sinh viên và nhà tuyển dụng nắm rõ..."
+              placeholder={
+                language === 'vi'
+                  ? 'Giải thích lý do bảo trì, nâng cấp để sinh viên và nhà tuyển dụng nắm rõ...'
+                  : 'Briefly explain the reason to keep campus members informed...'
+              }
               className="w-full px-3.5 py-2.5 rounded-xl bg-[#081120] border border-[#C5E5EC]/25 text-white text-xs focus:border-[#C5E5EC] focus:outline-none resize-none"
             />
           </div>
@@ -273,17 +302,36 @@ export const AdminMaintenanceModal: React.FC<AdminMaintenanceModalProps> = ({
           <div className="bg-[#0E1B2E] border border-[#C5E5EC]/20 rounded-2xl p-4 space-y-2">
             <div className="text-xs font-bold text-amber-400 flex items-center space-x-1.5">
               <ShieldAlert className="w-4 h-4" />
-              <span>Chính Sách Khóa Trong Thời Gian Bảo Trì:</span>
+              <span>
+                {language === 'vi'
+                  ? 'Chính Sách Khóa Trong Thời Gian Bảo Trì:'
+                  : 'Access Restrictions During Maintenance:'}
+              </span>
             </div>
             <ul className="text-[11px] text-[#C5E5EC]/80 space-y-1 list-disc list-inside">
               <li>
-                <span className="text-[#E0FAEB] font-bold">Cho phép:</span> Xem thông tin cá nhân, kiểm tra CCCD / Thẻ sinh viên, xem lịch sử và đánh giá.
+                <span className="text-[#E0FAEB] font-bold">
+                  {language === 'vi' ? 'Cho phép: ' : 'Permitted: '}
+                </span>
+                {language === 'vi'
+                  ? 'Xem thông tin cá nhân, kiểm tra CCCD / Thẻ sinh viên, xem lịch sử và đánh giá.'
+                  : 'Viewing user profile, verification status, and transaction history.'}
               </li>
               <li>
-                <span className="text-rose-400 font-bold">Khóa hoàn toàn:</span> Đăng việc mới, ứng tuyển, nạp/rút tiền ví Escrow, gửi tin nhắn và chợ đồ cũ.
+                <span className="text-rose-400 font-bold">
+                  {language === 'vi' ? 'Khóa hoàn toàn: ' : 'Locked: '}
+                </span>
+                {language === 'vi'
+                  ? 'Đăng việc mới, ứng tuyển, nạp/rút tiền ví Escrow, gửi tin nhắn và chợ đồ cũ.'
+                  : 'Job posting, job applying, wallet top-up/withdrawal, chat, and marketplace.'}
               </li>
               <li>
-                <span className="text-[#C5E5EC] font-bold">Quyền Master Admin:</span> Admin vẫn có quyền truy cập kiểm tra mọi màn hình với thanh thông báo bảo trì ghim ở đầu.
+                <span className="text-[#C5E5EC] font-bold">
+                  {language === 'vi' ? 'Quyền Master Admin: ' : 'Master Admin: '}
+                </span>
+                {language === 'vi'
+                  ? 'Admin vẫn có quyền truy cập kiểm tra mọi màn hình với thanh thông báo bảo trì ghim ở đầu.'
+                  : 'Super Admin retains full access with a pinned maintenance alert bar.'}
               </li>
             </ul>
           </div>
@@ -298,12 +346,12 @@ export const AdminMaintenanceModal: React.FC<AdminMaintenanceModalProps> = ({
               disabled={isSaving}
               className="px-4 py-2.5 rounded-xl bg-rose-950/80 border border-rose-500/40 text-rose-300 font-bold text-xs hover:bg-rose-900/80 transition cursor-pointer"
             >
-              Tắt Bảo Trì Ngay Lập Tức
+              {language === 'vi' ? 'Tắt Bảo Trì Ngay Lập Tức' : 'Turn Off Maintenance Now'}
             </button>
           ) : (
             <div className="text-[11px] text-[#C5E5EC]/60 font-mono flex items-center space-x-1.5">
               <Cloud className="w-3.5 h-3.5 text-[#C5E5EC]" />
-              <span>Sẵn sàng đồng bộ đa nền tảng</span>
+              <span>{language === 'vi' ? 'Sẵn sàng đồng bộ đa nền tảng' : 'Multi-platform live sync ready'}</span>
             </div>
           )}
 
@@ -313,7 +361,7 @@ export const AdminMaintenanceModal: React.FC<AdminMaintenanceModalProps> = ({
               onClick={onClose}
               className="px-4 py-2.5 rounded-xl bg-[#12233B] hover:bg-[#152844] text-[#C5E5EC] border border-[#C5E5EC]/20 font-bold text-xs transition cursor-pointer"
             >
-              Hủy Bỏ
+              {language === 'vi' ? 'Hủy Bỏ' : 'Cancel'}
             </button>
             <button
               type="button"
@@ -322,11 +370,15 @@ export const AdminMaintenanceModal: React.FC<AdminMaintenanceModalProps> = ({
               className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-black font-extrabold text-xs shadow-lg hover:brightness-110 transition flex items-center space-x-1.5 cursor-pointer"
             >
               {isSaving ? (
-                <span>Đang Lưu...</span>
+                <span>{language === 'vi' ? 'Đang Lưu...' : 'Saving...'}</span>
               ) : (
                 <>
                   <CheckCircle2 className="w-4 h-4" />
-                  <span>{isActive ? 'Áp Dụng Chế Độ Bảo Trì' : 'Lưu Cấu Hình'}</span>
+                  <span>
+                    {isActive
+                      ? language === 'vi' ? 'Áp Dụng Chế Độ Bảo Trì' : 'Apply Maintenance Mode'
+                      : language === 'vi' ? 'Lưu Cấu Hình' : 'Save Config'}
+                  </span>
                 </>
               )}
             </button>

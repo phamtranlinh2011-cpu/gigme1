@@ -2,10 +2,12 @@ import React, { useState } from 'react';
 import { WifiOff, ChevronRight } from 'lucide-react';
 import { useOnlineStatus } from '../hooks/usePWAInstall';
 import { OfflineGigsModal } from './OfflineGigsModal';
+import { useGigMe } from '../context/GigMeContext';
 
 export const OfflineIndicator: React.FC = () => {
   const isOnline = useOnlineStatus();
   const [showModal, setShowModal] = useState(false);
+  const { language } = useGigMe();
 
   if (isOnline) return null;
 
@@ -17,7 +19,11 @@ export const OfflineIndicator: React.FC = () => {
       >
         <div className="flex items-center space-x-2 min-w-0">
           <WifiOff className="w-4 h-4 shrink-0" />
-          <span className="truncate">Chế độ ngoại tuyến (Mất sóng 4G/Thang máy) • Bấm để xem việc đã lưu!</span>
+          <span className="truncate">
+            {language === 'vi'
+              ? 'Chế độ ngoại tuyến (Mất sóng 4G/Thang máy) • Bấm để xem việc đã lưu!'
+              : 'Offline Mode (No 4G/Elevator) • Tap to view cached gigs!'}
+          </span>
         </div>
         <ChevronRight className="w-4 h-4 shrink-0" />
       </div>

@@ -16,6 +16,7 @@ import {
   X,
 } from 'lucide-react';
 import { useGigMe } from '../context/GigMeContext';
+import { useTranslation } from '../context/LanguageContext';
 import { formatVnd } from '../types';
 import { NotificationCenter } from './NotificationCenter';
 import { triggerHaptic } from '../utils/haptics';
@@ -55,10 +56,9 @@ export const Header: React.FC<HeaderProps> = ({
     currentUser,
     isAdminRole,
     logout,
-    language,
-    setLanguage,
-    t,
+    showNotification,
   } = useGigMe();
+  const { language, setLanguage, t } = useTranslation();
 
   // Local state for Language Dropdown Menu (placed next to Wallet button)
   const [isLangDropdownOpen, setIsLangDropdownOpen] = useState(false);
@@ -108,8 +108,18 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   const handleSelectLanguage = (lang: 'vi' | 'en') => {
+    if (lang === language) return;
     setLanguage(lang);
-    // Giữ nguyên bảng chọn ngôn ngữ theo yêu cầu người dùng ("Khi bấm hiện cái bảng thì bảng đó giữ nguyên")
+    showNotification(
+      lang === 'en' ? 'Language Changed 🌐' : 'Đã Đổi Ngôn Ngữ 🌐',
+      lang === 'en'
+        ? 'Interface, action buttons, and notifications updated to English.'
+        : 'Giao diện, nút hành động và thông báo đã chuyển sang Tiếng Việt.',
+      true,
+      false,
+      'Language Changed 🌐',
+      'Interface, action buttons, and notifications updated to English.'
+    );
   };
 
   return (

@@ -27,10 +27,10 @@ export const AppleGooglePayModal: React.FC<AppleGooglePayModalProps> = ({
   isOpen,
   onClose,
   defaultAmount = 100000,
-  purpose = 'Nạp ví Smart Escrow GigMe',
+  purpose,
   onSuccess,
 }) => {
-  const { currentUser, topUpWallet, showNotification } = useGigMe();
+  const { currentUser, topUpWallet, showNotification, language } = useGigMe();
   const [amount, setAmount] = useState<number>(defaultAmount);
   const [selectedMethod, setSelectedMethod] = useState<'APPLE_PAY' | 'GOOGLE_PAY' | 'STUDENT_CARD'>('APPLE_PAY');
   const [studentBank, setStudentBank] = useState<'BIDV' | 'VIETINBANK' | 'AGRIBANK' | 'TPBANK'>('BIDV');
@@ -40,6 +40,7 @@ export const AppleGooglePayModal: React.FC<AppleGooglePayModalProps> = ({
 
   if (!isOpen) return null;
 
+  const displayPurpose = purpose || (language === 'vi' ? 'Nạp ví Smart Escrow GigMe' : 'GigMe Smart Escrow Deposit');
   const quickAmounts = [50000, 100000, 200000, 500000, 1000000];
 
   const handlePay = async () => {
@@ -53,16 +54,20 @@ export const AppleGooglePayModal: React.FC<AppleGooglePayModalProps> = ({
       triggerHaptic('escrow');
       playNotificationSound('BANK_TING');
 
+      const methodName = selectedMethod === 'APPLE_PAY' ? 'Apple Pay' : selectedMethod === 'GOOGLE_PAY' ? 'Google Pay' : `${studentBank} Student Card`;
+
       // Top up into wallet
-      topUpWallet(amount, `1-Chạm qua ${selectedMethod === 'APPLE_PAY' ? 'Apple Pay' : selectedMethod === 'GOOGLE_PAY' ? 'Google Pay' : `Thẻ Sinh Viên ${studentBank}`}`);
+      topUpWallet(amount, `${language === 'vi' ? '1-Chạm qua' : '1-Tap via'} ${methodName}`);
 
       if (onSuccess) {
         onSuccess(amount);
       }
 
       showNotification(
-        'Thanh toán 1-Chạm thành công!',
-        `Đã nạp ${amount.toLocaleString('vi-VN')}đ qua ${selectedMethod === 'APPLE_PAY' ? 'Apple Pay' : selectedMethod === 'GOOGLE_PAY' ? 'Google Pay' : `Thẻ sinh viên ${studentBank}`}. Tiền đã sẵn sàng trong ví Smart Escrow!`
+        language === 'vi' ? 'Thanh toán 1-Chạm thành công!' : '1-Tap Payment Successful!',
+        language === 'vi'
+          ? `Đã nạp ${amount.toLocaleString('vi-VN')}đ qua ${methodName}. Tiền đã sẵn sàng trong ví Smart Escrow!`
+          : `Deposited ${amount.toLocaleString('en-US')} VND via ${methodName}. Ready in your Smart Escrow wallet!`
       );
 
       setTimeout(() => {
@@ -91,17 +96,20 @@ export const AppleGooglePayModal: React.FC<AppleGooglePayModalProps> = ({
             </div>
             <div>
               <div className="flex items-center space-x-1.5">
-                <h3 className="font-extrabold text-base text-white">Thanh Toán 1-Chạm</h3>
+                <h3 className="font-extrabold text-base text-white">
+                  {language === 'vi' ? 'Thanh Toán 1-Chạm' : '1-Tap Instant Checkout'}
+                </h3>
                 <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-cyan-950/60 text-cyan-300 border border-cyan-500/30">
                   NFC & Token
                 </span>
               </div>
-              <p className="text-xs text-slate-400">{purpose}</p>
+              <p className="text-xs text-slate-400">{displayPurpose}</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-xl hover:bg-slate-800 text-slate-400 hover:text-white transition"
+            className="p-2 rounded-xl hover:bg-slate-800 text-slate-400 hover:text-white transition cursor-pointer"
+            aria-label="Close"
           >
             <X className="w-5 h-5" />
           </button>
@@ -112,9 +120,11 @@ export const AppleGooglePayModal: React.FC<AppleGooglePayModalProps> = ({
             <div className="w-16 h-16 mx-auto rounded-full bg-emerald-950/50 text-emerald-400 border border-emerald-500/40 flex items-center justify-center animate-bounce">
               <CheckCircle2 className="w-10 h-10" />
             </div>
-            <h4 className="text-lg font-black text-white">Giao Dịch Thành Công!</h4>
+            <h4 className="text-lg font-black text-white">
+              {language === 'vi' ? 'Giao Dịch Thành Công!' : 'Transaction Successful!'}
+            </h4>
             <p className="text-xs text-emerald-300 font-mono">
-              +{formatVnd(amount)} • Đã ghi nhận vào Ví Smart Escrow
+              +{formatVnd(amount)} • {language === 'vi' ? 'Đã ghi nhận vào Ví Smart Escrow' : 'Credited to Smart Escrow Wallet'}
             </p>
           </div>
         ) : (
@@ -122,7 +132,7 @@ export const AppleGooglePayModal: React.FC<AppleGooglePayModalProps> = ({
             {/* Amount Selection */}
             <div>
               <label className="text-xs font-bold text-slate-300 block mb-1.5">
-                Chọn số tiền nạp vào ví:
+                {language === 'vi' ? 'Chọn số tiền nạp vào ví:' : 'Select top-up amount:'}
               </label>
               <div className="grid grid-cols-3 gap-2">
                 {quickAmounts.map((amt) => (
@@ -133,13 +143,13 @@ export const AppleGooglePayModal: React.FC<AppleGooglePayModalProps> = ({
                       triggerHaptic('light');
                       setAmount(amt);
                     }}
-                    className={`py-2 px-2 rounded-xl font-mono text-xs font-bold transition border ${
+                    className={`py-2 px-2 rounded-xl font-mono text-xs font-bold transition border cursor-pointer ${
                       amount === amt
                         ? 'bg-cyan-500 text-white border-cyan-400 shadow-md shadow-cyan-500/20'
                         : 'bg-[#101E36] text-slate-300 border-slate-700 hover:bg-[#16294a]'
                     }`}
                   >
-                    {amt >= 1000000 ? `${amt / 1000000} Triệu` : `${amt / 1000}k`}
+                    {amt >= 1000000 ? `${amt / 1000000}${language === 'vi' ? ' Triệu' : 'M'}` : `${amt / 1000}k`}
                   </button>
                 ))}
               </div>
@@ -148,7 +158,7 @@ export const AppleGooglePayModal: React.FC<AppleGooglePayModalProps> = ({
             {/* Payment Method Selector */}
             <div className="space-y-2">
               <label className="text-xs font-bold text-slate-300 block">
-                Phương thức 1-chạm:
+                {language === 'vi' ? 'Phương thức 1-chạm:' : '1-Tap payment method:'}
               </label>
 
               {/* Apple Pay Option */}
@@ -170,7 +180,7 @@ export const AppleGooglePayModal: React.FC<AppleGooglePayModalProps> = ({
                   <div>
                     <span className="font-black text-xs block text-white">Apple Pay (Face ID / Touch ID)</span>
                     <span className="text-[10px] block text-slate-400">
-                      Thanh toán an toàn không chia sẻ số thẻ thực
+                      {language === 'vi' ? 'Thanh toán an toàn không chia sẻ số thẻ thực' : 'Secure tokenized payment without sharing card'}
                     </span>
                   </div>
                 </div>
@@ -198,7 +208,7 @@ export const AppleGooglePayModal: React.FC<AppleGooglePayModalProps> = ({
                   <div>
                     <span className="font-black text-xs block text-white">Google Pay (Google Wallet)</span>
                     <span className="text-[10px] text-slate-400 block">
-                      1 chạm qua vân tay điện thoại Android
+                      {language === 'vi' ? '1 chạm qua vân tay điện thoại Android' : '1-tap biometric fingerprint on Android'}
                     </span>
                   </div>
                 </div>
@@ -226,13 +236,15 @@ export const AppleGooglePayModal: React.FC<AppleGooglePayModalProps> = ({
                     </div>
                     <div>
                       <div className="flex items-center space-x-1.5">
-                        <span className="font-black text-xs block text-white">Thẻ Sinh Viên Liên Kết Ngân Hàng</span>
+                        <span className="font-black text-xs block text-white">
+                          {language === 'vi' ? 'Thẻ Sinh Viên Liên Kết Ngân Hàng' : 'Campus Bank-Linked Student Card'}
+                        </span>
                         <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-900/80 text-emerald-300 font-bold border border-emerald-500/30">
-                          Đặc quyền
+                          {language === 'vi' ? 'Đặc quyền' : 'Perk'}
                         </span>
                       </div>
                       <span className="text-[10px] text-slate-400 block">
-                        Thẻ sinh viên chip đa năng kiêm thẻ ghi nợ ngân hàng
+                        {language === 'vi' ? 'Thẻ sinh viên chip đa năng kiêm thẻ ghi nợ ngân hàng' : 'Multi-purpose chip ID & debit card'}
                       </span>
                     </div>
                   </div>
@@ -252,7 +264,7 @@ export const AppleGooglePayModal: React.FC<AppleGooglePayModalProps> = ({
                           triggerHaptic('light');
                           setStudentBank(b);
                         }}
-                        className={`py-1.5 rounded-lg text-[10px] font-black uppercase transition border ${
+                        className={`py-1.5 rounded-lg text-[10px] font-black uppercase transition border cursor-pointer ${
                           studentBank === b
                             ? 'bg-emerald-500 text-white border-emerald-400'
                             : 'bg-[#12233c] text-slate-300 border-slate-700 hover:bg-[#193052]'
@@ -270,7 +282,12 @@ export const AppleGooglePayModal: React.FC<AppleGooglePayModalProps> = ({
             <div className="p-3 rounded-2xl bg-slate-900/80 border border-slate-800 text-[11px] text-slate-400 flex items-center space-x-2">
               <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
               <span>
-                <strong className="text-white">Bảo mật PCI DSS Cấp 1:</strong> Không lưu thông tin nhạy cảm, mã hóa Tokenization chuẩn quốc tế.
+                <strong className="text-white">
+                  {language === 'vi' ? 'Bảo mật PCI DSS Cấp 1:' : 'PCI DSS Tier 1 Compliant:'}
+                </strong>{' '}
+                {language === 'vi'
+                  ? 'Không lưu thông tin nhạy cảm, mã hóa Tokenization chuẩn quốc tế.'
+                  : 'Zero sensitive card storage, tokenized under international bank standards.'}
               </span>
             </div>
 
@@ -278,7 +295,7 @@ export const AppleGooglePayModal: React.FC<AppleGooglePayModalProps> = ({
             <button
               onClick={handlePay}
               disabled={isProcessing}
-              className={`w-full py-3.5 px-4 rounded-2xl font-black text-sm text-white shadow-md transition flex items-center justify-center space-x-2 active:scale-95 ${
+              className={`w-full py-3.5 px-4 rounded-2xl font-black text-sm text-white shadow-md transition flex items-center justify-center space-x-2 active:scale-95 cursor-pointer ${
                 selectedMethod === 'APPLE_PAY'
                   ? 'bg-neutral-900 hover:bg-black border border-white/20'
                   : selectedMethod === 'GOOGLE_PAY'
@@ -289,12 +306,15 @@ export const AppleGooglePayModal: React.FC<AppleGooglePayModalProps> = ({
               {isProcessing ? (
                 <>
                   <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin mr-2" />
-                  <span>Đang xác thực sinh trắc học 1-Chạm...</span>
+                  <span>
+                    {language === 'vi' ? 'Đang xác thực sinh trắc học 1-Chạm...' : 'Authorizing 1-Tap Biometrics...'}
+                  </span>
                 </>
               ) : (
                 <>
                   <span>
-                    Chạm Để Thanh Toán {formatVnd(amount)} ({selectedMethod === 'APPLE_PAY' ? 'Apple Pay' : selectedMethod === 'GOOGLE_PAY' ? 'Google Pay' : studentBank})
+                    {language === 'vi' ? 'Chạm Để Thanh Toán ' : 'Tap to Pay '}
+                    {formatVnd(amount)} ({selectedMethod === 'APPLE_PAY' ? 'Apple Pay' : selectedMethod === 'GOOGLE_PAY' ? 'Google Pay' : studentBank})
                   </span>
                   <ArrowRight className="w-4 h-4" />
                 </>

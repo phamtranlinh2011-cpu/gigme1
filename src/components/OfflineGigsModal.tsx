@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { offlineCacheManager, CachedOfflineGig } from '../utils/offlineCache';
 import { formatVnd } from '../types';
+import { useGigMe } from '../context/GigMeContext';
 
 interface OfflineGigsModalProps {
   isOpen: boolean;
@@ -27,6 +28,7 @@ export const OfflineGigsModal: React.FC<OfflineGigsModalProps> = ({
   onClose,
   onSelectGig,
 }) => {
+  const { language } = useGigMe();
   const [cachedGigs, setCachedGigs] = useState<CachedOfflineGig[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [copiedPhone, setCopiedPhone] = useState<string | null>(null);
@@ -79,14 +81,18 @@ export const OfflineGigsModal: React.FC<OfflineGigsModalProps> = ({
             <div>
               <div className="flex items-center space-x-2">
                 <h3 className="font-extrabold text-sm text-white">
-                  Kho Việc Đã Lưu Offline (PWA Cache)
+                  {language === 'vi'
+                    ? 'Kho Việc Đã Lưu Offline (PWA Cache)'
+                    : 'Offline Saved Gigs (PWA Cache)'}
                 </h3>
                 <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-bold text-[10px] border border-amber-500/30">
-                  {cachedGigs.length} đơn
+                  {cachedGigs.length} {language === 'vi' ? 'đơn' : 'gigs'}
                 </span>
               </div>
               <p className="text-[11px] text-slate-400">
-                Xem địa chỉ & SĐT khách hàng khi vào thang máy hoặc mất sóng 4G
+                {language === 'vi'
+                  ? 'Xem địa chỉ & SĐT khách hàng khi vào thang máy hoặc mất sóng 4G'
+                  : 'Access client details & phone when in elevators or without 4G cellular'}
               </p>
             </div>
           </div>
@@ -94,6 +100,7 @@ export const OfflineGigsModal: React.FC<OfflineGigsModalProps> = ({
           <button
             onClick={onClose}
             className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition"
+            aria-label="Close"
           >
             <X className="w-4 h-4" />
           </button>
@@ -103,7 +110,10 @@ export const OfflineGigsModal: React.FC<OfflineGigsModalProps> = ({
         <div className="p-3 rounded-2xl bg-gradient-to-r from-amber-500/10 via-orange-500/5 to-transparent border border-amber-500/30 text-amber-200 text-[11px] flex items-center space-x-2 shrink-0">
           <Smartphone className="w-4 h-4 shrink-0 text-amber-400" />
           <span>
-            <strong>Bảo lưu thông tin 100%:</strong> Các đơn việc bạn từng xem chi tiết được lưu trữ trực tiếp trên bộ nhớ máy điện thoại. Dù mất mạng hoàn toàn, bạn vẫn gọi điện được cho khách qua mạng viễn thông.
+            <strong>{language === 'vi' ? 'Bảo lưu thông tin 100%:' : '100% Offline Resilience:'}</strong>{' '}
+            {language === 'vi'
+              ? 'Các đơn việc bạn từng xem chi tiết được lưu trữ trực tiếp trên bộ nhớ máy điện thoại. Dù mất mạng hoàn toàn, bạn vẫn gọi điện được cho khách qua mạng viễn thông.'
+              : 'Gigs you have viewed in detail are cached locally in your phone memory. Even without internet, cellular calls remain functional.'}
           </span>
         </div>
 
@@ -115,7 +125,11 @@ export const OfflineGigsModal: React.FC<OfflineGigsModalProps> = ({
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-8 pr-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white placeholder:text-slate-500 text-xs"
-            placeholder="Tìm theo tên việc, địa chỉ, người thuê..."
+            placeholder={
+              language === 'vi'
+                ? 'Tìm theo tên việc, địa chỉ, người thuê...'
+                : 'Search by title, location, client name...'
+            }
           />
         </div>
 
@@ -124,9 +138,13 @@ export const OfflineGigsModal: React.FC<OfflineGigsModalProps> = ({
           {filtered.length === 0 ? (
             <div className="text-center py-12 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-2">
               <FileText className="w-8 h-8 text-slate-600 mx-auto" />
-              <p className="font-bold text-slate-300">Chưa có đơn việc nào được lưu offline</p>
+              <p className="font-bold text-slate-300">
+                {language === 'vi' ? 'Chưa có đơn việc nào được lưu offline' : 'No offline gigs cached yet'}
+              </p>
               <p className="text-slate-500 text-[11px] max-w-xs mx-auto">
-                Khi bạn bấm vào xem chi tiết bất kỳ đơn việc nào trên trang chủ, hệ thống sẽ tự động lưu bộ nhớ đệm cho bạn.
+                {language === 'vi'
+                  ? 'Khi bạn bấm vào xem chi tiết bất kỳ đơn việc nào trên trang chủ, hệ thống sẽ tự động lưu bộ nhớ đệm cho bạn.'
+                  : 'Whenever you open gig details on the home screen, it will automatically be saved to local offline cache.'}
               </p>
             </div>
           ) : (
@@ -155,7 +173,7 @@ export const OfflineGigsModal: React.FC<OfflineGigsModalProps> = ({
                       {formatVnd(gig.price)}
                     </span>
                     <span className="text-[10px] text-slate-400 font-medium">
-                      {new Date(gig.savedAt).toLocaleTimeString('vi-VN', {
+                      {new Date(gig.savedAt).toLocaleTimeString(language === 'vi' ? 'vi-VN' : 'en-US', {
                         hour: '2-digit',
                         minute: '2-digit',
                       })}
@@ -177,7 +195,7 @@ export const OfflineGigsModal: React.FC<OfflineGigsModalProps> = ({
                 {/* Client Phone & Emergency Call Actions */}
                 <div className="flex items-center justify-between pt-1 text-[11px]">
                   <div className="flex items-center space-x-1.5 text-slate-300">
-                    <span className="text-slate-400">Khách:</span>
+                    <span className="text-slate-400">{language === 'vi' ? 'Khách:' : 'Client:'}</span>
                     <strong className="text-white font-bold">{gig.clientName}</strong>
                     <span className="font-mono text-emerald-400 font-bold">
                       ({gig.clientPhone})
@@ -189,10 +207,10 @@ export const OfflineGigsModal: React.FC<OfflineGigsModalProps> = ({
                     <a
                       href={`tel:${gig.clientPhone}`}
                       onClick={(e) => e.stopPropagation()}
-                      className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-[11px] transition flex items-center space-x-1 shadow-sm"
+                      className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-[11px] transition flex items-center space-x-1 shadow-sm cursor-pointer"
                     >
                       <Phone className="w-3 h-3" />
-                      <span>Gọi Khách</span>
+                      <span>{language === 'vi' ? 'Gọi Khách' : 'Call Client'}</span>
                     </a>
 
                     <button
@@ -201,21 +219,23 @@ export const OfflineGigsModal: React.FC<OfflineGigsModalProps> = ({
                         e.stopPropagation();
                         handleCopyPhone(gig.clientPhone);
                       }}
-                      className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition"
-                      title="Sao chép SĐT"
+                      className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition cursor-pointer"
+                      title={language === 'vi' ? 'Sao chép SĐT' : 'Copy phone number'}
                     >
                       {copiedPhone === gig.clientPhone ? (
                         <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
                       ) : (
-                        <span className="text-[10px] font-bold px-1">Chép số</span>
+                        <span className="text-[10px] font-bold px-1">
+                          {language === 'vi' ? 'Chép số' : 'Copy'}
+                        </span>
                       )}
                     </button>
 
                     <button
                       type="button"
                       onClick={(e) => handleRemove(gig.id, e)}
-                      className="p-1.5 rounded-xl bg-slate-800 hover:bg-red-500/20 text-slate-400 hover:text-red-400 transition"
-                      title="Xóa khỏi bộ nhớ cache"
+                      className="p-1.5 rounded-xl bg-slate-800 hover:bg-red-500/20 text-slate-400 hover:text-red-400 transition cursor-pointer"
+                      title={language === 'vi' ? 'Xóa khỏi bộ nhớ cache' : 'Remove from cache'}
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -234,9 +254,9 @@ export const OfflineGigsModal: React.FC<OfflineGigsModalProps> = ({
           </span>
           <button
             onClick={onClose}
-            className="px-4 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold transition"
+            className="px-4 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold transition cursor-pointer"
           >
-            Đóng
+            {language === 'vi' ? 'Đóng' : 'Close'}
           </button>
         </div>
       </div>

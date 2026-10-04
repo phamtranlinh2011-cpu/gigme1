@@ -4,7 +4,7 @@ import { useGigMe } from '../context/GigMeContext';
 import { triggerHaptic } from '../utils/haptics';
 
 export const GamificationBanner: React.FC = () => {
-  const { notification, dismissNotification } = useGigMe();
+  const { notification, dismissNotification, language } = useGigMe();
   const [isExiting, setIsExiting] = useState(false);
 
   useEffect(() => {
@@ -38,9 +38,57 @@ export const GamificationBanner: React.FC = () => {
     }, 200);
   };
 
-  const isWarning = notification.title.toLowerCase().includes('cảnh báo') || 
-                    notification.title.toLowerCase().includes('chưa đủ') || 
-                    notification.title.toLowerCase().includes('lỗi');
+  const getTranslatedTitle = () => {
+    if (language === 'vi') {
+      return notification.titleVi || notification.title;
+    }
+    if (notification.titleEn) return notification.titleEn;
+    const raw = notification.title;
+    if (raw.includes('Đã sao chép')) return 'Copied! 📋';
+    if (raw.includes('Nạp tiền') || raw.includes('Nạp Tiền')) return 'Deposit Successful!';
+    if (raw.includes('Rút tiền') || raw.includes('Rút Tiền')) return 'Withdrawal Successful!';
+    if (raw.includes('Xác thực CCCD')) return 'CCCD Verified Successfully 🛡️';
+    if (raw.includes('Face Liveness')) return 'Face Liveness Verified 👤';
+    if (raw.includes('Biến động số dư')) return 'Balance Update 🔔';
+    if (raw.includes('Giao diện tối')) return 'Default Dark Theme';
+    if (raw.includes('tắt toàn bộ âm thanh')) return 'Muted All Sounds 🔇';
+    if (raw.includes('bật âm thanh')) return 'Audio Enabled 🔊';
+    if (raw.includes('Giới hạn nạp tiền')) return 'Deposit Limit Warning ⚠️';
+    if (raw.includes('Thiếu SĐT')) return 'Missing E-Wallet Phone';
+    if (raw.includes('không hợp lệ')) return 'Invalid Value';
+    if (raw.includes('Hộp Quà')) return 'Mystery Box Opened 🎁';
+    if (raw.includes('Lỗi')) return 'Error ⚠️';
+    if (raw.includes('Cảnh báo')) return 'Warning ⚠️';
+    if (raw.includes('Thành công')) return 'Success ✅';
+    return raw;
+  };
+
+  const getTranslatedMessage = () => {
+    if (language === 'vi') {
+      return notification.messageVi || notification.message;
+    }
+    if (notification.messageEn) return notification.messageEn;
+    const raw = notification.message;
+    if (raw.includes('Đã sao chép số tài khoản')) return 'Bank account number copied to clipboard.';
+    if (raw.includes('Đã sao chép nội dung')) return 'Transfer syntax content copied to clipboard.';
+    if (raw.includes('Đã đọc trọn vẹn dữ liệu từ chip')) return 'Biometric chip data successfully read matching C06 standards.';
+    if (raw.includes('Số dư đã được nạp tự động')) return 'Balance has been automatically credited to your account!';
+    if (raw.includes('Hệ thống GigMe được thiết lập mặc định ở chế độ Giao Diện Tối')) return 'GigMe is configured by default in Cyber Dark Mode.';
+    if (raw.includes('Vui lòng nhập số điện thoại')) return 'Please enter your registered e-wallet phone number.';
+    if (raw.includes('Số tiền nạp tối thiểu')) return 'Minimum deposit amount is 10,000 VND.';
+    if (raw.includes('Số tiền rút tối thiểu')) return 'Minimum withdrawal amount is 10,000 VND.';
+    return raw;
+  };
+
+  const displayTitle = getTranslatedTitle();
+  const displayMessage = getTranslatedMessage();
+
+  const isWarning =
+    displayTitle.toLowerCase().includes('cảnh báo') ||
+    displayTitle.toLowerCase().includes('warning') ||
+    displayTitle.toLowerCase().includes('chưa đủ') ||
+    displayTitle.toLowerCase().includes('lỗi') ||
+    displayTitle.toLowerCase().includes('error');
 
   return (
     <div
@@ -78,16 +126,16 @@ export const GamificationBanner: React.FC = () => {
         <div className="flex-1 min-w-0 pr-1">
           <div className="flex items-center space-x-1.5 flex-wrap gap-y-1">
             <h4 className="text-xs font-black uppercase tracking-wider text-white truncate max-w-[200px]">
-              {notification.title}
+              {displayTitle}
             </h4>
             {notification.isDingSound && (
               <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-[#E0FAEB]/20 text-[#E0FAEB] font-mono font-bold border border-[#E0FAEB]/30 animate-pulse">
-                ĐING! 🔔
+                {language === 'vi' ? 'ĐING! 🔔' : 'DING! 🔔'}
               </span>
             )}
           </div>
           <p className="text-xs text-[#C5E5EC]/90 mt-1 leading-snug font-medium line-clamp-3">
-            {notification.message}
+            {displayMessage}
           </p>
         </div>
 
@@ -95,7 +143,7 @@ export const GamificationBanner: React.FC = () => {
         <button
           onClick={handleClose}
           className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors duration-150 cursor-pointer shrink-0"
-          title="Đóng thông báo"
+          title={language === 'vi' ? 'Đóng thông báo' : 'Dismiss notification'}
         >
           <X className="w-4 h-4" />
         </button>
@@ -113,4 +161,3 @@ export const GamificationBanner: React.FC = () => {
     </div>
   );
 };
-

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Radar, Wallet, UserCheck, PlusCircle, MessageSquare, BookOpen, Scale } from 'lucide-react';
 import { useGigMe } from '../context/GigMeContext';
+import { useTranslation } from '../context/LanguageContext';
 import { triggerHaptic } from '../utils/haptics';
 
 export type TabScreen =
@@ -19,7 +20,8 @@ interface BottomNavProps {
 }
 
 export const BottomNav: React.FC<BottomNavProps> = ({ currentTab, onSelectTab }) => {
-  const { currentSelectedGig, roleMode, allChats, currentUser, t } = useGigMe();
+  const { currentSelectedGig, roleMode, allChats, currentUser } = useGigMe();
+  const { t } = useTranslation();
   const isClient = roleMode === 'CLIENT';
 
   const unreadChatCount = React.useMemo(() => {
