@@ -15,11 +15,14 @@ import {
   Footprints,
   Bike,
   Layers,
-  Sparkles,
   Info,
   X,
   ShieldAlert,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
+  Check,
+  Loader2,
 } from 'lucide-react';
 import { GigEntity, formatVnd } from '../types';
 import {
@@ -46,14 +49,13 @@ interface InteractiveRadarProps {
   onUserCoordsChange?: (coords: GeoLocation) => void;
 }
 
-const RADIUS_OPTIONS = [
-  { label: '100m (KTX)', value: 100 },
-  { label: '500m (Campus)', value: 500 },
+const PRIMARY_RADIUS_OPTIONS = [
+  { label: '500m', value: 500 },
   { label: '1km', value: 1000 },
   { label: '3km', value: 3000 },
   { label: '5km', value: 5000 },
-  { label: '15km (Thành phố)', value: 15000 },
-  { label: '🌐 Toàn quốc (Bắc - Nam)', value: 2500000 },
+  { label: '15km', value: 15000 },
+  { label: '🌐 Toàn quốc', value: 2500000 },
 ];
 
 type MapLayer = 'GOOGLE_STREETS' | 'GOOGLE_SATELLITE' | 'DARK_CYBER';
@@ -91,14 +93,21 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
   onUserCoordsChange,
 }) => {
   const { language } = useGigMe();
+
   // Current user GPS coordinates
   const [currentUserCoords, setCurrentUserCoords] = useState<GeoLocation>(
     propUserCoords || DEFAULT_USER_LOCATION
   );
 
-  // View state: Default to Map, automatic GPS
+  // Map state & Compact view toggles
   const [mapLayer, setMapLayer] = useState<MapLayer>('GOOGLE_STREETS');
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [showHubDropdown, setShowHubDropdown] = useState(false);
+  const [showLayerDropdown, setShowLayerDropdown] = useState(false);
+
+  // GPS state
   const [isGpsLoading, setIsGpsLoading] = useState(false);
   const [gpsError, setGpsError] = useState<string | null>(null);
   const [gpsReport, setGpsReport] = useState<GpsIntegrityReport | null>(null);
@@ -168,7 +177,17 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
     };
   }, [selectedGig, currentUserCoords]);
 
-  // Fetch authentic route from OSRM Routing Engine (Google Routes fallback)
+  // Current active Hub identifier
+  const currentHubEntry = useMemo(() => {
+    const found = Object.entries(VIETNAM_HUBS).find(
+      ([, hub]) =>
+        Math.abs(hub.latitude - currentUserCoords.latitude) < 0.001 &&
+        Math.abs(hub.longitude - currentUserCoords.longitude) < 0.001
+    );
+    return found ? { key: found[0], hub: found[1] } : null;
+  }, [currentUserCoords]);
+
+  // Fetch authentic route from OSRM Routing Engine
   useEffect(() => {
     if (!selectedGig || !selectedGig.latitude || !selectedGig.longitude) {
       setOsrmRoutePoints(null);
@@ -208,7 +227,7 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
           }
         }
       } catch {
-        // Fallback gracefully to high-res campus curve waypoints
+        // Fallback gracefully to campus curve waypoints
       }
 
       if (isMounted) {
@@ -269,14 +288,13 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
         if (onUserCoordsChange) {
           onUserCoordsChange(newCoords);
         }
-        // Pan map
         if (mapInstanceRef.current) {
           mapInstanceRef.current.setView([newCoords.latitude, newCoords.longitude], 16, {
             animate: true,
           });
         }
       },
-      (err) => {
+      () => {
         setIsGpsLoading(false);
         setGpsError(
           language === 'vi'
@@ -294,6 +312,7 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
     const hub = VIETNAM_HUBS[hubKey];
     if (!hub) return;
     setCurrentUserCoords(hub);
+    setShowHubDropdown(false);
     if (onUserCoordsChange) {
       onUserCoordsChange(hub);
     }
@@ -312,39 +331,18 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
     };
   }, []);
 
-  // Auto request accurate GPS on mount (Tự động nhận GPS thật và quét tính toàn vẹn)
+  // Invalidate map size whenever size-affecting states change
   useEffect(() => {
-    if (!navigator.geolocation) return;
-    setIsGpsLoading(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setIsGpsLoading(false);
-        const report = inspectGpsIntegrity(pos);
-        setGpsReport(report);
-
-        const newCoords: GeoLocation = {
-          latitude: pos.coords.latitude,
-          longitude: pos.coords.longitude,
-          label: report.isMock
-            ? (language === 'vi' ? 'Cảnh báo: GPS có dấu hiệu giả lập' : 'Warning: Mock GPS detected')
-            : (language === 'vi' ? 'Vị trí GPS thực tế của bạn' : 'Your real GPS location'),
-        };
-        setCurrentUserCoords(newCoords);
-        if (onUserCoordsChange) {
-          onUserCoordsChange(newCoords);
-        }
-        if (mapInstanceRef.current) {
-          mapInstanceRef.current.setView([newCoords.latitude, newCoords.longitude], 16, { animate: true });
-          mapInstanceRef.current.invalidateSize();
-        }
-      },
-      (err) => {
-        setIsGpsLoading(false);
-        console.log('Auto GPS init check:', err.message);
-      },
-      { enableHighAccuracy: true, timeout: 7000, maximumAge: 0 }
-    );
-  }, [onUserCoordsChange, language]);
+    if (!mapInstanceRef.current) return;
+    const t1 = setTimeout(() => mapInstanceRef.current?.invalidateSize(), 60);
+    const t2 = setTimeout(() => mapInstanceRef.current?.invalidateSize(), 200);
+    const t3 = setTimeout(() => mapInstanceRef.current?.invalidateSize(), 400);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+    };
+  }, [isFullscreen, isExpanded, isCollapsed]);
 
   // ==========================================
   // LEAFLET MAP INITIALIZATION & UPDATE
@@ -352,9 +350,7 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
   useEffect(() => {
     if (!mapContainerRef.current) return;
 
-    // Initialize Map if not already initialized
     if (!mapInstanceRef.current) {
-      // Check if container already had a leaflet instance attached to prevent double-init
       if ((mapContainerRef.current as any)._leaflet_id) {
         (mapContainerRef.current as any)._leaflet_id = null;
       }
@@ -364,13 +360,12 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
         zoom: 15,
         zoomControl: false,
         attributionControl: false,
-        tap: false, // Disables legacy 300ms tap simulation which breaks modern mobile touch & swipe gestures
+        tap: false, // Disables legacy 300ms tap simulation per AGENTS.md rule 3.6
         touchZoom: true,
-        scrollWheelZoom: false, // Prevents mousewheel/touch scrolls from hijacking full page vertical scrolling
+        scrollWheelZoom: false, // Prevents scroll hijacking per AGENTS.md rule 3.6
         bounceAtZoomLimits: false,
       } as any);
 
-      // Default Tile Layer (Google Maps Streets)
       const initialLayerConfig = MAP_TILE_CONFIG[mapLayer];
       const tileLayer = L.tileLayer(initialLayerConfig.url, {
         subdomains: initialLayerConfig.subdomains || ['a', 'b', 'c'],
@@ -381,13 +376,12 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
       markersLayerRef.current = L.layerGroup().addTo(map);
       mapInstanceRef.current = map;
 
-      // Initial size invalidate
       setTimeout(() => {
         map.invalidateSize();
       }, 150);
     }
 
-    // Adaptive ResizeObserver: automatically syncs Leaflet dimensions with device container resizes, orientations & split-screens
+    // Adaptive ResizeObserver: sync Leaflet dimensions with device resizes & split screens
     let resizeTimer: any = null;
     let resizeObserver: ResizeObserver | null = null;
     if (typeof ResizeObserver !== 'undefined' && mapContainerRef.current) {
@@ -402,28 +396,13 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
       resizeObserver.observe(mapContainerRef.current);
     }
 
-    // Map container size update whenever fullscreen toggles
-    if (mapInstanceRef.current) {
-      mapInstanceRef.current.invalidateSize();
-      const t1 = setTimeout(() => mapInstanceRef.current?.invalidateSize(), 80);
-      const t2 = setTimeout(() => mapInstanceRef.current?.invalidateSize(), 250);
-      const t3 = setTimeout(() => mapInstanceRef.current?.invalidateSize(), 500);
-      return () => {
-        clearTimeout(t1);
-        clearTimeout(t2);
-        clearTimeout(t3);
-        if (resizeTimer) clearTimeout(resizeTimer);
-        if (resizeObserver) resizeObserver.disconnect();
-      };
-    }
-
     return () => {
       if (resizeTimer) clearTimeout(resizeTimer);
       if (resizeObserver) resizeObserver.disconnect();
     };
-  }, [isFullscreen]);
+  }, []);
 
-  // Update Tile Layer when user switches style (Google Streets, Satellite, Dark)
+  // Update Tile Layer when user switches style
   useEffect(() => {
     if (!mapInstanceRef.current) return;
     if (tileLayerRef.current) {
@@ -439,7 +418,7 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
     newTileLayer.bringToBack();
   }, [mapLayer]);
 
-  // Update Markers, Route Polyline, User Location, and Geofence Circle on Leaflet Map
+  // Update Markers, Route Polyline, User Location, and Geofence Circle
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map) return;
@@ -452,12 +431,12 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
       map.removeLayer(radiusCircleRef.current);
     }
 
-    // User Custom Icon with glowing pulse
+    // User marker aligned with Cobalt Blue palette
     const userIconHtml = `
       <div class="relative flex items-center justify-center">
-        <div class="absolute w-8 h-8 rounded-full bg-[#00E5FF]/30 animate-ping"></div>
-        <div class="w-7 h-7 rounded-full bg-gradient-to-tr from-[#00E5FF] to-blue-600 border-2 border-white flex items-center justify-center text-black font-black text-[10px] shadow-lg">
-          👤
+        <div class="absolute w-8 h-8 rounded-full bg-[#3064AE]/40 animate-ping"></div>
+        <div class="w-7 h-7 rounded-full bg-gradient-to-tr from-[#3064AE] to-[#417AC6] border-2 border-white flex items-center justify-center text-white font-black text-[10px] shadow-lg">
+          📍
         </div>
       </div>
     `;
@@ -476,19 +455,19 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
       .addTo(map)
       .bindPopup(
         `<div class="text-black font-sans text-xs p-1">
-          <strong class="text-[#00E5FF] font-black">${language === 'vi' ? 'Vị trí của bạn' : 'Your location'}</strong><br/>
+          <strong class="text-[#3064AE] font-black">${language === 'vi' ? 'Vị trí của bạn' : 'Your location'}</strong><br/>
           ${currentUserCoords.label || (language === 'vi' ? 'Đang sẵn sàng kết nối việc' : 'Ready to connect')}
         </div>`
       );
 
-    // Geofence Radius Circle
+    // Geofence Radius Circle in brand Cobalt Blue
     radiusCircleRef.current = L.circle(
       [currentUserCoords.latitude, currentUserCoords.longitude],
       {
         radius: radiusMeters,
-        color: isClientMode ? '#00E5FF' : '#FF6B00',
+        color: isClientMode ? '#3064AE' : '#E0FAEB',
         weight: 1.5,
-        fillColor: isClientMode ? '#00E5FF' : '#FF6B00',
+        fillColor: '#3064AE',
         fillOpacity: 0.08,
         dashArray: '6, 6',
       }
@@ -503,13 +482,13 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
 
         const isSelected = gig.id === selectedGigId;
         const color = isSelected
-          ? '#00E5FF'
+          ? '#C5E5EC'
           : gig.isFlash
-          ? '#FF6B00'
+          ? '#F59E0B'
           : gig.category === 'Cày Game & Rank'
           ? '#A855F7'
           : gig.category === 'Tư vấn & Học tập'
-          ? '#3B82F6'
+          ? '#3064AE'
           : '#10B981';
 
         const gigIconHtml = `
@@ -542,7 +521,7 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
       });
     }
 
-    // 3. Update Route Polyline (Đường di chuyển thực tế OSRM / Campus)
+    // 3. Update Route Polyline
     if (routeLayerRef.current) {
       map.removeLayer(routeLayerRef.current);
       routeLayerRef.current = null;
@@ -564,8 +543,8 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
             );
 
       const polyline = L.polyline(activePoints, {
-        color: '#00E5FF',
-        weight: 4.5,
+        color: '#3064AE',
+        weight: 4,
         opacity: 0.9,
         dashArray: '8, 8',
         lineCap: 'round',
@@ -576,7 +555,6 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
 
       // 4. Live Tracking Worker Marker
       if (isLiveTracking && activePoints.length >= 2) {
-        // Calculate interpolated point along activePoints
         const totalSegments = activePoints.length - 1;
         const targetIndexFloat = trackingProgress * totalSegments;
         const segIndex = Math.min(Math.floor(targetIndexFloat), totalSegments - 1);
@@ -598,7 +576,7 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
               <span class="w-1.5 h-1.5 rounded-full bg-white animate-ping"></span>
               <span>${iconEmoji} ${roleTitle}</span>
             </div>
-            <div class="w-7 h-7 rounded-full bg-gradient-to-tr from-emerald-400 to-cyan-500 border-2 border-white shadow-xl flex items-center justify-center text-sm">
+            <div class="w-7 h-7 rounded-full bg-gradient-to-tr from-emerald-400 to-[#C5E5EC] border-2 border-white shadow-xl flex items-center justify-center text-sm">
               ${iconEmoji}
             </div>
           </div>
@@ -617,14 +595,13 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
         }).addTo(map);
       }
 
-      // Fit map bounds to show both user and destination gig smoothly
+      // Smooth bounds centering
       const bounds = L.latLngBounds([
         [currentUserCoords.latitude, currentUserCoords.longitude],
         [selectedGig.latitude, selectedGig.longitude],
       ]);
-      map.fitBounds(bounds, { padding: [60, 60], maxZoom: 17, animate: true });
+      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16, animate: true });
     } else if (radiusMeters >= 2000000 && !selectedGig) {
-      // Khi chọn chế độ Toàn quốc (Bắc - Nam), tự động bao trọn các điểm công việc trên cả nước
       const validPoints: [number, number][] = gigs
         .filter((g) => g.latitude && g.longitude)
         .map((g) => [g.latitude, g.longitude] as [number, number]);
@@ -646,6 +623,7 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
     osrmRoutePoints,
     trackingProgress,
     isLiveTracking,
+    language,
   ]);
 
   // Zoom map handlers
@@ -667,420 +645,440 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
     }
   };
 
-  // Main container height classes
-  const heightClass = isFullscreen
-    ? 'fixed inset-0 z-50 p-4 bg-[#0A1424] flex flex-col'
-    : 'relative rounded-3xl bg-[#0E1B2E] border border-[#C5E5EC]/25 p-4 sm:p-5 shadow-2xl overflow-hidden';
+  // Close dropdowns on backdrop click
+  useEffect(() => {
+    const handleGlobalClick = () => {
+      setShowHubDropdown(false);
+      setShowLayerDropdown(false);
+    };
+    if (showHubDropdown || showLayerDropdown) {
+      document.addEventListener('click', handleGlobalClick);
+      return () => document.removeEventListener('click', handleGlobalClick);
+    }
+  }, [showHubDropdown, showLayerDropdown]);
 
+  // Compact layout heights
   const mapAreaHeight = isFullscreen
     ? 'flex-1 min-h-[400px]'
-    : 'h-[310px] sm:h-[400px] md:h-[440px]';
+    : isExpanded
+    ? 'h-[360px] sm:h-[420px]'
+    : 'h-[210px] sm:h-[260px]';
+
+  // ==========================================
+  // RENDER: COLLAPSED BAR MODE (LÀM GỌN BẢN ĐỒ)
+  // ==========================================
+  if (isCollapsed) {
+    return (
+      <div className="relative rounded-2xl bg-[#0E1B2E] border border-[#C5E5EC]/25 p-3 sm:p-3.5 shadow-xl overflow-hidden flex items-center justify-between gap-3 animate-fadeIn">
+        <div className="absolute left-0 top-0 bottom-0 w-1 bg-brand-tri-gradient pointer-events-none" />
+        <div className="flex items-center space-x-2.5 min-w-0 pl-1">
+          <div className="p-2 rounded-xl bg-gradient-to-br from-[#3064AE] to-[#255294] text-white border border-[#C5E5EC]/30 shadow-xs shrink-0">
+            <MapIcon className="w-4 h-4 text-[#E0FAEB]" />
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center space-x-1.5">
+              <h4 className="text-xs sm:text-sm font-black text-white truncate">
+                {language === 'vi' ? 'Bản Đồ Radar Campus' : 'Campus Radar Map'}
+              </h4>
+              <span className="w-2 h-2 rounded-full bg-[#E0FAEB] animate-ping shrink-0" />
+            </div>
+            <p className="text-[10px] sm:text-[11px] text-[#C5E5EC]/80 font-medium truncate">
+              {gigs.length} {language === 'vi' ? 'việc gần bạn' : 'nearby gigs'} • {formatDistance(radiusMeters)} •{' '}
+              {currentHubEntry ? currentHubEntry.hub.label?.split('(')[0].trim() : (language === 'vi' ? 'Vị trí hiện tại' : 'Current location')}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center space-x-2 shrink-0">
+          <button
+            onClick={() => {
+              setIsCollapsed(false);
+              setTimeout(() => mapInstanceRef.current?.invalidateSize(), 150);
+            }}
+            className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#3064AE] to-[#255294] hover:brightness-110 text-white font-black text-xs border border-[#C5E5EC]/30 shadow-xs flex items-center space-x-1.5 transition active:scale-95 cursor-pointer"
+          >
+            <MapIcon className="w-3.5 h-3.5 text-[#E0FAEB]" />
+            <span>{language === 'vi' ? 'Mở Bản Đồ' : 'Open Map'}</span>
+            <ChevronDown className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ==========================================
+  // RENDER: STANDARD COMPACT / EXPANDED MODE
+  // ==========================================
+  const heightClass = isFullscreen
+    ? 'fixed inset-0 z-50 p-4 bg-[#0A1424] flex flex-col'
+    : 'relative rounded-3xl bg-[#0E1B2E] border border-[#C5E5EC]/25 p-3 sm:p-4 shadow-xl overflow-hidden';
 
   return (
     <div className={`${heightClass} w-full max-w-full overflow-hidden transition-all duration-300`}>
       {/* Decorative top gradient bar */}
       <div className="absolute left-0 top-0 right-0 h-1 bg-brand-tri-gradient pointer-events-none" />
 
-      {/* Top Header Bar */}
-      <div className="flex items-center justify-between gap-2 mb-2 pb-2.5 border-b border-[#C5E5EC]/15">
+      {/* Header Bar */}
+      <div className="flex items-center justify-between gap-2 mb-2 pb-2 border-b border-[#C5E5EC]/15">
         <div className="flex items-center space-x-2 min-w-0">
-          <div className="p-1.5 sm:p-2 rounded-xl shrink-0 bg-gradient-to-br from-[#3064AE] to-[#255294] text-white border border-[#C5E5EC]/30 shadow-xs">
-            <MapIcon className="w-4 h-4 sm:w-5 sm:h-5 text-[#E0FAEB]" />
+          <div className="p-1.5 rounded-xl shrink-0 bg-gradient-to-br from-[#3064AE] to-[#255294] text-white border border-[#C5E5EC]/30 shadow-xs">
+            <MapIcon className="w-4 h-4 text-[#E0FAEB]" />
           </div>
           <div className="min-w-0">
             <div className="flex items-center space-x-1.5">
               <h3 className="text-xs sm:text-sm font-black text-white tracking-wide truncate">
-                {language === 'vi' ? 'Bản Đồ Google Maps' : 'Google Maps Live Radar'}
+                {language === 'vi' ? 'Bản Đồ Campus Radar' : 'Campus Radar Map'}
               </h3>
               <span className="w-2 h-2 rounded-full bg-[#E0FAEB] animate-ping shrink-0" />
             </div>
-            <p className="text-[10px] sm:text-[11px] text-[#C5E5EC]/80 font-medium truncate">
-              {currentUserCoords.label || (language === 'vi' ? 'Vị trí của bạn' : 'Your location')} • {gigs.length}{' '}
-              {language === 'vi' ? 'công việc' : 'gigs'}
+            <p className="text-[10px] text-[#C5E5EC]/80 font-medium truncate">
+              {currentUserCoords.label?.split('(')[0].trim() || (language === 'vi' ? 'Vị trí hiện tại' : 'Current location')} •{' '}
+              <strong className="text-white">{gigs.length}</strong> {language === 'vi' ? 'công việc' : 'gigs'}
             </p>
           </div>
         </div>
 
-        {/* Action controls right: Fullscreen */}
-        <div className="flex items-center space-x-2 shrink-0">
+        {/* Action Controls Right: GPS Locate + Expand/Compact + Fullscreen + Fold */}
+        <div className="flex items-center space-x-1 sm:space-x-1.5 shrink-0">
+          {/* GPS Quick Scan Button */}
+          <button
+            onClick={handleGetLiveGps}
+            disabled={isGpsLoading}
+            className="p-1.5 sm:px-2.5 sm:py-1 rounded-xl bg-[#12233B] hover:bg-[#162B48] border border-[#C5E5EC]/25 text-[#E0FAEB] transition active:scale-95 shadow-2xs cursor-pointer flex items-center space-x-1"
+            title={language === 'vi' ? 'Quét GPS thực tế của tôi' : 'Locate my real GPS'}
+          >
+            {isGpsLoading ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-[#C5E5EC]" />
+            ) : (
+              <Crosshair className="w-3.5 h-3.5" />
+            )}
+            <span className="hidden md:inline text-[10px] font-bold">
+              {language === 'vi' ? 'GPS' : 'GPS'}
+            </span>
+          </button>
+
+          {/* Toggle Expand / Compact Map Height */}
+          {!isFullscreen && (
+            <button
+              onClick={() => setIsExpanded((prev) => !prev)}
+              className="p-1.5 rounded-xl bg-[#12233B] hover:bg-[#162B48] border border-[#C5E5EC]/25 text-[#C5E5EC] transition active:scale-95 shadow-2xs cursor-pointer"
+              title={isExpanded ? (language === 'vi' ? 'Thu gọn chiều cao' : 'Compact height') : (language === 'vi' ? 'Mở rộng bản đồ' : 'Expand map')}
+            >
+              {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+            </button>
+          )}
+
           {/* Fullscreen Button */}
           <button
             onClick={() => setIsFullscreen((prev) => !prev)}
-            className="p-1.5 sm:p-2 rounded-xl bg-[#12233B] hover:bg-[#162B48] border border-[#C5E5EC]/25 text-[#C5E5EC] transition active:scale-95 shadow-2xs cursor-pointer"
+            className="p-1.5 rounded-xl bg-[#12233B] hover:bg-[#162B48] border border-[#C5E5EC]/25 text-[#C5E5EC] transition active:scale-95 shadow-2xs cursor-pointer"
             title={isFullscreen ? (language === 'vi' ? 'Thu nhỏ' : 'Exit fullscreen') : (language === 'vi' ? 'Toàn màn hình' : 'Fullscreen')}
           >
             {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
           </button>
+
+          {/* Hide/Fold Map to Mini Bar */}
+          {!isFullscreen && (
+            <button
+              onClick={() => setIsCollapsed(true)}
+              className="p-1.5 rounded-xl bg-[#12233B] hover:bg-[#162B48] border border-[#C5E5EC]/25 text-[#C5E5EC]/70 hover:text-white transition active:scale-95 shadow-2xs cursor-pointer"
+              title={language === 'vi' ? 'Thu gọn hẳn bản đồ' : 'Minimize radar bar'}
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Unified Horizontal Control Bar: Radius + Campus Hubs + Map Layers */}
-      <div className="flex items-center space-x-2 overflow-x-auto pb-2 mb-2 text-xs scrollbar-none w-full">
-        {/* Radius chips */}
+      {/* Streamlined Compact Control Bar: Radius Chips + Hub Dropdown + Layer Switcher */}
+      <div className="flex items-center justify-between gap-1.5 pb-2 mb-1.5 text-xs overflow-x-auto scrollbar-none w-full">
+        {/* Radius Chips (Neat 5-item segmented strip) */}
         <div className="flex items-center space-x-1 shrink-0">
-          <span className="text-[#C5E5EC] text-[10px] font-extrabold">
-            {language === 'vi' ? 'Bán kính:' : 'Radius:'}
-          </span>
-          {[
-            { label: language === 'vi' ? '100m (KTX)' : '100m (Dorm)', value: 100 },
-            { label: language === 'vi' ? '500m (Campus)' : '500m (Campus)', value: 500 },
-            { label: '1km', value: 1000 },
-            { label: '3km', value: 3000 },
-            { label: '5km', value: 5000 },
-            { label: language === 'vi' ? '15km (Thành phố)' : '15km (City)', value: 15000 },
-            { label: language === 'vi' ? '🌐 Toàn quốc' : '🌐 Nationwide', value: 2500000 },
-          ].map((opt) => (
-            <button
-              key={opt.value}
-              onClick={() => onRadiusChange(opt.value)}
-              className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold transition whitespace-nowrap border active:scale-95 cursor-pointer ${
-                radiusMeters === opt.value
-                  ? isClientMode
-                    ? 'bg-gradient-to-r from-[#3064AE] to-[#255294] text-white border-[#C5E5EC]/50 shadow-xs'
-                    : 'bg-gradient-to-r from-orange-500 to-amber-600 text-white border-orange-400 shadow-xs'
-                  : 'bg-[#12233B] text-[#C5E5EC]/80 border-[#C5E5EC]/20 hover:bg-[#162B48] hover:text-white'
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-
-        <span className="text-[#C5E5EC]/30 shrink-0">|</span>
-
-        {/* Campus Hubs chips */}
-        <div className="flex items-center space-x-1 shrink-0">
-          <span className="text-[#C5E5EC] text-[10px] font-extrabold">
-            {language === 'vi' ? 'Khu vực:' : 'Region:'}
-          </span>
-          {Object.entries(VIETNAM_HUBS).map(([key, hub]) => {
-            const isCurrent =
-              currentUserCoords.latitude === hub.latitude &&
-              currentUserCoords.longitude === hub.longitude;
+          {PRIMARY_RADIUS_OPTIONS.map((opt) => {
+            const isActive = radiusMeters === opt.value;
             return (
               <button
-                key={key}
-                onClick={() => handleSelectCampus(key)}
-                className={`px-2 py-0.5 rounded-lg font-extrabold whitespace-nowrap transition text-[10px] border active:scale-95 cursor-pointer ${
-                  isCurrent
-                    ? 'bg-gradient-to-r from-[#3064AE] to-[#255294] text-white border-[#C5E5EC]/50 shadow-xs font-black'
+                key={opt.value}
+                onClick={() => onRadiusChange(opt.value)}
+                className={`px-2 py-1 rounded-lg text-[10px] font-extrabold transition whitespace-nowrap border active:scale-95 cursor-pointer ${
+                  isActive
+                    ? 'bg-gradient-to-r from-[#3064AE] to-[#255294] text-white border-[#C5E5EC]/50 shadow-xs'
                     : 'bg-[#12233B] text-[#C5E5EC]/80 border-[#C5E5EC]/20 hover:bg-[#162B48] hover:text-white'
                 }`}
               >
-                {hub.label?.split('(')[0].trim() || key}
+                {opt.label}
               </button>
             );
           })}
         </div>
 
-        {/* Map Layers */}
-        <span className="text-[#C5E5EC]/30 shrink-0">|</span>
-        <div className="flex items-center space-x-1 shrink-0">
-          <span className="text-[#C5E5EC]/80 text-[10px] font-bold">
-            {language === 'vi' ? 'Lớp nền:' : 'Layers:'}
-          </span>
-          <button
-            onClick={() => setMapLayer('GOOGLE_STREETS')}
-            className={`px-2 py-0.5 rounded-lg text-[10px] font-bold whitespace-nowrap transition border active:scale-95 cursor-pointer ${
-              mapLayer === 'GOOGLE_STREETS'
-                ? 'bg-[#3064AE] text-white border-[#C5E5EC]/50 shadow-xs'
-                : 'bg-[#12233B] text-[#C5E5EC]/80 border-[#C5E5EC]/20 hover:text-white hover:bg-[#162B48]'
-            }`}
-          >
-            {language === 'vi' ? 'Chuẩn' : 'Standard'}
-          </button>
-          <button
-            onClick={() => setMapLayer('GOOGLE_SATELLITE')}
-            className={`px-2 py-0.5 rounded-lg text-[10px] font-bold whitespace-nowrap transition border active:scale-95 cursor-pointer ${
-              mapLayer === 'GOOGLE_SATELLITE'
-                ? 'bg-[#3064AE] text-white border-[#C5E5EC]/50 shadow-xs'
-                : 'bg-[#12233B] text-[#C5E5EC]/80 border-[#C5E5EC]/20 hover:text-white hover:bg-[#162B48]'
-            }`}
-          >
-            {language === 'vi' ? 'Vệ Tinh' : 'Satellite'}
-          </button>
-          <button
-            onClick={() => setMapLayer('DARK_CYBER')}
-            className={`px-2 py-0.5 rounded-lg text-[10px] font-bold whitespace-nowrap transition border cursor-pointer ${
-              mapLayer === 'DARK_CYBER'
-                ? 'bg-[#3064AE] text-white border-[#C5E5EC]/50 shadow-xs'
-                : 'bg-[#12233B] text-[#C5E5EC]/80 border-[#C5E5EC]/20 hover:text-white hover:bg-[#162B48]'
-            }`}
-          >
-            Dark Cyber
-          </button>
+        {/* Right dropdowns: Campus Hub + Map Layer */}
+        <div className="flex items-center space-x-1.5 shrink-0 ml-auto">
+          {/* Campus Hub Selector Dropdown */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowHubDropdown((prev) => !prev);
+                setShowLayerDropdown(false);
+              }}
+              className="px-2 py-1 rounded-lg bg-[#12233B] hover:bg-[#162B48] text-[#C5E5EC] border border-[#C5E5EC]/25 text-[10px] font-black transition flex items-center space-x-1 cursor-pointer"
+            >
+              <span>🏛️ {currentHubEntry ? currentHubEntry.hub.label?.split('(')[0].trim() : (language === 'vi' ? 'Khu vực' : 'Hub')}</span>
+              <ChevronDown className="w-3 h-3 text-[#C5E5EC]/70" />
+            </button>
+
+            {showHubDropdown && (
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className="absolute right-0 top-full mt-1.5 z-40 w-56 rounded-2xl bg-[#0E1B2E] border border-[#C5E5EC]/30 shadow-2xl p-1.5 space-y-0.5 animate-fadeIn max-h-60 overflow-y-auto"
+              >
+                <div className="px-2 py-1 text-[9px] font-black text-[#C5E5EC]/70 uppercase tracking-wider">
+                  {language === 'vi' ? 'Chọn Khu Vực / Trường' : 'Select Campus Hub'}
+                </div>
+                {Object.entries(VIETNAM_HUBS).map(([key, hub]) => {
+                  const isCurrent =
+                    Math.abs(hub.latitude - currentUserCoords.latitude) < 0.001 &&
+                    Math.abs(hub.longitude - currentUserCoords.longitude) < 0.001;
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => handleSelectCampus(key)}
+                      className={`w-full text-left px-2.5 py-1.5 rounded-xl text-[11px] font-bold flex items-center justify-between transition cursor-pointer ${
+                        isCurrent
+                          ? 'bg-[#3064AE] text-white font-black'
+                          : 'text-[#C5E5EC] hover:bg-[#12233B] hover:text-white'
+                      }`}
+                    >
+                      <span className="truncate">{hub.label}</span>
+                      {isCurrent && <Check className="w-3.5 h-3.5 text-[#E0FAEB] shrink-0 ml-1" />}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Map Layer Selector Dropdown */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowLayerDropdown((prev) => !prev);
+                setShowHubDropdown(false);
+              }}
+              className="p-1 sm:px-2 sm:py-1 rounded-lg bg-[#12233B] hover:bg-[#162B48] text-[#C5E5EC] border border-[#C5E5EC]/25 text-[10px] font-bold transition flex items-center space-x-1 cursor-pointer"
+              title={language === 'vi' ? 'Lớp bản đồ' : 'Map layer'}
+            >
+              <Layers className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">
+                {mapLayer === 'GOOGLE_STREETS' ? 'Chuẩn' : mapLayer === 'GOOGLE_SATELLITE' ? 'Vệ Tinh' : 'Cyber'}
+              </span>
+            </button>
+
+            {showLayerDropdown && (
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className="absolute right-0 top-full mt-1.5 z-40 w-36 rounded-2xl bg-[#0E1B2E] border border-[#C5E5EC]/30 shadow-2xl p-1.5 space-y-0.5 animate-fadeIn"
+              >
+                {[
+                  { key: 'GOOGLE_STREETS', label: language === 'vi' ? 'Chuẩn (Street)' : 'Standard' },
+                  { key: 'GOOGLE_SATELLITE', label: language === 'vi' ? 'Vệ Tinh' : 'Satellite' },
+                  { key: 'DARK_CYBER', label: 'Dark Cyber' },
+                ].map((item) => (
+                  <button
+                    key={item.key}
+                    onClick={() => {
+                      setMapLayer(item.key as MapLayer);
+                      setShowLayerDropdown(false);
+                    }}
+                    className={`w-full text-left px-2 py-1.5 rounded-xl text-[10px] font-bold flex items-center justify-between transition cursor-pointer ${
+                      mapLayer === item.key
+                        ? 'bg-[#3064AE] text-white font-black'
+                        : 'text-[#C5E5EC] hover:bg-[#12233B] hover:text-white'
+                    }`}
+                  >
+                    <span>{item.label}</span>
+                    {mapLayer === item.key && <Check className="w-3 h-3 text-[#E0FAEB]" />}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-
-      {/* Fake GPS / Mock Location Alert Banner */}
+      {/* Fake GPS Alert */}
       {gpsReport?.isMock && (
-        <div className="mb-2 p-2.5 rounded-xl bg-red-500/20 border border-red-500/50 text-red-200 text-xs flex items-center justify-between animate-fade-in shadow-lg">
-          <div className="flex items-center space-x-2">
+        <div className="mb-2 p-2 rounded-xl bg-red-500/20 border border-red-500/50 text-red-200 text-xs flex items-center justify-between animate-fade-in shadow-md">
+          <div className="flex items-center space-x-1.5">
             <ShieldAlert className="w-4 h-4 text-red-400 shrink-0 animate-bounce" />
-            <div>
-              <strong className="text-red-300 font-extrabold">
-                {language === 'vi' ? 'Cảnh Báo Chống Fake GPS:' : 'Anti-Mock GPS Alert:'}
-              </strong>{' '}
-              <span>
-                {gpsReport.reason ||
-                  (language === 'vi'
-                    ? 'Phát hiện vị trí giả lập / Mock Location'
-                    : 'Mock location detected')}
-              </span>
-            </div>
+            <span className="text-[11px] truncate">
+              {gpsReport.reason || (language === 'vi' ? 'Phát hiện Mock Location' : 'Mock GPS detected')}
+            </span>
           </div>
           <button
             onClick={() => setShowMockDetectorDialog(true)}
-            className="px-2 py-0.5 rounded-lg bg-red-500/30 hover:bg-red-500/40 border border-red-500/40 text-white font-bold text-[10px] shrink-0"
+            className="px-2 py-0.5 rounded-lg bg-red-500/30 hover:bg-red-500/40 text-white font-bold text-[10px] shrink-0"
           >
             {language === 'vi' ? 'Chi tiết' : 'Details'}
           </button>
         </div>
       )}
 
-      {/* GPS Error alert */}
+      {/* GPS Error Alert */}
       {gpsError && (
         <div className="mb-2 p-2 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-200 text-xs flex items-center space-x-2 animate-fade-in">
           <Info className="w-4 h-4 shrink-0" />
-          <span>{gpsError}</span>
+          <span className="text-[11px]">{gpsError}</span>
         </div>
       )}
 
       {/* ==========================================
-          INTERACTIVE DISPLAY AREA (GOOGLE MAPS)
+          INTERACTIVE DISPLAY CANVAS
          ========================================== */}
-      <div className={`relative w-full ${mapAreaHeight} rounded-2xl overflow-hidden border border-[#C5E5EC]/25 shadow-xl bg-[#0A1424]`}>
-        {/* LEAFLET GOOGLE MAP CONTAINER */}
-        <div
-          ref={mapContainerRef}
-          className="w-full h-full absolute inset-0 visible z-10"
-        />
+      <div className={`relative w-full ${mapAreaHeight} rounded-2xl overflow-hidden border border-[#C5E5EC]/25 shadow-xl bg-[#0A1424] transition-all duration-200`}>
+        {/* LEAFLET CANVAS */}
+        <div ref={mapContainerRef} className="w-full h-full absolute inset-0 z-10" />
 
-        {/* Floating Zoom & Pan Controls on Map */}
-        <div className="absolute top-4 right-4 z-20 flex flex-col space-y-1.5">
+        {/* Floating Zoom Controls */}
+        <div className="absolute top-3 right-3 z-20 flex flex-col space-y-1">
           <button
             onClick={handleZoomIn}
-            className="p-2.5 rounded-xl bg-[#0E1B2E]/95 hover:bg-[#13243C] text-[#C5E5EC] hover:text-white border border-[#C5E5EC]/30 shadow-lg transition backdrop-blur-sm active:scale-95 cursor-pointer"
+            className="p-2 rounded-xl bg-[#0E1B2E]/95 hover:bg-[#13243C] text-[#C5E5EC] hover:text-white border border-[#C5E5EC]/30 shadow-lg transition backdrop-blur-sm active:scale-95 cursor-pointer"
             title={language === 'vi' ? 'Phóng to' : 'Zoom in'}
           >
-            <ZoomIn className="w-4 h-4" />
+            <ZoomIn className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={handleZoomOut}
-            className="p-2.5 rounded-xl bg-[#0E1B2E]/95 hover:bg-[#13243C] text-[#C5E5EC] hover:text-white border border-[#C5E5EC]/30 shadow-lg transition backdrop-blur-sm active:scale-95 cursor-pointer"
+            className="p-2 rounded-xl bg-[#0E1B2E]/95 hover:bg-[#13243C] text-[#C5E5EC] hover:text-white border border-[#C5E5EC]/30 shadow-lg transition backdrop-blur-sm active:scale-95 cursor-pointer"
             title={language === 'vi' ? 'Thu nhỏ' : 'Zoom out'}
           >
-            <ZoomOut className="w-4 h-4" />
+            <ZoomOut className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={handleRecenter}
-            className="p-2.5 rounded-xl bg-[#0E1B2E]/95 hover:bg-[#13243C] text-[#E0FAEB] border border-[#C5E5EC]/30 shadow-lg transition backdrop-blur-sm active:scale-95 cursor-pointer"
+            className="p-2 rounded-xl bg-[#0E1B2E]/95 hover:bg-[#13243C] text-[#E0FAEB] border border-[#C5E5EC]/30 shadow-lg transition backdrop-blur-sm active:scale-95 cursor-pointer"
             title={language === 'vi' ? 'Tâm vị trí của tôi' : 'Recenter my location'}
           >
-            <Crosshair className="w-4 h-4" />
+            <Crosshair className="w-3.5 h-3.5" />
           </button>
         </div>
 
-        {/* Compass Badge in Corner */}
-        <div className="absolute top-4 left-4 z-20 pointer-events-none flex items-center space-x-1.5 bg-[#0E1B2E]/90 backdrop-blur-md px-3 py-1 rounded-xl text-[10px] text-[#C5E5EC] border border-[#C5E5EC]/30 shadow-md">
-          <Compass className="w-3.5 h-3.5 text-[#E0FAEB] animate-spin-slow" />
-          <span className="font-bold">
-            {language === 'vi' ? 'ĐỊNH VỊ THỜI GIAN THỰC' : 'REAL-TIME GPS TELEMETRY'}
-          </span>
-        </div>
-
-        {/* Map Drag / Zoom Hint overlay */}
-        <div className="absolute bottom-3 left-4 z-20 pointer-events-none hidden sm:flex items-center space-x-2 bg-[#0E1B2E]/90 backdrop-blur-md px-2.5 py-1 rounded-xl text-[10px] text-[#C5E5EC]/80 border border-[#C5E5EC]/20 shadow-xs">
-          <span>
-            {language === 'vi'
-              ? '💡 Kéo bản đồ để di chuyển • Lăn chuột / chụm tay để phóng to thu nhỏ'
-              : '💡 Drag map to pan • Pinch / scroll to zoom'}
-          </span>
+        {/* Compass Tag */}
+        <div className="absolute top-3 left-3 z-20 pointer-events-none flex items-center space-x-1.5 bg-[#0E1B2E]/90 backdrop-blur-md px-2.5 py-1 rounded-xl text-[9px] text-[#C5E5EC] border border-[#C5E5EC]/30 shadow-md">
+          <Compass className="w-3 h-3 text-[#E0FAEB] animate-spin-slow" />
+          <span className="font-extrabold">GPS RADAR</span>
         </div>
       </div>
 
       {/* ==========================================
-          SELECTED GIG NAVIGATION & ROUTE DIRECTIONS
+          SELECTED GIG NAVIGATION (COMPACT & DISMISSIBLE)
          ========================================== */}
       {selectedGig && routeStats && (
-        <div className="mt-3 p-3.5 sm:p-4 rounded-2xl bg-[#0E1B2E] border border-[#C5E5EC]/25 shadow-xl animate-fade-in text-xs space-y-3 text-white">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div className="flex items-start space-x-3 overflow-hidden">
-              <div className="p-2.5 rounded-2xl bg-[#3064AE]/30 text-[#C5E5EC] font-black shrink-0 mt-0.5 border border-[#C5E5EC]/25 shadow-xs">
-                <MapPin className="w-5 h-5 text-[#C5E5EC]" />
+        <div className="mt-2.5 p-3 rounded-2xl bg-[#0E1B2E] border border-[#C5E5EC]/25 shadow-xl animate-fade-in text-xs space-y-2 text-white">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex items-start space-x-2.5 min-w-0">
+              <div className="p-2 rounded-xl bg-[#3064AE]/30 text-[#C5E5EC] font-black shrink-0 mt-0.5 border border-[#C5E5EC]/25">
+                <MapPin className="w-4 h-4 text-[#C5E5EC]" />
               </div>
-              <div>
-                <div className="flex items-center space-x-2">
+              <div className="min-w-0">
+                <div className="flex items-center space-x-1.5 flex-wrap gap-y-0.5">
                   {selectedGig.isFlash && (
-                    <span className="flex items-center text-[10px] font-black text-amber-200 bg-amber-950/60 px-2 py-0.5 rounded border border-amber-400/30">
-                      <Zap className="w-3 h-3 mr-0.5 fill-current text-amber-300" />{' '}
+                    <span className="flex items-center text-[9px] font-black text-amber-200 bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-400/30">
+                      <Zap className="w-2.5 h-2.5 mr-0.5 fill-current text-amber-300" />
                       {language === 'vi' ? 'HỎA TỐC' : 'FLASH'}
                     </span>
                   )}
-                  <span className="text-[10px] px-2 py-0.5 rounded bg-[#3064AE]/30 text-[#C5E5EC] font-bold border border-[#C5E5EC]/25">
+                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#3064AE]/30 text-[#C5E5EC] font-bold border border-[#C5E5EC]/25">
                     {selectedGig.category}
                   </span>
                 </div>
-                <h4 className="font-extrabold text-white text-sm mt-0.5 line-clamp-1">
+                <h4 className="font-extrabold text-white text-xs mt-0.5 truncate">
                   {selectedGig.title}
                 </h4>
-                <p className="text-[#C5E5EC]/70 text-[11px] line-clamp-1 mt-0.5">
+                <p className="text-[#C5E5EC]/70 text-[10px] truncate">
                   {selectedGig.locationName}
                 </p>
               </div>
             </div>
 
-            <div className="sm:text-right shrink-0 pl-11 sm:pl-0">
-              <span className="text-base font-black text-[#E0FAEB] font-mono block">
-                {formatVnd(selectedGig.price)}
-              </span>
-              <span className="text-[10px] text-[#C5E5EC]/60">
-                {selectedGig.isReverseAuction
-                  ? language === 'vi'
-                    ? 'Đấu giá ngược'
-                    : 'Reverse auction'
-                  : language === 'vi'
-                  ? 'Đã khóa Smart Escrow'
-                  : 'Smart Escrow locked'}
-              </span>
+            {/* Price & Dismiss Close Button */}
+            <div className="flex items-center space-x-2 shrink-0">
+              <div className="text-right">
+                <span className="text-sm font-black text-[#E0FAEB] font-mono block">
+                  {formatVnd(selectedGig.price)}
+                </span>
+                <span className="text-[9px] text-[#C5E5EC]/60">Escrow</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => onSelectGig('')}
+                className="p-1.5 rounded-xl bg-[#12233B] hover:bg-[#162B48] text-[#C5E5EC] hover:text-white transition active:scale-95 cursor-pointer border border-[#C5E5EC]/20 shadow-xs"
+                title={language === 'vi' ? 'Bỏ chọn / Đóng lộ trình' : 'Deselect / Close route'}
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
             </div>
           </div>
 
-          {/* Live Tracking Real-time Notification Banner */}
-          {isLiveTracking && (
-            <div className="p-3 rounded-2xl bg-[#12233B] border border-[#E0FAEB]/30 shadow-xs flex items-center justify-between gap-2 animate-fade-in">
-              <div className="flex items-center space-x-2.5 min-w-0">
-                <div className="w-8 h-8 rounded-full bg-[#3064AE]/40 border border-[#C5E5EC]/30 flex items-center justify-center text-base shrink-0 animate-bounce">
-                  {selectedGig.category === 'Đưa đón sinh viên' ? '🚶‍♂️' : selectedGig.isFlash || selectedGig.category === 'Vận chuyển & Ship' ? '🛵' : '🚴‍♂️'}
-                </div>
-                <div className="min-w-0">
-                  <div className="flex items-center space-x-1.5">
-                    <span className="text-white font-black text-xs truncate">
-                      {selectedGig.category === 'Đưa đón sinh viên' ? '🚶‍♂️' : selectedGig.isFlash || selectedGig.category === 'Vận chuyển & Ship' ? '🛵' : '🚴‍♂️'}{' '}
-                      {language === 'vi' ? 'Người làm đang cách bạn ' : 'Worker is away from you '}
-                      <strong className="text-[#E0FAEB]">
-                        {(() => {
-                          const totalD = osrmRouteDetails?.distanceMeters ?? routeStats.distanceMeters ?? 450;
-                          const rem = Math.max(30, Math.round(totalD * (1 - trackingProgress)));
-                          return rem >= 1000 ? `${(rem / 1000).toFixed(1)} km` : `${rem}m`;
-                        })()}
-                      </strong>
-                    </span>
-                    <span className="w-2 h-2 rounded-full bg-[#E0FAEB] animate-ping shrink-0" />
-                  </div>
-                  <p className="text-[11px] text-[#C5E5EC]/80 font-semibold truncate">
-                    {language === 'vi' ? 'Khoảng ~' : 'Approx ~'}
-                    {(() => {
-                      const totalD = osrmRouteDetails?.distanceMeters ?? routeStats.distanceMeters ?? 450;
-                      const rem = Math.max(30, Math.round(totalD * (1 - trackingProgress)));
-                      const isWalk = selectedGig.category === 'Đưa đón sinh viên';
-                      return Math.max(1, Math.ceil(rem / (isWalk ? 75 : 350)));
-                    })()}
-                    {language === 'vi'
-                      ? ' phút tới nơi • Cập nhật chuyển động GPS thời gian thực'
-                      : ' mins away • Realtime GPS telemetry updates'}
-                  </p>
-                </div>
-              </div>
-              <div className="text-right shrink-0">
-                <span className="px-2.5 py-1 rounded-full bg-[#3064AE] text-white font-black text-[10px] shadow-xs border border-[#C5E5EC]/30">
-                  ETA:{' '}
-                  {(() => {
-                    const totalD = osrmRouteDetails?.distanceMeters ?? routeStats.distanceMeters ?? 450;
-                    const rem = Math.max(30, Math.round(totalD * (1 - trackingProgress)));
-                    const isWalk = selectedGig.category === 'Đưa đón sinh viên';
-                    return Math.max(1, Math.ceil(rem / (isWalk ? 75 : 350)));
-                  })()}{' '}
-                  {language === 'vi' ? 'PHÚT' : 'MINS'}
+          {/* Compact Telemetry & Action Row */}
+          <div className="p-2 rounded-xl bg-[#12233B] border border-[#C5E5EC]/20 flex flex-wrap items-center justify-between gap-2 text-[10px]">
+            <div className="flex items-center space-x-2.5 text-[#C5E5EC]">
+              <div className="flex items-center space-x-1 font-bold text-white">
+                <Navigation className="w-3.5 h-3.5 text-[#C5E5EC]" />
+                <span>
+                  {osrmRouteDetails
+                    ? osrmRouteDetails.distanceMeters >= 1000
+                      ? `${(osrmRouteDetails.distanceMeters / 1000).toFixed(1)} km`
+                      : `${osrmRouteDetails.distanceMeters}m`
+                    : routeStats.formattedDistance}
                 </span>
+              </div>
+
+              <div className="flex items-center space-x-1 text-[#C5E5EC]/80">
+                <Footprints className="w-3 h-3 text-[#E0FAEB]" />
+                <span>~{osrmRouteDetails?.walkMinutes ?? routeStats.walkMinutes}p</span>
+              </div>
+
+              <div className="flex items-center space-x-1 text-[#C5E5EC]/80">
+                <Bike className="w-3 h-3 text-amber-300" />
+                <span>~{osrmRouteDetails?.motoMinutes ?? routeStats.motoMinutes}p</span>
               </div>
             </div>
-          )}
 
-          {/* Route details banner */}
-          <div className="p-2.5 rounded-xl bg-[#12233B] border border-[#C5E5EC]/20 flex flex-wrap items-center justify-between gap-3 text-[11px]">
-            <div className="flex flex-wrap items-center gap-3 sm:gap-4">
-              <div className="flex items-center space-x-1.5 text-[#C5E5EC] font-bold">
-                <Navigation className="w-4 h-4 text-[#C5E5EC]" />
-                <span>
-                  {language === 'vi' ? 'Cách bạn: ' : 'Distance: '}
-                  <strong className="text-white">
-                    {osrmRouteDetails
-                      ? osrmRouteDetails.distanceMeters >= 1000
-                        ? `${(osrmRouteDetails.distanceMeters / 1000).toFixed(1)} km`
-                        : `${osrmRouteDetails.distanceMeters}m`
-                      : routeStats.formattedDistance}
-                  </strong>
-                </span>
-              </div>
-
-              <div className="flex items-center space-x-1 text-[#C5E5EC]/80 font-medium">
-                <Footprints className="w-3.5 h-3.5 text-[#E0FAEB]" />
-                <span>
-                  ~{osrmRouteDetails?.walkMinutes ?? routeStats.walkMinutes}{' '}
-                  {language === 'vi' ? 'p đi bộ' : 'm walk'}
-                </span>
-              </div>
-
-              <div className="flex items-center space-x-1 text-[#C5E5EC]/80 font-medium">
-                <Bike className="w-3.5 h-3.5 text-amber-300" />
-                <span>
-                  ~{osrmRouteDetails?.motoMinutes ?? routeStats.motoMinutes}{' '}
-                  {language === 'vi' ? 'p xe máy' : 'm bike'}
-                </span>
-              </div>
-
-              <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-[#3064AE]/30 text-[#C5E5EC] border border-[#C5E5EC]/25">
-                {osrmRouteDetails?.routeSource === 'OSRM_REAL_ROAD'
-                  ? language === 'vi'
-                    ? '🗺️ Google/OSRM Lộ trình thực'
-                    : '🗺️ OSRM Real Road Route'
-                  : language === 'vi'
-                  ? '🧭 Lộ trình nội khu'
-                  : '🧭 Campus Internal Route'}
-              </span>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              {/* Toggle Live Tracking */}
+            <div className="flex items-center space-x-1.5 ml-auto">
               <button
                 type="button"
                 onClick={() => setIsLiveTracking((p) => !p)}
-                className={`px-3 py-1.5 rounded-xl font-extrabold text-xs transition flex items-center space-x-1.5 active:scale-95 cursor-pointer ${
+                className={`px-2 py-1 rounded-lg font-bold text-[10px] transition flex items-center space-x-1 active:scale-95 cursor-pointer ${
                   isLiveTracking
                     ? 'bg-[#3064AE]/40 text-[#E0FAEB] border border-[#E0FAEB]/40'
-                    : 'bg-[#162B48] text-[#C5E5EC] border border-[#C5E5EC]/25 hover:bg-[#1A3355]'
+                    : 'bg-[#162B48] text-[#C5E5EC] border border-[#C5E5EC]/25'
                 }`}
               >
-                <span className={`w-2 h-2 rounded-full ${isLiveTracking ? 'bg-[#E0FAEB] animate-ping' : 'bg-slate-400'}`} />
-                <span>
-                  {isLiveTracking
-                    ? 'Live Tracking 🛵'
-                    : language === 'vi'
-                    ? 'Bật Theo Dõi'
-                    : 'Track Route'}
-                </span>
+                <span className={`w-1.5 h-1.5 rounded-full ${isLiveTracking ? 'bg-[#E0FAEB] animate-ping' : 'bg-slate-400'}`} />
+                <span>{isLiveTracking ? 'Live 🛵' : 'Track'}</span>
               </button>
 
-              {/* Direct Google Maps Direction CTA */}
               <a
                 href={routeStats.googleDirUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-[#3064AE] via-[#417AC6] to-[#C5E5EC] text-white font-extrabold text-xs hover:brightness-110 shadow-md shadow-[#3064AE]/30 transition flex items-center space-x-1.5 active:scale-95 border border-[#E0FAEB]/30"
+                className="px-2.5 py-1 rounded-lg bg-gradient-to-r from-[#3064AE] to-[#417AC6] text-white font-extrabold text-[10px] hover:brightness-110 shadow-xs transition flex items-center space-x-1 active:scale-95 border border-[#E0FAEB]/30"
               >
-                <ExternalLink className="w-3.5 h-3.5" />
-                <span>Google Maps &rarr;</span>
+                <ExternalLink className="w-3 h-3" />
+                <span>Google Maps</span>
               </a>
             </div>
           </div>
         </div>
       )}
 
-      {/* ==========================================
-          MOCK LOCATION DETECTOR (CHỐNG FAKE GPS) MODAL
-         ========================================== */}
+      {/* Anti-Mock GPS Inspection Modal */}
       {showMockDetectorDialog && (
         <div
           onClick={(e) => {
@@ -1115,17 +1113,16 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
               </div>
               <div>
                 <h3 className="text-sm font-extrabold text-white">
-                  {language === 'vi' ? 'Kiểm Định Chống Fake GPS (Anti-Mock)' : 'Anti-Mock GPS Integrity Check'}
+                  {language === 'vi' ? 'Kiểm Định Chống Fake GPS' : 'Anti-Mock GPS Check'}
                 </h3>
                 <p className="text-[#C5E5EC]/70 text-[11px]">
                   {language === 'vi'
-                    ? 'Bảo vệ xác thực vị trí nhận kèo và check-in Escrow'
-                    : 'Validating real location for gig claims & Escrow check-ins'}
+                    ? 'Bảo vệ xác thực vị trí nhận việc và check-in Escrow'
+                    : 'Validating real location for gig claims'}
                 </p>
               </div>
             </div>
 
-            {/* Status indicator */}
             <div
               className={`p-3 rounded-2xl border ${
                 gpsReport?.isMock
@@ -1134,7 +1131,7 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
               }`}
             >
               <div className="flex items-center justify-between font-bold mb-1">
-                <span>{language === 'vi' ? 'Trạng thái định vị:' : 'Location status:'}</span>
+                <span>{language === 'vi' ? 'Trạng thái:' : 'Status:'}</span>
                 <span className="uppercase font-black tracking-wider">
                   {gpsReport?.isMock
                     ? (language === 'vi' ? 'PHÁT HIỆN FAKE GPS' : 'MOCK GPS DETECTED')
@@ -1144,64 +1141,22 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
               <p className="text-[11px] text-[#C5E5EC]/80">
                 {gpsReport?.reason ||
                   (language === 'vi'
-                    ? 'Tín hiệu GPS có độ dao động tự nhiên, không phát hiện phần mềm giả lập Mock Location.'
-                    : 'GPS signal exhibits natural variance; no mock location provider detected.')}
+                    ? 'Tín hiệu GPS có độ dao động tự nhiên, không phát hiện phần mềm giả lập.'
+                    : 'GPS signal exhibits natural variance; no mock provider detected.')}
               </p>
             </div>
 
-            {/* Technical telemetry inspection */}
-            <div className="p-3.5 rounded-2xl bg-[#12233B] border border-[#C5E5EC]/20 space-y-2 text-[11px]">
-              <div className="flex justify-between items-center text-[#C5E5EC]/80">
-                <span>{language === 'vi' ? 'Sai số GPS thực tế:' : 'Real GPS Accuracy:'}</span>
-                <strong className="font-mono text-[#E0FAEB]">
-                  {gpsReport
-                    ? (language === 'vi' ? `~${gpsReport.accuracyMeters} mét` : `~${gpsReport.accuracyMeters} meters`)
-                    : (language === 'vi' ? '15 mét' : '15 meters')}
-                </strong>
-              </div>
-              <div className="flex justify-between items-center text-[#C5E5EC]/80">
-                <span>{language === 'vi' ? 'Vệ tinh GNSS kết nối:' : 'Connected GNSS Satellites:'}</span>
-                <strong className="font-mono text-[#E0FAEB]">
-                  {gpsReport
-                    ? (language === 'vi' ? `${gpsReport.satellitesEstimated} vệ tinh` : `${gpsReport.satellitesEstimated} satellites`)
-                    : (language === 'vi' ? '9 vệ tinh' : '9 satellites')}
-                </strong>
-              </div>
-              <div className="flex justify-between items-center text-[#C5E5EC]/80">
-                <span>{language === 'vi' ? 'Kiểm tra dao động Jitter:' : 'Jitter Variance Check:'}</span>
-                <strong className="text-white">
-                  {gpsReport?.isMock
-                    ? (language === 'vi' ? 'Bị khóa cứng (0.000m)' : 'Frozen lock (0.000m)')
-                    : (language === 'vi' ? 'Tự nhiên (Đạt chuẩn)' : 'Natural (Passed)')}
-                </strong>
-              </div>
-              <div className="flex justify-between items-center text-[#C5E5EC]/80">
-                <span>{language === 'vi' ? 'Cờ Mock Provider:' : 'Mock Provider Flag:'}</span>
-                <strong className={gpsReport?.isMock ? 'text-red-400' : 'text-[#E0FAEB]'}>
-                  {gpsReport?.isMock
-                    ? (language === 'vi' ? 'Phát hiện (isMock=true)' : 'Detected (isMock=true)')
-                    : (language === 'vi' ? 'Không (An toàn)' : 'None (Secure)')}
-                </strong>
-              </div>
-              <div className="flex justify-between items-center text-[#C5E5EC]/80">
-                <span>{language === 'vi' ? 'Quy chế Escrow:' : 'Escrow Policy:'}</span>
-                <strong className="text-[#C5E5EC]">
-                  {language === 'vi' ? 'Bắt buộc GPS thực để nhận tiền' : 'Real GPS required for disbursement'}
-                </strong>
-              </div>
-            </div>
-
-            {/* Action buttons */}
             <div className="flex gap-2">
               <button
                 onClick={() => {
+                  setShowMockDetectorDialog(false);
                   handleGetLiveGps();
                 }}
                 className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#3064AE] via-[#417AC6] to-[#C5E5EC] hover:brightness-110 text-white font-extrabold transition flex items-center justify-center space-x-1.5 shadow-md active:scale-95 border border-[#E0FAEB]/30 cursor-pointer"
               >
                 <Crosshair className="w-3.5 h-3.5" />
                 <span>
-                  {language === 'vi' ? 'Quét Cập Nhật Tọa Độ GPS Thực Tế' : 'Scan & Update Real GPS Coordinates'}
+                  {language === 'vi' ? 'Quét Cập Nhật Tọa Độ GPS' : 'Scan & Update GPS'}
                 </span>
               </button>
             </div>

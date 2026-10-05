@@ -542,7 +542,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           gigs={filteredGigs}
           selectedGigId={selectedGigId}
           onSelectGig={(id) => {
-            selectGig(id);
+            selectGig(id ? id : null);
           }}
           radiusMeters={selectedRadiusMeters}
           onRadiusChange={setRadius}
