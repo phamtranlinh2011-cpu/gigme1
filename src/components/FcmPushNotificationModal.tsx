@@ -6,6 +6,7 @@ import {
   DollarSign,
   TrendingDown,
   ShieldAlert,
+  ShieldCheck,
   Volume2,
   X,
   Smartphone,

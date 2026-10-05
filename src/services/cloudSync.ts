@@ -113,6 +113,7 @@ class RealtimeSyncManager {
         'marketplace_saved',
         'transaction_saved',
         'push_notification',
+        'bank_bot_config_updated',
       ];
 
       eventNames.forEach((evtName) => {
@@ -1027,6 +1028,10 @@ export const cloudService = {
       }
     }
     return { success: false, error: 'Server Express chưa sẵn sàng' };
+  },
+
+  on(event: string, callback: (data: any) => void): Unsubscribe {
+    return realtimeManager.on(event, callback);
   },
 
   subscribePushNotifications(callback: (data: any) => void): Unsubscribe {

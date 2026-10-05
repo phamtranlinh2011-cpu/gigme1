@@ -335,7 +335,6 @@
       "isSuccess": true
     }
   ],
-  "safewalk": [],
   "bankBotConfig": {
     "bankName": "MBBank",
     "bankCode": "MB",

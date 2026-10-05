@@ -103,12 +103,12 @@ export const FULL_LAW_ARTICLES: LawArticle[] = [
     summaryVi: 'Chỉ chấp nhận tín hiệu định vị vệ tinh thực tế khi quét nhận việc lân cận và check-in hiện trường.',
     summaryEn: 'Accepts solely authentic satellite signals for nearby job scanning and on-site check-in verification.',
     clausesVi: [
-      '3.1. Các đơn công việc yêu cầu có mặt thực địa (Giao nhận, phụ việc KTX, mua hộ, cứu hộ SafeWalk) bắt buộc phải bật GPS chuẩn xác trong phạm vi bán kính cho phép.',
+      '3.1. Các đơn công việc yêu cầu có mặt thực địa (Giao nhận, phụ việc KTX, mua hộ, đưa đón) bắt buộc phải bật GPS chuẩn xác trong phạm vi bán kính cho phép.',
       '3.2. Nghiêm cấm sử dụng phần mềm giả lập Mock Location (Fake GPS), VPN che giấu IP hoặc Proxy nhằm lừa đảo hệ thống nhận đơn từ xa.',
       '3.3. Khi hệ thống Anti-Mock phát hiện cờ vị trí giả mạo, đơn việc sẽ bị hủy tức thì và quyền bắt kèo theo Radar sẽ bị vô hiệu hóa trong 72 giờ.',
     ],
     clausesEn: [
-      '3.1. Physical gigs (dorm deliveries, campus chores, safe-walk escorts) mandate accurate active GPS within permissible radius.',
+      '3.1. Physical gigs (dorm deliveries, campus chores, peer rides) mandate accurate active GPS within permissible radius.',
       '3.2. Using Mock Location tools, GPS spoofers, IP VPNs, or proxies to claim distant orders deceitfully is forbidden.',
       '3.3. When the Anti-Mock system flags spoofed coordinates, the gig is cancelled immediately and Radar matching is suspended for 72 hours.',
     ],
@@ -367,12 +367,12 @@ export const FULL_LAW_ARTICLES: LawArticle[] = [
     clausesVi: [
       '15.1. Tọa độ Radar chỉ hiển thị vị trí ước lượng theo bán kính mờ (Fuzzy Location) trong khoảng cách vài trăm mét, không để lộ số phòng ký túc xá hoặc địa chỉ nhà riêng chính xác cho đến khi đơn việc được cả hai bên ký kết hợp lệ.',
       '15.2. Chức năng gọi thoại Campus VoIP miễn phí tích hợp trực tiếp trong app, cho phép hai bên gọi điện trao đổi mà không để lộ số điện thoại cá nhân (Masked Phone Calling).',
-      '15.3. Tính năng SOS SafeWalk ban đêm tự động kích hoạt còi báo động khẩn cấp và gửi tín hiệu định vị trực tiếp tới người thân và Ban Quản Trị khi gặp tình huống nguy hiểm.',
+      '15.3. Hệ thống tổng đài khẩn cấp kết nối trực tiếp đến số hotline Đội An Ninh Ký Túc Xá và Trung Tâm Hỗ Trợ 24/7 để tiếp ứng giải quyết sự vụ kịp thời.',
     ],
     clausesEn: [
       '15.1. Radar views only display fuzzy randomized radii of several hundred meters; precise dorm rooms or private home numbers stay concealed until contract agreement.',
       '15.2. Free Campus VoIP calling embedded within the app allows secure voice talks without exposing real cellular phone numbers.',
-      '15.3. Nighttime SOS SafeWalk triggers a panic siren and transmits real-time telemetry to emergency contacts and Campus Admins during peril.',
+      '15.3. Emergency hotline connects immediately to Campus Security dispatch and 24/7 Support Center to respond to urgent issues.',
     ],
   },
 

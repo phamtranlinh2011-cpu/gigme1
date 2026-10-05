@@ -89,11 +89,6 @@ service cloud.firestore {
       allow delete: if true;
     }
 
-    // SafeWalk sessions
-    match /safewalk/{sessionId} {
-      allow read, write: if true;
-    }
-
     // Global System Settings & Maintenance Mode
     match /system_settings/{settingId} {
       allow read: if true;

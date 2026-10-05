@@ -8,6 +8,7 @@ export type VerificationType = 'BOTH' | 'CCCD' | 'STUDENT';
 interface VerifiedIdentityBadgeProps {
   type?: VerificationType;
   school?: string;
+  faculty?: string;
   size?: 'sm' | 'md' | 'lg';
   showText?: boolean;
   isCccdVerified?: boolean;
@@ -20,6 +21,7 @@ interface VerifiedIdentityBadgeProps {
 export const VerifiedIdentityBadge: React.FC<VerifiedIdentityBadgeProps> = ({
   type = 'BOTH',
   school,
+  faculty,
   size = 'sm',
   showText = true,
   isCccdVerified = true,
@@ -40,6 +42,8 @@ export const VerifiedIdentityBadge: React.FC<VerifiedIdentityBadgeProps> = ({
   if (!isCccdVerified && !isStudentVerified) {
     return null;
   }
+
+  const campusText = school ? `${school}${faculty ? ` • ${faculty}` : ''}` : '';
 
   const handleClick = (e: React.MouseEvent) => {
     if (interactive && onBadgeClick) {
@@ -65,8 +69,8 @@ export const VerifiedIdentityBadge: React.FC<VerifiedIdentityBadgeProps> = ({
         } ${className}`}
         title={
           language === 'vi'
-            ? `Đã xác thực CCCD gắn chip (Bộ Công An C06) và Thẻ SV/Email chính quy trường ${school || 'Đại học'}`
-            : `Verified NFC Chip ID Card and Student ID at ${school || 'University'}`
+            ? `Đã xác thực CCCD gắn chip (Bộ Công An C06) và Thẻ SV/Email chính quy trường ${campusText || 'Đại học'}`
+            : `Verified NFC Chip ID Card and Student ID at ${campusText || 'University'}`
         }
       >
         <span className="flex items-center text-emerald-400">
@@ -76,8 +80,8 @@ export const VerifiedIdentityBadge: React.FC<VerifiedIdentityBadgeProps> = ({
         </span>
         {showText && (
           <span className="truncate max-w-[150px] sm:max-w-[200px] tracking-tight">
-            {school
-              ? `${language === 'vi' ? 'CCCD & ' : 'ID & '}${school} ✓`
+            {campusText
+              ? `${language === 'vi' ? 'CCCD & ' : 'ID & '}${campusText} ✓`
               : language === 'vi' ? 'Đã Xác Thực CCCD / Thẻ SV ✓' : 'ID & Student Verified ✓'}
           </span>
         )}

@@ -146,13 +146,13 @@ const ALL_STUDENT_BADGES = [
   },
   {
     id: 'b5',
-    titleVi: '🌙 Hiệp Sĩ SafeWalk',
-    titleEn: '🌙 SafeWalk Knight',
-    descVi: 'Tích cực tham gia bảo vệ an toàn sinh viên ban đêm',
-    descEn: 'Active campus nighttime escort & student protector',
-    icon: '🌙',
-    conditionVi: 'Hoàn thành 2 lộ trình SafeWalk',
-    conditionEn: 'Complete 2 SafeWalk routes',
+    titleVi: '⭐ Hiệp Sĩ Ký Túc Xá',
+    titleEn: '⭐ Campus Dorm Knight',
+    descVi: 'Tích cực tham gia hỗ trợ đời sống và giúp đỡ bạn bè trong ký túc xá',
+    descEn: 'Active campus peer helper and dormitory community supporter',
+    icon: '⭐',
+    conditionVi: 'Hoàn thành 2 đơn hỗ trợ KTX',
+    conditionEn: 'Complete 2 dorm support gigs',
   },
   {
     id: 'b6',
@@ -243,7 +243,7 @@ export const StudentEloModal: React.FC<StudentEloModalProps> = ({
           'Tài liệu chuẩn 📚',
           'Thân thiện vui vẻ 😊',
           'Chuyên môn giỏi 🧠',
-          'Bảo vệ SafeWalk 🌙',
+          'Hỗ trợ KTX nhiệt tình 🌟',
         ]
       : [
           'Super fast 🚀',
@@ -252,7 +252,7 @@ export const StudentEloModal: React.FC<StudentEloModalProps> = ({
           'Accurate materials 📚',
           'Friendly 😊',
           'Skilled 🧠',
-          'SafeWalk Guard 🌙',
+          'Great dorm helper 🌟',
         ];
 
   const toggleTag = (tag: string) => {

@@ -1701,9 +1701,14 @@ export const BankWithdrawDialog: React.FC<{ isOpen: boolean; onClose: () => void
 
               {!useBiometrics && (
                 <div>
-                  <label className="block text-slate-400 mb-1 font-semibold">
-                    {language === 'vi' ? 'Mã PIN giao dịch (6 chữ số)' : 'Transaction PIN (6 digits)'}
-                  </label>
+                  <div className="flex justify-between items-center mb-1">
+                    <label className="text-slate-400 font-semibold">
+                      {language === 'vi' ? 'Mã PIN ví (6 số)' : 'Wallet PIN (6 digits)'}
+                    </label>
+                    <span className="text-[10px] text-cyan-400 font-mono">
+                      {language === 'vi' ? 'Mặc định: 123456' : 'Default: 123456'}
+                    </span>
+                  </div>
                   <input
                     type="password"
                     maxLength={6}

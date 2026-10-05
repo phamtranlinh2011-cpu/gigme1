@@ -11,6 +11,7 @@ import {
   CheckCircle2,
   ShieldCheck,
   PhoneCall,
+  Phone,
   MessageSquare,
   Sparkles,
   Filter,
@@ -33,7 +34,7 @@ import {
 } from 'lucide-react';
 import { useGigMe } from '../context/GigMeContext';
 import { useTranslation } from '../context/LanguageContext';
-import { formatVnd, MarketplaceItemEntity, MarketplaceMediaItem } from '../types';
+import { formatVnd, MarketplaceItemEntity, MarketplaceMediaItem, maskPhoneNumber } from '../types';
 import { playNotificationSound } from '../utils/audio';
 import { triggerHaptic } from '../utils/haptics';
 
@@ -82,6 +83,8 @@ export const CampusMarketplaceScreen: React.FC<{
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedItemForDetail, setSelectedItemForDetail] = useState<MarketplaceItemEntity | null>(null);
+  const [holdDepositModalItem, setHoldDepositModalItem] = useState<MarketplaceItemEntity | null>(null);
+  const [depositAmountInput, setDepositAmountInput] = useState<number>(20000);
   const [activeMediaIndex, setActiveMediaIndex] = useState(0);
   const [copiedLink, setCopiedLink] = useState(false);
 
@@ -175,13 +178,30 @@ export const CampusMarketplaceScreen: React.FC<{
       return;
     }
 
-    if (item.price > 0 && currentUser.walletBalance < item.price) {
+    // Nếu là đồ tặng 0đ thì nhận trực tiếp
+    if (item.price === 0) {
+      executeEscrowHold(item, 0);
+      return;
+    }
+
+    // Món có phí: Mở popup chọn số tiền đặt cọc giữ chỗ
+    const defaultHold = Math.min(20000, item.price);
+    setDepositAmountInput(defaultHold);
+    setHoldDepositModalItem(item);
+  };
+
+  // Thực hiện khóa cọc Escrow cho món đồ
+  const executeEscrowHold = (item: MarketplaceItemEntity, holdAmount: number) => {
+    if (!currentUser) return;
+
+    if (holdAmount > 0 && currentUser.walletBalance < holdAmount) {
       playNotificationSound('SOFT_VIBRATE');
+      triggerHaptic('error');
       showNotification(
         language === 'vi' ? '⚠️ Số dư ví chưa đủ' : '⚠️ Insufficient Wallet Balance',
         language === 'vi'
-          ? `Bạn cần có tối thiểu ${formatVnd(item.price)} trong Ví để cọc giữ món qua Smart Escrow. Hiện tại số dư: ${formatVnd(currentUser.walletBalance)}. Hãy nạp thêm tiền vào ví!`
-          : `You need at least ${formatVnd(item.price)} in your wallet for escrow reservation. Current balance: ${formatVnd(currentUser.walletBalance)}. Please top up!`,
+          ? `Bạn cần có tối thiểu ${formatVnd(holdAmount)} trong Ví để cọc giữ món qua Smart Escrow. Hiện tại số dư: ${formatVnd(currentUser.walletBalance)}. Hãy nạp thêm tiền vào ví!`
+          : `You need at least ${formatVnd(holdAmount)} in your wallet for escrow reservation. Current balance: ${formatVnd(currentUser.walletBalance)}. Please top up!`,
         false
       );
       if (onOpenWallet) onOpenWallet();
@@ -191,17 +211,35 @@ export const CampusMarketplaceScreen: React.FC<{
     playNotificationSound('ESCROW_LOCK');
     triggerHaptic('success');
 
-    // Khóa tiền ký quỹ thực tế từ ví nếu là món có phí
-    if (item.price > 0) {
+    // Khóa tiền ký quỹ thực tế từ ví nếu là món có cọc
+    if (holdAmount > 0) {
       updateUserProfile({
-        walletBalance: currentUser.walletBalance - item.price,
-        escrowLockedBalance: (currentUser.escrowLockedBalance || 0) + item.price,
+        walletBalance: currentUser.walletBalance - holdAmount,
+        escrowLockedBalance: (currentUser.escrowLockedBalance || 0) + holdAmount,
       });
+
+      const txId = `tx_mkt_hold_${Date.now()}`;
+      const tx: any = {
+        id: txId,
+        userId: currentUser.id,
+        type: 'ESCROW_LOCK',
+        amount: -holdAmount,
+        title: 'Cọc giữ đồ Chợ Campus (Smart Escrow)',
+        subtitle: `Khóa ${formatVnd(holdAmount)} cọc giữ món "${item.title}" qua Smart Escrow`,
+        timestamp: Date.now(),
+        isSuccess: true,
+        status: 'COMPLETED',
+      };
+      cloudService.saveTransaction(tx);
     }
 
     const updatedItem: MarketplaceItemEntity = {
       ...item,
       status: 'RESERVED',
+      reservedByUserId: currentUser.id,
+      reservedByUserName: currentUser.name,
+      depositAmount: holdAmount,
+      reservedAt: Date.now(),
     };
     setItems((prev) => prev.map((i) => (i.id === item.id ? updatedItem : i)));
     cloudService.saveMarketplaceItem(updatedItem);
@@ -209,30 +247,72 @@ export const CampusMarketplaceScreen: React.FC<{
     if (selectedItemForDetail?.id === item.id) {
       setSelectedItemForDetail(updatedItem);
     }
+    setHoldDepositModalItem(null);
+
+    // Gửi thông báo đến người bán
+    cloudService.dispatchWebPush({
+      title: '🔒 Có Người Đặt Cọc Giữ Đồ!',
+      body: `${currentUser.name} vừa đặt cọc ${formatVnd(holdAmount)} giữ món "${item.title}". Hãy hẹn gặp giao nhận đồ nhé!`,
+      type: 'MARKETPLACE_RESERVED',
+      userId: item.sellerId,
+    });
 
     showNotification(
-      language === 'vi' ? '🔒 Đã đặt cọc giữ món qua Smart Escrow!' : '🔒 Escrow Deposit Locked Safely!',
-      item.price === 0
+      language === 'vi' ? '🔒 Đã đặt cọc giữ chỗ thành công!' : '🔒 Escrow Hold Placed Successfully!',
+      holdAmount === 0
         ? (language === 'vi'
             ? `Bạn đã đăng ký nhận quà tặng "${item.title}". Hãy liên hệ người tặng để hẹn nhận tại KTX!`
             : `You have registered to claim "${item.title}". Please contact the donor to arrange meeting at the dorm!`)
         : (language === 'vi'
-            ? `Số tiền ${formatVnd(item.price)} đã được phong tỏa trong Quỹ Smart Escrow. Tiền chỉ giải ngân khi bạn gặp mặt kiểm tra hàng xong!`
-            : `Amount of ${formatVnd(item.price)} is securely locked in Smart Escrow. Released only when you meet and verify the item!`),
+            ? `Số tiền ${formatVnd(holdAmount)} đã được phong tỏa trong Quỹ Smart Escrow. Tiền chỉ giải ngân khi bạn gặp mặt kiểm tra hàng xong!`
+            : `Amount of ${formatVnd(holdAmount)} is securely locked in Smart Escrow. Released only when you meet and verify the item!`),
       true,
       true
     );
   };
 
-  // Hoàn tất giao dịch (Đã nhận đồ -> giải ngân & đánh dấu SOLD)
+  // Hoàn tất giao dịch (Đã nhận đồ -> giải ngân cọc cho người bán & đánh dấu SOLD)
   const handleCompleteHandover = (item: MarketplaceItemEntity) => {
     triggerHaptic('success');
     playNotificationSound('SUCCESS_CHIME');
 
+    const deposit = item.depositAmount || item.price || 0;
+
     // Nếu người mua đang giữ escrow thì giải ngân
-    if (item.price > 0 && currentUser && (currentUser.escrowLockedBalance || 0) >= item.price) {
+    if (deposit > 0 && currentUser && (currentUser.escrowLockedBalance || 0) >= deposit) {
       updateUserProfile({
-        escrowLockedBalance: Math.max(0, (currentUser.escrowLockedBalance || 0) - item.price),
+        escrowLockedBalance: Math.max(0, (currentUser.escrowLockedBalance || 0) - deposit),
+      });
+
+      const txRelease: any = {
+        id: `tx_rel_${Date.now()}`,
+        userId: currentUser.id,
+        type: 'ESCROW_RELEASE',
+        amount: -deposit,
+        title: 'Giải ngân cọc Chợ Campus',
+        subtitle: `Hoàn tất nhận đồ "${item.title}" • Đã chuyển ${formatVnd(deposit)} cho người bán`,
+        timestamp: Date.now(),
+        isSuccess: true,
+        status: 'COMPLETED',
+      };
+      cloudService.saveTransaction(txRelease);
+    }
+
+    // Cộng tiền cho người bán nếu có cọc
+    if (deposit > 0) {
+      cloudService.depositWallet({
+        userId: item.sellerId,
+        amount: deposit,
+        bankName: 'Ví Smart Escrow GigMe',
+        transactionId: `tx_payout_${Date.now()}`,
+        note: `Nhận ${formatVnd(deposit)} cọc món đồ "${item.title}"`,
+      });
+
+      cloudService.dispatchWebPush({
+        title: '💰 Nhận Tiền Thành Công!',
+        body: `Người mua đã xác nhận nhận món "${item.title}". Bạn nhận được +${formatVnd(deposit)} vào ví!`,
+        type: 'MARKETPLACE_SOLD',
+        userId: item.sellerId,
       });
     }
 
@@ -261,17 +341,36 @@ export const CampusMarketplaceScreen: React.FC<{
   const handleCancelReservation = (item: MarketplaceItemEntity) => {
     triggerHaptic('medium');
 
-    // Hoàn lại tiền từ escrowLockedBalance về walletBalance
-    if (item.price > 0 && currentUser && (currentUser.escrowLockedBalance || 0) >= item.price) {
+    const deposit = item.depositAmount || item.price || 0;
+
+    // Hoàn lại tiền từ escrowLockedBalance về walletBalance của người đặt cọc
+    if (deposit > 0 && currentUser && currentUser.id === item.reservedByUserId) {
       updateUserProfile({
-        walletBalance: currentUser.walletBalance + item.price,
-        escrowLockedBalance: Math.max(0, (currentUser.escrowLockedBalance || 0) - item.price),
+        walletBalance: currentUser.walletBalance + deposit,
+        escrowLockedBalance: Math.max(0, (currentUser.escrowLockedBalance || 0) - deposit),
       });
+
+      const refundTx: any = {
+        id: `tx_ref_${Date.now()}`,
+        userId: currentUser.id,
+        type: 'ADMIN_REFUND',
+        amount: deposit,
+        title: 'Hoàn tiền cọc Chợ Campus',
+        subtitle: `Hoàn ${formatVnd(deposit)} cọc món "${item.title}" về ví khả dụng`,
+        timestamp: Date.now(),
+        isSuccess: true,
+        status: 'COMPLETED',
+      };
+      cloudService.saveTransaction(refundTx);
     }
 
     const updatedItem: MarketplaceItemEntity = {
       ...item,
       status: 'AVAILABLE',
+      reservedByUserId: undefined,
+      reservedByUserName: undefined,
+      depositAmount: 0,
+      reservedAt: undefined,
     };
     setItems((prev) => prev.map((i) => (i.id === item.id ? updatedItem : i)));
     cloudService.saveMarketplaceItem(updatedItem);
@@ -282,10 +381,10 @@ export const CampusMarketplaceScreen: React.FC<{
 
     showNotification(
       language === 'vi' ? 'Đã hủy cọc giữ chỗ ↩️' : 'Hold Cancelled ↩️',
-      item.price > 0
+      deposit > 0
         ? (language === 'vi'
-            ? `Đã hoàn trả ${formatVnd(item.price)} về số dư ví khả dụng của bạn. Món đồ đã mở lại cho người khác!`
-            : `Refunded ${formatVnd(item.price)} to your wallet balance. Item is now available for others!`)
+            ? `Đã hoàn trả ${formatVnd(deposit)} về số dư ví khả dụng của bạn. Món đồ đã mở lại cho người khác!`
+            : `Refunded ${formatVnd(deposit)} to your wallet balance. Item is now available for others!`)
         : (language === 'vi'
             ? `Đã hủy nhận món đồ. Món đồ đã mở lại cho sinh viên khác.`
             : `Cancelled claim. Item is now available for other students.`),
@@ -893,7 +992,7 @@ export const CampusMarketplaceScreen: React.FC<{
                   ) : item.status === 'RESERVED' ? (
                     <>
                       <Lock className="w-3.5 h-3.5" />
-                      <span>{language === 'vi' ? 'Xem cọc' : 'View Escrow'}</span>
+                      <span>{language === 'vi' ? (item.depositAmount ? `Đã cọc ${formatVnd(item.depositAmount)}` : 'Đã giữ chỗ') : 'Reserved'}</span>
                     </>
                   ) : item.price === 0 ? (
                     <>
@@ -1150,10 +1249,32 @@ export const CampusMarketplaceScreen: React.FC<{
                           {language === 'vi' ? 'Đã Xác Thực' : 'Verified'}
                         </span>
                       </div>
-                      <p className="text-[11px] text-[#C5E5EC]/70">
-                        {language === 'vi' ? 'ID Sinh Viên:' : 'Student ID:'}{' '}
-                        <span className="font-mono text-white">{selectedItemForDetail.sellerId}</span>
-                      </p>
+                      <div className="flex items-center space-x-2 text-[11px] text-[#C5E5EC]/70 flex-wrap gap-y-0.5">
+                        <span>
+                          {language === 'vi' ? 'ID:' : 'ID:'}{' '}
+                          <span className="font-mono text-white">{selectedItemForDetail.sellerId}</span>
+                        </span>
+                        {selectedItemForDetail.sellerPhone && (
+                          <>
+                            <span>•</span>
+                            <span className="flex items-center space-x-1 font-mono text-xs">
+                              <Phone className="w-3 h-3 text-emerald-400" />
+                              <span className="text-[#E0FAEB]">
+                                {selectedItemForDetail.sellerId === currentUser?.id ||
+                                selectedItemForDetail.reservedByUserId === currentUser?.id
+                                  ? selectedItemForDetail.sellerPhone
+                                  : maskPhoneNumber(selectedItemForDetail.sellerPhone, 'ESCROW_ONLY', false)}
+                              </span>
+                            </span>
+                            {selectedItemForDetail.sellerId !== currentUser?.id &&
+                              selectedItemForDetail.reservedByUserId !== currentUser?.id && (
+                                <span className="text-[9px] text-[#C5E5EC]/60">
+                                  ({language === 'vi' ? 'Hiện số sau khi cọc' : 'Reveals on hold'})
+                                </span>
+                              )}
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -1249,24 +1370,60 @@ export const CampusMarketplaceScreen: React.FC<{
                 )}
 
                 {selectedItemForDetail.status === 'RESERVED' && (
-                  <div className="flex items-center space-x-2 w-full sm:w-auto">
-                    <button
-                      type="button"
-                      onClick={() => handleCancelReservation(selectedItemForDetail)}
-                      className="px-3.5 py-2.5 rounded-xl bg-amber-950/60 hover:bg-amber-900 text-amber-300 border border-amber-500/40 font-bold text-xs transition cursor-pointer flex items-center space-x-1"
-                    >
-                      <RotateCcw className="w-3.5 h-3.5" />
-                      <span>{language === 'vi' ? 'Hủy Cọc' : 'Cancel Hold'}</span>
-                    </button>
+                  <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
+                    {/* Buyer actions */}
+                    {currentUser?.id === selectedItemForDetail.reservedByUserId && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => handleCancelReservation(selectedItemForDetail)}
+                          className="px-3.5 py-2.5 rounded-xl bg-amber-950/60 hover:bg-amber-900 text-amber-300 border border-amber-500/40 font-bold text-xs transition cursor-pointer flex items-center space-x-1"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                          <span>{language === 'vi' ? 'Hủy Cọc Hoàn Tiền' : 'Cancel Hold & Refund'}</span>
+                        </button>
 
-                    <button
-                      type="button"
-                      onClick={() => handleCompleteHandover(selectedItemForDetail)}
-                      className="flex-1 sm:flex-none px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs shadow-md transition flex items-center justify-center space-x-1.5 cursor-pointer"
-                    >
-                      <CheckCircle2 className="w-4 h-4" />
-                      <span>{language === 'vi' ? 'ĐÃ NHẬN ĐỒ & HOÀN TẤT' : 'ITEM RECEIVED & COMPLETE'}</span>
-                    </button>
+                        <button
+                          type="button"
+                          onClick={() => handleCompleteHandover(selectedItemForDetail)}
+                          className="flex-1 sm:flex-none px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:brightness-110 text-white font-extrabold text-xs shadow-md transition flex items-center justify-center space-x-1.5 cursor-pointer"
+                        >
+                          <CheckCircle2 className="w-4 h-4" />
+                          <span>{language === 'vi' ? 'ĐÃ NHẬN ĐỒ & GIẢI NGÂN' : 'RECEIVED & RELEASE'}</span>
+                        </button>
+                      </>
+                    )}
+
+                    {/* Seller actions */}
+                    {currentUser?.id === selectedItemForDetail.sellerId && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => handleCancelReservation(selectedItemForDetail)}
+                          className="px-3.5 py-2.5 rounded-xl bg-rose-950/60 hover:bg-rose-900 text-rose-300 border border-rose-500/40 font-bold text-xs transition cursor-pointer flex items-center space-x-1"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                          <span>{language === 'vi' ? 'Hủy Cọc Hoàn Khách' : 'Cancel & Refund Buyer'}</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleCompleteHandover(selectedItemForDetail)}
+                          className="flex-1 sm:flex-none px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs shadow-md transition flex items-center justify-center space-x-1.5 cursor-pointer"
+                        >
+                          <CheckCircle2 className="w-4 h-4" />
+                          <span>{language === 'vi' ? 'XÁC NHẬN ĐÃ BÀN GIAO' : 'CONFIRM HANDOVER'}</span>
+                        </button>
+                      </>
+                    )}
+
+                    {/* Other user viewing reserved item */}
+                    {currentUser?.id !== selectedItemForDetail.reservedByUserId && currentUser?.id !== selectedItemForDetail.sellerId && (
+                      <span className="px-3.5 py-2 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs font-bold flex items-center space-x-1.5">
+                        <Lock className="w-3.5 h-3.5" />
+                        <span>{language === 'vi' ? 'Đã có sinh viên đặt cọc giữ chỗ' : 'Item reserved by a student'}</span>
+                      </span>
+                    )}
                   </div>
                 )}
 
@@ -1276,6 +1433,166 @@ export const CampusMarketplaceScreen: React.FC<{
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL: ĐẶT CỌC GIỮ CHỖ QUA SMART ESCROW */}
+      {/* ========================================================================= */}
+      {holdDepositModalItem && (
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setHoldDepositModalItem(null);
+          }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-fade-in"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md rounded-3xl bg-[#0B1528] border-2 border-emerald-500/40 p-5 sm:p-6 text-white shadow-2xl space-y-4"
+          >
+            <div className="flex justify-between items-center pb-3 border-b border-slate-800">
+              <div className="flex items-center space-x-2.5">
+                <div className="p-2.5 rounded-2xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                  <Lock className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-sm sm:text-base text-white">
+                    {language === 'vi' ? 'Đặt Cọc Giữ Chỗ (Smart Escrow)' : 'Hold Deposit (Smart Escrow)'}
+                  </h3>
+                  <p className="text-[10px] text-slate-400">
+                    {language === 'vi' ? 'Khóa cọc giữ món an toàn 100%' : '100% secure escrow hold'}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setHoldDepositModalItem(null)}
+                className="p-1 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Item Card Summary */}
+            <div className="p-3 rounded-2xl bg-[#12233B] border border-slate-700/80 space-y-1 text-xs">
+              <div className="flex justify-between items-start">
+                <span className="font-bold text-white line-clamp-1">{holdDepositModalItem.title}</span>
+                <span className="font-mono font-black text-emerald-400 shrink-0 ml-2">
+                  {formatVnd(holdDepositModalItem.price)}
+                </span>
+              </div>
+              <div className="flex justify-between text-[11px] text-slate-400">
+                <span>{language === 'vi' ? 'Người bán:' : 'Seller:'} <strong className="text-white">{holdDepositModalItem.sellerName}</strong></span>
+                <span>{holdDepositModalItem.schoolName}</span>
+              </div>
+            </div>
+
+            {/* Choose Deposit Amount */}
+            <div className="space-y-2">
+              <div className="flex justify-between items-center text-xs">
+                <label className="text-slate-300 font-bold">
+                  {language === 'vi' ? 'Chọn số tiền đặt cọc giữ đồ:' : 'Select deposit amount:'}
+                </label>
+                <span className="font-mono text-cyan-300 font-bold">
+                  {formatVnd(depositAmountInput)}
+                </span>
+              </div>
+
+              {/* Chips */}
+              <div className="grid grid-cols-4 gap-1.5">
+                {[10000, 20000, 50000, holdDepositModalItem.price].map((amt, idx) => {
+                  if (amt > holdDepositModalItem.price && idx < 3) return null;
+                  const label = idx === 3 ? (language === 'vi' ? '100% Giá' : '100%') : formatVnd(amt);
+                  return (
+                    <button
+                      key={amt}
+                      type="button"
+                      onClick={() => setDepositAmountInput(amt)}
+                      className={`py-2 px-1 rounded-xl border text-[11px] font-bold transition text-center cursor-pointer ${
+                        depositAmountInput === amt
+                          ? 'bg-emerald-500/20 border-emerald-400 text-emerald-300 shadow-sm'
+                          : 'bg-[#12233B] border-slate-700 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Input */}
+              <div className="relative">
+                <input
+                  type="number"
+                  min="5000"
+                  max={holdDepositModalItem.price}
+                  step="5000"
+                  value={depositAmountInput}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    setDepositAmountInput(Math.min(holdDepositModalItem.price, Math.max(5000, val)));
+                  }}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#12233B] border border-slate-700 text-white font-mono font-bold text-sm focus:border-emerald-400 focus:outline-none"
+                />
+                <span className="absolute right-3 top-2.5 text-xs text-slate-400 font-bold">VNĐ</span>
+              </div>
+            </div>
+
+            {/* Smart Escrow Protection Notice */}
+            <div className="p-3 rounded-2xl bg-emerald-950/40 border border-emerald-500/30 text-[11px] text-emerald-200 space-y-1.5">
+              <div className="flex items-center space-x-1.5 font-bold text-emerald-300">
+                <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>{language === 'vi' ? 'Cam Kết Bảo Hiểm Smart Escrow' : 'Smart Escrow Protection Guarantee'}</span>
+              </div>
+              <ul className="list-disc pl-4 space-y-0.5 text-[10px] text-slate-300">
+                <li>
+                  {language === 'vi'
+                    ? 'Tiền cọc được phong tỏa an toàn trong Ví của bạn, người bán CHƯA nhận được tiền.'
+                    : 'Deposit is safely held in Escrow; seller has NOT received it yet.'}
+                </li>
+                <li>
+                  {language === 'vi'
+                    ? 'Sau khi gặp mặt kiểm tra đồ ưng ý, bạn bấm "Xác Nhận Nhận Đồ" để giải ngân cọc.'
+                    : 'Only released to seller when you inspect item and confirm receipt.'}
+                </li>
+                <li>
+                  {language === 'vi'
+                    ? 'Bạn có thể bấm "Hủy Cọc" để hoàn trả 100% tiền về ví nếu hai bên không đạt thỏa thuận.'
+                    : '100% refundable anytime if the deal does not work out.'}
+                </li>
+              </ul>
+            </div>
+
+            {/* Current Wallet Balance */}
+            <div className="flex justify-between items-center text-xs px-1 text-slate-400">
+              <span>{language === 'vi' ? 'Số dư ví khả dụng:' : 'Available balance:'}</span>
+              <span className={`font-mono font-bold ${
+                (currentUser?.walletBalance || 0) < depositAmountInput ? 'text-rose-400' : 'text-emerald-400'
+              }`}>
+                {formatVnd(currentUser?.walletBalance || 0)}
+              </span>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center space-x-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setHoldDepositModalItem(null)}
+                className="flex-1 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition cursor-pointer"
+              >
+                {language === 'vi' ? 'Đóng' : 'Close'}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => executeEscrowHold(holdDepositModalItem, depositAmountInput)}
+                className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 hover:brightness-110 text-white font-extrabold text-xs shadow-lg shadow-emerald-900/40 transition flex items-center justify-center space-x-1.5 cursor-pointer"
+              >
+                <Lock className="w-3.5 h-3.5" />
+                <span>{language === 'vi' ? `Xác Nhận Cọc ${formatVnd(depositAmountInput)}` : `Hold ${formatVnd(depositAmountInput)}`}</span>
+              </button>
             </div>
           </div>
         </div>

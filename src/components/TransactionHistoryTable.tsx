@@ -36,9 +36,13 @@ export const TransactionHistoryTable: React.FC<TransactionHistoryTableProps> = (
   const [firestoreTxs, setFirestoreTxs] = useState<WalletTransactionEntity[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterType, setFilterType] = useState<'ALL' | 'DEPOSIT' | 'WITHDRAW' | 'ESCROW' | 'REFUND'>('ALL');
+  const [filterType, setFilterType] = useState<
+    'ALL' | 'DEPOSIT' | 'WITHDRAW' | 'GIG_PAYOUT' | 'MARKETPLACE' | 'REFUND'
+  >('ALL');
+  const [timeRange, setTimeRange] = useState<'ALL' | '7D' | '30D'>('ALL');
   const [selectedTxForReceipt, setSelectedTxForReceipt] = useState<WalletTransactionEntity | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [isReceiptCopied, setIsReceiptCopied] = useState(false);
 
   // Subscribe directly to Firestore sub-collection users/{userId}/transactions
   useEffect(() => {
@@ -109,38 +113,96 @@ export const TransactionHistoryTable: React.FC<TransactionHistoryTableProps> = (
     return list;
   }, [firestoreTxs, fallbackTransactions]);
 
+  // Classification helpers for smart filtering
+  const isDepositTx = (tx: WalletTransactionEntity) => {
+    return (
+      tx.type === 'VIETQR_DEPOSIT' ||
+      tx.type === 'EWALLET_DEPOSIT' ||
+      (tx.type === 'INCOME' &&
+        !tx.title?.toLowerCase().includes('thù lao') &&
+        !tx.title?.toLowerCase().includes('gig') &&
+        !tx.description?.toLowerCase().includes('thù lao'))
+    );
+  };
+
+  const isWithdrawTx = (tx: WalletTransactionEntity) => {
+    return (
+      tx.type === 'BANK_WITHDRAWAL' ||
+      tx.type === 'EWALLET_WITHDRAW' ||
+      (tx.type === 'EXPENSE' &&
+        !tx.title?.toLowerCase().includes('cọc') &&
+        !tx.title?.toLowerCase().includes('escrow') &&
+        !tx.title?.toLowerCase().includes('chợ'))
+    );
+  };
+
+  const isGigPayoutTx = (tx: WalletTransactionEntity) => {
+    return (
+      tx.type === 'ESCROW_PAYOUT' ||
+      tx.type === 'ESCROW_RELEASE' ||
+      (tx.title && (tx.title.toLowerCase().includes('thù lao') || tx.title.toLowerCase().includes('gig'))) ||
+      (tx.description && (tx.description.toLowerCase().includes('thù lao') || tx.description.toLowerCase().includes('gig')))
+    );
+  };
+
+  const isMarketplaceTx = (tx: WalletTransactionEntity) => {
+    return (
+      tx.type === 'ESCROW_LOCK' ||
+      (tx.title && (tx.title.toLowerCase().includes('cọc') || tx.title.toLowerCase().includes('chợ') || tx.title.toLowerCase().includes('giữ đồ'))) ||
+      (tx.description && (tx.description.toLowerCase().includes('cọc') || tx.description.toLowerCase().includes('giữ đồ')))
+    );
+  };
+
+  const isRefundTx = (tx: WalletTransactionEntity) => {
+    return (
+      tx.type === 'ADMIN_REFUND' ||
+      (tx.title && tx.title.toLowerCase().includes('hoàn')) ||
+      (tx.description && tx.description.toLowerCase().includes('hoàn'))
+    );
+  };
+
+  // Dynamic counter badges per tab
+  const tabCounts = useMemo(() => {
+    let deposit = 0;
+    let withdraw = 0;
+    let gigPayout = 0;
+    let marketplace = 0;
+    let refund = 0;
+
+    for (const tx of allMergedTxs) {
+      if (isDepositTx(tx)) deposit++;
+      if (isWithdrawTx(tx)) withdraw++;
+      if (isGigPayoutTx(tx)) gigPayout++;
+      if (isMarketplaceTx(tx)) marketplace++;
+      if (isRefundTx(tx)) refund++;
+    }
+
+    return {
+      ALL: allMergedTxs.length,
+      DEPOSIT: deposit,
+      WITHDRAW: withdraw,
+      GIG_PAYOUT: gigPayout,
+      MARKETPLACE: marketplace,
+      REFUND: refund,
+    };
+  }, [allMergedTxs]);
+
   // Filtered list
   const filteredTxs = useMemo(() => {
+    const now = Date.now();
     return allMergedTxs.filter((tx) => {
-      // Filter by type
-      if (filterType === 'DEPOSIT') {
-        const isDep =
-          tx.type === 'INCOME' ||
-          tx.type === 'VIETQR_DEPOSIT' ||
-          tx.type === 'EWALLET_DEPOSIT' ||
-          tx.amount > 0;
-        if (!isDep) return false;
-      } else if (filterType === 'WITHDRAW') {
-        const isWith =
-          tx.type === 'EXPENSE' ||
-          tx.type === 'BANK_WITHDRAWAL' ||
-          tx.type === 'EWALLET_WITHDRAW';
-        if (!isWith) return false;
-      } else if (filterType === 'ESCROW') {
-        const isEscrow =
-          tx.type === 'ESCROW_LOCK' ||
-          tx.type === 'ESCROW_RELEASE' ||
-          tx.type === 'ESCROW_PAYOUT';
-        if (!isEscrow) return false;
-      } else if (filterType === 'REFUND') {
-        const isRefund =
-          tx.type === 'ADMIN_REFUND' ||
-          (tx.title && tx.title.toLowerCase().includes('hoàn')) ||
-          (tx.description && tx.description.toLowerCase().includes('hoàn'));
-        if (!isRefund) return false;
-      }
+      // 1. Time range filter
+      if (timeRange === '7D' && tx.timestamp < now - 7 * 24 * 60 * 60 * 1000) return false;
+      if (timeRange === '30D' && tx.timestamp < now - 30 * 24 * 60 * 60 * 1000) return false;
 
-      // Filter by search query
+      // 2. Type filter
+      if (filterType === 'DEPOSIT' && !isDepositTx(tx)) return false;
+      if (filterType === 'WITHDRAW' && !isWithdrawTx(tx)) return false;
+      if (filterType === 'GIG_PAYOUT' && !isGigPayoutTx(tx)) return false;
+      if (filterType === 'MARKETPLACE' && !isMarketplaceTx(tx)) return false;
+      if (filterType === 'REFUND' && !isRefundTx(tx)) return false;
+
+      // 3. Search query filter
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
         const matchTitle = (tx.title || '').toLowerCase().includes(q);
@@ -153,7 +215,26 @@ export const TransactionHistoryTable: React.FC<TransactionHistoryTableProps> = (
 
       return true;
     });
-  }, [allMergedTxs, filterType, searchQuery]);
+  }, [allMergedTxs, filterType, timeRange, searchQuery]);
+
+  // Aggregate stats for currently filtered view
+  const stats = useMemo(() => {
+    let totalIn = 0;
+    let totalOut = 0;
+    for (const tx of filteredTxs) {
+      if (tx.amount > 0) {
+        totalIn += tx.amount;
+      } else {
+        totalOut += Math.abs(tx.amount);
+      }
+    }
+    return {
+      totalIn,
+      totalOut,
+      net: totalIn - totalOut,
+      count: filteredTxs.length,
+    };
+  }, [filteredTxs]);
 
   const getTransactionBadge = (tx: WalletTransactionEntity) => {
     const isPlus = tx.amount > 0;
@@ -255,28 +336,126 @@ export const TransactionHistoryTable: React.FC<TransactionHistoryTableProps> = (
             )}
           </div>
 
-          {/* Filter Chips */}
-          <div className="flex items-center gap-1 overflow-x-auto pb-0.5 scrollbar-none text-[11px] font-bold">
+          {/* Smart Filter Tabs with Dynamic Badges */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-[11px] font-bold">
             {[
-              { key: 'ALL', label: language === 'vi' ? 'Tất cả' : 'All' },
-              { key: 'DEPOSIT', label: language === 'vi' ? 'Nạp tiền' : 'Deposits' },
-              { key: 'WITHDRAW', label: language === 'vi' ? 'Rút tiền' : 'Withdrawals' },
-              { key: 'ESCROW', label: 'Escrow' },
-              { key: 'REFUND', label: language === 'vi' ? 'Hoàn tiền' : 'Refunds' },
-            ].map((f) => (
+              {
+                key: 'ALL',
+                label: language === 'vi' ? 'Tất cả' : 'All',
+                count: tabCounts.ALL,
+              },
+              {
+                key: 'DEPOSIT',
+                label: language === 'vi' ? 'Nạp tiền (+)' : 'Deposits (+)',
+                count: tabCounts.DEPOSIT,
+                color: 'text-emerald-300',
+              },
+              {
+                key: 'WITHDRAW',
+                label: language === 'vi' ? 'Rút tiền (-)' : 'Withdrawals (-)',
+                count: tabCounts.WITHDRAW,
+                color: 'text-rose-300',
+              },
+              {
+                key: 'GIG_PAYOUT',
+                label: language === 'vi' ? 'Thù lao Gig (+)' : 'Gig Payouts (+)',
+                count: tabCounts.GIG_PAYOUT,
+                color: 'text-teal-300',
+              },
+              {
+                key: 'MARKETPLACE',
+                label: language === 'vi' ? 'Cọc Chợ Escrow' : 'Market Escrow',
+                count: tabCounts.MARKETPLACE,
+                color: 'text-cyan-300',
+              },
+              {
+                key: 'REFUND',
+                label: language === 'vi' ? 'Hoàn tiền' : 'Refunds',
+                count: tabCounts.REFUND,
+                color: 'text-amber-300',
+              },
+            ].map((f) => {
+              const isActive = filterType === f.key;
+              return (
+                <button
+                  key={f.key}
+                  type="button"
+                  onClick={() => {
+                    triggerHaptic('selection');
+                    setFilterType(f.key as any);
+                  }}
+                  className={`px-3 py-1.5 rounded-xl whitespace-nowrap transition cursor-pointer border flex items-center space-x-1.5 ${
+                    isActive
+                      ? 'bg-gradient-to-r from-[#3064AE] to-[#204a82] text-white border-[#C5E5EC]/50 shadow-md ring-1 ring-[#C5E5EC]/30'
+                      : 'bg-[#0E1B2E] text-[#C5E5EC]/75 hover:text-white border-[#C5E5EC]/15 hover:bg-[#12233B]'
+                  }`}
+                >
+                  <span className={isActive ? 'font-black' : ''}>{f.label}</span>
+                  <span
+                    className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full font-bold ${
+                      isActive
+                        ? 'bg-white/20 text-white'
+                        : 'bg-[#182C48] text-[#C5E5EC]/60'
+                    }`}
+                  >
+                    {f.count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Time Range Selector & Summary Bar */}
+        <div className="p-3 rounded-2xl bg-[#0E1B2E]/90 border border-[#C5E5EC]/15 flex flex-wrap items-center justify-between gap-2.5">
+          {/* Time range pills */}
+          <div className="flex items-center space-x-1 text-[11px] font-bold">
+            <span className="text-[#C5E5EC]/60 text-[10px] mr-1">
+              {language === 'vi' ? 'Khoảng thời gian:' : 'Time Range:'}
+            </span>
+            {[
+              { key: 'ALL', label: language === 'vi' ? 'Tất cả' : 'All time' },
+              { key: '7D', label: language === 'vi' ? '7 ngày qua' : 'Last 7 days' },
+              { key: '30D', label: language === 'vi' ? '30 ngày qua' : 'Last 30 days' },
+            ].map((t) => (
               <button
-                key={f.key}
+                key={t.key}
                 type="button"
-                onClick={() => setFilterType(f.key as any)}
-                className={`px-2.5 py-1.5 rounded-xl whitespace-nowrap transition cursor-pointer border ${
-                  filterType === f.key
-                    ? 'bg-[#3064AE] text-white border-[#C5E5EC]/40 shadow-xs'
-                    : 'bg-[#0E1B2E] text-[#C5E5EC]/70 hover:text-white border-[#C5E5EC]/15'
+                onClick={() => {
+                  triggerHaptic('light');
+                  setTimeRange(t.key as any);
+                }}
+                className={`px-2.5 py-0.5 rounded-lg border text-[10px] font-bold transition cursor-pointer ${
+                  timeRange === t.key
+                    ? 'bg-[#3064AE]/40 border-cyan-400 text-cyan-300'
+                    : 'bg-[#12233B] border-[#C5E5EC]/15 text-[#C5E5EC]/60 hover:text-white'
                 }`}
               >
-                {f.label}
+                {t.label}
               </button>
             ))}
+          </div>
+
+          {/* Quick Flow Summary */}
+          <div className="flex items-center space-x-3 text-xs font-mono">
+            <div className="flex items-center space-x-1">
+              <span className="text-[10px] text-[#C5E5EC]/60 font-sans">
+                {language === 'vi' ? 'Vào:' : 'In:'}
+              </span>
+              <span className="text-emerald-400 font-bold">+{formatVnd(stats.totalIn)}</span>
+            </div>
+            <div className="flex items-center space-x-1">
+              <span className="text-[10px] text-[#C5E5EC]/60 font-sans">
+                {language === 'vi' ? 'Ra:' : 'Out:'}
+              </span>
+              <span className="text-rose-400 font-bold">-{formatVnd(stats.totalOut)}</span>
+            </div>
+            <div className="hidden sm:flex items-center space-x-1 border-l border-[#C5E5EC]/20 pl-2.5">
+              <span className="text-[10px] text-[#C5E5EC]/60 font-sans">
+                {language === 'vi' ? 'Số GD:' : 'Txs:'}
+              </span>
+              <span className="text-[#E0FAEB] font-bold">{stats.count}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -643,7 +822,49 @@ export const TransactionHistoryTable: React.FC<TransactionHistoryTableProps> = (
             </div>
 
             {/* Action buttons */}
-            <div className="pt-2 flex items-center justify-end space-x-2">
+            <div className="pt-2 flex items-center justify-between space-x-2">
+              <button
+                type="button"
+                onClick={() => {
+                  triggerHaptic('selection');
+                  const badge = getTransactionBadge(selectedTxForReceipt);
+                  const status = getStatusBadge(selectedTxForReceipt);
+                  const text = [
+                    '========================================',
+                    '      BIÊN LAI GIAO DỊCH GIGME ESCROW   ',
+                    '========================================',
+                    `Mã giao dịch: ${selectedTxForReceipt.id}`,
+                    `Thời gian: ${new Date(selectedTxForReceipt.timestamp).toLocaleString(language === 'vi' ? 'vi-VN' : 'en-US')}`,
+                    `Loại giao dịch: ${badge.label}`,
+                    `Số tiền: ${selectedTxForReceipt.amount > 0 ? '+' : ''}${formatVnd(selectedTxForReceipt.amount)}`,
+                    `Trạng thái: ${status.label}`,
+                    `Kênh thanh toán: ${selectedTxForReceipt.bankName || 'VietQR Napas 247'}`,
+                    selectedTxForReceipt.accountNumber ? `Số tài khoản: ${selectedTxForReceipt.accountNumber}` : '',
+                    selectedTxForReceipt.accountHolderName ? `Chủ tài khoản: ${selectedTxForReceipt.accountHolderName}` : '',
+                    'Bảo chứng: Ký quỹ Smart Escrow 100%',
+                    '========================================',
+                  ].filter(Boolean).join('\n');
+                  navigator.clipboard.writeText(text);
+                  setIsReceiptCopied(true);
+                  setTimeout(() => setIsReceiptCopied(false), 2000);
+                }}
+                className="px-3 py-2 rounded-xl bg-[#3064AE]/30 hover:bg-[#3064AE]/50 border border-cyan-400/40 text-cyan-200 hover:text-white font-bold text-xs flex items-center space-x-1.5 transition cursor-pointer"
+              >
+                {isReceiptCopied ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 text-emerald-400" />
+                    <span className="text-emerald-300">
+                      {language === 'vi' ? 'Đã sao chép!' : 'Copied!'}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>{language === 'vi' ? 'Sao chép biên lai' : 'Copy receipt'}</span>
+                  </>
+                )}
+              </button>
+
               <button
                 type="button"
                 onClick={() => setSelectedTxForReceipt(null)}

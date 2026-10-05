@@ -18,6 +18,7 @@ import {
   Flame,
   Fingerprint,
   Smartphone,
+  Phone,
   Building2,
   AlertTriangle,
   TrendingUp,
@@ -34,7 +35,7 @@ import {
 } from 'lucide-react';
 import { useGigMe } from '../context/GigMeContext';
 import { useTranslation } from '../context/LanguageContext';
-import { USER_TIERS, formatVnd } from '../types';
+import { USER_TIERS, formatVnd, PhonePrivacyMode, maskPhoneNumber } from '../types';
 import { playNotificationSound } from '../utils/audio';
 import { triggerHaptic } from '../utils/haptics';
 import { BusinessUpgradeDialog } from '../components/AdvancedDialogs';
@@ -96,12 +97,15 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   const [showEduModal, setShowEduModal] = useState(false);
   const [showBackupModal, setShowBackupModal] = useState(false);
   const [showEditProfileModal, setShowEditProfileModal] = useState(false);
+  const [showPhonePrivacyModal, setShowPhonePrivacyModal] = useState(false);
 
   // Edit profile name split state: Họ và tên đệm / Tên
   const [editLastName, setEditLastName] = useState('');
   const [editFirstName, setEditFirstName] = useState('');
   const [editPhone, setEditPhone] = useState('');
+  const [editPhonePrivacy, setEditPhonePrivacy] = useState<PhonePrivacyMode>('ESCROW_ONLY');
   const [editSchool, setEditSchool] = useState('');
+  const [editFaculty, setEditFaculty] = useState('');
   const [editBio, setEditBio] = useState('');
 
   // PIN modal inputs
@@ -162,9 +166,27 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
     setEditLastName(lastName);
     setEditFirstName(firstName);
     setEditPhone(currentUser.phone || '');
+    setEditPhonePrivacy(currentUser.phonePrivacy || 'ESCROW_ONLY');
     setEditSchool(currentUser.studentSchool || '');
+    setEditFaculty(currentUser.studentFaculty || '');
     setEditBio(currentUser.bio || '');
     setShowEditProfileModal(true);
+  };
+
+  // Quick Change Phone Privacy from Settings / Profile Card
+  const handleQuickChangePhonePrivacy = (mode: PhonePrivacyMode) => {
+    triggerHaptic('success');
+    updateUserProfile({ phonePrivacy: mode });
+    showNotification(
+      language === 'vi' ? 'Đã đổi quyền riêng tư SĐT! 🛡️' : 'Phone Privacy Updated! 🛡️',
+      mode === 'ESCROW_ONLY'
+        ? (language === 'vi' ? 'Chỉ đối tác giao dịch Escrow / đã nhận việc mới xem được SĐT.' : 'Only Escrow partners can see your phone number.')
+        : mode === 'PRIVATE'
+        ? (language === 'vi' ? 'Số điện thoại của bạn hiện được ẩn hoàn toàn với bên ngoài.' : 'Your phone number is completely hidden.')
+        : (language === 'vi' ? 'Số điện thoại của bạn đang hiển thị công khai.' : 'Your phone number is publicly visible.'),
+      true
+    );
+    setShowPhonePrivacyModal(false);
   };
 
   // Save Edit Profile with combined <= 30 chars rule
@@ -202,12 +224,18 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
     }
 
     triggerHaptic('success');
+    const campusBadge = editSchool.trim()
+      ? `${editSchool.trim()}${editFaculty.trim() ? ` • ${editFaculty.trim()}` : ''}`
+      : '';
     updateUserProfile({
       name: combinedName,
       lastName,
       firstName,
       phone: editPhone.trim(),
+      phonePrivacy: editPhonePrivacy,
       studentSchool: editSchool.trim(),
+      studentFaculty: editFaculty.trim(),
+      campusBadge,
       bio: editBio.trim(),
     });
     showNotification(
@@ -511,6 +539,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                     isCccdVerified={!!currentUser.isNfcVerified}
                     isStudentVerified={!!(currentUser.isStudentVerified || currentUser.isEduVerified)}
                     school={currentUser.studentSchool}
+                    faculty={currentUser.studentFaculty}
                     size="sm"
                     showText={true}
                     interactive={true}
@@ -531,8 +560,42 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                 </span>
                 <span>•</span>
                 <span className="truncate">
-                  {currentUser.studentSchool || (language === 'vi' ? 'Chưa cập nhật trường' : 'School not updated')}
+                  {currentUser.studentSchool
+                    ? `${currentUser.studentSchool}${currentUser.studentFaculty ? ` • ${currentUser.studentFaculty}` : ''}`
+                    : (language === 'vi' ? 'Chưa cập nhật trường' : 'School not updated')}
                 </span>
+              </div>
+
+              {/* Contact Phone & Privacy Badge */}
+              <div className="flex items-center space-x-2 mt-1.5 text-[11px] text-[#C5E5EC]/70 flex-wrap gap-y-1">
+                <span className="flex items-center space-x-1 font-mono text-white">
+                  <Phone className="w-3.5 h-3.5 text-[#E0FAEB]" />
+                  <span>{currentUser.phone || (language === 'vi' ? 'Chưa thêm SĐT' : 'No phone')}</span>
+                </span>
+                <span>•</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    triggerHaptic('light');
+                    setShowPhonePrivacyModal(true);
+                  }}
+                  className={`inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-bold border transition cursor-pointer hover:brightness-110 active:scale-95 ${
+                    currentUser.phonePrivacy === 'PRIVATE'
+                      ? 'bg-slate-800/80 text-slate-300 border-slate-600'
+                      : currentUser.phonePrivacy === 'PUBLIC'
+                      ? 'bg-emerald-950/60 text-emerald-300 border-emerald-500/40'
+                      : 'bg-cyan-950/60 text-cyan-300 border-cyan-500/40'
+                  }`}
+                  title={language === 'vi' ? 'Nhấp để đổi quyền riêng tư số điện thoại' : 'Click to change phone privacy'}
+                >
+                  <span>
+                    {currentUser.phonePrivacy === 'PRIVATE'
+                      ? '🔒 ' + (language === 'vi' ? 'Ẩn SĐT với người ngoài' : 'Hidden publicly')
+                      : currentUser.phonePrivacy === 'PUBLIC'
+                      ? '🌐 ' + (language === 'vi' ? 'SĐT Công khai' : 'Public phone')
+                      : '🛡️ ' + (language === 'vi' ? 'Chỉ hiện khi Escrow' : 'Escrow only')}
+                  </span>
+                </button>
               </div>
 
               {currentUser.bio && (
@@ -872,6 +935,44 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
               </h4>
               <p className="text-[10px] text-[#C5E5EC]/70">
                 {t('cloudBackupDesc')}
+              </p>
+            </div>
+          </div>
+          <ChevronRight className="w-4 h-4 text-[#C5E5EC]/60" />
+        </button>
+
+        {/* 4. QUYỀN RIÊNG TƯ SỐ ĐIỆN THOẠI (PHONE PRIVACY GUARD) */}
+        <button
+          type="button"
+          onClick={() => {
+            triggerHaptic('light');
+            setShowPhonePrivacyModal(true);
+          }}
+          className="w-full p-3.5 rounded-2xl bg-[#12233B] hover:bg-[#162B48] border border-[#C5E5EC]/15 flex items-center justify-between transition text-left cursor-pointer"
+        >
+          <div className="flex items-center space-x-3">
+            <Phone className="w-5 h-5 text-emerald-400" />
+            <div>
+              <h4 className="font-bold text-white text-xs flex items-center space-x-2">
+                <span>{language === 'vi' ? 'Quyền Riêng Tư Số Điện Thoại' : 'Phone Privacy Guard'}</span>
+                <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold border ${
+                  currentUser.phonePrivacy === 'PRIVATE'
+                    ? 'bg-slate-700/60 text-slate-300 border-slate-600'
+                    : currentUser.phonePrivacy === 'PUBLIC'
+                    ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                    : 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30'
+                }`}>
+                  {currentUser.phonePrivacy === 'PRIVATE'
+                    ? (language === 'vi' ? 'Ẩn Hoàn Toàn' : 'Hidden')
+                    : currentUser.phonePrivacy === 'PUBLIC'
+                    ? (language === 'vi' ? 'Công Khai' : 'Public')
+                    : (language === 'vi' ? 'Chỉ Khi Escrow' : 'Escrow Only')}
+                </span>
+              </h4>
+              <p className="text-[10px] text-[#C5E5EC]/70">
+                {language === 'vi'
+                  ? 'Bảo vệ SĐT khỏi làm phiền, chỉ hiển thị với đối tác sau khi đã cọc hoặc nhận việc'
+                  : 'Shield phone from spam, reveal only to verified Escrow partners'}
               </p>
             </div>
           </div>
@@ -1330,24 +1431,153 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                   className="w-full px-3.5 py-2.5 rounded-xl bg-[#12233B] border border-[#C5E5EC]/30 text-white font-mono text-xs focus:outline-none focus:border-cyan-400"
                   placeholder={language === 'vi' ? 'Ví dụ: 0909120918' : 'e.g. 0909120918'}
                 />
+
+                {/* Phone Privacy Radio Selector */}
+                <div className="mt-2 p-2.5 rounded-2xl bg-[#0E1B2E] border border-[#C5E5EC]/15 space-y-1.5">
+                  <div className="flex items-center justify-between text-[11px] font-bold text-[#C5E5EC]">
+                    <span className="flex items-center space-x-1">
+                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>{language === 'vi' ? 'Quyền riêng tư hiển thị số điện thoại:' : 'Phone privacy:'}</span>
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5">
+                    {[
+                      {
+                        key: 'ESCROW_ONLY',
+                        icon: '🛡️',
+                        title: language === 'vi' ? 'Chỉ khi Escrow' : 'Escrow Only',
+                        desc: language === 'vi' ? 'Hiện khi đã nhận việc / cọc đồ' : 'Visible upon contract/deposit',
+                        rec: true,
+                      },
+                      {
+                        key: 'PRIVATE',
+                        icon: '🔒',
+                        title: language === 'vi' ? 'Ẩn hoàn toàn' : 'Hidden',
+                        desc: language === 'vi' ? 'Chỉ chat nội bộ GigMe' : 'In-app chat only',
+                      },
+                      {
+                        key: 'PUBLIC',
+                        icon: '🌐',
+                        title: language === 'vi' ? 'Công khai' : 'Public',
+                        desc: language === 'vi' ? 'Hiện số trên hồ sơ' : 'Always visible',
+                      },
+                    ].map((p) => {
+                      const isSel = editPhonePrivacy === p.key;
+                      return (
+                        <button
+                          key={p.key}
+                          type="button"
+                          onClick={() => {
+                            triggerHaptic('selection');
+                            setEditPhonePrivacy(p.key as PhonePrivacyMode);
+                          }}
+                          className={`p-2 rounded-xl border text-left transition cursor-pointer relative ${
+                            isSel
+                              ? 'bg-cyan-500/20 border-cyan-400 text-white shadow-xs ring-1 ring-cyan-400/40'
+                              : 'bg-[#12233B] border-[#C5E5EC]/15 text-[#C5E5EC]/70 hover:text-white'
+                          }`}
+                        >
+                          {p.rec && (
+                            <span className="absolute top-1 right-1 text-[8px] font-bold px-1 rounded bg-emerald-500/30 text-emerald-300 border border-emerald-500/40">
+                              {language === 'vi' ? 'Khuyên dùng' : 'Best'}
+                            </span>
+                          )}
+                          <div className="text-xs">{p.icon}</div>
+                          <div className="font-extrabold text-[10px] mt-0.5">{p.title}</div>
+                          <div className="text-[9px] text-[#C5E5EC]/60 leading-tight mt-0.5">{p.desc}</div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
 
               <div>
-                <label className="block text-[#C5E5EC]/80 mb-1 font-bold">
-                  {language === 'vi' ? 'Trường Đại Học / Cao Đẳng / Ký Túc Xá' : 'University / College / Dormitory'}
+                <label className="block text-[#C5E5EC]/80 mb-1 font-bold flex items-center justify-between">
+                  <span>{language === 'vi' ? 'Trường Đại Học / Cao Đẳng / Ký Túc Xá' : 'University / College / Dormitory'}</span>
+                  <span className="text-[10px] text-cyan-400 font-normal">
+                    {language === 'vi' ? 'Chọn nhanh hoặc tự nhập' : 'Quick select or custom'}
+                  </span>
                 </label>
                 <input
                   type="text"
                   value={editSchool}
                   onChange={(e) => setEditSchool(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#12233B] border border-[#C5E5EC]/30 text-white text-xs focus:outline-none focus:border-cyan-400"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#12233B] border border-[#C5E5EC]/30 text-white text-xs focus:outline-none focus:border-cyan-400 font-semibold"
                   placeholder={
                     language === 'vi'
-                      ? 'Ví dụ: ĐH Tôn Đức Thắng (TDTU) - KTX Khu B'
-                      : 'e.g. Ton Duc Thang University - Dorm B'
+                      ? 'Ví dụ: ĐH Bách Khoa, ĐH Kinh Tế, ĐH Quốc Gia...'
+                      : 'e.g. University of Technology, Dorm B...'
                   }
                 />
+                {/* University quick chips */}
+                <div className="flex flex-wrap gap-1.5 mt-1.5">
+                  {['ĐH Bách Khoa', 'ĐH Kinh Tế', 'ĐH Quốc Gia', 'ĐH Sư Phạm Kỹ Thuật', 'ĐH Ngoại Thương', 'ĐH CNTT', 'ĐH Y Dược'].map((u) => (
+                    <button
+                      key={u}
+                      type="button"
+                      onClick={() => setEditSchool(u)}
+                      className={`px-2 py-0.5 rounded-lg border text-[10px] font-semibold transition cursor-pointer ${
+                        editSchool === u
+                          ? 'bg-cyan-500/20 border-cyan-400 text-cyan-300'
+                          : 'bg-[#182C48] border-[#C5E5EC]/20 text-[#C5E5EC]/70 hover:text-white'
+                      }`}
+                    >
+                      {u}
+                    </button>
+                  ))}
+                </div>
               </div>
+
+              <div>
+                <label className="block text-[#C5E5EC]/80 mb-1 font-bold flex items-center justify-between">
+                  <span>{language === 'vi' ? 'Khoa / Viện / Chuyên Ngành Đào Tạo' : 'Faculty / Department'}</span>
+                  <span className="text-[10px] text-[#E0FAEB] font-normal">
+                    {language === 'vi' ? 'Gắn huy hiệu uy tín' : 'Verified badge'}
+                  </span>
+                </label>
+                <input
+                  type="text"
+                  value={editFaculty}
+                  onChange={(e) => setEditFaculty(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#12233B] border border-[#C5E5EC]/30 text-white text-xs focus:outline-none focus:border-cyan-400 font-semibold"
+                  placeholder={
+                    language === 'vi'
+                      ? 'Ví dụ: Khoa CNTT, Quản Trị Kinh Doanh, Khoa Cơ Khí...'
+                      : 'e.g. Computer Science, Business Administration...'
+                  }
+                />
+                {/* Faculty quick chips */}
+                <div className="flex flex-wrap gap-1.5 mt-1.5">
+                  {['Khoa CNTT', 'Quản Trị Kinh Doanh', 'Khoa Cơ Khí', 'Khoa Ngoại Ngữ', 'Khoa Điện - Điện Tử', 'Khoa Y Dược'].map((f) => (
+                    <button
+                      key={f}
+                      type="button"
+                      onClick={() => setEditFaculty(f)}
+                      className={`px-2 py-0.5 rounded-lg border text-[10px] font-semibold transition cursor-pointer ${
+                        editFaculty === f
+                          ? 'bg-emerald-500/20 border-emerald-400 text-emerald-300'
+                          : 'bg-[#182C48] border-[#C5E5EC]/20 text-[#C5E5EC]/70 hover:text-white'
+                      }`}
+                    >
+                      {f}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Live Campus Badge Preview */}
+              {editSchool.trim() && (
+                <div className="p-2.5 rounded-2xl bg-[#0A1628] border border-cyan-500/30 flex items-center justify-between">
+                  <span className="text-[10px] text-[#C5E5EC]/80 font-bold">
+                    {language === 'vi' ? 'Xem trước Huy Hiệu Học Đường:' : 'Campus Badge Preview:'}
+                  </span>
+                  <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full bg-gradient-to-r from-emerald-500/20 to-cyan-500/20 text-[#E0FAEB] border border-cyan-400/40 text-[10px] font-bold">
+                    <GraduationCap className="w-3 h-3 text-cyan-300" />
+                    <span>{editSchool.trim()}{editFaculty.trim() ? ` • ${editFaculty.trim()}` : ''} ✓</span>
+                  </span>
+                </div>
+              )}
 
               <div>
                 <label className="block text-[#C5E5EC]/80 mb-1 font-bold">
@@ -1382,6 +1612,133 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* PHONE PRIVACY GUARD STANDALONE MODAL */}
+      {showPhonePrivacyModal && (
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowPhonePrivacyModal(false);
+          }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md rounded-3xl bg-[#0E1B2E] border border-[#C5E5EC]/30 p-5 sm:p-6 text-white shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto"
+          >
+            <div className="flex justify-between items-center pb-3 border-b border-[#C5E5EC]/20">
+              <h3 className="font-extrabold text-sm flex items-center space-x-2 text-[#E0FAEB]">
+                <ShieldCheck className="w-5 h-5 text-emerald-400" />
+                <span>
+                  {language === 'vi' ? 'Quyền Riêng Tư Số Điện Thoại' : 'Phone Number Privacy Guard'}
+                </span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowPhonePrivacyModal(false)}
+                className="text-[#C5E5EC]/70 hover:text-white p-1 rounded-xl transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-[11px] text-[#C5E5EC]/80 leading-relaxed">
+              {language === 'vi'
+                ? 'Bảo vệ thông tin cá nhân của bạn khỏi các cuộc gọi làm phiền, chào mời tiếp thị hoặc quấy rối ngoài giờ. Bạn có toàn quyền quyết định ai được xem số điện thoại của mình:'
+                : 'Protect your phone number from spam or after-hours calls. You have full control over who can view your contact number:'}
+            </p>
+
+            <div className="space-y-2.5">
+              {[
+                {
+                  key: 'ESCROW_ONLY',
+                  icon: '🛡️',
+                  title: language === 'vi' ? 'Chỉ khi giao dịch Escrow' : 'Escrow Partners Only',
+                  badge: language === 'vi' ? 'Khuyên dùng bảo vệ sinh viên' : 'Recommended',
+                  badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-400/30',
+                  desc: language === 'vi'
+                    ? 'Người thuê hoặc người mua chỉ xem được SĐT khi bạn và họ đã cọc giữ đồ hoặc đã nhận việc qua Smart Escrow.'
+                    : 'Your phone is hidden from public view and only revealed to users with an active Escrow contract or reservation.',
+                  preview: currentUser.phone ? `${currentUser.phone.slice(0, 4)} ••• ${currentUser.phone.slice(-3)}` : '0909 ••• 918',
+                },
+                {
+                  key: 'PRIVATE',
+                  icon: '🔒',
+                  title: language === 'vi' ? 'Ẩn hoàn toàn (Bảo mật tối đa)' : 'Completely Private',
+                  badge: language === 'vi' ? 'Bảo mật 100%' : '100% Private',
+                  badgeColor: 'bg-slate-700/60 text-slate-300 border-slate-600',
+                  desc: language === 'vi'
+                    ? 'Luôn che số điện thoại với tất cả mọi người. Mọi trao đổi bắt buộc qua hệ thống Chat bảo mật của GigMe.'
+                    : 'Your phone number is always hidden. All communications must go through GigMe encrypted in-app chat.',
+                  preview: currentUser.phone ? `${currentUser.phone.slice(0, 4)} ••• •••` : '0909 ••• •••',
+                },
+                {
+                  key: 'PUBLIC',
+                  icon: '🌐',
+                  title: language === 'vi' ? 'Hiển thị công khai' : 'Public Display',
+                  badge: language === 'vi' ? 'Công khai' : 'Public',
+                  badgeColor: 'bg-cyan-500/20 text-cyan-300 border-cyan-400/30',
+                  desc: language === 'vi'
+                    ? 'Bất kỳ sinh viên nào vào xem hồ sơ hoặc tìm kiếm bạn đều có thể thấy và gọi trực tiếp.'
+                    : 'Anyone on campus can view your full phone number on your profile.',
+                  preview: currentUser.phone || '0909120918',
+                },
+              ].map((opt) => {
+                const isSelected = (currentUser.phonePrivacy || 'ESCROW_ONLY') === opt.key;
+                return (
+                  <div
+                    key={opt.key}
+                    onClick={() => handleQuickChangePhonePrivacy(opt.key as PhonePrivacyMode)}
+                    className={`p-3.5 rounded-2xl border transition cursor-pointer ${
+                      isSelected
+                        ? 'bg-[#18345E] border-cyan-400 ring-1 ring-cyan-400/50'
+                        : 'bg-[#12233B] border-[#C5E5EC]/15 hover:bg-[#162B48]'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <span className="text-xl">{opt.icon}</span>
+                        <div>
+                          <h4 className="font-extrabold text-xs text-white flex items-center space-x-2">
+                            <span>{opt.title}</span>
+                            <span className={`text-[9px] px-1.5 py-0.2 rounded font-bold border ${opt.badgeColor}`}>
+                              {opt.badge}
+                            </span>
+                          </h4>
+                          <span className="text-[10px] font-mono text-[#E0FAEB]">
+                            {language === 'vi' ? 'Hiển thị:' : 'Preview:'} <strong>{opt.preview}</strong>
+                          </span>
+                        </div>
+                      </div>
+                      <div
+                        className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${
+                          isSelected
+                            ? 'border-cyan-400 bg-cyan-500 text-black'
+                            : 'border-[#C5E5EC]/30 bg-[#0E1B2E]'
+                        }`}
+                      >
+                        {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-[#C5E5EC]/70 mt-1.5 leading-relaxed pl-7">
+                      {opt.desc}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="pt-2 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setShowPhonePrivacyModal(false)}
+                className="px-4 py-2 rounded-xl bg-[#12233B] hover:bg-[#162B48] text-white font-bold text-xs transition cursor-pointer"
+              >
+                {language === 'vi' ? 'Đóng' : 'Close'}
+              </button>
+            </div>
           </div>
         </div>
       )}

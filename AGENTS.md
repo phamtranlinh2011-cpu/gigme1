@@ -53,6 +53,7 @@
 ### 3.1. Các tính năng ĐÃ XÓA VĨNH VIỄN (Nghiêm cấm tự ý khôi phục)
 1. **Bảng Xếp Hạng Top (Campus Leaderboard)**: Đã xóa hoàn toàn màn hình, nút bấm, tab và liên kết theo yêu cầu chủ dự án.
 2. **Tính năng Vay tiền & Xác thực Vay**: Đã xóa hoàn toàn module vay vốn sinh viên, cam kết trả chậm và KYC vay tiền. Ứng dụng chỉ vận hành theo cơ chế nạp tiền làm dịch vụ, nhận thù lao và thanh toán ký quỹ Escrow bảo đảm.
+3. **Tính năng SOS SafeWalk**: Đã xóa hoàn toàn module SOS SafeWalk (modal, session, âm còi hú báo động, quyền hạn, endpoint server, Firestore rules). Nghiêm cấm tự ý khôi phục.
 
 ### 3.2. Quy định Nạp tiền (Deposit Rules)
 - **Tối đa mỗi lần nạp**: `10.000.000 VNĐ (10 triệu)`.

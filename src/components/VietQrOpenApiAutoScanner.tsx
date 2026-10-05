@@ -33,7 +33,6 @@ export const VietQrOpenApiAutoScanner: React.FC<VietQrOpenApiAutoScannerProps> =
 }) => {
   const { currentUser, depositVietQr, showNotification, checkDepositEligibility, language } = useGigMe();
   const [amount, setAmount] = useState(defaultAmount);
-  const [selectedBank, setSelectedBank] = useState(VIETNAMESE_BANKS[2]); // Techcombank
   const [copiedField, setCopiedField] = useState<'account' | 'syntax' | null>(null);
   const [isListening, setIsListening] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -56,6 +55,8 @@ export const VietQrOpenApiAutoScanner: React.FC<VietQrOpenApiAutoScannerProps> =
     bankCode: 'MB',
   });
 
+  const [selectedBank, setSelectedBank] = useState(VIETNAMESE_BANKS[1]); // MBBank (matching systemBank)
+
   // Generate distinct transfer code for user dynamically: GIGME <id tài khoản muốn nạp tiền>
   const userAccountId = currentUser?.id || '000000000';
   const transferSyntax = `GIGME ${userAccountId}`;
@@ -72,7 +73,8 @@ export const VietQrOpenApiAutoScanner: React.FC<VietQrOpenApiAutoScannerProps> =
       setTransactionSuccess(false);
       setDetectedTx(null);
       setIsListening(true);
-      cloudService.getBankBotConfig().then((cfg) => {
+
+      const applyConfig = (cfg: any) => {
         if (cfg && cfg.accountNumber) {
           setSystemBank({
             accountNumber: cfg.accountNumber,
@@ -89,7 +91,18 @@ export const VietQrOpenApiAutoScanner: React.FC<VietQrOpenApiAutoScannerProps> =
             setSelectedBank(matched);
           }
         }
+      };
+
+      cloudService.getBankBotConfig().then(applyConfig);
+
+      // Listen for real-time config updates by Admin
+      const unsub = cloudService.on('bank_bot_config_updated', (updatedCfg: any) => {
+        applyConfig(updatedCfg);
       });
+
+      return () => {
+        unsub();
+      };
     }
   }, [isOpen]);
 
@@ -340,26 +353,29 @@ export const VietQrOpenApiAutoScanner: React.FC<VietQrOpenApiAutoScannerProps> =
               </div>
             </div>
 
-            {/* Bank Select */}
-            <div>
-              <label className="block text-slate-300 font-semibold mb-1.5">
-                {language === 'vi' ? 'Ngân hàng nhận thụ hưởng' : 'Beneficiary Bank'}
-              </label>
-              <div className="grid grid-cols-4 gap-1.5">
-                {VIETNAMESE_BANKS.slice(0, 4).map((b) => (
-                  <button
-                    key={b.code}
-                    type="button"
-                    onClick={() => setSelectedBank(b)}
-                    className={`p-2 rounded-xl border text-[11px] font-bold text-center transition cursor-pointer ${
-                      selectedBank.code === b.code
-                        ? 'bg-cyan-500/20 border-[#00E5FF] text-[#00E5FF]'
-                        : 'bg-[#131E30] border-slate-700 text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    {b.name}
-                  </button>
-                ))}
+            {/* Beneficiary Bank Info */}
+            <div className="p-3 rounded-2xl bg-[#131E30] border border-slate-700/80 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400 font-medium text-[11px]">
+                  {language === 'vi' ? 'Tài khoản ngân hàng thụ hưởng của GigMe:' : 'Beneficiary Platform Bank:'}
+                </span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/15 text-[#00E5FF] font-bold border border-cyan-500/30">
+                  Napas 247 • VietQR
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-xs pt-0.5">
+                <div className="flex items-center space-x-2">
+                  <div className="w-7 h-7 rounded-lg bg-[#3064AE]/30 border border-[#C5E5EC]/30 flex items-center justify-center font-black text-[10px] text-[#00E5FF]">
+                    {selectedBank.code}
+                  </div>
+                  <div>
+                    <span className="font-extrabold text-white text-xs block">{systemBank.bankName}</span>
+                    <span className="text-[10px] text-slate-400">{selectedBank.fullName || 'Ngân hàng TMCP Quân Đội'}</span>
+                  </div>
+                </div>
+                <span className="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-2 py-1 rounded-lg border border-emerald-500/20">
+                  {language === 'vi' ? '✓ Quét từ mọi app ngân hàng' : '✓ Scan from any bank app'}
+                </span>
               </div>
             </div>
 

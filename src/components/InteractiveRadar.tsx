@@ -587,10 +587,10 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
         const workerLat = p1[0] + (p2[0] - p1[0]) * segRatio;
         const workerLng = p1[1] + (p2[1] - p1[1]) * segRatio;
 
-        const isSafeWalk = selectedGig.category === 'Đưa đón & SafeWalk';
+        const isEscort = selectedGig.category === 'Đưa đón sinh viên';
         const isDelivery = selectedGig.category === 'Giao đồ ăn & KTX' || selectedGig.isFlash;
-        const iconEmoji = isSafeWalk ? '🚶‍♂️' : isDelivery ? '🛵' : '🚴‍♂️';
-        const roleTitle = isSafeWalk ? 'Người bảo vệ SafeWalk' : isDelivery ? 'Shipper Campus' : 'Freelancer GigMe';
+        const iconEmoji = isEscort ? '🚶‍♂️' : isDelivery ? '🛵' : '🚴‍♂️';
+        const roleTitle = isEscort ? 'Bạn đồng hành sinh viên' : isDelivery ? 'Shipper Campus' : 'Freelancer GigMe';
 
         const workerIconHtml = `
           <div class="relative flex flex-col items-center">

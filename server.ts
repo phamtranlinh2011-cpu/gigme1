@@ -25,7 +25,6 @@ interface DatabaseSchema {
   chats: any[];
   marketplace: any[];
   transactions: any[];
-  safewalk: any[];
   bankBotConfig?: {
     bankName: string;
     bankCode: string;
@@ -329,7 +328,6 @@ function ensureDbExists(): DatabaseSchema {
         chats: [],
         marketplace: sampleMarketplace as any,
         transactions: [],
-        safewalk: [],
       };
       fs.writeFileSync(DB_FILE, JSON.stringify(initial, null, 2), 'utf-8');
       return initial;
@@ -575,7 +573,6 @@ function ensureDbExists(): DatabaseSchema {
       chats: [],
       marketplace: [],
       transactions: [],
-      safewalk: [],
     };
   }
 }
@@ -727,7 +724,6 @@ async function startServer() {
         chatsCount: db.chats.length,
         marketplaceCount: db.marketplace.length,
         transactionsCount: db.transactions.length,
-        safewalkCount: db.safewalk.length,
         activeSseConnections: sseClients.length,
       },
     });
@@ -2865,26 +2861,6 @@ async function startServer() {
     });
 
     res.json({ success: true, message: 'Web Push notification broadcasted', recipients: pushSubscriptions.length });
-  });
-
-  // 9. SafeWalk
-  app.get('/api/safewalk', (_req: Request, res: Response) => {
-    const db = ensureDbExists();
-    res.json(db.safewalk);
-  });
-
-  app.post('/api/safewalk', (req: Request, res: Response) => {
-    const session = req.body;
-    const db = ensureDbExists();
-    const index = db.safewalk.findIndex((s: any) => s.id === session.id);
-    if (index === -1) {
-      db.safewalk.unshift(session);
-    } else {
-      db.safewalk[index] = session;
-    }
-    writeDb(db);
-    broadcastSse('safewalk_saved', session);
-    res.json({ success: true, session });
   });
 
   // 10. Gemini Task AI Estimation

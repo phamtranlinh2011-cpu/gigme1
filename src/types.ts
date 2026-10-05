@@ -144,6 +144,8 @@ export interface UserEntity {
   isFaceLivenessPassed: boolean; // Face Liveness Verification
   isStudentVerified: boolean;
   studentSchool: string;
+  studentFaculty?: string; // Khoa / Viện đào tạo (ví dụ: Khoa CNTT, Quản trị kinh doanh...)
+  campusBadge?: string; // Huy hiệu hiển thị nhanh (ví dụ: "ĐH Bách Khoa • Khoa CNTT")
   skills?: string[]; // Thẻ kỹ năng nhận việc sinh viên
   isBiometricsEnabled: boolean; // Xác thực sinh trắc học vân tay/FaceID
   isBusinessAccount: boolean; // GigMe for Business
@@ -168,6 +170,7 @@ export interface UserEntity {
   securityPin: string;
   badges: string;
   isLocked: boolean;
+  phonePrivacy?: 'PUBLIC' | 'ESCROW_ONLY' | 'PRIVATE'; // Tùy chọn quyền riêng tư hiển thị số điện thoại
   hasDeposited?: boolean; // Đã từng nạp tiền vào ví
   depositCount?: number; // Số lần đã nạp tiền
   createdAt?: number; // Thời điểm tạo tài khoản (timestamp)
@@ -365,6 +368,10 @@ export interface MarketplaceItemEntity {
   sellerName: string;
   sellerPhone: string;
   status: 'AVAILABLE' | 'RESERVED' | 'SOLD';
+  reservedByUserId?: string; // ID người đặt cọc giữ chỗ
+  reservedByUserName?: string; // Tên người đặt cọc giữ chỗ
+  depositAmount?: number; // Số tiền cọc qua Smart Escrow (VNĐ)
+  reservedAt?: number; // Thời điểm đặt cọc (timestamp)
   imageUrl?: string;
   mediaFiles?: MarketplaceMediaItem[];
   createdAt: number;
@@ -501,6 +508,29 @@ export const VIETNAMESE_BANKS = [
 
 export function formatVnd(amount: number): string {
   return `${amount.toLocaleString('vi-VN')}đ`;
+}
+
+export type PhonePrivacyMode = 'PUBLIC' | 'ESCROW_ONLY' | 'PRIVATE';
+
+/**
+ * Ẩn/che số điện thoại theo tùy chọn quyền riêng tư:
+ * - PUBLIC: Hiển thị đầy đủ
+ * - ESCROW_ONLY: Chỉ hiển thị đầy đủ khi có giao dịch ký quỹ Escrow / Đã nhận việc / Đã cọc giữ đồ. Nếu chưa thì che dạng `0909 ••• 918`
+ * - PRIVATE: Luôn che số dạng `0909 ••• •••` (chỉ trao đổi qua Chat bảo mật GigMe)
+ */
+export function maskPhoneNumber(
+  phone?: string,
+  mode: PhonePrivacyMode = 'ESCROW_ONLY',
+  isEscrowActive: boolean = false
+): string {
+  if (!phone || !phone.trim()) return '';
+  const clean = phone.trim();
+  if (mode === 'PUBLIC' || isEscrowActive) return clean;
+  if (mode === 'PRIVATE') {
+    return clean.length >= 7 ? `${clean.slice(0, 4)} ••• •••` : '••••••••';
+  }
+  // ESCROW_ONLY (chưa active escrow): che phần giữa
+  return clean.length >= 8 ? `${clean.slice(0, 4)} ••• ${clean.slice(-3)}` : `${clean.slice(0, 3)}•••••`;
 }
 
 export interface SystemMaintenanceConfig {

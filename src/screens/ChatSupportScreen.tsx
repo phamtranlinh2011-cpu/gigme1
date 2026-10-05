@@ -40,6 +40,7 @@ import {
   RotateCw,
   Heart,
   ChevronDown,
+  GraduationCap,
 } from 'lucide-react';
 import { useGigMe } from '../context/GigMeContext';
 import { useTranslation } from '../context/LanguageContext';
@@ -671,48 +672,6 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
     }
 
     const targetThread = activeContact.associatedGig?.id || getDirectThreadId(currentUser.id, activeContact.id);
-
-    // Trigger realistic partner typing response simulation when chatting with active student
-    if (activeContact.isOnline && activeContact.id !== 'AI_ASSISTANT') {
-      if (partnerTypingTimerRef.current) clearTimeout(partnerTypingTimerRef.current);
-      // Simulate partner starts typing 1.2s after user message
-      partnerTypingTimerRef.current = setTimeout(() => {
-        setIsPartnerTyping(true);
-        // Partner finishes typing after 2.5s and sends a context-aware smart response
-        setTimeout(() => {
-          setIsPartnerTyping(false);
-          const replies =
-            language === 'vi'
-              ? [
-                  'Dạ mình đã nhận thông tin, đang kiểm tra ngay nhé!',
-                  'Oke bạn nha, mình nắm rõ rồi ạ!',
-                  'Được nhé, tí nữa gặp nhau mình trao đổi chi tiết hơn!',
-                  'Mình đang xem qua, lát mình phản hồi liền nha!',
-                  'Tuyệt vời! Cảm ơn bạn nhiều!',
-                ]
-              : [
-                  'Got your message, checking it right away!',
-                  'Sounds good, noted!',
-                  'Sure, let us discuss details when we meet shortly!',
-                  'Looking over it now, will reply in a moment!',
-                  'Awesome! Thank you so much!',
-                ];
-          const randomReply = replies[Math.floor(Math.random() * replies.length)];
-          sendChat(
-            randomReply,
-            'NONE',
-            null,
-            0,
-            undefined,
-            targetThread,
-            currentUser.id,
-            currentUser.name,
-            activeContact.id,
-            activeContact.name
-          );
-        }, 2500);
-      }, 1200);
-    }
 
     if (pendingImage) {
       rateLimiter.record('CHAT', currentUser?.id);
@@ -1376,14 +1335,25 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                   {activeContact.roleLabel}
                 </span>
               </div>
-              <p className="text-[11px] text-[#C5E5EC]/70 truncate">
+              <div className="flex items-center space-x-1.5 text-[11px] text-[#C5E5EC]/70 truncate">
                 {isPartnerOnline ? (
-                  <span className="text-[#E0FAEB] font-medium">{language === 'vi' ? 'Đang hoạt động' : 'Active now'}</span>
+                  <span className="text-[#E0FAEB] font-medium flex items-center space-x-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#E0FAEB] animate-pulse" />
+                    <span>{language === 'vi' ? 'Đang hoạt động' : 'Active now'}</span>
+                  </span>
                 ) : (
-                  activeContact.lastActiveText
-                )}{' '}
-                • {activeContact.school}
-              </p>
+                  <span>{activeContact.lastActiveText || (language === 'vi' ? 'Ngoại tuyến' : 'Offline')}</span>
+                )}
+                {activeContact.school && (
+                  <>
+                    <span>•</span>
+                    <span className="text-[#C5E5EC] font-semibold truncate flex items-center space-x-1">
+                      <GraduationCap className="w-3 h-3 text-cyan-400 shrink-0" />
+                      <span>{activeContact.school}</span>
+                    </span>
+                  </>
+                )}
+              </div>
             </div>
           </div>
 
@@ -1875,8 +1845,37 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
             </div>
           </div>
         ) : (
-          /* MESSENGER BOTTOM INPUT BAR */
-          <form onSubmit={handleSendMessage} className="pt-2 border-t border-[#C5E5EC]/15 shrink-0 flex items-center space-x-1 sm:space-x-1.5">
+          <div className="pt-1.5 border-t border-[#C5E5EC]/15 shrink-0 space-y-1.5">
+            {/* Quick Phrases Carousel Bar */}
+            <div className="flex items-center space-x-1.5 overflow-x-auto no-scrollbar py-0.5 px-0.5">
+              <span className="text-[10px] text-[#C5E5EC]/60 font-bold shrink-0 flex items-center space-x-0.5">
+                <Sparkles className="w-3 h-3 text-cyan-400" />
+                <span className="hidden sm:inline">{language === 'vi' ? 'Nhanh:' : 'Quick:'}</span>
+              </span>
+              {[
+                language === 'vi' ? '📍 Mình đã đến nơi rồi nhé!' : '📍 I have arrived!',
+                language === 'vi' ? '🚶 Đang xuống thang máy đây!' : '🚶 Coming down now!',
+                language === 'vi' ? '⏳ Bạn đợi mình 2 phút nha!' : '⏳ Wait 2 mins please!',
+                language === 'vi' ? '📦 Món đồ này còn không bạn?' : '📦 Is item available?',
+                language === 'vi' ? '🗺️ Cho mình xin phòng KTX với' : '🗺️ What room number?',
+                language === 'vi' ? '✨ Oke bạn, cảm ơn bạn nhiều!' : '✨ Thanks so much!',
+              ].map((phrase, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => {
+                    triggerHaptic('light');
+                    setMessageInput(phrase);
+                  }}
+                  className="px-2.5 py-1 rounded-full bg-[#182C48] hover:bg-[#223E66] border border-[#C5E5EC]/20 text-[#C5E5EC] hover:text-white text-[11px] font-medium whitespace-nowrap transition active:scale-95 shrink-0 cursor-pointer shadow-xs"
+                >
+                  {phrase}
+                </button>
+              ))}
+            </div>
+
+            {/* MESSENGER BOTTOM INPUT BAR */}
+            <form onSubmit={handleSendMessage} className="flex items-center space-x-1 sm:space-x-1.5">
             {/* Attachment Button (Paperclip) */}
             <button
               type="button"
@@ -1963,7 +1962,8 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                 👍
               </button>
             )}
-          </form>
+            </form>
+          </div>
         )}
 
         {/* MODAL: CONTACT DETAILS INFO */}
