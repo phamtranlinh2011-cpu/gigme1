@@ -110,6 +110,7 @@ class RealtimeSyncManager {
         'chat_saved',
         'user_registered',
         'user_updated',
+        'user_deleted',
         'marketplace_saved',
         'transaction_saved',
         'push_notification',

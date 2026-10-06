@@ -79,10 +79,10 @@ interface MessengerContact {
   };
 }
 
-// Normalized direct message thread ID generator (avoids multi-user leakage)
+// Normalized direct message thread ID generator (Rule 3.4)
 const getDirectThreadId = (userA: string, userB: string): string => {
   const sorted = [userA, userB].sort();
-  return `dm_${sorted[0]}_${sorted[1]}`;
+  return `direct_${sorted[0]}_${sorted[1]}`;
 };
 
 export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) => {
@@ -121,6 +121,13 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
   // Message input state
   const [messageInput, setMessageInput] = useState('');
   const [pendingImage, setPendingImage] = useState<string | null>(null);
+  const [pendingFile, setPendingFile] = useState<{
+    name: string;
+    size: number;
+    sizeFormatted: string;
+    dataUrl: string;
+    extension: string;
+  } | null>(null);
   const [pendingVideo, setPendingVideo] = useState<{ url: string; name: string } | null>(null);
   const [previewZoomImage, setPreviewZoomImage] = useState<string | null>(null);
   const [previewImageRotation, setPreviewImageRotation] = useState<number>(0);
@@ -153,9 +160,43 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
   const partnerTypingTimerRef = useRef<any>(null);
 
   // File input refs
+  const fileInputDocRef = useRef<HTMLInputElement | null>(null);
   const fileInputImageRef = useRef<HTMLInputElement | null>(null);
   const fileInputCameraRef = useRef<HTMLInputElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+
+  // Helpers tính toán dung lượng tệp và trạng thái Hoạt động thật (Real-time Online/Offline)
+  const formatFileSize = (bytes?: number): string => {
+    if (!bytes || bytes <= 0) return '0 B';
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  // Xác định người dùng có Đang Hoạt Động (Online) không:
+  // Chỉ khi tài khoản có tương tác gần nhất trong vòng 90 giây và không bị khóa
+  const isUserOnline = (user?: UserEntity | null): boolean => {
+    if (!user) return false;
+    if (user.id === currentUser?.id) return true; // Chính mình luôn online khi đang dùng app
+    if (user.isLocked) return false;
+    if (!user.lastActiveAt) return false;
+    return Date.now() - user.lastActiveAt < 90_000;
+  };
+
+  const getUserLastActiveText = (user?: UserEntity | null): string => {
+    if (!user) return language === 'vi' ? 'Offline' : 'Offline';
+    if (user.isLocked) return language === 'vi' ? 'Đã bị khóa' : 'Suspended';
+    if (isUserOnline(user)) return language === 'vi' ? 'Đang hoạt động' : 'Active now';
+    if (!user.lastActiveAt) return language === 'vi' ? 'Offline' : 'Offline';
+    const diffMs = Date.now() - user.lastActiveAt;
+    const mins = Math.floor(diffMs / 60000);
+    if (mins < 1) return language === 'vi' ? 'Vừa mới online' : 'Just left';
+    if (mins < 60) return language === 'vi' ? `Hoạt động ${mins} phút trước` : `Active ${mins}m ago`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return language === 'vi' ? `Hoạt động ${hours} giờ trước` : `Active ${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    return language === 'vi' ? `Hoạt động ${days} ngày trước` : `Active ${days}d ago`;
+  };
 
   // AI Assistant Chat Messages & Loading
   const [isAiTyping, setIsAiTyping] = useState(false);
@@ -197,6 +238,8 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
 
     // 1. Luôn có tài khoản Hỗ trợ Admin chính thức của GigMe (ID: 000000000) nếu người dùng hiện tại không phải Admin
     if (currentUser?.id !== '000000000') {
+      const adminUser = (users || []).find((u) => u.id === '000000000');
+      const isAdminOnline = isUserOnline(adminUser);
       list.push({
         id: '000000000',
         name: language === 'vi' ? 'Ban Quản Trị GigMe (Admin Support)' : 'GigMe Administration (Admin Support)',
@@ -204,8 +247,10 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
         roleLabel: 'Admin 000000000',
         school: language === 'vi' ? 'Tổng Đài Hỗ Trợ Sinh Viên GigMe' : 'GigMe Campus Support Center',
         avatarBg: 'from-[#3064AE] via-[#2A5594] to-[#25735B]',
-        isOnline: true,
-        lastActiveText: language === 'vi' ? 'Trực tuyến 24/7 (ID: 000000000)' : 'Online 24/7 (ID: 000000000)',
+        isOnline: isAdminOnline,
+        lastActiveText: isAdminOnline
+          ? (language === 'vi' ? 'Đang hoạt động' : 'Active now')
+          : (adminUser?.lastActiveAt ? getUserLastActiveText(adminUser) : (language === 'vi' ? 'Offline' : 'Offline')),
         specialtyOrNeed:
           language === 'vi'
             ? 'Hỗ trợ giải quyết sự cố, mở khóa ví, xác minh CCCD & tranh chấp ký quỹ'

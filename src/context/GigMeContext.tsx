@@ -553,7 +553,8 @@ interface GigMeContextType {
       | 'DELEGATED_AUTH'
       | 'IMAGE'
       | 'VOICE'
-      | 'VIDEO',
+      | 'VIDEO'
+      | 'FILE',
     attachmentData?: string | null,
     attachmentDuration?: number,
     mediaFileName?: string,
@@ -561,7 +562,8 @@ interface GigMeContextType {
     targetPartnerId?: string,
     targetPartnerName?: string,
     customSenderId?: string,
-    customSenderName?: string
+    customSenderName?: string,
+    fileSizeBytes?: number
   ) => void;
   markConversationAsRead: (partnerOrThreadId: string) => void;
   reactToChatMessage: (messageId: string, emoji: string) => void;
@@ -1024,30 +1026,45 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (cloudUsers && cloudUsers.length > 0) {
         setUsers((prev) => {
           const map = new Map<string, UserEntity>();
-          prev.forEach((u) => {
-            if (u.id !== 'admin_root') map.set(u.id, u);
+          // 1. Luôn bảo toàn Admin 000000000 và Mods mặc định
+          const existingAdmin = prev.find((u) => u.id === '000000000') || DEFAULT_ADMIN;
+          map.set('000000000', existingAdmin);
+          DEFAULT_MODS.forEach((m) => {
+            const existingMod = prev.find((u) => u.id === m.id) || m;
+            map.set(m.id, existingMod);
           });
+
+          // 2. Nạp danh sách người dùng chuẩn từ Cloud (Nếu tài khoản bị Admin xóa trên Cloud, nó sẽ không còn trong map)
           cloudUsers.forEach((u) => {
             if (u.id === 'admin_root' || (u.role === 'ADMIN' && u.email === 'admin@admin.vn')) {
-              // Hợp nhất tài khoản admin vào duy nhất 000000000
-              const existingAdmin = map.get('000000000') || DEFAULT_ADMIN;
+              const curAdmin = map.get('000000000') || DEFAULT_ADMIN;
               map.set('000000000', {
-                ...existingAdmin,
+                ...curAdmin,
                 ...u,
                 id: '000000000',
                 role: 'ADMIN',
                 email: 'admin@admin.vn',
               });
             } else {
-              map.set(u.id, u);
+              // Bảo lưu các trường trạng thái runtime cục bộ như lastActiveAt nếu mới hơn
+              const localUser = prev.find((p) => p.id === u.id);
+              const merged: UserEntity = {
+                ...u,
+                lastActiveAt: Math.max(u.lastActiveAt || 0, localUser?.lastActiveAt || 0),
+                onlineSeconds: Math.max(u.onlineSeconds || 0, localUser?.onlineSeconds || 0),
+              };
+              map.set(u.id, merged);
             }
           });
-          // Đảm bảo admin 000000000 luôn hiện diện và admin_root bị loại trừ hoàn toàn
+
           map.delete('admin_root');
           if (!map.has('000000000')) {
             map.set('000000000', DEFAULT_ADMIN);
           }
           const result = Array.from(map.values());
+          try {
+            localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(result));
+          } catch {}
           return result;
         });
       }
@@ -1227,23 +1244,92 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return currentUser.walletBalance > 200_000_000;
   }, [currentUser]);
 
-  // Online Time Heartbeat (Tích lũy thời gian online cho điều kiện rút tiền 3 giờ)
+  // Online Time Heartbeat & Live Active Status Tracking (Cập nhật lastActiveAt chuẩn xác)
   useEffect(() => {
     if (!currentUser) return;
+    const now = Date.now();
+    // Cập nhật ngay khi đăng nhập / chuyển tab
+    setUsers((prev) =>
+      prev.map((u) => {
+        if (u.id === currentUser.id) {
+          return { ...u, lastActiveAt: now };
+        }
+        return u;
+      })
+    );
+
     const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return; // Không online nếu ẩn tab
+      const currentTimestamp = Date.now();
       setUsers((prev) =>
         prev.map((u) => {
           if (u.id === currentUser.id) {
-            const currentOnline = u.onlineSeconds ?? 3600; // Mặc định 1h nếu chưa có
-            const newOnline = currentOnline + 10;
-            return { ...u, onlineSeconds: newOnline };
+            const currentOnline = u.onlineSeconds ?? 3600;
+            return {
+              ...u,
+              onlineSeconds: currentOnline + 10,
+              lastActiveAt: currentTimestamp,
+            };
           }
           return u;
         })
       );
     }, 10000);
-    return () => clearInterval(interval);
+
+    const handleUserActivity = () => {
+      const ts = Date.now();
+      setUsers((prev) =>
+        prev.map((u) => {
+          if (u.id === currentUser.id) {
+            return { ...u, lastActiveAt: ts };
+          }
+          return u;
+        })
+      );
+    };
+
+    window.addEventListener('focus', handleUserActivity);
+    document.addEventListener('visibilitychange', handleUserActivity);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleUserActivity);
+      document.removeEventListener('visibilitychange', handleUserActivity);
+    };
   }, [currentUser?.id]);
+
+  // Tự động kiểm tra: Nếu tài khoản của người dùng bị Admin xóa trên hệ thống hoặc tab khác
+  useEffect(() => {
+    if (!currentUserId || currentUserId === '000000000' || currentUserId.startsWith('00000000')) return;
+    const userFound = users.some((u) => u.id === currentUserId);
+    if (!userFound && users.length > 0) {
+      showNotification(
+        'Tài Khoản Đã Bị Xóa ⚠️',
+        'Tài khoản của bạn đã bị Ban Quản Trị xóa khỏi hệ thống. Phiên đăng nhập đã bị thu hồi!',
+        false
+      );
+      logout();
+    }
+  }, [users, currentUserId]);
+
+  // Lắng nghe sự kiện storage liên tab (Cross-tab sync khi Admin khóa/xóa tài khoản)
+  useEffect(() => {
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === STORAGE_KEYS.USERS && e.newValue) {
+        try {
+          const freshUsers: UserEntity[] = JSON.parse(e.newValue);
+          setUsers(freshUsers);
+        } catch {}
+      }
+      if (e.key === STORAGE_KEYS.CURRENT_USER_ID) {
+        if (!e.newValue && currentUserId) {
+          setCurrentUserId(null);
+        }
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, [currentUserId]);
 
   const currentSelectedGig = gigs.find((g) => g.id === selectedGigId) || null;
   const currentGigBids = bids.filter((b) => b.gigId === selectedGigId);
@@ -5592,7 +5678,8 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       | 'DELEGATED_AUTH'
       | 'IMAGE'
       | 'VOICE'
-      | 'VIDEO' = 'NONE',
+      | 'VIDEO'
+      | 'FILE' = 'NONE',
     attachmentData: string | null = null,
     attachmentDuration?: number,
     mediaFileName?: string,
@@ -5600,9 +5687,14 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     targetPartnerId?: string,
     targetPartnerName?: string,
     customSenderId?: string,
-    customSenderName?: string
+    customSenderName?: string,
+    fileSizeBytes?: number
   ) => {
     if (!currentUser) return;
+    if (currentUser.isLocked) {
+      showNotification('Tài khoản đã bị khóa ⚠️', 'Tài khoản của bạn đã bị tạm khóa, không thể gửi tin nhắn!', false);
+      return;
+    }
     const isClient = roleMode === 'CLIENT';
 
     const actualSenderId = customSenderId || currentUser.id;
@@ -5648,6 +5740,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       attachmentData,
       attachmentDuration,
       mediaFileName,
+      fileSizeBytes,
       timestamp: Date.now(),
       isRead: false,
     };

@@ -153,12 +153,15 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
             const data = change.doc.data() as ChatMessageEntity;
             if (!data) return;
 
-            // Only notify if message is sent by someone else to the current user
-            const isSentToMe =
-              data.partnerId === currentUserId ||
-              (!data.partnerId && data.senderId !== currentUserId);
+            // Tuyệt đối không thông báo tin nhắn do chính mình gửi đi (ngăn chặn triệt để tình trạng tự gửi thông báo cho chính mình)
+            if (data.senderId === currentUserId) return;
 
-            if (isSentToMe && data.senderId !== currentUserId) {
+            // Chỉ thông báo nếu tin nhắn đích danh gửi cho mình hoặc nằm trong cuộc trò chuyện của mình
+            const isDirectRecipient = data.partnerId === currentUserId;
+            const isInMyThread = !data.partnerId && Boolean(data.threadId?.includes(currentUserId));
+            const isSentToMe = isDirectRecipient || isInMyThread;
+
+            if (isSentToMe) {
               const notifId = `msg_${data.id || change.doc.id}`;
               const isRecent = data.timestamp > mountTimeRef.current - 10000;
 

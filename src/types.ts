@@ -170,6 +170,7 @@ export interface UserEntity {
   securityPin: string;
   badges: string;
   isLocked: boolean;
+  lastActiveAt?: number; // Thời điểm hoạt động lần cuối (timestamp ms - dùng để xác định Online/Offline chuẩn xác)
   phonePrivacy?: 'PUBLIC' | 'ESCROW_ONLY' | 'PRIVATE'; // Tùy chọn quyền riêng tư hiển thị số điện thoại
   hasDeposited?: boolean; // Đã từng nạp tiền vào ví
   depositCount?: number; // Số lần đã nạp tiền
@@ -404,10 +405,12 @@ export interface ChatMessageEntity {
     | 'DELEGATED_AUTH'
     | 'IMAGE'
     | 'VOICE'
-    | 'VIDEO';
+    | 'VIDEO'
+    | 'FILE';
   attachmentData?: string | null;
   attachmentDuration?: number; // Thời lượng audio giây cho Voice Note
   mediaFileName?: string;
+  fileSizeBytes?: number;
   timestamp: number;
   threadId?: string;
   partnerId?: string;

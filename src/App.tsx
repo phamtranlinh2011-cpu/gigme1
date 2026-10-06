@@ -5,6 +5,7 @@ import { Header } from './components/Header';
 import { BottomNav, TabScreen } from './components/BottomNav';
 import { HomeScreen } from './screens/HomeScreen';
 import { AuthScreen } from './screens/AuthScreen';
+import { AccountLockedScreen } from './screens/AccountLockedScreen';
 import { SystemMaintenanceOverlay } from './components/SystemMaintenanceOverlay';
 import { Wrench, Loader2 } from 'lucide-react';
 
@@ -171,6 +172,12 @@ const MainLayout: React.FC = () => {
 
   if (!currentUser) {
     return <AuthScreen />;
+  }
+
+  // 🔒 ACCOUNT BANNED / LOCKED GUARD:
+  // If user account is locked or banned by admin, lock screen immediately!
+  if (currentUser.isLocked) {
+    return <AccountLockedScreen />;
   }
 
   const handleSelectTab = (tab: TabScreen) => {
