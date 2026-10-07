@@ -1594,6 +1594,10 @@ async function startServer() {
       return res.status(404).json({ error: 'Không tìm thấy việc làm' });
     }
     db.gigs[index] = { ...db.gigs[index], ...updates };
+    if (updates.status === 'OPEN' || updates.freelancerId === null) {
+      db.gigs[index].freelancerId = null;
+      db.gigs[index].freelancerName = null;
+    }
     writeDb(db);
     broadcastSse('gig_saved', db.gigs[index]);
     res.json({ success: true, gig: db.gigs[index] });

@@ -314,7 +314,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   };
 
   const flashGigs = React.useMemo(() => {
-    return filteredGigs.filter((g) => g.isFlash || g.isBoosted || g.auctionRoomOpen);
+    return filteredGigs.filter((g) => g.isFlash || g.isBoosted);
   }, [filteredGigs]);
 
   const renderGigCard = (gig: GigEntity, isSnapCard = false, isActiveSnap = false) => {
@@ -348,11 +348,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               {isBoosted && (
                 <span className="flex items-center text-[10px] font-black text-white bg-gradient-to-r from-red-600 to-rose-600 px-2 py-0.5 rounded-md shadow-xs animate-pulse">
                   <Rocket className="w-3 h-3 mr-1 text-yellow-300" /> {t('hotBoost')}
-                </span>
-              )}
-              {gig.auctionRoomOpen && (
-                <span className="flex items-center text-[10px] font-black text-white bg-red-600 px-2 py-0.5 rounded-md shadow-xs">
-                  <Radio className="w-3 h-3 mr-1 animate-pulse" /> {t('auctionOpen')}
                 </span>
               )}
               {gig.isFlash && !isBoosted && (
@@ -440,11 +435,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           <div className="flex items-center justify-between">
             <div>
               <span className="text-[10px] text-[#C5E5EC]/70 block font-bold mb-0.5">
-                {gig.isReverseAuction ? t('reverseAuction') : t('escrowReward')}
+                {t('escrowReward')}
               </span>
               <div className="inline-flex items-center px-2 py-0.5 rounded-lg bg-[#12233B] border border-[#E0FAEB]/30 shadow-2xs">
                 <span className="text-base font-black text-[#E0FAEB] font-mono">
-                  {formatVnd(gig.isReverseAuction && gig.lowestBidPrice ? gig.lowestBidPrice : gig.price)}
+                  {formatVnd(gig.price)}
                 </span>
               </div>
             </div>
@@ -456,19 +451,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   triggerHaptic('medium');
                   onSelectGigDetail(gig.id);
                 }}
-                className={`px-3.5 py-1.5 rounded-xl font-extrabold text-xs shadow-md transition flex items-center space-x-1 active:scale-95 cursor-pointer ${
-                  gig.auctionRoomOpen
-                    ? 'bg-gradient-to-r from-red-600 to-rose-600 text-white hover:brightness-105 shadow-red-500/20'
-                    : 'bg-gradient-to-r from-[#3064AE] via-[#417AC6] to-[#C5E5EC] text-white hover:brightness-110 shadow-[#3064AE]/30 border border-[#E0FAEB]/30'
-                }`}
+                className="px-3.5 py-1.5 rounded-xl font-extrabold text-xs shadow-md transition flex items-center space-x-1 active:scale-95 cursor-pointer bg-gradient-to-r from-[#3064AE] via-[#417AC6] to-[#C5E5EC] text-white hover:brightness-110 shadow-[#3064AE]/30 border border-[#E0FAEB]/30"
               >
-                <span>
-                  {gig.auctionRoomOpen
-                    ? t('joinAuction')
-                    : gig.isReverseAuction
-                    ? t('bid')
-                    : t('viewGig')}
-                </span>
+                <span>{t('viewGig')}</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </div>

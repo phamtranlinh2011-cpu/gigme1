@@ -405,7 +405,7 @@ interface GigMeContextType {
   toggleFilterRecurring: () => void;
   toggleFilterMultiWorker: () => void;
   toggleSmartMatch: () => void;
-  startVoipCall: (partnerName: string, role?: string, gigId?: string) => void;
+  startVoipCall: (partnerName: string, role?: string, gigId?: string, isVideo?: boolean, partnerAvatarUrl?: string) => void;
   endVoipCall: () => void;
   toggleMuteVoip: () => void;
   toggleRoleMode: () => void;
@@ -470,6 +470,7 @@ interface GigMeContextType {
   acceptGigDirectly: (gig: GigEntity) => boolean;
   cancelGigByWorker: (gigId: string, reason: string) => boolean;
   cancelGigByClient: (gigId: string, reason: string) => boolean;
+  deleteGig: (gigId: string) => Promise<boolean>;
   reportNoShow: (gigId: string, reporterRole: 'CLIENT' | 'WORKER', reason: string) => boolean;
   submitProofOfWork: (
     gigId: string,
@@ -1585,14 +1586,23 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     });
   };
 
-  const startVoipCall = (partnerName: string, role = '', gigId = '') => {
+  const startVoipCall = (
+    partnerName: string,
+    role = '',
+    gigId = '',
+    isVideo = false,
+    partnerAvatarUrl?: string
+  ) => {
     const randomSuffix = Math.floor(100 + Math.random() * 900);
     setActiveVoipCall({
       gigId: gigId || selectedGigId || 'call',
       partnerName,
+      partnerRole: role,
+      partnerAvatarUrl,
       maskedPhoneNumber: `(+84 *** *** ${randomSuffix})`,
       isMuted: false,
-      durationSeconds: 24,
+      isVideo: !!isVideo,
+      durationSeconds: 0,
     });
   };
 
@@ -1970,6 +1980,68 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       localStorage.setItem(STORAGE_KEYS.CURRENT_USER_ID, user.id);
     }
     showNotification('Đăng nhập thành công!', `Chào mừng trở lại, ${user.name}!`, true);
+    return true;
+  };
+
+  // DELETE GIG (XÓA BÀI ĐĂNG CÔNG VIỆC)
+  const deleteGig = async (gigId: string): Promise<boolean> => {
+    if (!currentUser) return false;
+    const gig = gigs.find((g) => g.id === gigId);
+    if (!gig) return false;
+
+    if (gig.clientId !== currentUser.id && currentUser.role !== 'ADMIN') {
+      showNotification('Không có quyền', 'Chỉ người đăng bài mới có quyền xóa bài đăng này!');
+      return false;
+    }
+
+    if (gig.status === 'IN_PROGRESS' || gig.status === 'SUBMITTED') {
+      showNotification(
+        'Không thể xóa',
+        'Công việc đang được thực hiện hoặc đang chờ duyệt nghiệm thu. Hãy hoàn tất hoặc hủy việc trước khi xóa!',
+        false
+      );
+      return false;
+    }
+
+    // Nếu đơn còn OPEN và tiền cọc Escrow chưa hoàn, hoàn 100% về ví cho chủ việc
+    if (gig.status === 'OPEN') {
+      setUsers((prev) =>
+        prev.map((u) => {
+          if (u.id === gig.clientId) {
+            return {
+              ...u,
+              walletBalance: u.walletBalance + gig.price,
+              escrowLockedBalance: Math.max(0, u.escrowLockedBalance - gig.price),
+            };
+          }
+          return u;
+        })
+      );
+
+      const refundTx: WalletTransactionEntity = {
+        id: `tx_del_refund_${Date.now()}`,
+        userId: gig.clientId,
+        type: 'ADMIN_REFUND',
+        amount: gig.price,
+        title: 'Hoàn Tiền Escrow (Xóa Bài Đăng)',
+        subtitle: `Hoàn 100% tiền cọc (${gig.price.toLocaleString('vi-VN')}đ) đơn "${gig.title}" do chủ việc xóa bài đăng`,
+        bankInfo: 'Ví GigMe Escrow',
+        timestamp: Date.now(),
+        isSuccess: true,
+      };
+
+      setTransactions((prev) => [refundTx, ...prev]);
+      cloudService.saveTransaction(refundTx);
+    }
+
+    setGigs((prev) => prev.filter((g) => g.id !== gigId));
+    await cloudService.deleteGig(gigId);
+
+    showNotification(
+      '✅ Đã Xóa Bài Đăng',
+      `Đã xóa vĩnh viễn bài đăng "${gig.title}". Dữ liệu đã được gỡ bỏ khỏi toàn hệ thống!`,
+      true
+    );
     return true;
   };
 
@@ -2888,7 +2960,18 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     // Kiểm tra trực tiếp trạng thái việc làm mới nhất từ State
     const latestGig = gigs.find((g) => g.id === gig.id);
-    if (!latestGig || latestGig.status !== 'OPEN' || latestGig.freelancerId) {
+    if (!latestGig) return false;
+
+    if (latestGig.freelancerId === currentUser.id) {
+      showNotification(
+        'Bạn đang nhận đơn này',
+        'Bạn đã nhận công việc này rồi! Hãy vào khung chat trao đổi và nộp bằng chứng nghiệm thu.',
+        false
+      );
+      return true;
+    }
+
+    if (latestGig.status !== 'OPEN' || (latestGig.freelancerId && latestGig.freelancerId !== currentUser.id)) {
       showNotification(
         'Đã có người nhận việc',
         'Công việc này đã được người khác nhận hoặc không còn khả dụng!'
@@ -2921,12 +3004,12 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
 
     const updatedGig: GigEntity = {
-      ...gig,
+      ...latestGig,
       status: 'IN_PROGRESS',
       freelancerId: currentUser.id,
       freelancerName: currentUser.name,
       acceptedAt: Date.now(),
-      confirmedWorkersCount: (gig.confirmedWorkersCount || 0) + 1,
+      confirmedWorkersCount: 1,
     };
     setGigs((prev) => prev.map((g) => (g.id === gig.id ? updatedGig : g)));
     cloudService.saveGig(updatedGig);
@@ -3022,8 +3105,9 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const updatedGig: GigEntity = {
       ...gig,
       status: 'OPEN',
-      freelancerId: undefined,
-      freelancerName: undefined,
+      freelancerId: null as any,
+      freelancerName: null as any,
+      confirmedWorkersCount: Math.max(0, (gig.confirmedWorkersCount || 1) - 1),
       cancelledByWorker: true,
       cancelledAt: Date.now(),
       cancellationReason: reason,
@@ -6260,6 +6344,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         rateGigAndElo,
         cancelGigByWorker,
         cancelGigByClient,
+        deleteGig,
         reportNoShow,
         submitDoubleBlindReview,
         sendWebPushNotification,

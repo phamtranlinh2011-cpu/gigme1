@@ -461,8 +461,11 @@ export type AppRoleMode = 'CLIENT' | 'FREELANCER';
 export interface VoipCallSession {
   gigId: string;
   partnerName: string;
+  partnerRole?: string;
+  partnerAvatarUrl?: string;
   maskedPhoneNumber: string;
   isMuted: boolean;
+  isVideo?: boolean;
   durationSeconds: number;
 }
 

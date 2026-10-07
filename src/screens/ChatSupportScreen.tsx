@@ -264,6 +264,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
         if (friendId === '000000000' || friendId === currentUser?.id) return;
         const friendUser = (users || []).find((u) => u.id === friendId);
         if (friendUser && !list.find((c) => c.id === friendUser.id)) {
+          const isFriendOnline = isUserOnline(friendUser);
           list.push({
             id: friendUser.id,
             name: friendUser.name || (language === 'vi' ? `Tài khoản ${friendUser.id}` : `Account ${friendUser.id}`),
@@ -272,8 +273,8 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
             school: friendUser.studentSchool || (language === 'vi' ? 'Sinh viên Campus' : 'Campus Student'),
             avatarBg: 'from-blue-600 to-indigo-600',
             avatarUrl: (friendUser as any).avatarUrl || (friendUser as any).photoURL || undefined,
-            isOnline: true,
-            lastActiveText: language === 'vi' ? 'Đang online' : 'Online now',
+            isOnline: isFriendOnline,
+            lastActiveText: getUserLastActiveText(friendUser),
             specialtyOrNeed:
               language === 'vi'
                 ? `Bạn bè kết nối qua ID 9 số: ${friendUser.id}`
@@ -302,6 +303,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
 
           if (!isUserAdmin) {
             const existing = list.find((c) => c.id === gig.clientId);
+            const isClientOnline = isUserOnline(clientUser);
             if (!existing) {
               list.push({
                 id: gig.clientId,
@@ -311,8 +313,8 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                 school: clientUser?.studentSchool || (gig.locationName?.includes('Hà Nội') ? 'ĐH Bách Khoa HN' : 'ĐHQG TP.HCM'),
                 avatarBg: 'from-blue-600 to-indigo-600',
                 avatarUrl: (clientUser as any)?.avatarUrl || (clientUser as any)?.photoURL || undefined,
-                isOnline: true,
-                lastActiveText: language === 'vi' ? 'Đang online' : 'Online now',
+                isOnline: isClientOnline,
+                lastActiveText: getUserLastActiveText(clientUser),
                 specialtyOrNeed: language === 'vi' ? `Đơn: ${gig.title}` : `Gig: ${gig.title}`,
                 isEduVerified: !!clientUser?.isEduVerified || !!clientUser?.isStudentVerified || gig.clientTier === 'STUDENT',
                 isCccdVerified: !!clientUser?.isNfcVerified || gig.clientTier === 'CCCD_VERIFIED' || gig.clientTier === 'PRO',
@@ -347,6 +349,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
 
           if (!isUserAdmin) {
             const existing = list.find((c) => c.id === gig.freelancerId);
+            const isFreelancerOnline = isUserOnline(freelancerUser);
             if (!existing) {
               list.push({
                 id: gig.freelancerId,
@@ -356,8 +359,8 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                 school: freelancerUser?.studentSchool || (language === 'vi' ? 'Sinh viên Campus' : 'Campus Student'),
                 avatarBg: 'from-emerald-600 to-cyan-600',
                 avatarUrl: (freelancerUser as any)?.avatarUrl || (freelancerUser as any)?.photoURL || undefined,
-                isOnline: true,
-                lastActiveText: language === 'vi' ? 'Đang online' : 'Online now',
+                isOnline: isFreelancerOnline,
+                lastActiveText: getUserLastActiveText(freelancerUser),
                 specialtyOrNeed: language === 'vi' ? `Đang làm: ${gig.title}` : `Working on: ${gig.title}`,
                 isEduVerified: !!freelancerUser?.isEduVerified || !!freelancerUser?.isStudentVerified,
                 isCccdVerified: !!freelancerUser?.isNfcVerified || freelancerUser?.tier === 'CCCD_VERIFIED' || freelancerUser?.tier === 'PRO',
@@ -402,6 +405,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
           if (u?.role === 'ADMIN' || u?.name?.toLowerCase().includes('ban quản trị')) {
             return;
           }
+          const isContactOnline = isUserOnline(u);
           list.push({
             id: partnerId,
             name: u?.name || (language === 'vi' ? `Tài khoản ${partnerId}` : `Account ${partnerId}`),
@@ -410,8 +414,8 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
             school: u?.studentSchool || 'Campus Hub',
             avatarBg: 'from-teal-600 to-blue-600',
             avatarUrl: (u as any)?.avatarUrl || (u as any)?.photoURL || undefined,
-            isOnline: true,
-            lastActiveText: language === 'vi' ? 'Hoạt động gần đây' : 'Recently active',
+            isOnline: isContactOnline,
+            lastActiveText: getUserLastActiveText(u),
             specialtyOrNeed: `ID: ${partnerId}`,
           });
         }
@@ -440,6 +444,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
     // Search in users
     const u = (users || []).find((usr) => usr.id === activeConversationId);
     if (u) {
+      const isOnlineNow = isUserOnline(u);
       return {
         id: u.id,
         name: u.name || (language === 'vi' ? `Tài khoản ${u.id}` : `Account ${u.id}`),
@@ -448,8 +453,8 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
         school: u.studentSchool || 'Campus Hub',
         avatarBg: 'from-blue-600 to-indigo-600',
         avatarUrl: (u as any)?.avatarUrl || (u as any)?.photoURL || undefined,
-        isOnline: true,
-        lastActiveText: language === 'vi' ? 'Đang online' : 'Online now',
+        isOnline: isOnlineNow,
+        lastActiveText: getUserLastActiveText(u),
         specialtyOrNeed: `ID: ${u.id}`,
         isEduVerified: !!u.isEduVerified || !!u.isStudentVerified,
         associatedGig: undefined,
@@ -457,6 +462,8 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
     }
 
     // Default fallback
+    const fallbackUser = (users || []).find((usr) => usr.id === activeConversationId);
+    const isFallbackOnline = isUserOnline(fallbackUser);
     return {
       id: activeConversationId,
       name:
@@ -467,8 +474,8 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
       roleLabel: activeConversationId === '000000000' ? 'Admin 000000000' : `ID ${activeConversationId}`,
       school: 'Campus Hub',
       avatarBg: 'from-[#3064AE] to-[#25735B]',
-      isOnline: true,
-      lastActiveText: language === 'vi' ? 'Đang hoạt động' : 'Active now',
+      isOnline: isFallbackOnline,
+      lastActiveText: getUserLastActiveText(fallbackUser),
       specialtyOrNeed: `ID: ${activeConversationId}`,
       associatedGig: undefined,
     };
@@ -757,6 +764,29 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
       return;
     }
 
+    if (pendingFile) {
+      rateLimiter.record('CHAT', currentUser?.id);
+      triggerHaptic('medium');
+      sendChat(
+        messageInput.trim() ||
+          (language === 'vi' ? `Đã gửi tệp: ${pendingFile.name}` : `Sent file: ${pendingFile.name}`),
+        'FILE',
+        pendingFile.dataUrl,
+        0,
+        pendingFile.name,
+        targetThread,
+        activeContact.id,
+        activeContact.name,
+        currentUser.id,
+        currentUser.name,
+        pendingFile.size
+      );
+      setPendingFile(null);
+      setMessageInput('');
+      setTimeout(() => scrollToBottom(true), 50);
+      return;
+    }
+
     if (!messageInput.trim()) return;
 
     rateLimiter.record('CHAT', currentUser?.id);
@@ -929,6 +959,42 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
       };
       reader.readAsDataURL(file);
     }
+    e.target.value = '';
+  };
+
+  // Document / File Picker (Hỗ trợ PDF, Word, Excel, ZIP, TXT... tối đa 15MB)
+  const handleDocFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 15 * 1024 * 1024) {
+      showNotification(
+        language === 'vi' ? '⚠️ Tệp quá dung lượng' : '⚠️ File too large',
+        language === 'vi'
+          ? `Dung lượng tệp tối đa là 15MB (Tệp hiện tại: ${formatFileSize(file.size)}).`
+          : `Maximum file size is 15MB (Current: ${formatFileSize(file.size)}).`,
+        false
+      );
+      e.target.value = '';
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        const ext = file.name.split('.').pop()?.toUpperCase() || 'FILE';
+        setPendingFile({
+          name: file.name,
+          size: file.size,
+          sizeFormatted: formatFileSize(file.size),
+          dataUrl: reader.result,
+          extension: ext,
+        });
+        setShowAttachmentMenu(false);
+        triggerHaptic('light');
+      }
+    };
+    reader.readAsDataURL(file);
     e.target.value = '';
   };
 
@@ -1464,6 +1530,20 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
           </div>
         )}
 
+        {/* OFFLINE NOTICE BANNER */}
+        {!isPartnerOnline && activeContact.id !== '000000000' && (
+          <div className="my-1.5 px-3 py-1.5 rounded-xl bg-[#12233B]/70 border border-[#C5E5EC]/15 flex items-center justify-between text-[11px] text-[#C5E5EC]/80 shrink-0">
+            <div className="flex items-center space-x-2">
+              <span className="w-2 h-2 rounded-full bg-slate-400 shrink-0" />
+              <span>
+                {language === 'vi'
+                  ? `Đối phương hiện đang ngoại tuyến (${activeContact.lastActiveText || 'Offline'}). Tin nhắn của bạn sẽ được gửi qua Cloud và thông báo đẩy (Push) đến thiết bị.`
+                  : `Partner is currently offline (${activeContact.lastActiveText || 'Offline'}). Messages will be synced via Cloud & push notification.`}
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* QUICK REPLIES BAR (MESSENGER CHIPS) */}
         <div className="flex items-center gap-1.5 overflow-x-auto py-2 no-scrollbar shrink-0 text-[11px]">
           {(language === 'vi'
@@ -1649,6 +1729,36 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                               <video src={msg.attachmentData} controls className="max-h-52 w-full rounded-xl" />
                             </div>
                           )}
+
+                          {/* File / Document Attachment */}
+                          {msg.attachmentType === 'FILE' && (
+                            <div className="mt-1.5 p-2.5 rounded-xl bg-[#0B1524]/85 border border-[#00E5FF]/30 flex items-center justify-between space-x-3 min-w-[200px] max-w-sm">
+                              <div className="flex items-center space-x-2.5 min-w-0">
+                                <div className="w-9 h-9 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center justify-center shrink-0">
+                                  <FileText className="w-5 h-5" />
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="text-xs font-bold text-white truncate" title={msg.mediaFileName || 'Tệp đính kèm'}>
+                                    {msg.mediaFileName || (language === 'vi' ? 'Tệp đính kèm' : 'Attachment')}
+                                  </p>
+                                  <p className="text-[10px] text-[#C5E5EC]/70">
+                                    {formatFileSize(msg.fileSizeBytes)}
+                                  </p>
+                                </div>
+                              </div>
+                              {msg.attachmentData && (
+                                <a
+                                  href={msg.attachmentData}
+                                  download={msg.mediaFileName || 'tai-lieu-gigme'}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="p-1.5 rounded-lg bg-[#12233B] hover:bg-[#1A3355] text-[#00E5FF] hover:text-white border border-[#00E5FF]/30 transition shrink-0 cursor-pointer flex items-center justify-center"
+                                  title={language === 'vi' ? 'Tải tệp xuống' : 'Download file'}
+                                >
+                                  <Download className="w-4 h-4" />
+                                </a>
+                              )}
+                            </div>
+                          )}
                         </div>
 
                         {/* Reaction Picker Button on Hover / Mobile tap */}
@@ -1784,9 +1894,36 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
           </div>
         )}
 
+        {pendingFile && (
+          <div className="relative mb-2 p-2.5 rounded-2xl bg-[#131E30] border border-[#00E5FF]/40 shrink-0 flex items-center justify-between animate-fadeIn">
+            <div className="flex items-center space-x-2.5 min-w-0 pr-2">
+              <div className="w-10 h-10 rounded-xl bg-[#0E1B2E] border border-[#00E5FF]/30 text-[#00E5FF] flex items-center justify-center shrink-0">
+                <FileText className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-white truncate">{pendingFile.name}</p>
+                <p className="text-[11px] text-[#C5E5EC]/70">
+                  {pendingFile.sizeFormatted} • {pendingFile.extension}
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                triggerHaptic('light');
+                setPendingFile(null);
+              }}
+              className="p-1.5 rounded-full bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 transition cursor-pointer shrink-0"
+              title={language === 'vi' ? 'Hủy đính kèm' : 'Remove attachment'}
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
         {/* ATTACHMENT POPUP MENU */}
         {showAttachmentMenu && (
-          <div className="mb-2 p-2 rounded-2xl bg-[#12233B]/95 backdrop-blur-md border border-[#00E5FF]/30 shadow-2xl flex items-center space-x-2 shrink-0 animate-fadeIn">
+          <div className="mb-2 p-2 rounded-2xl bg-[#12233B]/95 backdrop-blur-md border border-[#00E5FF]/30 shadow-2xl flex items-center space-x-2 shrink-0 animate-fadeIn flex-wrap gap-y-1.5">
             <button
               type="button"
               onClick={() => {
@@ -1817,6 +1954,20 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
             </button>
             <button
               type="button"
+              onClick={() => {
+                triggerHaptic('light');
+                setShowAttachmentMenu(false);
+                fileInputDocRef.current?.click();
+              }}
+              className="flex items-center space-x-2 px-3 py-2 rounded-xl bg-[#0E1B2E] hover:bg-[#162B48] active:scale-95 text-xs font-bold text-[#E0FAEB] border border-[#00E5FF]/20 transition cursor-pointer"
+            >
+              <div className="w-6 h-6 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                <FileText className="w-4 h-4" />
+              </div>
+              <span>{language === 'vi' ? 'Tài liệu / Tệp tin' : 'Document / File'}</span>
+            </button>
+            <button
+              type="button"
               onClick={() => setShowAttachmentMenu(false)}
               className="p-2 ml-auto rounded-full text-slate-400 hover:text-white transition cursor-pointer"
               title={language === 'vi' ? 'Đóng menu đính kèm' : 'Close attachment menu'}
@@ -1826,7 +1977,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
           </div>
         )}
 
-        {/* Hidden inputs for camera and gallery */}
+        {/* Hidden inputs for camera, gallery, and documents */}
         <input
           ref={fileInputImageRef}
           type="file"
@@ -1841,6 +1992,13 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
           capture="environment"
           className="hidden"
           onChange={handleImageFileChange}
+        />
+        <input
+          ref={fileInputDocRef}
+          type="file"
+          accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar,.7z,.tar,.gz,.json,.csv"
+          className="hidden"
+          onChange={handleDocFileChange}
         />
 
         {/* LIVE VOICE RECORDING BAR (Khi đang ghi âm microphone) */}

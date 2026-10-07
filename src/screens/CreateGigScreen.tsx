@@ -92,7 +92,7 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
   const [categorySearch, setCategorySearch] = useState('');
   const [categoryError, setCategoryError] = useState('');
   const [price, setPrice] = useState(60000);
-  const [isReverseAuction, setIsReverseAuction] = useState(false);
+  const isReverseAuction = false;
   const [isFlash, setIsFlash] = useState(false);
   const [isBoosted, setIsBoosted] = useState(false);
   const [isRecurringWeekly, setIsRecurringWeekly] = useState(false);
@@ -579,31 +579,6 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
               </div>
             );
           })()}
-
-          {/* Reverse auction toggle */}
-          <div className="p-3.5 rounded-2xl bg-[#12233B] border border-[#C5E5EC]/25 flex items-start justify-between gap-3">
-            <div>
-              <h4 className="font-bold text-white flex items-center space-x-1.5">
-                <span>{language === 'vi' ? 'Bật Đấu Giá Ngược (Reverse Auction)' : 'Enable Reverse Auction'}</span>
-                <span className="text-[10px] px-1.5 py-0.2 rounded bg-[#3064AE]/40 text-[#E0FAEB] font-bold border border-[#C5E5EC]/30">
-                  {language === 'vi' ? 'Tiết kiệm' : 'Save Money'}
-                </span>
-              </h4>
-              <p className="text-[#C5E5EC]/70 mt-0.5 text-[11px] leading-relaxed">
-                {language === 'vi' ? (
-                  <>Cho phép Freelancer trả giá giảm dần. <strong>Chỉ bạn (chủ việc)</strong> mới có quyền tạo và mở phòng đấu giá trực tiếp sau khi đăng đơn.</>
-                ) : (
-                  <>Allow students to bid downwards. <strong>Only you (gig owner)</strong> can host live real-time bidding rounds after posting.</>
-                )}
-              </p>
-            </div>
-            <input
-              type="checkbox"
-              checked={isReverseAuction}
-              onChange={(e) => setIsReverseAuction(e.target.checked)}
-              className="w-5 h-5 accent-[#3064AE] rounded cursor-pointer mt-1"
-            />
-          </div>
 
           {/* Flash Boost Option (Tính năng Ghim đơn & Đẩy bài Top 1) */}
           <div

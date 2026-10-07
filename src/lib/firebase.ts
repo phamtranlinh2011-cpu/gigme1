@@ -118,8 +118,12 @@ export async function testFirestoreConnection(): Promise<boolean> {
 export async function syncGigToCloud(gig: GigEntity): Promise<void> {
   const path = `gigs/${gig.id}`;
   try {
-    // Sanitize any undefined values
+    // Sanitize any undefined values, ensuring null fields explicitly overwrite previous values in Firestore
     const cleanData = JSON.parse(JSON.stringify(gig));
+    if (gig.status === 'OPEN' || !gig.freelancerId) {
+      cleanData.freelancerId = null;
+      cleanData.freelancerName = null;
+    }
     await setDoc(doc(db, 'gigs', gig.id), cleanData, { merge: true });
   } catch (err) {
     handleFirestoreError(err, OperationType.WRITE, path);
