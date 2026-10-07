@@ -6,7 +6,16 @@ import {
   FacebookAuthProvider,
   OAuthProvider,
 } from 'firebase/auth';
-import { auth, syncUserToCloud, findUserByContact, sendNotificationToCloud } from '../lib/firebase';
+import { 
+  auth, 
+  syncUserToCloud, 
+  findUserByContact, 
+  sendNotificationToCloud,
+  createCloudCall,
+  updateCloudCall,
+  subscribeToIncomingCalls,
+  subscribeToCallSession
+} from '../lib/firebase';
 import {
   UserEntity,
   GigEntity,
@@ -15,6 +24,7 @@ import {
   WalletTransactionEntity,
   AppRoleMode,
   VoipCallSession,
+  VoipCallEntity,
   UiNotification,
   AiRecognitionResult,
   UserTierKey,
@@ -576,8 +586,6 @@ interface GigMeContextType {
 
   // 4 Advanced Feature Operations
   boostGig: (gigId: string) => boolean;
-  openReverseAuctionRoom: (gigId: string, durationMinutes: number, ceilingPrice: number) => boolean;
-  closeReverseAuctionRoom: (gigId: string, winningBidId?: string) => boolean;
   joinMultiWorkerGig: (gigId: string) => boolean;
   checkInMultiWorker: (gigId: string, enteredCode: string) => boolean;
   payoutMultiWorkers: (gigId: string) => boolean;
@@ -986,13 +994,11 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const unsubGigs = cloudService.subscribeGigs(
       (cloudGigs) => {
         setIsCloudConnected(true);
-        if (cloudGigs && cloudGigs.length > 0) {
-          setGigs((prev) => {
-            const map = new Map<string, GigEntity>();
-            prev.forEach((g) => map.set(g.id, g));
-            cloudGigs.forEach((g) => map.set(g.id, g));
-            return Array.from(map.values());
-          });
+        if (Array.isArray(cloudGigs)) {
+          setGigs(cloudGigs);
+          try {
+            localStorage.setItem(STORAGE_KEYS.GIGS, JSON.stringify(cloudGigs));
+          } catch {}
         }
       },
       (status) => {
@@ -1598,7 +1604,9 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     partnerId?: string
   ) => {
     const randomSuffix = Math.floor(100 + Math.random() * 900);
+    const callId = `call_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     setActiveVoipCall({
+      callId,
       gigId: gigId || selectedGigId || 'call',
       partnerId,
       partnerName,
@@ -1616,40 +1624,69 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     playNotificationSound('CALL_RING');
 
-    // Broadcast call signal via BroadcastChannel so other sessions / tabs receive the call
-    if (typeof window !== 'undefined' && partnerId && partnerId !== currentUser?.id) {
-      try {
-        const callChannel = new BroadcastChannel('gigme_voip_channel');
-        callChannel.postMessage({
-          type: 'INCOMING_CALL',
-          targetUserId: partnerId,
-          callerId: currentUser?.id,
-          callerName: currentUser?.name,
-          callerRole: currentUser?.role || 'Sinh viên',
-          callerAvatar: currentUser?.avatarUrl,
-          gigId: gigId || selectedGigId || 'call',
-          isVideo: !!isVideo,
-          timestamp: Date.now(),
-        });
-      } catch (err) {
-        console.warn('BroadcastChannel error:', err);
+    if (partnerId && partnerId !== currentUser?.id) {
+      // 1. Cloud Firestore call signaling for real cross-device P2P
+      const cloudCall: VoipCallEntity = {
+        id: callId,
+        callerId: currentUser?.id || 'anon',
+        callerName: currentUser?.name || 'Người dùng Campus',
+        callerRole: currentUser?.role || 'Sinh viên',
+        callerAvatarUrl: currentUser?.avatarUrl,
+        targetUserId: partnerId,
+        targetUserName: partnerName,
+        gigId: gigId || selectedGigId || undefined,
+        isVideo: !!isVideo,
+        status: 'RINGING',
+        timestamp: Date.now(),
+      };
+      createCloudCall(cloudCall).catch((err) => console.warn('createCloudCall error:', err));
+
+      // 2. Broadcast call signal via BroadcastChannel so local sessions / tabs receive the call
+      if (typeof window !== 'undefined') {
+        try {
+          const callChannel = new BroadcastChannel('gigme_voip_channel');
+          callChannel.postMessage({
+            type: 'INCOMING_CALL',
+            callId,
+            targetUserId: partnerId,
+            callerId: currentUser?.id,
+            callerName: currentUser?.name,
+            callerRole: currentUser?.role || 'Sinh viên',
+            callerAvatar: currentUser?.avatarUrl,
+            gigId: gigId || selectedGigId || 'call',
+            isVideo: !!isVideo,
+            timestamp: Date.now(),
+          });
+        } catch (err) {
+          console.warn('BroadcastChannel error:', err);
+        }
       }
     }
   };
 
   const acceptIncomingCall = () => {
-    setActiveVoipCall((prev) => (prev ? { ...prev, isIncoming: false } : null));
+    setActiveVoipCall((prev) => {
+      if (!prev) return null;
+      if (prev.callId) {
+        updateCloudCall(prev.callId, { status: 'ACCEPTED', acceptedAt: Date.now() }).catch(() => {});
+      }
+      return { ...prev, isIncoming: false };
+    });
     showNotification('Cuộc gọi kết nối', 'Đã bắt đầu cuộc gọi WebRTC mã hóa DTLS-SRTP!', true);
   };
 
   const endVoipCall = () => {
     playNotificationSound('CALL_HANGUP');
+    if (activeVoipCall?.callId) {
+      updateCloudCall(activeVoipCall.callId, { status: 'ENDED', endedAt: Date.now() }).catch(() => {});
+    }
     if (typeof window !== 'undefined') {
       try {
         const callChannel = new BroadcastChannel('gigme_voip_channel');
         callChannel.postMessage({
           type: 'END_CALL',
           userId: currentUser?.id,
+          callId: activeVoipCall?.callId,
         });
       } catch {}
     }
@@ -1664,45 +1701,101 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setActiveVoipCall((prev) => (prev ? { ...prev, isVideoOff: !prev.isVideoOff } : null));
   };
 
-  // Listen for incoming VoIP call broadcasts
+  // Listen for incoming VoIP calls from Cloud Firestore and local BroadcastChannel
   useEffect(() => {
-    if (typeof window === 'undefined' || !currentUser) return;
+    if (!currentUser) return;
+    const currentUserId = currentUser.id;
+
+    // 1. Cloud Firestore realtime incoming call subscription
+    const unsubCloudCalls = subscribeToIncomingCalls(currentUserId, (incomingCall) => {
+      if (!incomingCall) return;
+      setActiveVoipCall((prev) => {
+        // If already in an active call, ignore duplicate ringing
+        if (prev && !prev.isIncoming) return prev;
+        if (prev && prev.callId === incomingCall.id) return prev;
+        playNotificationSound('CALL_RING');
+        return {
+          callId: incomingCall.id,
+          gigId: incomingCall.gigId || 'call',
+          partnerId: incomingCall.callerId,
+          partnerName: incomingCall.callerName || 'Người dùng Campus',
+          partnerRole: incomingCall.callerRole || 'Campus',
+          partnerAvatarUrl: incomingCall.callerAvatarUrl,
+          maskedPhoneNumber: '(+84 *** *** 888)',
+          isMuted: false,
+          isVideo: !!incomingCall.isVideo,
+          isVideoOff: false,
+          durationSeconds: 0,
+          isIncoming: true,
+          callerId: incomingCall.callerId,
+          callerName: incomingCall.callerName,
+        };
+      });
+    });
+
+    // 2. BroadcastChannel for same-origin tabs
+    let channel: BroadcastChannel | null = null;
     try {
-      const channel = new BroadcastChannel('gigme_voip_channel');
-      channel.onmessage = (event) => {
-        const data = event.data;
-        if (data?.type === 'INCOMING_CALL' && data.targetUserId === currentUser.id) {
-          playNotificationSound('CALL_RING');
-          setActiveVoipCall({
-            gigId: data.gigId,
-            partnerId: data.callerId,
-            partnerName: data.callerName || 'Người dùng Campus',
-            partnerRole: data.callerRole || 'Campus',
-            partnerAvatarUrl: data.callerAvatar,
-            maskedPhoneNumber: '(+84 *** *** 888)',
-            isMuted: false,
-            isVideo: !!data.isVideo,
-            isVideoOff: false,
-            durationSeconds: 0,
-            isIncoming: true,
-            callerId: data.callerId,
-            callerName: data.callerName,
-          });
-        } else if (data?.type === 'END_CALL') {
-          setActiveVoipCall((prev) => {
-            if (prev && (prev.partnerId === data.userId || prev.callerId === data.userId)) {
-              playNotificationSound('CALL_HANGUP');
-              return null;
-            }
-            return prev;
-          });
-        }
-      };
-      return () => {
-        channel.close();
-      };
+      if (typeof window !== 'undefined') {
+        channel = new BroadcastChannel('gigme_voip_channel');
+        channel.onmessage = (event) => {
+          const data = event.data;
+          if (data?.type === 'INCOMING_CALL' && data.targetUserId === currentUserId) {
+            playNotificationSound('CALL_RING');
+            setActiveVoipCall({
+              callId: data.callId,
+              gigId: data.gigId,
+              partnerId: data.callerId,
+              partnerName: data.callerName || 'Người dùng Campus',
+              partnerRole: data.callerRole || 'Campus',
+              partnerAvatarUrl: data.callerAvatar,
+              maskedPhoneNumber: '(+84 *** *** 888)',
+              isMuted: false,
+              isVideo: !!data.isVideo,
+              isVideoOff: false,
+              durationSeconds: 0,
+              isIncoming: true,
+              callerId: data.callerId,
+              callerName: data.callerName,
+            });
+          } else if (data?.type === 'END_CALL') {
+            setActiveVoipCall((prev) => {
+              if (prev && (prev.partnerId === data.userId || prev.callerId === data.userId || prev.callId === data.callId)) {
+                playNotificationSound('CALL_HANGUP');
+                return null;
+              }
+              return prev;
+            });
+          }
+        };
+      }
     } catch {}
+
+    return () => {
+      unsubCloudCalls();
+      if (channel) channel.close();
+    };
   }, [currentUser?.id]);
+
+  // Listen for call session status (e.g. partner accepted or hung up)
+  useEffect(() => {
+    if (!activeVoipCall?.callId) return;
+    const activeCallId = activeVoipCall.callId;
+
+    const unsubSession = subscribeToCallSession(activeCallId, (session) => {
+      if (!session) return;
+      if (session.status === 'ENDED' || session.status === 'REJECTED') {
+        playNotificationSound('CALL_HANGUP');
+        setActiveVoipCall(null);
+      } else if (session.status === 'ACCEPTED') {
+        setActiveVoipCall((prev) => (prev ? { ...prev, isIncoming: false } : null));
+      }
+    });
+
+    return () => {
+      unsubSession();
+    };
+  }, [activeVoipCall?.callId]);
 
   // 1. REGISTER WITH PBKDF2 PASSWORD HASHING, GMAIL REQUIREMENT & IP LIMIT
   const register = async (
@@ -2900,8 +2993,6 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       description: params.description,
       category: params.category,
       price: params.price,
-      isReverseAuction: params.isReverseAuction,
-      lowestBidPrice: params.price,
       distanceMeters: params.distanceMeters || 120,
       locationName: params.locationName,
       latitude: gigLat,
@@ -3067,7 +3158,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return false;
     }
 
-    if (latestGig.status !== 'OPEN' || (latestGig.freelancerId && latestGig.freelancerId !== currentUser.id)) {
+    if (latestGig.status !== 'OPEN' || latestGig.freelancerId) {
       showNotification(
         'Đã có người nhận việc',
         'Công việc này đã được người khác nhận hoặc không còn khả dụng!'
@@ -3125,17 +3216,17 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const gig = gigs.find((g) => g.id === gigId);
     if (!gig) return false;
 
-    const acceptedTime = gig.acceptedAt || gig.createdAt || Date.now();
+    const acceptedTime = gig.acceptedAt || Date.now();
     const elapsedMinutes = (Date.now() - acceptedTime) / (1000 * 60);
 
-    const isLateCancellation = elapsedMinutes > 10;
+    const isLateCancellation = gig.acceptedAt ? elapsedMinutes > 10 : false;
     const penaltyFee = isLateCancellation
       ? Math.min(Math.max(20000, Math.round(gig.price * 0.1)), 50000)
       : 0;
     const trustScoreDeduction = isLateCancellation ? 5 : 0;
 
     // Phạt trừ ví thợ & bồi thường khách nếu hủy trễ sau 10 phút
-    if (isLateCancellation) {
+    if (isLateCancellation && penaltyFee > 0) {
       setUsers((prev) =>
         prev.map((u) => {
           if (u.id === currentUser.id) {
@@ -3203,6 +3294,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       status: 'OPEN',
       freelancerId: null as any,
       freelancerName: null as any,
+      acceptedAt: undefined,
       confirmedWorkersCount: Math.max(0, (gig.confirmedWorkersCount || 1) - 1),
       cancelledByWorker: true,
       cancelledAt: Date.now(),
@@ -3724,8 +3816,16 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return false;
     }
 
-    const isStaff = currentUser.role === 'ADMIN' || currentUser.role === 'MOD' || currentUser.id === '000000000';
-    const isClient = currentUser.id === targetGig.clientId;
+    const isStaff =
+      currentUser.role === 'ADMIN' ||
+      currentUser.role === 'MOD' ||
+      currentUser.id === '000000000' ||
+      currentUser.id === '000000001' ||
+      currentUser.id === '000000002' ||
+      currentUser.id === '000000003';
+    const isClient =
+      currentUser.id === targetGig.clientId ||
+      (targetGig.clientPhone && currentUser.phone === targetGig.clientPhone);
 
     if (!isStaff && !isClient) {
       showNotification(
@@ -4011,112 +4111,6 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       true,
       true
     );
-    return true;
-  };
-
-  // 2. LIVE REVERSE AUCTION ROOM (ĐẤU GIÁ NGƯỢC THỜI GIAN THỰC - CHỈ CLIENT MỚI ĐƯỢC TẠO PHÒNG)
-  const openReverseAuctionRoom = (gigId: string, durationMinutes: number, ceilingPrice: number): boolean => {
-    if (!currentUser) return false;
-    const gig = gigs.find((g) => g.id === gigId);
-    if (!gig) return false;
-    // QUY TẮC BẢO VỆ TUYỆT ĐỐI THEO YÊU CẦU CỦA USER: Chỉ người thuê muốn tạo thì mới tạo, còn không thì không thể tạo
-    if (gig.clientId !== currentUser.id) {
-      showNotification(
-        'Không có quyền mở phòng',
-        'Chỉ người thuê (chủ đơn) mới có quyền mở phòng đấu giá ngược cho đơn này!'
-      );
-      return false;
-    }
-
-    const updatedAuctionGig: GigEntity = {
-      ...gig,
-      isReverseAuction: true,
-      auctionRoomOpen: true,
-      auctionRoomCreatedAt: Date.now(),
-      auctionRoomDurationMinutes: durationMinutes,
-      auctionCeilingPrice: ceilingPrice,
-      lowestBidPrice: ceilingPrice,
-    };
-    setGigs((prev) => prev.map((g) => (g.id === gigId ? updatedAuctionGig : g)));
-    cloudService.saveGig(updatedAuctionGig);
-
-    showNotification(
-      '🔥 Đã mở Phòng Đấu Giá Ngược!',
-      `Phòng đấu giá trực tiếp cho đơn "${gig.title}" đã kích hoạt trong ${durationMinutes} phút với giá trần ${ceilingPrice.toLocaleString()}đ. Các Freelancer có thể vào đặt giá cạnh tranh ngay!`,
-      true,
-      true
-    );
-    return true;
-  };
-
-  const closeReverseAuctionRoom = (gigId: string, winningBidId?: string): boolean => {
-    if (!currentUser) return false;
-    const gig = gigs.find((g) => g.id === gigId);
-    if (!gig) return false;
-    if (gig.clientId !== currentUser.id) {
-      showNotification('Không có quyền', 'Chỉ chủ đơn mới có quyền chốt giá và đóng phòng đấu giá!');
-      return false;
-    }
-
-    const winningBid = winningBidId ? bids.find((b) => b.id === winningBidId) : null;
-
-    if (winningBid) {
-      const priceDifference = Math.max(0, gig.price - winningBid.offeredPrice);
-
-      // Hoàn trả phần tiền chênh lệch tiết kiệm được vào ví Client
-      if (priceDifference > 0) {
-        setUsers((prev) =>
-          prev.map((u) =>
-            u.id === currentUser.id
-              ? {
-                  ...u,
-                  walletBalance: u.walletBalance + priceDifference,
-                  escrowLockedBalance: Math.max(0, u.escrowLockedBalance - priceDifference),
-                }
-              : u
-          )
-        );
-
-        const txSavings: WalletTransactionEntity = {
-          id: `tx_${Date.now()}_savings`,
-          userId: currentUser.id,
-          type: 'ESCROW_RELEASE',
-          amount: priceDifference,
-          title: '💰 Tiết kiệm từ Đấu Giá Ngược',
-          subtitle: `Hoàn tiền chênh lệch ${priceDifference.toLocaleString()}đ về ví của bạn`,
-          bankInfo: 'GigMe Smart Escrow Savings',
-          timestamp: Date.now(),
-          isSuccess: true,
-        };
-        setTransactions((prev) => [txSavings, ...prev]);
-      }
-
-      const updatedWinningGig: GigEntity = {
-        ...gig,
-        price: winningBid.offeredPrice,
-        lowestBidPrice: winningBid.offeredPrice,
-        freelancerId: winningBid.freelancerId,
-        freelancerName: winningBid.freelancerName,
-        status: 'IN_PROGRESS',
-        auctionRoomOpen: false,
-      };
-      setGigs((prev) => prev.map((g) => (g.id === gigId ? updatedWinningGig : g)));
-      cloudService.saveGig(updatedWinningGig);
-
-      showNotification(
-        '🏆 Đã chốt người thắng thầu!',
-        `Bạn đã chọn ${winningBid.freelancerName} với mức giá ${winningBid.offeredPrice.toLocaleString()}đ ${
-          priceDifference > 0 ? `(Tiết kiệm được ${priceDifference.toLocaleString()}đ!)` : ''
-        }`,
-        true,
-        true
-      );
-    } else {
-      const updatedClosedGig: GigEntity = { ...gig, auctionRoomOpen: false };
-      setGigs((prev) => prev.map((g) => (g.id === gigId ? updatedClosedGig : g)));
-      cloudService.saveGig(updatedClosedGig);
-      showNotification('Đã đóng phòng đấu giá', 'Phòng đấu giá đã được đóng lại.');
-    }
     return true;
   };
 
@@ -6477,8 +6471,6 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         analyzePhotoWithAi,
         clearAiResult,
         boostGig,
-        openReverseAuctionRoom,
-        closeReverseAuctionRoom,
         joinMultiWorkerGig,
         checkInMultiWorker,
         payoutMultiWorkers,

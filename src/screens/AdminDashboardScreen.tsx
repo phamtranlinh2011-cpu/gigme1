@@ -678,6 +678,25 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onBa
   const disputedGigs = rawGigs.filter((g) => g.status === 'DISPUTED');
   const submittedGigs = rawGigs.filter((g) => g.status === 'SUBMITTED');
 
+  const filteredDashboardGigs = useMemo(() => {
+    return rawGigs.filter((g) => {
+      if (gigFilterStatus === 'SUBMITTED' && g.status !== 'SUBMITTED') return false;
+      if (gigFilterStatus === 'IN_PROGRESS' && g.status !== 'IN_PROGRESS') return false;
+      if (gigFilterStatus === 'OPEN' && g.status !== 'OPEN') return false;
+      if (gigFilterStatus === 'COMPLETED' && g.status !== 'COMPLETED') return false;
+      if (gigFilterStatus === 'DISPUTED' && g.status !== 'DISPUTED') return false;
+      if (gigSearchQuery.trim()) {
+        const q = gigSearchQuery.toLowerCase();
+        const mTitle = (g.title || '').toLowerCase().includes(q);
+        const mClient = (g.clientName || '').toLowerCase().includes(q);
+        const mWorker = (g.freelancerName || '').toLowerCase().includes(q);
+        const mId = (g.id || '').toLowerCase().includes(q);
+        return mTitle || mClient || mWorker || mId;
+      }
+      return true;
+    });
+  }, [rawGigs, gigFilterStatus, gigSearchQuery]);
+
   // Analytics Metrics
   const completedGigs = rawGigs.filter((g) => g.status === 'COMPLETED');
   const inProgressGigs = rawGigs.filter((g) => g.status === 'IN_PROGRESS' || g.status === 'SUBMITTED');
@@ -1074,6 +1093,27 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onBa
       {/* Navigation tabs */}
       <div className="flex flex-wrap bg-[#0E1B2E] p-1 rounded-2xl border border-[#C5E5EC]/20 font-bold text-xs gap-1">
         <button
+          onClick={() => setActiveTab('GIGS')}
+          className={`flex-1 min-w-[130px] py-2 px-3 rounded-xl transition flex items-center justify-center space-x-1.5 cursor-pointer ${
+            activeTab === 'GIGS'
+              ? 'bg-gradient-to-r from-[#3064AE] via-[#2A5594] to-[#25735B] text-white shadow-lg border border-[#E0FAEB]/30'
+              : 'text-[#C5E5EC]/70 hover:text-white'
+          }`}
+        >
+          <Briefcase className="w-3.5 h-3.5 text-[#E0FAEB]" />
+          <span>Duyệt Việc Làm</span>
+          {submittedGigs.length > 0 ? (
+            <span className="px-1.5 py-0.2 rounded-full bg-emerald-500 text-slate-900 text-[9px] font-black animate-pulse">
+              {submittedGigs.length}
+            </span>
+          ) : (
+            <span className="px-1.5 py-0.2 rounded-full bg-[#3064AE]/30 text-[#C5E5EC] text-[9px] font-mono font-bold">
+              {rawGigs.length}
+            </span>
+          )}
+        </button>
+
+        <button
           onClick={() => setActiveTab('DISPUTES')}
           className={`flex-1 min-w-[120px] py-2 px-3 rounded-xl transition cursor-pointer ${
             activeTab === 'DISPUTES' ? 'bg-rose-600 text-white shadow' : 'text-[#C5E5EC]/70 hover:text-white'
@@ -1163,6 +1203,283 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onBa
           </span>
         </button>
       </div>
+
+      {/* TAB 0: GIGS MANAGEMENT & COMPLETION APPROVAL */}
+      {activeTab === 'GIGS' && (
+        <div className="space-y-4">
+          {/* Top Control Bar: Filters & Search */}
+          <div className="p-4 rounded-3xl bg-[#0E1B2E] border border-[#C5E5EC]/20 space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h3 className="font-extrabold text-sm text-white flex items-center space-x-2">
+                  <Briefcase className="w-4 h-4 text-[#E0FAEB]" />
+                  <span>Kiểm Duyệt & Quản Lý Công Việc Campus</span>
+                </h3>
+                <p className="text-[11px] text-[#C5E5EC]/70 mt-0.5">
+                  Duyệt nghiệm thu đơn việc, giải ngân Escrow cho sinh viên, giải quyết yêu cầu sửa hoặc xóa bài vi phạm.
+                </p>
+              </div>
+
+              {/* Status Filter Pills */}
+              <div className="flex flex-wrap gap-1.5">
+                {(
+                  [
+                    { id: 'SUBMITTED', label: 'Chờ Duyệt', count: submittedGigs.length, highlight: true },
+                    { id: 'IN_PROGRESS', label: 'Đang Làm', count: inProgressGigs.filter((g) => g.status === 'IN_PROGRESS').length },
+                    { id: 'OPEN', label: 'Đang Mở', count: openGigs.length },
+                    { id: 'ALL', label: 'Tất Cả', count: rawGigs.length },
+                    { id: 'COMPLETED', label: 'Đã Xong', count: completedGigs.length },
+                    { id: 'DISPUTED', label: 'Khiếu Nại', count: disputedGigs.length },
+                  ] as const
+                ).map((f) => (
+                  <button
+                    key={f.id}
+                    onClick={() => setGigFilterStatus(f.id)}
+                    className={`px-2.5 py-1 rounded-xl text-xs font-bold transition flex items-center space-x-1 cursor-pointer ${
+                      gigFilterStatus === f.id
+                        ? f.highlight
+                          ? 'bg-emerald-500 text-slate-900 shadow-md font-black'
+                          : 'bg-gradient-to-r from-[#3064AE] to-[#25735B] text-white shadow-md'
+                        : 'bg-[#12233B] text-[#C5E5EC]/70 hover:text-white border border-[#C5E5EC]/15'
+                    }`}
+                  >
+                    <span>{f.label}</span>
+                    <span
+                      className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                        gigFilterStatus === f.id
+                          ? 'bg-black/20 text-current font-black'
+                          : 'bg-[#3064AE]/30 text-[#C5E5EC]'
+                      }`}
+                    >
+                      {f.count}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Keyword Search Input */}
+            <div className="relative">
+              <Search className="w-4 h-4 text-[#C5E5EC]/60 absolute left-3 top-2.5" />
+              <input
+                type="text"
+                value={gigSearchQuery}
+                onChange={(e) => setGigSearchQuery(e.target.value)}
+                placeholder="Tìm việc làm theo tiêu đề, ID đơn, người đăng, người nhận..."
+                className="w-full pl-9 pr-4 py-2 rounded-xl bg-[#12233B] border border-[#C5E5EC]/20 text-white text-xs placeholder:text-[#C5E5EC]/40 focus:outline-hidden focus:border-[#C5E5EC]"
+              />
+            </div>
+          </div>
+
+          {/* List of Gigs */}
+          {filteredDashboardGigs.length === 0 ? (
+            <div className="text-center py-16 rounded-3xl bg-[#0E1B2E] border border-[#C5E5EC]/20 text-[#C5E5EC]/60 space-y-2">
+              <CheckCircle2 className="w-10 h-10 text-[#E0FAEB] mx-auto" />
+              <p className="font-bold text-white text-sm">Không có công việc nào trong danh mục này!</p>
+              <p className="text-xs text-[#C5E5EC]/70">Hãy thử chọn bộ lọc khác hoặc tìm kiếm từ khóa khác.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {filteredDashboardGigs.map((gig) => {
+                const isSubmitted = gig.status === 'SUBMITTED';
+                const isInProgress = gig.status === 'IN_PROGRESS';
+                const isOpen = gig.status === 'OPEN';
+                const isCompleted = gig.status === 'COMPLETED';
+
+                return (
+                  <div
+                    key={gig.id}
+                    className={`p-4 sm:p-5 rounded-3xl bg-[#0E1B2E] border transition shadow-xl space-y-3 relative overflow-hidden ${
+                      isSubmitted
+                        ? 'border-emerald-500/60 ring-1 ring-emerald-500/40 shadow-emerald-950/30'
+                        : isInProgress
+                        ? 'border-[#3064AE]/50'
+                        : 'border-[#C5E5EC]/20'
+                    }`}
+                  >
+                    {isSubmitted && (
+                      <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-emerald-500 via-[#C5E5EC] to-teal-400" />
+                    )}
+
+                    {/* Header Row: Status, Category, ID, Price */}
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center space-x-2">
+                        <span
+                          className={`text-[10px] font-black px-2.5 py-0.5 rounded-full border ${
+                            isSubmitted
+                              ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 animate-pulse'
+                              : isInProgress
+                              ? 'bg-blue-500/20 text-blue-300 border-blue-500/40'
+                              : isOpen
+                              ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40'
+                              : isCompleted
+                              ? 'bg-[#E0FAEB]/20 text-[#E0FAEB] border-[#E0FAEB]/40'
+                              : 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+                          }`}
+                        >
+                          {isSubmitted
+                            ? '📸 CHỜ DUYỆT NGHIỆM THU'
+                            : isInProgress
+                            ? '⚡ ĐANG THỰC HIỆN'
+                            : isOpen
+                            ? '🟢 ĐANG MỞ NHẬN VIỆC'
+                            : isCompleted
+                            ? '✅ ĐÃ HOÀN TẤT & GIẢI NGÂN'
+                            : gig.status}
+                        </span>
+
+                        <span className="text-[10px] text-[#C5E5EC] font-bold px-2 py-0.5 rounded-full bg-[#12233B] border border-[#C5E5EC]/20">
+                          {gig.category}
+                        </span>
+
+                        <span className="text-[10px] font-mono text-[#C5E5EC]/60 hidden sm:inline">
+                          #{gig.id}
+                        </span>
+                      </div>
+
+                      <div className="text-right">
+                        <span className="text-[10px] text-[#C5E5EC]/60 block font-semibold">
+                          Thù lao Escrow:
+                        </span>
+                        <span className="text-base font-black text-[#E0FAEB] font-mono">
+                          {formatVnd(gig.price)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Title & Description */}
+                    <div>
+                      <h4 className="font-extrabold text-sm text-white">{gig.title}</h4>
+                      <p className="text-xs text-[#C5E5EC]/80 mt-1 line-clamp-2">{gig.description}</p>
+                    </div>
+
+                    {/* Client & Freelancer Info */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs p-3 rounded-2xl bg-[#12233B]/70 border border-[#C5E5EC]/15">
+                      <div>
+                        <span className="text-[10px] text-[#C5E5EC]/60 block font-semibold">Người Đăng Việc (Client):</span>
+                        <span className="font-bold text-white">{gig.clientName}</span>
+                        <span className="text-[10px] text-[#C5E5EC]/60 block font-mono">ID: {gig.clientId}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-[#C5E5EC]/60 block font-semibold">Người Nhận Việc (Worker):</span>
+                        <span className="font-bold text-white">
+                          {gig.freelancerName || (isOpen ? '— Chưa có ai nhận —' : 'Không xác định')}
+                        </span>
+                        {gig.freelancerId && (
+                          <span className="text-[10px] text-[#C5E5EC]/60 block font-mono">ID: {gig.freelancerId}</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* PROOF OF WORK DETAILS (If SUBMITTED) */}
+                    {isSubmitted && (
+                      <div className="p-3.5 rounded-2xl bg-gradient-to-r from-emerald-950/60 to-[#12233B] border border-emerald-500/40 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-black text-emerald-300 flex items-center space-x-1.5">
+                            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                            <span>Bằng Chứng Nghiệm Thu Thợ Đã Nộp:</span>
+                          </span>
+                          {gig.proofTimestamp && (
+                            <span className="text-[10px] text-[#C5E5EC]/70 font-mono">
+                              {new Date(gig.proofTimestamp).toLocaleTimeString('vi-VN')} {new Date(gig.proofTimestamp).toLocaleDateString('vi-VN')}
+                            </span>
+                          )}
+                        </div>
+
+                        {gig.proofNote && (
+                          <p className="text-xs text-slate-200 bg-black/30 p-2 rounded-xl italic">
+                            "{gig.proofNote}"
+                          </p>
+                        )}
+
+                        {gig.proofImageUrl && (
+                          <div className="relative rounded-xl overflow-hidden border border-[#C5E5EC]/30 max-h-56 bg-black flex items-center justify-center">
+                            <img
+                              src={gig.proofImageUrl}
+                              alt="Proof of work"
+                              className="max-h-56 w-auto object-contain"
+                            />
+                            {gig.proofGpsCoords && (
+                              <div className="absolute bottom-1 left-1 px-2 py-0.5 rounded bg-black/75 text-[10px] font-mono text-cyan-300">
+                                GPS: {gig.proofGpsCoords.lat.toFixed(4)}°N, {gig.proofGpsCoords.lng.toFixed(4)}°E
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Action Buttons for Moderators / Admin */}
+                    <div className="pt-2 border-t border-[#C5E5EC]/15 flex flex-wrap items-center justify-end gap-2">
+                      {/* BUTTON 1: DUYỆT HOÀN THÀNH & GIẢI NGÂN ESCROW */}
+                      {(isSubmitted || isInProgress) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            triggerHaptic('success');
+                            const confirmApprove = window.confirm(
+                              `Xác nhận phê duyệt hoàn thành đơn "${gig.title}" và giải ngân ${formatVnd(gig.price)} từ Quỹ Escrow cho thợ ${gig.freelancerName || 'làm việc'}?`
+                            );
+                            if (confirmApprove) {
+                              const ok = releaseEscrowPayout(gig.id);
+                              if (ok) {
+                                showNotification(
+                                  'Đã Phê Duyệt & Giải Ngân!',
+                                  `Đã giải ngân thành công ${formatVnd(gig.price)} cho sinh viên ${gig.freelancerName || 'làm việc'}.`,
+                                  true,
+                                  true
+                                );
+                              }
+                            }
+                          }}
+                          className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs shadow-md shadow-emerald-950/40 transition flex items-center space-x-1.5 active:scale-95 cursor-pointer border border-emerald-400/40"
+                        >
+                          <CheckCircle2 className="w-4 h-4 text-emerald-200" />
+                          <span>Duyệt Hoàn Thành & Giải Ngân Escrow ({formatVnd(gig.price)})</span>
+                        </button>
+                      )}
+
+                      {/* BUTTON 2: YÊU CẦU CHỈNH SỬA LẠI */}
+                      {isSubmitted && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const note = window.prompt('Nhập lý do / nội dung yêu cầu thợ chỉnh sửa lại:');
+                            if (note && note.trim()) {
+                              requestGigRevision(gig.id, note.trim());
+                            }
+                          }}
+                          className="px-3 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 font-bold text-xs transition flex items-center space-x-1 cursor-pointer"
+                        >
+                          <Repeat className="w-3.5 h-3.5" />
+                          <span>Yêu Cầu Sửa Lại</span>
+                        </button>
+                      )}
+
+                      {/* BUTTON 3: GỠ / XÓA BÀI ĐĂNG */}
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const confirmDel = window.confirm(
+                            `Bạn có chắc chắn muốn xóa bài đăng "${gig.title}"? Tiền cọc Escrow (nếu chưa giải ngân) sẽ được hoàn trả cho người đăng.`
+                          );
+                          if (confirmDel) {
+                            await deleteGig(gig.id);
+                          }
+                        }}
+                        className="px-3 py-2 rounded-xl bg-red-950/40 hover:bg-red-900/50 border border-red-500/30 text-red-300 font-bold text-xs transition flex items-center space-x-1 cursor-pointer"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                        <span>Gỡ / Xóa Đơn</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* TAB 1: DISPUTES ARBITRATION */}
       {activeTab === 'DISPUTES' && (

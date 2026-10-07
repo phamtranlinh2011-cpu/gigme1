@@ -26,7 +26,8 @@ import {
   BidEntity,
   MarketplaceItemEntity,
   SystemMaintenanceConfig,
-  FirestoreNotificationEntity
+  FirestoreNotificationEntity,
+  VoipCallEntity
 } from '../types';
 
 // Initialize Firebase SDK
@@ -123,7 +124,10 @@ export async function syncGigToCloud(gig: GigEntity): Promise<void> {
     if (gig.status === 'OPEN' || !gig.freelancerId) {
       cleanData.freelancerId = null;
       cleanData.freelancerName = null;
+      cleanData.acceptedAt = null;
     }
+    delete cleanData.isReverseAuction;
+    delete cleanData.lowestBidPrice;
     await setDoc(doc(db, 'gigs', gig.id), cleanData, { merge: true });
   } catch (err) {
     handleFirestoreError(err, OperationType.WRITE, path);
@@ -697,5 +701,99 @@ export function subscribeToNotifications(
     return () => {};
   }
 }
+
+// ==================== REAL-TIME VOIP & VIDEO CALL SIGNALING ====================
+export async function createCloudCall(call: VoipCallEntity): Promise<void> {
+  const path = `calls/${call.id}`;
+  try {
+    const cleanData = JSON.parse(JSON.stringify(call));
+    await setDoc(doc(db, 'calls', call.id), cleanData);
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, path);
+  }
+}
+
+export async function updateCloudCall(callId: string, updates: Partial<VoipCallEntity>): Promise<void> {
+  const path = `calls/${callId}`;
+  try {
+    const cleanUpdates = JSON.parse(JSON.stringify(updates));
+    await updateDoc(doc(db, 'calls', callId), cleanUpdates);
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, path);
+  }
+}
+
+export function subscribeToIncomingCalls(
+  userId: string,
+  onIncomingCall: (call: VoipCallEntity | null) => void,
+  onError?: (err: Error) => void
+): () => void {
+  try {
+    const callsRef = collection(db, 'calls');
+    const q = query(
+      callsRef,
+      where('targetUserId', '==', userId),
+      where('status', '==', 'RINGING')
+    );
+
+    return onSnapshot(
+      q,
+      (snapshot) => {
+        if (!snapshot.empty) {
+          // Get the newest ringing call
+          const validCalls: VoipCallEntity[] = [];
+          snapshot.forEach((d) => {
+            const data = d.data() as VoipCallEntity;
+            // Only accept calls initiated within the last 45 seconds
+            if (data && data.timestamp && Date.now() - data.timestamp < 45000) {
+              validCalls.push(data);
+            }
+          });
+          validCalls.sort((a, b) => b.timestamp - a.timestamp);
+          if (validCalls.length > 0) {
+            onIncomingCall(validCalls[0]);
+            return;
+          }
+        }
+        onIncomingCall(null);
+      },
+      (error) => {
+        handleFirestoreError(error, OperationType.LIST, 'calls');
+        if (onError) onError(error);
+      }
+    );
+  } catch (err: any) {
+    if (onError) onError(err);
+    return () => {};
+  }
+}
+
+export function subscribeToCallSession(
+  callId: string,
+  onUpdate: (call: VoipCallEntity | null) => void,
+  onError?: (err: Error) => void
+): () => void {
+  try {
+    const docRef = doc(db, 'calls', callId);
+    return onSnapshot(
+      docRef,
+      (snapshot) => {
+        if (snapshot.exists()) {
+          onUpdate(snapshot.data() as VoipCallEntity);
+        } else {
+          onUpdate(null);
+        }
+      },
+      (error) => {
+        handleFirestoreError(error, OperationType.GET, `calls/${callId}`);
+        if (onError) onError(error);
+      }
+    );
+  } catch (err: any) {
+    if (onError) onError(err);
+    return () => {};
+  }
+}
+
 
 

@@ -101,6 +101,11 @@ service cloud.firestore {
       allow create, update: if true;
       allow delete: if isAdmin();
     }
+
+    // Real-time VoIP & Video Call Signaling
+    match /calls/{callId} {
+      allow read, write: if true;
+    }
   }
 }
 

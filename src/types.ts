@@ -238,8 +238,6 @@ export interface GigEntity {
   description: string;
   category: string;
   price: number;
-  isReverseAuction?: boolean;
-  lowestBidPrice?: number;
   distanceMeters: number;
   locationName: string;
   location?: string;
@@ -274,11 +272,6 @@ export interface GigEntity {
   isBoosted?: boolean;
   boostedUntil?: number;
   boostFeePaid?: number;
-  // Tính năng 2: Phòng Đấu giá ngược thời gian thực (Live Reverse Auction Room - Chỉ Client mới được tạo phòng)
-  auctionRoomOpen?: boolean;
-  auctionRoomCreatedAt?: number;
-  auctionRoomDurationMinutes?: number;
-  auctionCeilingPrice?: number;
   // Tính năng 3: Đơn việc nhóm nhiều người & QR Check-in điểm danh
   multiWorkers?: Array<{
     id: string;
@@ -460,7 +453,24 @@ export type TransactionEntity = WalletTransactionEntity;
 
 export type AppRoleMode = 'CLIENT' | 'FREELANCER';
 
+export interface VoipCallEntity {
+  id: string;
+  callerId: string;
+  callerName: string;
+  callerRole?: string;
+  callerAvatarUrl?: string;
+  targetUserId: string;
+  targetUserName?: string;
+  gigId?: string;
+  isVideo: boolean;
+  status: 'RINGING' | 'ACCEPTED' | 'REJECTED' | 'ENDED';
+  timestamp: number;
+  acceptedAt?: number;
+  endedAt?: number;
+}
+
 export interface VoipCallSession {
+  callId?: string;
   gigId: string;
   partnerId?: string;
   partnerName: string;

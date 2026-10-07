@@ -593,6 +593,50 @@ export const GigDetailScreen: React.FC<GigDetailScreenProps> = ({
           </div>
         )}
 
+        {/* NÚT XÁC NHẬN HOÀN THÀNH KHI ĐANG THỰC HIỆN (DÀNH CHO CHỦ ĐƠN HOẶC KIỂM DUYỆT VIÊN) */}
+        {gig.status === 'IN_PROGRESS' && (isOwner || isStaff) && (
+          <div className="p-4 rounded-2xl bg-[#12233B] border border-emerald-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fade-in">
+            <div>
+              <span className="text-xs font-bold text-white flex items-center space-x-1.5">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                <span>{language === 'vi' ? 'Nghiệm Thu Trực Tiếp Tại Chỗ' : 'Direct On-Site Approval'}</span>
+              </span>
+              <p className="text-[11px] text-[#C5E5EC]/70 mt-0.5">
+                {language === 'vi'
+                  ? 'Nếu thợ đã bàn giao xong việc trực tiếp cho bạn, bạn có thể bấm xác nhận để thanh toán ngay mà không cần chờ nộp ảnh.'
+                  : 'If worker has completed work in-person, you can confirm completion immediately without waiting for photos.'}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                triggerHaptic('success');
+                const okConfirm = window.confirm(
+                  language === 'vi'
+                    ? `Xác nhận thợ đã hoàn thành công việc và giải ngân ${formatVnd(gig.price)} từ quỹ Escrow vào ví của thợ ngay bây giờ?`
+                    : `Confirm worker completed task and disburse ${formatVnd(gig.price)} from Escrow vault now?`
+                );
+                if (okConfirm) {
+                  const ok = releaseEscrowPayout(gig.id);
+                  if (ok) {
+                    showNotification(
+                      language === 'vi' ? 'Đã Giải Ngân Thành Công! 🎉' : 'Escrow Released Successfully! 🎉',
+                      language === 'vi' ? `Đã hoàn tất nghiệm thu và chuyển ${formatVnd(gig.price)} vào ví của sinh viên.` : `Completed and transferred ${formatVnd(gig.price)} to worker.`,
+                      true,
+                      true
+                    );
+                    setIsDoubleBlindModalOpen(true);
+                  }
+                }
+              }}
+              className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs shadow-md transition flex items-center space-x-1.5 active:scale-95 cursor-pointer shrink-0 border border-emerald-400/40"
+            >
+              <CheckCircle2 className="w-4 h-4 text-emerald-200" />
+              <span>{language === 'vi' ? `Xác Nhận Đã Xong & Giải Ngân (${formatVnd(gig.price)})` : `Confirm Done & Release Escrow (${formatVnd(gig.price)})`}</span>
+            </button>
+          </div>
+        )}
+
         {/* Nút Hủy Đăng Kèo, Nút Boost & Xóa Bài Đăng dành cho chủ đơn khi OPEN hoặc Admin/Mod */}
         {(isOwner || isStaff) && (
           <div className="pt-2 border-t border-[#C5E5EC]/15 space-y-2">

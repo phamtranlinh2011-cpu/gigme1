@@ -46,7 +46,7 @@ export const FcmPushNotificationModal: React.FC<FcmPushNotificationModalProps> =
 
   const [subFlashGigs, setSubFlashGigs] = useState(true);
   const [subEscrow, setSubEscrow] = useState(true);
-  const [subReverseAuction, setSubReverseAuction] = useState(true);
+  const [subGroupGigs, setSubGroupGigs] = useState(true);
   const [subKycAlert, setSubKycAlert] = useState(true);
 
   const [history, setHistory] = useState<
@@ -70,10 +70,10 @@ export const FcmPushNotificationModal: React.FC<FcmPushNotificationModalProps> =
           },
           {
             id: 'fcm_3',
-            title: '📉 Phòng Đấu Giá Ngược có giá mới',
-            body: 'Một sinh viên vừa hạ giá chào đơn "Vẽ poster Canva" xuống 80.000đ!',
+            title: '👥 Kèo Ghép Nhóm có thành viên mới',
+            body: 'Một sinh viên vừa tham gia ca làm việc nhóm "Hỗ trợ sự kiện CLB" cùng bạn!',
             time: '1 giờ trước',
-            type: 'BID',
+            type: 'GROUP',
           },
         ]
       : [
@@ -93,10 +93,10 @@ export const FcmPushNotificationModal: React.FC<FcmPushNotificationModalProps> =
           },
           {
             id: 'fcm_3',
-            title: '📉 Reverse auction new low bid',
-            body: 'A student lowered their bid for Canva Poster to 80,000 VND!',
+            title: '👥 Group Gig has new teammate',
+            body: 'A student joined your group for Canva Poster project!',
             time: '1 hour ago',
-            type: 'BID',
+            type: 'GROUP',
           },
         ]
   );
@@ -193,9 +193,9 @@ export const FcmPushNotificationModal: React.FC<FcmPushNotificationModalProps> =
           title = '💰 SMART ESCROW ĐÃ GIẢI NGÂN!';
           body = 'Số dư ví khả dụng của bạn vừa cộng thêm 150.000đ. Nhấn để kiểm tra ví.';
           break;
-        case 'AUCTION':
-          title = '📉 ĐẤU GIÁ NGƯỢC: GIÁ MỚI SIÊU HẤP DẪN';
-          body = 'Freelancer Minh Tuấn vừa giảm giá chào thầu đơn còn 95.000đ!';
+        case 'GROUP':
+          title = '👥 KÈO GHÉP NHÓM CÓ BẠN MỚI!';
+          body = 'Một bạn sinh viên vừa tham gia ca làm việc cùng bạn. Mở ngay để xem đội ngũ!';
           break;
         case 'KYC':
           title = '🛡️ XÁC MINH DANH TÍNH KYC HOÀN TẤT';
@@ -212,9 +212,9 @@ export const FcmPushNotificationModal: React.FC<FcmPushNotificationModalProps> =
           title = '💰 SMART ESCROW DISBURSED!';
           body = 'Your available wallet balance credited +150,000 VND. Tap to check.';
           break;
-        case 'AUCTION':
-          title = '📉 REVERSE AUCTION: ATTRACTIVE NEW BID';
-          body = 'Freelancer Minh Tuan undercut current bid to 95,000 VND!';
+        case 'GROUP':
+          title = '👥 NEW GROUP GIG TEAMMATE!';
+          body = 'A student just joined your team shift. Open app to view team!';
           break;
         case 'KYC':
           title = '🛡️ IDENTITY KYC VERIFICATION APPROVED';
@@ -497,14 +497,14 @@ export const FcmPushNotificationModal: React.FC<FcmPushNotificationModalProps> =
               <label className="flex items-center space-x-2.5 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/60 cursor-pointer">
                 <input
                   type="checkbox"
-                  checked={subReverseAuction}
-                  onChange={(e) => setSubReverseAuction(e.target.checked)}
+                  checked={subGroupGigs}
+                  onChange={(e) => setSubGroupGigs(e.target.checked)}
                   className="rounded text-orange-500 focus:ring-orange-500 w-4 h-4"
                 />
                 <div className="flex items-center space-x-2">
                   <TrendingDown className="w-4 h-4 text-blue-500" />
                   <span className="font-bold">
-                    {language === 'vi' ? 'Kèo hỏa tốc & Flash Boost' : 'Flash & Urgent Gigs'}
+                    {language === 'vi' ? 'Kèo ghép nhóm & Trợ thủ' : 'Group & Team Gigs'}
                   </span>
                 </div>
               </label>

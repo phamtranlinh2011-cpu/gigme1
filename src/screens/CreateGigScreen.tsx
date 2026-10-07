@@ -16,6 +16,7 @@ import {
   Search,
   ChevronDown,
   Check,
+  Loader2,
 } from 'lucide-react';
 import { useGigMe } from '../context/GigMeContext';
 import { useTranslation } from '../context/LanguageContext';
@@ -69,6 +70,7 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
   const { language, t } = useTranslation();
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isVietQrOpen, setIsVietQrOpen] = useState(false);
   const [isEstimatorModalOpen, setIsEstimatorModalOpen] = useState(false);
 
@@ -163,7 +165,8 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    if (isSubmitting) return;
     const rateCheck = rateLimiter.check('POST_GIG', currentUser?.id);
     if (!rateCheck.allowed) {
       showNotification(
@@ -182,23 +185,28 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
       ? `${description.trim()}\n\n[Hình ảnh đính kèm: ${attachedImage}]`
       : description.trim();
 
-    const success = postGig({
-      title,
-      description: fullDescription,
-      category: finalCategory,
-      price,
-      isFlash: isFlash || isBoosted,
-      isBoosted,
-      locationName,
-      distanceMeters,
-      isRecurringWeekly,
-      totalWorkersNeeded,
-      estimatedDurationMinutes,
-    });
+    setIsSubmitting(true);
+    try {
+      const success = postGig({
+        title,
+        description: fullDescription,
+        category: finalCategory,
+        price,
+        isFlash: isFlash || isBoosted,
+        isBoosted,
+        locationName,
+        distanceMeters,
+        isRecurringWeekly,
+        totalWorkersNeeded,
+        estimatedDurationMinutes,
+      });
 
-    if (success) {
-      rateLimiter.record('POST_GIG', currentUser?.id);
-      onBack();
+      if (success) {
+        rateLimiter.record('POST_GIG', currentUser?.id);
+        onBack();
+      }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -938,11 +946,20 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
               type="button"
               id="confirm-post-gig-btn"
               onClick={handleSubmit}
-              disabled={isInsufficient}
+              disabled={isInsufficient || isSubmitting}
               className="w-2/3 py-3 rounded-xl bg-gradient-to-r from-[#3064AE] via-[#2A5594] to-[#25735B] text-white font-extrabold text-sm hover:brightness-110 shadow-lg shadow-[#3064AE]/20 disabled:opacity-40 disabled:cursor-not-allowed transition flex items-center justify-center space-x-1.5 active:scale-95 border border-[#E0FAEB]/30 cursor-pointer"
             >
-              <CheckCircle2 className="w-4 h-4 text-[#E0FAEB]" />
-              <span>{language === 'vi' ? 'Khóa Escrow & Đăng Việc Ngay' : 'Lock Escrow & Post Gig Now'}</span>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin text-[#E0FAEB]" />
+                  <span>{language === 'vi' ? 'Đang Khóa Escrow & Đăng...' : 'Posting & Locking Escrow...'}</span>
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="w-4 h-4 text-[#E0FAEB]" />
+                  <span>{language === 'vi' ? 'Khóa Escrow & Đăng Việc Ngay' : 'Lock Escrow & Post Gig Now'}</span>
+                </>
+              )}
             </button>
           </div>
         </div>
