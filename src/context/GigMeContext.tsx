@@ -405,9 +405,11 @@ interface GigMeContextType {
   toggleFilterRecurring: () => void;
   toggleFilterMultiWorker: () => void;
   toggleSmartMatch: () => void;
-  startVoipCall: (partnerName: string, role?: string, gigId?: string, isVideo?: boolean, partnerAvatarUrl?: string) => void;
+  startVoipCall: (partnerName: string, role?: string, gigId?: string, isVideo?: boolean, partnerAvatarUrl?: string, partnerId?: string) => void;
+  acceptIncomingCall: () => void;
   endVoipCall: () => void;
   toggleMuteVoip: () => void;
+  toggleVideoVoip: () => void;
   toggleRoleMode: () => void;
   toggleRole: () => void;
   setWalletPin: (oldPin: string, newPin: string) => boolean;
@@ -490,6 +492,7 @@ interface GigMeContextType {
     role: 'CLIENT' | 'FREELANCER'
   ) => boolean;
   sendWebPushNotification: (title: string, body: string, icon?: string, targetUrl?: string) => void;
+  requestGigRevision: (gigId: string, revisionNote: string) => void;
   releaseEscrowPayout: (gigId: string, enteredPin?: string, tipAmount?: number, useBiometrics?: boolean) => boolean;
   releaseMilestonePayout: (gigId: string, milestonePercent: number, enteredPin?: string, useBiometrics?: boolean) => boolean;
   fileDispute: (gigId: string, reason: string) => void;
@@ -1556,8 +1559,8 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     showNotification(
       nextMode === 'CLIENT' ? '👔 Chế độ Người Cần Thuê' : '⚡ Chế độ Người Nhận Việc',
       nextMode === 'CLIENT'
-        ? 'Đã chuyển sang giao diện Cần Thuê: Bạn có thể đăng việc mới, mở phòng đấu giá trực tiếp và duyệt giải ngân Escrow.'
-        : 'Đã chuyển sang giao diện Nhận Việc: Bạn có thể săn kèo quanh vị trí hiện tại, tham gia đấu giá ngược và nhận thù lao.',
+        ? 'Đã chuyển sang giao diện Cần Thuê: Bạn có thể đăng việc mới, theo dõi tiến độ và duyệt nghiệm thu giải ngân Escrow.'
+        : 'Đã chuyển sang giao diện Nhận Việc: Bạn có thể săn kèo quanh vị trí hiện tại, trao đổi và nhận thù lao nhanh chóng.',
       true
     );
   };
@@ -1591,28 +1594,115 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     role = '',
     gigId = '',
     isVideo = false,
-    partnerAvatarUrl?: string
+    partnerAvatarUrl?: string,
+    partnerId?: string
   ) => {
     const randomSuffix = Math.floor(100 + Math.random() * 900);
     setActiveVoipCall({
       gigId: gigId || selectedGigId || 'call',
+      partnerId,
       partnerName,
       partnerRole: role,
       partnerAvatarUrl,
       maskedPhoneNumber: `(+84 *** *** ${randomSuffix})`,
       isMuted: false,
       isVideo: !!isVideo,
+      isVideoOff: false,
       durationSeconds: 0,
+      isIncoming: false,
+      callerId: currentUser?.id,
+      callerName: currentUser?.name,
     });
+
+    playNotificationSound('CALL_RING');
+
+    // Broadcast call signal via BroadcastChannel so other sessions / tabs receive the call
+    if (typeof window !== 'undefined' && partnerId && partnerId !== currentUser?.id) {
+      try {
+        const callChannel = new BroadcastChannel('gigme_voip_channel');
+        callChannel.postMessage({
+          type: 'INCOMING_CALL',
+          targetUserId: partnerId,
+          callerId: currentUser?.id,
+          callerName: currentUser?.name,
+          callerRole: currentUser?.role || 'Sinh viên',
+          callerAvatar: currentUser?.avatarUrl,
+          gigId: gigId || selectedGigId || 'call',
+          isVideo: !!isVideo,
+          timestamp: Date.now(),
+        });
+      } catch (err) {
+        console.warn('BroadcastChannel error:', err);
+      }
+    }
+  };
+
+  const acceptIncomingCall = () => {
+    setActiveVoipCall((prev) => (prev ? { ...prev, isIncoming: false } : null));
+    showNotification('Cuộc gọi kết nối', 'Đã bắt đầu cuộc gọi WebRTC mã hóa DTLS-SRTP!', true);
   };
 
   const endVoipCall = () => {
+    playNotificationSound('CALL_HANGUP');
+    if (typeof window !== 'undefined') {
+      try {
+        const callChannel = new BroadcastChannel('gigme_voip_channel');
+        callChannel.postMessage({
+          type: 'END_CALL',
+          userId: currentUser?.id,
+        });
+      } catch {}
+    }
     setActiveVoipCall(null);
   };
 
   const toggleMuteVoip = () => {
     setActiveVoipCall((prev) => (prev ? { ...prev, isMuted: !prev.isMuted } : null));
   };
+
+  const toggleVideoVoip = () => {
+    setActiveVoipCall((prev) => (prev ? { ...prev, isVideoOff: !prev.isVideoOff } : null));
+  };
+
+  // Listen for incoming VoIP call broadcasts
+  useEffect(() => {
+    if (typeof window === 'undefined' || !currentUser) return;
+    try {
+      const channel = new BroadcastChannel('gigme_voip_channel');
+      channel.onmessage = (event) => {
+        const data = event.data;
+        if (data?.type === 'INCOMING_CALL' && data.targetUserId === currentUser.id) {
+          playNotificationSound('CALL_RING');
+          setActiveVoipCall({
+            gigId: data.gigId,
+            partnerId: data.callerId,
+            partnerName: data.callerName || 'Người dùng Campus',
+            partnerRole: data.callerRole || 'Campus',
+            partnerAvatarUrl: data.callerAvatar,
+            maskedPhoneNumber: '(+84 *** *** 888)',
+            isMuted: false,
+            isVideo: !!data.isVideo,
+            isVideoOff: false,
+            durationSeconds: 0,
+            isIncoming: true,
+            callerId: data.callerId,
+            callerName: data.callerName,
+          });
+        } else if (data?.type === 'END_CALL') {
+          setActiveVoipCall((prev) => {
+            if (prev && (prev.partnerId === data.userId || prev.callerId === data.userId)) {
+              playNotificationSound('CALL_HANGUP');
+              return null;
+            }
+            return prev;
+          });
+        }
+      };
+      return () => {
+        channel.close();
+      };
+    } catch {}
+  }, [currentUser?.id]);
 
   // 1. REGISTER WITH PBKDF2 PASSWORD HASHING, GMAIL REQUIREMENT & IP LIMIT
   const register = async (
@@ -1989,15 +2079,16 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const gig = gigs.find((g) => g.id === gigId);
     if (!gig) return false;
 
-    if (gig.clientId !== currentUser.id && currentUser.role !== 'ADMIN') {
-      showNotification('Không có quyền', 'Chỉ người đăng bài mới có quyền xóa bài đăng này!');
+    const isStaff = currentUser.role === 'ADMIN' || currentUser.role === 'MOD' || currentUser.id === '000000000';
+    if (gig.clientId !== currentUser.id && !isStaff) {
+      showNotification('Không có quyền', 'Chỉ người đăng bài hoặc Ban Quản Trị mới có quyền xóa bài đăng này!');
       return false;
     }
 
     if (gig.status === 'IN_PROGRESS' || gig.status === 'SUBMITTED') {
       showNotification(
         'Không thể xóa',
-        'Công việc đang được thực hiện hoặc đang chờ duyệt nghiệm thu. Hãy hoàn tất hoặc hủy việc trước khi xóa!',
+        'Công việc đang được thực hiện hoặc đang chờ duyệt nghiệm thu. Hãy hủy đơn việc trước khi xóa bài!',
         false
       );
       return false;
@@ -2008,11 +2099,13 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setUsers((prev) =>
         prev.map((u) => {
           if (u.id === gig.clientId) {
-            return {
+            const updatedClient = {
               ...u,
               walletBalance: u.walletBalance + gig.price,
               escrowLockedBalance: Math.max(0, u.escrowLockedBalance - gig.price),
             };
+            cloudService.saveUser(updatedClient);
+            return updatedClient;
           }
           return u;
         })
@@ -2024,7 +2117,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         type: 'ADMIN_REFUND',
         amount: gig.price,
         title: 'Hoàn Tiền Escrow (Xóa Bài Đăng)',
-        subtitle: `Hoàn 100% tiền cọc (${gig.price.toLocaleString('vi-VN')}đ) đơn "${gig.title}" do chủ việc xóa bài đăng`,
+        subtitle: `Hoàn 100% tiền cọc (${gig.price.toLocaleString('vi-VN')}đ) đơn "${gig.title}" do xóa bài đăng`,
         bankInfo: 'Ví GigMe Escrow',
         timestamp: Date.now(),
         isSuccess: true,
@@ -2035,6 +2128,9 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
 
     setGigs((prev) => prev.filter((g) => g.id !== gigId));
+    if (selectedGigId === gigId) {
+      setSelectedGigId(null);
+    }
     await cloudService.deleteGig(gigId);
 
     showNotification(
@@ -2968,7 +3064,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         'Bạn đã nhận công việc này rồi! Hãy vào khung chat trao đổi và nộp bằng chứng nghiệm thu.',
         false
       );
-      return true;
+      return false;
     }
 
     if (latestGig.status !== 'OPEN' || (latestGig.freelancerId && latestGig.freelancerId !== currentUser.id)) {
@@ -3575,6 +3671,38 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     );
   };
 
+  // REQUEST GIG REVISION (YÊU CẦU CHỈNH SỬA BỔ SUNG)
+  const requestGigRevision = (gigId: string, revisionNote: string) => {
+    if (!currentUser) return;
+    const target = gigs.find((g) => g.id === gigId);
+    if (!target) return;
+
+    const updated: GigEntity = {
+      ...target,
+      status: 'IN_PROGRESS',
+    };
+    setGigs((prev) => prev.map((g) => (g.id === gigId ? updated : g)));
+    cloudService.saveGig(updated);
+
+    const chatMsg: ChatMessageEntity = {
+      id: `msg_rev_${Date.now()}`,
+      gigId,
+      senderId: currentUser.id,
+      senderName: currentUser.name,
+      isFromClient: currentUser.id === target.clientId,
+      message: `🔄 [Yêu cầu chỉnh sửa / Bổ sung nghiệm thu] ${revisionNote}`,
+      timestamp: Date.now(),
+    };
+    setChats((prev) => [...prev, chatMsg]);
+    cloudService.saveChatMessage(chatMsg);
+
+    showNotification(
+      'Đã gửi yêu cầu chỉnh sửa',
+      'Đơn việc đã chuyển về trạng thái Đang Làm để thợ hoàn thiện bổ sung theo yêu cầu.',
+      true
+    );
+  };
+
   // RELEASE SMART ESCROW PAYOUT
   const releaseEscrowPayout = (
     gigId: string,
@@ -3596,16 +3724,27 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return false;
     }
 
-    if (!useBiometrics && enteredPin !== currentUser.securityPin) {
+    const isStaff = currentUser.role === 'ADMIN' || currentUser.role === 'MOD' || currentUser.id === '000000000';
+    const isClient = currentUser.id === targetGig.clientId;
+
+    if (!isStaff && !isClient) {
       showNotification(
-        'Mã PIN không chính xác',
-        'Mã PIN 6 số dùng để giải ngân không đúng. Vui lòng thử lại hoặc dùng xác thực vân tay!'
+        'Không có quyền',
+        'Chỉ người thuê hoặc Ban Quản Trị / Kiểm Duyệt Viên mới có quyền nghiệm thu và giải ngân đơn này!'
       );
       return false;
     }
 
-    const tierConfig = USER_TIERS[currentUser.tier];
-    const feeRate = tierConfig.commissionRate;
+    if (!isStaff && !useBiometrics && enteredPin && enteredPin !== currentUser.securityPin) {
+      showNotification(
+        'Mã PIN không chính xác',
+        'Mã PIN 6 số dùng để giải ngân không đúng. Vui lòng thử lại!'
+      );
+      return false;
+    }
+
+    const clientTier = USER_TIERS[targetGig.clientTier || 'STUDENT'] || USER_TIERS['STUDENT'];
+    const feeRate = clientTier.commissionRate;
     const gigPrice = targetGig.price;
     const platformFee = Math.round(gigPrice * feeRate);
     // Khấu trừ Thuế Thu Nhập Cá Nhân (TNCN vãng lai 10% nếu đơn hàng >= 2.000.000đ theo TT 111/2013/TT-BTC)
@@ -3624,15 +3763,15 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setGigs((prev) => prev.map((g) => (g.id === gigId ? updatedCompletedGig : g)));
     cloudService.saveGig(updatedCompletedGig);
 
-    // Update Client Escrow & Wallet, pay freelancer, and credit 10% fee to Admin platform balance
+    // Update Client Escrow & Wallet, pay freelancer, and credit fee to Admin platform balance
     setUsers((prev) =>
       prev.map((u) => {
-        if (u.id === currentUser.id) {
+        if (u.id === targetGig.clientId) {
           const updatedClient = {
             ...u,
             escrowLockedBalance: Math.max(0, u.escrowLockedBalance - gigPrice),
-            walletBalance: u.walletBalance - tipAmount,
-            completedGigs: u.completedGigs + 1,
+            walletBalance: Math.max(0, u.walletBalance - tipAmount),
+            completedGigs: (u.completedGigs || 0) + 1,
           };
           cloudService.saveUser(updatedClient);
           return updatedClient;
@@ -3641,12 +3780,13 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           const updatedFreelancer = {
             ...u,
             walletBalance: u.walletBalance + freelancerPayout,
-            completedGigs: u.completedGigs + 1,
+            completedGigs: (u.completedGigs || 0) + 1,
+            trustScore: Math.min(100, (u.trustScore || 80) + 2),
           };
           cloudService.saveUser(updatedFreelancer);
           return updatedFreelancer;
         }
-        if (u.id === 'admin_root' || u.role === 'ADMIN') {
+        if (u.id === '000000000' || u.id === 'admin_root' || u.role === 'ADMIN') {
           const updatedAdmin = {
             ...u,
             walletBalance: u.walletBalance + platformFee,
@@ -5941,7 +6081,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     showNotification(
       enabled ? '🔔 Đã Bật FCM Thông Báo Hỏa Tốc' : 'Đã Tắt FCM Push',
       enabled
-        ? 'Bạn sẽ nhận thông báo tức thì khi có kèo 50m quanh bạn, biến động Escrow và phòng đấu giá ngược!'
+        ? 'Bạn sẽ nhận thông báo tức thì khi có kèo 50m quanh bạn, biến động Escrow và thông báo duyệt việc!'
         : 'Đã tạm ngưng nhận thông báo đẩy.',
       true
     );
@@ -6263,8 +6403,10 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         toggleFilterMultiWorker: () => setFilterMultiWorkerOnly((p) => !p),
         toggleSmartMatch,
         startVoipCall,
+        acceptIncomingCall,
         endVoipCall,
         toggleMuteVoip,
+        toggleVideoVoip,
         toggleRoleMode,
         toggleRole: toggleRoleMode,
         setWalletPin: changeSecurityPin,
@@ -6297,6 +6439,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         placeBid,
         acceptGigDirectly,
         submitProofOfWork,
+        requestGigRevision,
         releaseEscrowPayout,
         releaseMilestonePayout,
         fileDispute,

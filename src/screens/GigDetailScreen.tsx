@@ -29,11 +29,11 @@ import {
   Camera,
   UserX,
   XCircle,
+  Loader2,
 } from 'lucide-react';
 import { useGigMe } from '../context/GigMeContext';
 import { useTranslation } from '../context/LanguageContext';
 import { formatVnd, USER_TIERS } from '../types';
-import { LiveReverseBiddingModal } from '../components/LiveReverseBiddingModal';
 import { MultiWorkerCheckInModal } from '../components/MultiWorkerCheckInModal';
 import { DoubleBlindReviewModal } from '../components/DoubleBlindReviewModal';
 import { LateCancellationModal, CancellationModalMode } from '../components/LateCancellationModal';
@@ -57,15 +57,19 @@ export const GigDetailScreen: React.FC<GigDetailScreenProps> = ({
 }) => {
   const {
     rawGigs,
-    currentGigBids,
     currentUser,
     users,
     roleMode,
     toggleRoleMode,
     startVoipCall,
     acceptGigDirectly,
-    placeBid,
+    cancelGigByWorker,
+    cancelGigByClient,
+    deleteGig,
+    releaseEscrowPayout,
+    requestGigRevision,
     boostGig,
+    showNotification,
   } = useGigMe();
   const { language, t } = useTranslation();
 
@@ -78,18 +82,8 @@ export const GigDetailScreen: React.FC<GigDetailScreenProps> = ({
     }
   }, [gig]);
 
-  // Reverse auction bid modal
-  const [showBidModal, setShowBidModal] = useState(false);
-  const [bidPrice, setBidPrice] = useState(gig ? gig.price - 5000 : 50000);
-  const [bidMinutes, setBidMinutes] = useState(30);
-  const [bidNote, setBidNote] = useState(
-    language === 'vi'
-      ? 'Mình cam kết hoàn thành đúng hạn và chất lượng tốt nhất!'
-      : 'I commit to on-time delivery with best quality!'
-  );
-
-  // New feature modals
-  const [isLiveAuctionOpen, setIsLiveAuctionOpen] = useState(false);
+  const [isAcceptingGig, setIsAcceptingGig] = useState(false);
+  const [isDeletingGig, setIsDeletingGig] = useState(false);
   const [isMultiWorkerOpen, setIsMultiWorkerOpen] = useState(false);
   const [isDoubleBlindModalOpen, setIsDoubleBlindModalOpen] = useState(false);
   const [isLateCancelOpen, setIsLateCancelOpen] = useState(false);
@@ -109,6 +103,8 @@ export const GigDetailScreen: React.FC<GigDetailScreenProps> = ({
 
   const isClient = roleMode === 'CLIENT';
   const isOwner = currentUser?.id === gig.clientId;
+  const isStaff = currentUser?.role === 'ADMIN' || currentUser?.role === 'MOD' || currentUser?.id === '000000000';
+  const isWorker = currentUser?.id === gig.freelancerId;
   const isNewbie = currentUser?.tier === 'NEWBIE';
 
   const isCurrentlyBoosted = !!(gig.isBoosted && gig.boostedUntil && gig.boostedUntil > Date.now());
@@ -121,17 +117,44 @@ export const GigDetailScreen: React.FC<GigDetailScreenProps> = ({
     startVoipCall(
       isClient ? (gig.freelancerName || (language === 'vi' ? 'Freelancer Nhận Kèo' : 'Assigned Freelancer')) : gig.clientName,
       isClient ? (language === 'vi' ? 'Người Làm' : 'Worker') : (language === 'vi' ? 'Người Thuê' : 'Client'),
-      gig.id
+      gig.id,
+      false,
+      undefined,
+      isClient ? gig.freelancerId || undefined : gig.clientId
     );
   };
 
-  const handlePlaceBidSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    triggerHaptic('medium');
-    const success = placeBid(gig.id, bidPrice, bidMinutes, bidNote);
-    if (success) {
-      triggerHaptic('success');
-      setShowBidModal(false);
+  const handleAcceptGig = async () => {
+    if (isAcceptingGig) return;
+    if (isNewbie) {
+      triggerHaptic('medium');
+      onOpenVerify();
+      return;
+    }
+    setIsAcceptingGig(true);
+    triggerHaptic('success');
+    try {
+      acceptGigDirectly(gig);
+    } finally {
+      setIsAcceptingGig(false);
+    }
+  };
+
+  const handleDeleteGig = async () => {
+    if (isDeletingGig) return;
+    const confirmMsg = language === 'vi'
+      ? `Bạn có chắc chắn muốn xóa vĩnh viễn bài đăng "${gig.title}"? Tiền cọc Escrow (nếu có) sẽ được hoàn trả 100% vào ví.`
+      : `Are you sure you want to delete "${gig.title}" permanently? Locked Escrow will be 100% refunded.`;
+    if (window.confirm(confirmMsg)) {
+      setIsDeletingGig(true);
+      try {
+        const ok = await deleteGig(gig.id);
+        if (ok) {
+          onBack();
+        }
+      } finally {
+        setIsDeletingGig(false);
+      }
     }
   };
 
@@ -212,11 +235,6 @@ export const GigDetailScreen: React.FC<GigDetailScreenProps> = ({
             {gig.isRecurringWeekly && (
               <span className="flex items-center text-xs font-bold text-[#C5E5EC] bg-[#12233B] px-2.5 py-1 rounded-lg border border-[#C5E5EC]/30">
                 <Repeat className="w-3 h-3 mr-1" /> {language === 'vi' ? 'Kèo định kỳ tuần' : 'Weekly recurring'}
-              </span>
-            )}
-            {gig.isReverseAuction && (
-              <span className="flex items-center text-xs font-bold text-amber-300 bg-amber-950/60 px-2.5 py-1 rounded-lg border border-amber-800">
-                <Gavel className="w-3 h-3 mr-1" /> {language === 'vi' ? 'Đấu giá ngược' : 'Reverse auction'}
               </span>
             )}
           </div>
@@ -343,12 +361,10 @@ export const GigDetailScreen: React.FC<GigDetailScreenProps> = ({
         <div className="p-4 rounded-2xl bg-gradient-to-r from-[#12233B] to-[#162C4E] border border-[#C5E5EC]/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <span className="text-[11px] text-[#C5E5EC]/70 block font-semibold">
-              {gig.isReverseAuction
-                ? (language === 'vi' ? 'Giá thầu thấp nhất hiện tại:' : 'Current Lowest Bid:')
-                : (language === 'vi' ? 'Thù lao Smart Escrow:' : 'Smart Escrow Bounty:')}
+              {language === 'vi' ? 'Thù lao Smart Escrow bảo chứng:' : 'Smart Escrow Guaranteed Bounty:'}
             </span>
             <span className="text-2xl font-black text-[#E0FAEB]">
-              {formatVnd(gig.isReverseAuction && gig.lowestBidPrice ? gig.lowestBidPrice : gig.price)}
+              {formatVnd(gig.price)}
             </span>
             <p className="text-[10px] text-[#E0FAEB] mt-0.5 flex items-center font-medium">
               <ShieldCheck className="w-3 h-3 mr-1 text-[#E0FAEB]" />{' '}
@@ -359,57 +375,31 @@ export const GigDetailScreen: React.FC<GigDetailScreenProps> = ({
           {/* Action buttons */}
           {!isOwner && gig.status === 'OPEN' && (
             <div className="flex flex-wrap gap-2">
-              {/* Nếu phòng đấu giá trực tiếp đang mở, ưu tiên nút vào phòng */}
-              {gig.auctionRoomOpen && (
-                <button
-                  onClick={() => setIsLiveAuctionOpen(true)}
-                  className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-red-600 via-orange-600 to-amber-500 text-white font-black text-xs hover:brightness-110 shadow-lg shadow-red-500/30 transition flex items-center space-x-1.5 animate-bounce cursor-pointer"
-                >
-                  <Radio className="w-4 h-4" />
-                  <span>{language === 'vi' ? '🔴 Vào Đấu Giá Trực Tiếp!' : '🔴 Join Live Auction!'}</span>
-                </button>
-              )}
-
-              {gig.isReverseAuction ? (
-                <button
-                  id="open-bid-modal-btn"
-                  onClick={() => {
-                    triggerHaptic('medium');
-                    if (isNewbie) {
-                      onOpenVerify();
-                    } else {
-                      setShowBidModal(true);
-                    }
-                  }}
-                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#3064AE] to-[#417AC6] text-white font-extrabold text-xs hover:brightness-110 shadow-md transition flex items-center space-x-1.5 border border-[#C5E5EC]/30 cursor-pointer"
-                >
-                  <Gavel className="w-4 h-4 text-[#E0FAEB]" />
-                  <span>{language === 'vi' ? 'Đấu Giá Thầu Kèo Này' : 'Bid on This Gig'}</span>
-                </button>
-              ) : (
-                <button
-                  id="direct-accept-gig-btn"
-                  onClick={() => {
-                    if (isNewbie) {
-                      triggerHaptic('medium');
-                      onOpenVerify();
-                    } else {
-                      triggerHaptic('success');
-                      acceptGigDirectly(gig);
-                    }
-                  }}
-                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#3064AE] via-[#2A5594] to-[#25735B] text-white font-extrabold text-xs hover:brightness-110 shadow-lg shadow-[#3064AE]/20 transition flex items-center space-x-1.5 border border-[#E0FAEB]/30 cursor-pointer"
-                >
+              <button
+                id="direct-accept-gig-btn"
+                type="button"
+                disabled={isAcceptingGig}
+                onClick={handleAcceptGig}
+                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#3064AE] via-[#2A5594] to-[#25735B] text-white font-extrabold text-xs hover:brightness-110 shadow-lg shadow-[#3064AE]/20 transition flex items-center space-x-1.5 border border-[#E0FAEB]/30 disabled:opacity-50 cursor-pointer active:scale-95"
+              >
+                {isAcceptingGig ? (
+                  <Loader2 className="w-4 h-4 animate-spin text-[#E0FAEB]" />
+                ) : (
                   <CheckCircle2 className="w-4 h-4 text-[#E0FAEB]" />
-                  <span>{language === 'vi' ? 'Nhận Kèo Ngay' : 'Accept Gig Now'}</span>
-                </button>
-              )}
+                )}
+                <span>
+                  {isAcceptingGig
+                    ? (language === 'vi' ? 'Đang nhận việc...' : 'Accepting...')
+                    : (language === 'vi' ? 'Nhận Kèo Ngay' : 'Accept Gig Now')}
+                </span>
+              </button>
             </div>
           )}
 
           {gig.status !== 'OPEN' && gig.status !== 'CANCELLED' && (
             <div className="flex flex-wrap items-center gap-2">
               <button
+                type="button"
                 onClick={() => {
                   triggerHaptic('light');
                   onOpenChat();
@@ -421,30 +411,40 @@ export const GigDetailScreen: React.FC<GigDetailScreenProps> = ({
               </button>
 
               {/* Nút gửi ảnh bằng chứng đóng dấu GPS & Timestamp (Chống quỵt tiền) */}
-              {gig.status === 'IN_PROGRESS' && currentUser?.id === gig.freelancerId && (
+              {(gig.status === 'IN_PROGRESS' || gig.status === 'SUBMITTED') && isWorker && (
                 <button
                   type="button"
                   onClick={() => setIsProofModalOpen(true)}
                   className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#3064AE] via-[#2A5594] to-[#25735B] text-white font-extrabold text-xs hover:brightness-110 shadow-md transition flex items-center space-x-1.5 border border-[#E0FAEB]/30 cursor-pointer"
                 >
                   <Camera className="w-4 h-4 text-[#E0FAEB]" />
-                  <span>{language === 'vi' ? 'Chụp Ảnh Nghiệm Thu (Dấu GPS & Giờ)' : 'Upload Proof (GPS & Time)'}</span>
+                  <span>
+                    {gig.status === 'SUBMITTED'
+                      ? (language === 'vi' ? 'Cập Nhật Lại Bằng Chứng' : 'Update Proof')
+                      : (language === 'vi' ? 'Chụp Ảnh Nghiệm Thu & Gửi Duyệt' : 'Upload Proof (GPS & Time)')}
+                  </span>
                 </button>
               )}
 
               {/* Freelancer actions when IN_PROGRESS */}
-              {gig.status === 'IN_PROGRESS' && currentUser?.id === gig.freelancerId && (
+              {gig.status === 'IN_PROGRESS' && isWorker && (
                 <>
                   <button
                     type="button"
                     onClick={() => {
-                      setCancelModalMode('WORKER_CANCEL');
-                      setIsLateCancelOpen(true);
+                      const confirmCancel = window.confirm(
+                        language === 'vi'
+                          ? 'Bạn có chắc chắn muốn hủy nhận công việc này không? Công việc sẽ được mở lại cho sinh viên khác.'
+                          : 'Are you sure you want to cancel taking this gig? It will be reopened for other students.'
+                      );
+                      if (confirmCancel) {
+                        cancelGigByWorker(gig.id, 'Thợ tự rút lui khỏi đơn');
+                      }
                     }}
                     className="px-4 py-2.5 rounded-xl bg-red-500/15 border border-red-500/40 text-red-400 font-bold text-xs hover:bg-red-500/25 transition flex items-center space-x-1.5 cursor-pointer"
                   >
                     <AlertTriangle className="w-4 h-4" />
-                    <span>{language === 'vi' ? 'Hủy Nhận Việc (Kiểm tra phạt)' : 'Cancel Job (Check fee)'}</span>
+                    <span>{language === 'vi' ? 'Hủy Nhận Việc (Rút khỏi đơn)' : 'Cancel Job (Leave task)'}</span>
                   </button>
 
                   <button
@@ -516,10 +516,87 @@ export const GigDetailScreen: React.FC<GigDetailScreenProps> = ({
           )}
         </div>
 
-        {/* Nút Hủy Đăng Kèo & Nút Boost dành cho chủ đơn khi OPEN */}
-        {isOwner && gig.status === 'OPEN' && (
+        {/* KHỐI DUYỆT NGHIỆM THU & XÁC NHẬN ĐÃ XONG (DÀNH CHO CHỦ ĐƠN HOẶC KIỂM DUYỆT VIÊN) */}
+        {gig.status === 'SUBMITTED' && (
+          <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-br from-[#12233B] via-[#0E1B2E] to-[#162C4E] border-2 border-emerald-500/40 shadow-2xl space-y-4 relative overflow-hidden animate-fade-in">
+            <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-emerald-500 via-[#C5E5EC] to-[#E0FAEB]" />
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center space-x-3">
+                <div className="p-2.5 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shrink-0">
+                  <CheckCircle2 className="w-6 h-6 animate-pulse" />
+                </div>
+                <div>
+                  <h4 className="font-black text-sm text-white flex items-center space-x-2">
+                    <span>{language === 'vi' ? 'Báo Cáo Nghiệm Thu Hoàn Thành' : 'Work Delivered For Review'}</span>
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-extrabold text-[10px] border border-emerald-500/30">
+                      {language === 'vi' ? 'ĐANG CHỜ DUYỆT' : 'PENDING APPROVAL'}
+                    </span>
+                  </h4>
+                  <p className="text-[11px] text-[#C5E5EC]/80 mt-1">
+                    {isOwner
+                      ? (language === 'vi' ? 'Thợ đã hoàn thành công việc và gửi hình ảnh nghiệm thu. Vui lòng kiểm tra và bấm nút bên dưới để giải ngân tiền Escrow!' : 'Worker has delivered proof. Please verify and confirm to release Escrow payout.')
+                      : isStaff
+                      ? (language === 'vi' ? 'Bạn đang xem với tư cách Kiểm Duyệt Viên / Admin. Bạn có thể duyệt thay hoặc phân xử giải ngân.' : 'You are viewing as Moderator / Admin. You can approve completion or resolve payout.')
+                      : (language === 'vi' ? 'Bạn đã gửi minh chứng thành công. Vui lòng chờ người thuê hoặc BQT xác nhận nghiệm thu.' : 'Proof submitted. Awaiting client or admin approval.')}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Nút hành động dành cho Người Thuê hoặc Kiểm Duyệt Viên */}
+            {(isOwner || isStaff) && (
+              <div className="pt-3 border-t border-[#C5E5EC]/15 flex flex-wrap gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    triggerHaptic('success');
+                    const ok = releaseEscrowPayout(gig.id);
+                    if (ok) {
+                      showNotification(
+                        language === 'vi' ? 'Đã Giải Ngân Thành Công! 🎉' : 'Escrow Released Successfully! 🎉',
+                        language === 'vi' ? `Đã hoàn tất nghiệm thu và chuyển ${formatVnd(gig.price)} vào ví của sinh viên làm việc.` : `Completed and transferred ${formatVnd(gig.price)} to worker.`,
+                        true,
+                        true
+                      );
+                      setIsDoubleBlindModalOpen(true);
+                    }
+                  }}
+                  className="flex-1 min-w-[240px] py-3.5 px-4 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-[#3064AE] hover:from-emerald-500 hover:to-[#417AC6] text-white font-black text-xs shadow-xl shadow-emerald-500/20 transition flex items-center justify-center space-x-2 active:scale-95 cursor-pointer border border-emerald-400/50"
+                >
+                  <CheckCircle2 className="w-5 h-5 text-emerald-200" />
+                  <span>
+                    {isOwner
+                      ? (language === 'vi' ? `Xác Nhận Đã Xong & Giải Ngân Escrow (${formatVnd(gig.price)})` : `Confirm Done & Release Escrow (${formatVnd(gig.price)})`)
+                      : (language === 'vi' ? `Kiểm Duyệt Viên: Duyệt Hoàn Thành & Giải Ngân Hộ (${formatVnd(gig.price)})` : `Staff: Approve Done & Release Escrow (${formatVnd(gig.price)})`)}
+                  </span>
+                </button>
+
+                {isOwner && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const note = window.prompt(
+                        language === 'vi' ? 'Nhập ghi chú yêu cầu chỉnh sửa gửi cho thợ:' : 'Enter revision notes for the worker:'
+                      );
+                      if (note && note.trim()) {
+                        requestGigRevision(gig.id, note.trim());
+                      }
+                    }}
+                    className="px-4 py-3 rounded-2xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 font-bold text-xs transition flex items-center space-x-1.5 cursor-pointer"
+                  >
+                    <Repeat className="w-4 h-4" />
+                    <span>{language === 'vi' ? 'Yêu Cầu Chỉnh Sửa' : 'Request Revision'}</span>
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Nút Hủy Đăng Kèo, Nút Boost & Xóa Bài Đăng dành cho chủ đơn khi OPEN hoặc Admin/Mod */}
+        {(isOwner || isStaff) && (
           <div className="pt-2 border-t border-[#C5E5EC]/15 space-y-2">
-            {!isCurrentlyBoosted && (
+            {isOwner && gig.status === 'OPEN' && !isCurrentlyBoosted && (
               <button
                 onClick={() => boostGig(gig.id)}
                 className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-red-600 via-orange-600 to-amber-600 hover:from-red-500 hover:to-amber-500 text-white font-extrabold text-xs shadow-lg shadow-red-500/20 flex items-center justify-center space-x-2 transition-all active:scale-98 cursor-pointer"
@@ -529,17 +606,42 @@ export const GigDetailScreen: React.FC<GigDetailScreenProps> = ({
               </button>
             )}
 
-            <button
-              type="button"
-              onClick={() => {
-                setCancelModalMode('CLIENT_CANCEL');
-                setIsLateCancelOpen(true);
-              }}
-              className="w-full py-2.5 px-4 rounded-2xl bg-[#12233B] hover:bg-red-500/20 text-[#C5E5EC] hover:text-red-300 border border-[#C5E5EC]/20 hover:border-red-500/30 font-bold text-xs transition flex items-center justify-center space-x-1.5 cursor-pointer"
-            >
-              <XCircle className="w-4 h-4 text-red-400" />
-              <span>{language === 'vi' ? 'Hủy Đăng Bài (Hoàn Trả 100% Tiền Cọc Escrow)' : 'Cancel Job (100% Escrow Refunded)'}</span>
-            </button>
+            {isOwner && gig.status === 'OPEN' && (
+              <button
+                type="button"
+                onClick={() => {
+                  setCancelModalMode('CLIENT_CANCEL');
+                  setIsLateCancelOpen(true);
+                }}
+                className="w-full py-2.5 px-4 rounded-2xl bg-[#12233B] hover:bg-red-500/20 text-[#C5E5EC] hover:text-red-300 border border-[#C5E5EC]/20 hover:border-red-500/30 font-bold text-xs transition flex items-center justify-center space-x-1.5 cursor-pointer"
+              >
+                <XCircle className="w-4 h-4 text-red-400" />
+                <span>{language === 'vi' ? 'Hủy Đăng Bài (Hoàn Trả 100% Tiền Cọc Escrow)' : 'Cancel Job (100% Escrow Refunded)'}</span>
+              </button>
+            )}
+
+            {/* Nút Xóa vĩnh viễn bài đăng cho chủ đơn khi OPEN hoặc Admin/Mod mọi lúc */}
+            {(gig.status === 'OPEN' || gig.status === 'CANCELLED' || isStaff) && (
+              <button
+                type="button"
+                disabled={isDeletingGig}
+                onClick={handleDeleteGig}
+                className="w-full py-2.5 px-4 rounded-2xl bg-red-950/40 hover:bg-red-900/50 text-red-300 border border-red-500/30 hover:border-red-500/50 font-bold text-xs transition flex items-center justify-center space-x-2 disabled:opacity-50 cursor-pointer"
+              >
+                {isDeletingGig ? (
+                  <Loader2 className="w-4 h-4 animate-spin text-red-400" />
+                ) : (
+                  <XCircle className="w-4 h-4 text-red-400" />
+                )}
+                <span>
+                  {isDeletingGig
+                    ? (language === 'vi' ? 'Đang xóa...' : 'Deleting...')
+                    : isStaff && !isOwner
+                    ? (language === 'vi' ? '🛡️ Kiểm Duyệt Viên: Gỡ / Xóa Vĩnh Viễn Bài Đăng' : '🛡️ Staff: Delete Gig Permanently')
+                    : (language === 'vi' ? 'Xóa Vĩnh Viễn Bài Đăng Này' : 'Permanently Delete This Gig')}
+                </span>
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -755,81 +857,6 @@ export const GigDetailScreen: React.FC<GigDetailScreenProps> = ({
         </div>
       )}
 
-      {/* KHỐI TÍNH NĂNG 1: ĐẤU GIÁ NGƯỢC THỜI GIAN THỰC (LIVE REVERSE BIDDING ROOM) */}
-      {(gig.isReverseAuction || gig.auctionRoomOpen || isOwner) && (
-        <div className="rounded-3xl bg-[#0E1B2E] border border-[#C5E5EC]/30 p-5 shadow-xl space-y-3 relative overflow-hidden">
-          <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-[#3064AE] via-[#C5E5EC] to-[#E0FAEB]" />
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-center space-x-3">
-              <div className="p-3 bg-[#3064AE]/30 text-[#C5E5EC] rounded-2xl border border-[#C5E5EC]/30">
-                <Radio className={`w-6 h-6 ${gig.auctionRoomOpen ? 'animate-pulse text-red-400' : ''}`} />
-              </div>
-              <div>
-                <div className="flex items-center space-x-2">
-                  <h3 className="font-extrabold text-sm text-white">
-                    {language === 'vi'
-                      ? 'Phòng Đấu Giá Ngược Trực Tiếp (Live Reverse Bidding)'
-                      : 'Live Reverse Bidding Room'}
-                  </h3>
-                  {gig.auctionRoomOpen ? (
-                    <span className="px-2 py-0.5 rounded-full bg-red-500/20 text-red-300 text-[10px] font-black border border-red-500/40 animate-pulse">
-                      {language === 'vi' ? '🔴 ĐANG MỞ' : '🔴 LIVE OPEN'}
-                    </span>
-                  ) : (
-                    <span className="px-2 py-0.5 rounded-full bg-[#12233B] text-[#C5E5EC]/60 text-[10px] font-bold border border-[#C5E5EC]/20">
-                      {language === 'vi' ? 'Chưa mở phòng' : 'Room Closed'}
-                    </span>
-                  )}
-                </div>
-                <p className="text-[11px] text-[#C5E5EC]/80 mt-0.5">
-                  {isOwner
-                    ? language === 'vi'
-                      ? 'Chỉ bạn có quyền tạo và mở phòng đấu giá ngược. Freelancer sẽ cùng vào phòng đặt giá giảm dần trực tiếp.'
-                      : 'Only you can open the reverse auction. Freelancers join to bid lower prices live.'
-                    : gig.auctionRoomOpen
-                    ? language === 'vi'
-                      ? 'Chủ việc đã mở phòng đấu giá! Bạn có thể vào ngay để hạ giá và giành quyền nhận việc.'
-                      : 'Client opened the auction room! Enter now to bid lower and win this gig.'
-                    : language === 'vi'
-                    ? 'Phòng đấu giá trực tiếp chỉ có thể do chủ việc khởi tạo và mở phòng.'
-                    : 'Live auction room can only be launched by the gig creator.'}
-                </p>
-              </div>
-            </div>
-
-            <button
-              onClick={() => setIsLiveAuctionOpen(true)}
-              className={`px-4 py-2.5 rounded-xl font-extrabold text-xs shadow-lg transition flex items-center space-x-1.5 shrink-0 cursor-pointer ${
-                gig.auctionRoomOpen
-                  ? 'bg-gradient-to-r from-red-600 to-amber-600 text-white hover:brightness-110'
-                  : isOwner
-                  ? 'bg-gradient-to-r from-[#3064AE] to-[#417AC6] text-white hover:brightness-110 border border-[#C5E5EC]/30'
-                  : 'bg-[#12233B] text-[#C5E5EC] hover:bg-[#162C4E] border border-[#C5E5EC]/25'
-              }`}
-            >
-              <Gavel className="w-3.5 h-3.5" />
-              <span>
-                {isOwner
-                  ? gig.auctionRoomOpen
-                    ? language === 'vi'
-                      ? 'Quản Lý Phòng Đang Mở'
-                      : 'Manage Open Room'
-                    : language === 'vi'
-                    ? 'Mở Phòng Đấu Giá Ngay'
-                    : 'Open Live Auction'
-                  : gig.auctionRoomOpen
-                  ? language === 'vi'
-                    ? 'Vào Phòng Đấu Giá'
-                    : 'Join Live Auction'
-                  : language === 'vi'
-                  ? 'Xem Trạng Thái Phòng'
-                  : 'View Room Status'}
-              </span>
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* KHỐI TÍNH NĂNG 2: ĐƠN VIỆC NHÓM & ĐIỂM DANH QR (MULTI-WORKER CHECK-IN QR) */}
       {((gig.totalWorkersNeeded || 1) > 1 || (gig.multiWorkers && gig.multiWorkers.length > 0)) && (
         <div className="rounded-3xl bg-[#0E1B2E] border border-[#C5E5EC]/30 p-5 shadow-xl space-y-3 relative overflow-hidden">
@@ -911,156 +938,6 @@ export const GigDetailScreen: React.FC<GigDetailScreenProps> = ({
           <PhoneCall className="w-4 h-4" />
         </button>
       </div>
-
-      {/* Reverse Auction Bids List (if any) */}
-      {gig.isReverseAuction && (
-        <div className="rounded-3xl bg-[#0E1B2E] border border-[#C5E5EC]/25 p-5 shadow-xl space-y-3 text-xs relative overflow-hidden">
-          <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-[#3064AE] via-[#C5E5EC] to-[#E0FAEB]" />
-          <div className="flex items-center justify-between">
-            <h3 className="font-extrabold text-sm text-white flex items-center space-x-1.5">
-              <Gavel className="w-4 h-4 text-[#C5E5EC]" />
-              <span>
-                {language === 'vi' ? 'Các Đề Xuất Đấu Giá Thầu' : 'Reverse Auction Bids'} ({currentGigBids.length})
-              </span>
-            </h3>
-            <span className="text-[10px] text-[#C5E5EC]/70">
-              {language === 'vi'
-                ? 'Ai ra giá & thời gian tốt nhất sẽ được chọn'
-                : 'Best price & fastest delivery gets picked'}
-            </span>
-          </div>
-
-          {currentGigBids.length === 0 ? (
-            <p className="text-[#C5E5EC]/60 py-3 text-center">
-              {language === 'vi'
-                ? 'Chưa có ai đấu giá kèo này. Hãy là người đầu tiên!'
-                : 'No bids yet for this gig. Be the first!'}
-            </p>
-          ) : (
-            <div className="space-y-2">
-              {currentGigBids.map((b) => (
-                <div
-                  key={b.id}
-                  className="p-3 rounded-2xl bg-[#12233B] border border-[#C5E5EC]/20 flex items-center justify-between"
-                >
-                  <div>
-                    <div className="flex items-center space-x-2">
-                      <span className="font-bold text-white">{b.freelancerName}</span>
-                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-300 font-bold">
-                        {b.freelancerTier}
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-[#C5E5EC]/70 mt-0.5">&quot;{b.proposalNote}&quot;</p>
-                  </div>
-
-                  <div className="text-right">
-                    <span className="font-mono font-black text-[#E0FAEB] text-sm block">
-                      {formatVnd(b.offeredPrice)}
-                    </span>
-                    <span className="text-[10px] text-[#C5E5EC]/70">
-                      ~{b.estimatedMinutes} {language === 'vi' ? 'phút' : 'mins'}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Reverse Auction Bid Submission Modal */}
-      {showBidModal && (
-        <div
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setShowBidModal(false);
-          }}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in"
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-md rounded-3xl bg-[#0E1B2E] border border-[#C5E5EC]/30 p-6 text-white shadow-2xl relative overflow-hidden"
-          >
-            <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-[#3064AE] via-[#C5E5EC] to-[#E0FAEB]" />
-            <div className="flex justify-between items-center pb-3 border-b border-[#C5E5EC]/20">
-              <h3 className="font-extrabold text-sm flex items-center space-x-1.5 text-[#E0FAEB]">
-                <Gavel className="w-4 h-4 text-[#C5E5EC]" />
-                <span>{language === 'vi' ? 'Đấu Giá Ngược Kèo Này' : 'Bid on This Reverse Auction'}</span>
-              </h3>
-              <button
-                onClick={() => setShowBidModal(false)}
-                className="text-[#C5E5EC]/60 hover:text-white cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handlePlaceBidSubmit} className="py-4 space-y-3.5 text-xs">
-              <div>
-                <label className="block text-[#C5E5EC]/90 mb-1 font-semibold">
-                  {language === 'vi' ? 'Mức giá đề xuất của bạn (VND)' : 'Your proposed price (VND)'}
-                </label>
-                <input
-                  type="number"
-                  step="5000"
-                  required
-                  value={bidPrice}
-                  onChange={(e) => setBidPrice(Number(e.target.value))}
-                  className="w-full px-3 py-2 rounded-xl bg-[#12233B] border border-[#C5E5EC]/30 text-[#E0FAEB] font-mono text-base font-bold focus:outline-none focus:border-[#C5E5EC]"
-                  placeholder="50000"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[#C5E5EC]/90 mb-1 font-semibold">
-                  {language === 'vi'
-                    ? 'Thời gian bạn cam kết hoàn thành (Phút)'
-                    : 'Committed completion time (Minutes)'}
-                </label>
-                <input
-                  type="number"
-                  required
-                  value={bidMinutes}
-                  onChange={(e) => setBidMinutes(Number(e.target.value))}
-                  className="w-full px-3 py-2 rounded-xl bg-[#12233B] border border-[#C5E5EC]/30 text-white font-mono focus:outline-none focus:border-[#C5E5EC]"
-                  placeholder="30"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[#C5E5EC]/90 mb-1 font-semibold">
-                  {language === 'vi' ? 'Ghi chú đề xuất / Điểm mạnh của bạn' : 'Proposal note / Your strengths'}
-                </label>
-                <textarea
-                  rows={2}
-                  required
-                  value={bidNote}
-                  onChange={(e) => setBidNote(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-[#12233B] border border-[#C5E5EC]/30 text-white focus:outline-none focus:border-[#C5E5EC]"
-                  placeholder={
-                    language === 'vi'
-                      ? 'Tôi có kinh nghiệm, hoàn thành trong 20 phút...'
-                      : 'I have experience, will complete in 20 minutes...'
-                  }
-                />
-              </div>
-
-              <button
-                type="submit"
-                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#3064AE] via-[#2A5594] to-[#25735B] text-white font-extrabold text-sm hover:brightness-110 shadow-lg shadow-[#3064AE]/20 transition cursor-pointer border border-[#E0FAEB]/30"
-              >
-                {language === 'vi' ? 'Gửi Đề Xuất Đấu Giá' : 'Submit Auction Bid'}
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Live Reverse Bidding Room Modal */}
-      <LiveReverseBiddingModal
-        isOpen={isLiveAuctionOpen}
-        gig={gig}
-        onClose={() => setIsLiveAuctionOpen(false)}
-      />
 
       {/* Multi-Worker Check-In QR Modal */}
       <MultiWorkerCheckInModal

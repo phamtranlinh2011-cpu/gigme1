@@ -92,7 +92,7 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
   const [categorySearch, setCategorySearch] = useState('');
   const [categoryError, setCategoryError] = useState('');
   const [price, setPrice] = useState(60000);
-  const isReverseAuction = false;
+  const [attachedImage, setAttachedImage] = useState<string>('');
   const [isFlash, setIsFlash] = useState(false);
   const [isBoosted, setIsBoosted] = useState(false);
   const [isRecurringWeekly, setIsRecurringWeekly] = useState(false);
@@ -151,7 +151,14 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
       setCategoryError('');
       setStep(2);
     } else if (step === 2) {
-      if (price <= 0) return;
+      if (price < 20000) {
+        showNotification(
+          language === 'vi' ? 'Thù lao tối thiểu' : 'Minimum Bounty',
+          language === 'vi' ? 'Mức thù lao tối thiểu cho mỗi công việc là 20.000 VNĐ.' : 'Minimum payment bounty is 20,000 VND.',
+          false
+        );
+        return;
+      }
       setStep(3);
     }
   };
@@ -171,12 +178,15 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
       ? (customCategory.trim() || 'Khác')
       : category;
 
+    const fullDescription = attachedImage
+      ? `${description.trim()}\n\n[Hình ảnh đính kèm: ${attachedImage}]`
+      : description.trim();
+
     const success = postGig({
       title,
-      description,
+      description: fullDescription,
       category: finalCategory,
       price,
-      isReverseAuction,
       isFlash: isFlash || isBoosted,
       isBoosted,
       locationName,
@@ -484,18 +494,50 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
             />
           </div>
 
+          {/* Optional Image Attachment */}
+          <div className="p-3 rounded-2xl bg-[#12233B] border border-[#C5E5EC]/20 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-[#C5E5EC] flex items-center space-x-1.5">
+                <Camera className="w-4 h-4 text-[#E0FAEB]" />
+                <span>{language === 'vi' ? 'Đính kèm hình ảnh minh họa (Tùy chọn)' : 'Attach Reference Image (Optional)'}</span>
+              </span>
+              {attachedImage && (
+                <button
+                  type="button"
+                  onClick={() => setAttachedImage('')}
+                  className="text-[10px] text-red-400 hover:underline font-bold"
+                >
+                  {language === 'vi' ? 'Xóa ảnh' : 'Remove'}
+                </button>
+              )}
+            </div>
+            {attachedImage ? (
+              <div className="relative w-full h-32 rounded-xl overflow-hidden border border-[#C5E5EC]/30">
+                <img src={attachedImage} alt="Attachment" className="w-full h-full object-cover" />
+              </div>
+            ) : (
+              <input
+                type="text"
+                value={attachedImage}
+                onChange={(e) => setAttachedImage(e.target.value)}
+                placeholder={language === 'vi' ? 'Dán link hình ảnh (URL) hoặc chụp ảnh qua trợ lý AI ở trên' : 'Paste image URL or snap via AI assistant above'}
+                className="w-full px-3 py-1.5 rounded-xl bg-[#0E1B2E] border border-[#C5E5EC]/20 text-white text-[11px] focus:outline-none focus:border-[#3064AE]"
+              />
+            )}
+          </div>
+
           <button
             type="button"
             onClick={handleNext}
             disabled={!title.trim() || !description.trim()}
             className="w-full py-3 rounded-xl bg-gradient-to-r from-[#3064AE] to-[#417AC6] hover:from-[#255294] hover:to-[#356ab0] text-white font-extrabold text-sm shadow-md shadow-[#3064AE]/20 disabled:opacity-40 disabled:cursor-not-allowed transition active:scale-95 border border-[#C5E5EC]/30 cursor-pointer"
           >
-            {language === 'vi' ? 'Tiếp Tục: Thiết Lập Thù Lao & Đấu Giá →' : 'Continue: Set Pricing & Auction →'}
+            {language === 'vi' ? 'Tiếp Tục: Thiết Lập Thù Lao & Thời Lượng →' : 'Continue: Set Bounty & Duration →'}
           </button>
         </div>
       )}
 
-      {/* STEP 2: Pricing & Reverse Auction */}
+      {/* STEP 2: Pricing & Details */}
       {step === 2 && (
         <div className="rounded-3xl bg-[#0E1B2E] border border-[#C5E5EC]/25 p-6 shadow-xl space-y-5 animate-fade-in text-xs relative overflow-hidden">
           <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-[#3064AE] via-[#C5E5EC] to-[#E0FAEB]" />
@@ -513,7 +555,24 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
               className="w-full px-3.5 py-2.5 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-[#E0FAEB] font-mono text-xl font-black focus:border-[#3064AE] focus:outline-none"
               placeholder="50000"
             />
-            <span className="text-[11px] text-[#C5E5EC]/70 mt-1 block">
+            {/* Quick Bounty Presets */}
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {[30000, 50000, 100000, 150000, 200000, 500000].map((preset) => (
+                <button
+                  key={preset}
+                  type="button"
+                  onClick={() => setPrice(preset)}
+                  className={`px-2.5 py-1 rounded-xl text-[11px] font-bold transition cursor-pointer border ${
+                    price === preset
+                      ? 'bg-[#3064AE] text-white border-[#C5E5EC]'
+                      : 'bg-[#12233B] text-[#C5E5EC] hover:bg-[#162C4E] border-[#C5E5EC]/20'
+                  }`}
+                >
+                  {formatVnd(preset)}
+                </button>
+              ))}
+            </div>
+            <span className="text-[11px] text-[#C5E5EC]/70 mt-1.5 block">
               {language === 'vi' ? (
                 <>Khoản tiền này sẽ được khóa an toàn trong <strong>Smart Escrow Vault</strong> và chỉ giải ngân khi bạn bấm nghiệm thu hài lòng.</>
               ) : (

@@ -41,7 +41,9 @@ export type SoundEffectType =
   | 'ESCROW_LOCK'
   | 'LEVEL_UP'
   | 'BUTTON_CLICK'
-  | 'SUCCESS_CHIME';
+  | 'SUCCESS_CHIME'
+  | 'CALL_RING'
+  | 'CALL_HANGUP';
 
 export function playNotificationSound(type: SoundEffectType = 'DING_DEFAULT') {
   if (isAudioMuted()) return;
@@ -51,6 +53,52 @@ export function playNotificationSound(type: SoundEffectType = 'DING_DEFAULT') {
     const now = ctx.currentTime;
 
     switch (type) {
+      case 'CALL_RING': {
+        // Dual-tone VoIP calling ring (440Hz + 480Hz classic telephone ringback tone)
+        const osc1 = ctx.createOscillator();
+        const osc2 = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc1.type = 'sine';
+        osc2.type = 'sine';
+        osc1.frequency.setValueAtTime(440, now);
+        osc2.frequency.setValueAtTime(480, now);
+
+        gain.gain.setValueAtTime(0, now);
+        gain.gain.linearRampToValueAtTime(0.15, now + 0.05);
+        gain.gain.setValueAtTime(0.15, now + 0.4);
+        gain.gain.linearRampToValueAtTime(0.001, now + 0.45);
+
+        osc1.connect(gain);
+        osc2.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc1.start(now);
+        osc2.start(now);
+        osc1.stop(now + 0.45);
+        osc2.stop(now + 0.45);
+        break;
+      }
+
+      case 'CALL_HANGUP': {
+        // Call termination sound (Descending gentle beeps)
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(425, now);
+        osc.frequency.setValueAtTime(350, now + 0.15);
+
+        gain.gain.setValueAtTime(0.15, now);
+        gain.gain.linearRampToValueAtTime(0.001, now + 0.3);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start(now);
+        osc.stop(now + 0.3);
+        break;
+      }
       case 'RADAR_PING': {
         // Retro Cyber Radar Sonar Ping (High pulse with harmonic reverb decay)
         const osc = ctx.createOscillator();

@@ -76,8 +76,8 @@ const ELO_TIERS: EloTierInfo[] = [
     maxElo: 1799,
     color: 'text-cyan-400',
     bgGradient: 'from-cyan-600/30 to-blue-500/20',
-    perksVi: ['Ưu tiên thấy kèo trước 30 giây', 'Huy hiệu Viền Sao Bạch Kim', 'Được mời phòng đấu giá VIP'],
-    perksEn: ['30s early access to gigs', 'Platinum Star rim badge', 'Access to VIP reverse auctions'],
+    perksVi: ['Ưu tiên thấy kèo trước 30 giây', 'Huy hiệu Viền Sao Bạch Kim', 'Ưu tiên nhận kèo VIP thu nhập cao'],
+    perksEn: ['30s early access to gigs', 'Platinum Star rim badge', 'Priority access to high-paying VIP gigs'],
   },
   {
     tier: 'DIAMOND',

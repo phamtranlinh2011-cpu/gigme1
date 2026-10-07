@@ -238,8 +238,8 @@ export interface GigEntity {
   description: string;
   category: string;
   price: number;
-  isReverseAuction: boolean;
-  lowestBidPrice: number;
+  isReverseAuction?: boolean;
+  lowestBidPrice?: number;
   distanceMeters: number;
   locationName: string;
   location?: string;
@@ -406,7 +406,9 @@ export interface ChatMessageEntity {
     | 'IMAGE'
     | 'VOICE'
     | 'VIDEO'
-    | 'FILE';
+    | 'FILE'
+    | 'VOIP_CALL_INVITE'
+    | 'VIDEO_CALL_INVITE';
   attachmentData?: string | null;
   attachmentDuration?: number; // Thời lượng audio giây cho Voice Note
   mediaFileName?: string;
@@ -460,13 +462,18 @@ export type AppRoleMode = 'CLIENT' | 'FREELANCER';
 
 export interface VoipCallSession {
   gigId: string;
+  partnerId?: string;
   partnerName: string;
   partnerRole?: string;
   partnerAvatarUrl?: string;
   maskedPhoneNumber: string;
   isMuted: boolean;
   isVideo?: boolean;
+  isVideoOff?: boolean;
   durationSeconds: number;
+  isIncoming?: boolean;
+  callerId?: string;
+  callerName?: string;
 }
 
 export interface UiNotification {

@@ -57,6 +57,7 @@ import {
   LifeBuoy,
   Wallet,
   FileText,
+  Briefcase,
 } from 'lucide-react';
 import { useGigMe } from '../context/GigMeContext';
 import { useTranslation } from '../context/LanguageContext';
@@ -207,6 +208,9 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onBa
     updateModUser,
     deleteModUser,
     updateModPermissions,
+    releaseEscrowPayout,
+    requestGigRevision,
+    deleteGig,
   } = useGigMe();
   const { language, t } = useTranslation();
 
@@ -236,7 +240,13 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onBa
   const totalEscrowLockedVault = allUsers.reduce((sum, u) => sum + (u.escrowLockedBalance || 0), 0);
   const totalPlatformFeesCollected = allUsers.reduce((sum, u) => sum + Math.round((u.totalSpent || 0) * 0.1), 0);
 
-  const [activeTab, setActiveTab] = useState<'DISPUTES' | 'WITHDRAWALS' | 'USERS' | 'MODS' | 'VAULT' | 'ANALYTICS' | 'SYBIL_DETECTION' | 'BANK_BOT'>('DISPUTES');
+  const [activeTab, setActiveTab] = useState<
+    'GIGS' | 'DISPUTES' | 'WITHDRAWALS' | 'USERS' | 'MODS' | 'VAULT' | 'ANALYTICS' | 'SYBIL_DETECTION' | 'BANK_BOT'
+  >('GIGS');
+  const [gigFilterStatus, setGigFilterStatus] = useState<
+    'ALL' | 'SUBMITTED' | 'IN_PROGRESS' | 'OPEN' | 'COMPLETED' | 'DISPUTED'
+  >('SUBMITTED');
+  const [gigSearchQuery, setGigSearchQuery] = useState('');
   const [userSearch, setUserSearch] = useState('');
 
   // --- MOD MANAGEMENT STATE & HANDLERS ---
@@ -666,6 +676,7 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onBa
   };
 
   const disputedGigs = rawGigs.filter((g) => g.status === 'DISPUTED');
+  const submittedGigs = rawGigs.filter((g) => g.status === 'SUBMITTED');
 
   // Analytics Metrics
   const completedGigs = rawGigs.filter((g) => g.status === 'COMPLETED');

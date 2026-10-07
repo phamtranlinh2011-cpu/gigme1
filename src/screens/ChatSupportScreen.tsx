@@ -41,6 +41,8 @@ import {
   Heart,
   ChevronDown,
   GraduationCap,
+  CheckCircle2,
+  AlertTriangle,
 } from 'lucide-react';
 import { useGigMe } from '../context/GigMeContext';
 import { useTranslation } from '../context/LanguageContext';
@@ -100,6 +102,8 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
     reactToChatMessage,
     startVoipCall,
     selectGig,
+    releaseEscrowPayout,
+    cancelGigByWorker,
     showNotification,
   } = useGigMe();
   const { language, t } = useTranslation();
@@ -1388,6 +1392,53 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
   if (activeContact) {
     const isPartnerOnline = activeContact.isOnline;
     const associatedGig = activeContact.associatedGig;
+    const targetThread = associatedGig?.id || getDirectThreadId(currentUser?.id || '', activeContact.id);
+    const liveGig = associatedGig ? rawGigs.find((g) => g.id === associatedGig.id) : null;
+    const isStaff = currentUser?.role === 'ADMIN' || currentUser?.role === 'MOD' || currentUser?.id === '000000000';
+    const isClient = currentUser?.id === liveGig?.clientId;
+    const isWorker = currentUser?.id === liveGig?.freelancerId;
+
+    const handleStartVoiceCall = () => {
+      startVoipCall(
+        activeContact.name,
+        activeContact.roleLabel,
+        associatedGig?.id,
+        false,
+        activeContact.avatarUrl,
+        activeContact.id
+      );
+      sendChat(
+        language === 'vi' ? '📞 Đã bắt đầu cuộc gọi thoại VoIP qua mạng Campus' : '📞 Started Campus VoIP Voice Call',
+        'VOIP_CALL_INVITE',
+        null,
+        0,
+        undefined,
+        targetThread,
+        activeContact.id,
+        activeContact.name
+      );
+    };
+
+    const handleStartVideoCall = () => {
+      startVoipCall(
+        activeContact.name,
+        activeContact.roleLabel,
+        associatedGig?.id,
+        true,
+        activeContact.avatarUrl,
+        activeContact.id
+      );
+      sendChat(
+        language === 'vi' ? '📹 Đã bắt đầu cuộc gọi video trực tuyến qua mạng Campus' : '📹 Started Campus Live Video Call',
+        'VIDEO_CALL_INVITE',
+        null,
+        0,
+        undefined,
+        targetThread,
+        activeContact.id,
+        activeContact.name
+      );
+    };
 
     return (
       <div className="max-w-4xl mx-auto px-2 sm:px-4 py-2 flex flex-col h-[calc(100vh-4.5rem)] pb-20">
@@ -1471,14 +1522,14 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
           {/* Quick Communication Actions (VoIP Call & Info) */}
           <div className="flex items-center space-x-1 shrink-0">
             <button
-              onClick={() => startVoipCall(activeContact.name, activeContact.roleLabel, associatedGig?.id)}
+              onClick={handleStartVoiceCall}
               className="p-2 rounded-xl bg-[#12233B] hover:bg-[#162B48] text-[#C5E5EC] border border-[#C5E5EC]/20 transition cursor-pointer"
               title={language === 'vi' ? 'Gọi thoại VoIP miễn phí qua mạng Campus' : 'Free campus VoIP call'}
             >
               <PhoneCall className="w-4 h-4" />
             </button>
             <button
-              onClick={() => startVoipCall(activeContact.name, `${activeContact.roleLabel} (Video)`, associatedGig?.id)}
+              onClick={handleStartVideoCall}
               className="p-2 rounded-xl bg-[#12233B] hover:bg-[#162B48] text-[#C5E5EC] border border-[#C5E5EC]/20 transition cursor-pointer"
               title={language === 'vi' ? 'Gọi video trực tuyến' : 'Live video call'}
             >
@@ -1493,6 +1544,76 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
             </button>
           </div>
         </div>
+
+        {/* REVIEW APPROVAL BANNER: RENDERED FOR CLIENT/STAFF WHEN GIG IS SUBMITTED */}
+        {liveGig && liveGig.status === 'SUBMITTED' && (isClient || isStaff) && (
+          <div className="my-2 p-3 sm:p-4 rounded-2xl bg-gradient-to-r from-emerald-950/80 via-[#102538] to-[#12233B] border-2 border-emerald-500/50 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fade-in">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shrink-0">
+                <CheckCircle2 className="w-5 h-5 animate-pulse" />
+              </div>
+              <div>
+                <h5 className="font-black text-xs text-white flex items-center space-x-2">
+                  <span>{language === 'vi' ? 'Báo Cáo Nghiệm Thu Đã Nộp' : 'Deliverables Submitted'}</span>
+                  <span className="px-1.5 py-0.2 rounded-full bg-emerald-500/30 text-emerald-300 font-bold text-[9px]">
+                    {language === 'vi' ? 'CHỜ BẠN DUYỆT' : 'PENDING APPROVAL'}
+                  </span>
+                </h5>
+                <p className="text-[11px] text-[#C5E5EC]/80 mt-0.5">
+                  {language === 'vi'
+                    ? `Thợ đã hoàn tất công việc "${liveGig.title}". Bấm duyệt để giải ngân ${formatVnd(liveGig.price)}.`
+                    : `Worker delivered "${liveGig.title}". Confirm to release ${formatVnd(liveGig.price)}.`}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center space-x-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  const ok = releaseEscrowPayout(liveGig.id);
+                  if (ok) {
+                    showNotification(
+                      language === 'vi' ? 'Đã Giải Ngân Thành Công! 🎉' : 'Escrow Released! 🎉',
+                      language === 'vi' ? `Đã hoàn tất nghiệm thu và chuyển ${formatVnd(liveGig.price)} cho sinh viên làm việc.` : `Completed and paid ${formatVnd(liveGig.price)} to worker.`,
+                      true,
+                      true
+                    );
+                  }
+                }}
+                className="w-full sm:w-auto py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs flex items-center justify-center space-x-1.5 shadow-lg active:scale-95 cursor-pointer border border-emerald-400/40"
+              >
+                <CheckCircle2 className="w-4 h-4 text-emerald-200" />
+                <span>{language === 'vi' ? `Xác Nhận Đã Xong & Giải Ngân (${formatVnd(liveGig.price)})` : `Confirm Done & Pay (${formatVnd(liveGig.price)})`}</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* WORKER ACTIONS IN PROGRESS (DROP / CANCEL GIG) */}
+        {liveGig && liveGig.status === 'IN_PROGRESS' && isWorker && (
+          <div className="my-1.5 px-3 py-1.5 rounded-xl bg-[#12233B] border border-[#C5E5EC]/20 flex items-center justify-between text-xs text-slate-300">
+            <span className="text-[11px] text-[#C5E5EC]">
+              {language === 'vi' ? 'Bạn đang nhận làm đơn này.' : 'You are assigned to this gig.'}
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                const conf = window.confirm(
+                  language === 'vi'
+                    ? 'Bạn có chắc chắn muốn hủy nhận đơn này? Đơn sẽ được mở lại cho sinh viên khác.'
+                    : 'Are you sure you want to drop this gig? It will be reopened for others.'
+                );
+                if (conf) {
+                  cancelGigByWorker(liveGig.id, 'Thợ tự rút lui khỏi đơn trong phòng chat');
+                }
+              }}
+              className="text-[11px] text-red-400 hover:underline font-bold flex items-center space-x-1 cursor-pointer"
+            >
+              <AlertTriangle className="w-3.5 h-3.5" />
+              <span>{language === 'vi' ? 'Hủy nhận việc (Rút khỏi đơn)' : 'Drop gig'}</span>
+            </button>
+          </div>
+        )}
 
         {/* DISMISSIBLE 1-LINE COLLABORATION STATUS */}
         {associatedGig && !bannerDismissed && (
@@ -1756,6 +1877,51 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                                 >
                                   <Download className="w-4 h-4" />
                                 </a>
+                              )}
+                            </div>
+                          )}
+
+                          {/* VoIP or Video Call Invite Attachment */}
+                          {(msg.attachmentType === 'VOIP_CALL_INVITE' || msg.attachmentType === 'VIDEO_CALL_INVITE') && (
+                            <div className="mt-2 p-3 rounded-2xl bg-gradient-to-r from-[#0C1B2E] to-[#12233B] border border-[#00E5FF]/40 space-y-2 min-w-[220px]">
+                              <div className="flex items-center space-x-2">
+                                {msg.attachmentType === 'VIDEO_CALL_INVITE' ? (
+                                  <Video className="w-5 h-5 text-emerald-400 animate-pulse shrink-0" />
+                                ) : (
+                                  <PhoneCall className="w-5 h-5 text-cyan-400 animate-pulse shrink-0" />
+                                )}
+                                <div>
+                                  <span className="font-extrabold text-white text-xs block">
+                                    {msg.attachmentType === 'VIDEO_CALL_INVITE'
+                                      ? (language === 'vi' ? 'Cuộc Gọi Video WebRTC' : 'Live Video Call')
+                                      : (language === 'vi' ? 'Cuộc Gọi Thoại VoIP' : 'VoIP Voice Call')}
+                                  </span>
+                                  <span className="text-[10px] text-cyan-200">
+                                    {msg.senderId === currentUser?.id
+                                      ? (language === 'vi' ? 'Bạn đã bắt đầu cuộc gọi' : 'You started a call')
+                                      : (language === 'vi' ? 'Mời bạn tham gia cuộc gọi' : 'Invited you to call')}
+                                  </span>
+                                </div>
+                              </div>
+                              {msg.senderId !== currentUser?.id && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    triggerHaptic('success');
+                                    startVoipCall(
+                                      activeContact.name,
+                                      activeContact.roleLabel,
+                                      associatedGig?.id,
+                                      msg.attachmentType === 'VIDEO_CALL_INVITE',
+                                      activeContact.avatarUrl,
+                                      activeContact.id
+                                    );
+                                  }}
+                                  className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 hover:brightness-110 text-white font-extrabold text-xs flex items-center justify-center space-x-1.5 shadow-md active:scale-95 cursor-pointer"
+                                >
+                                  <PhoneCall className="w-3.5 h-3.5" />
+                                  <span>{language === 'vi' ? 'Nghe Máy / Tham Gia Ngay' : 'Answer / Join Call'}</span>
+                                </button>
                               )}
                             </div>
                           )}
@@ -2231,7 +2397,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
               <button
                 onClick={() => {
                   setShowContactInfoModal(false);
-                  startVoipCall(activeContact.name, activeContact.roleLabel);
+                  handleStartVoiceCall();
                 }}
                 className="w-full mt-4 py-2.5 rounded-2xl bg-gradient-to-r from-[#3064AE] via-[#417AC6] to-[#C5E5EC] hover:brightness-110 text-white font-extrabold text-xs flex items-center justify-center space-x-2 transition shadow-lg shadow-[#3064AE]/30 border border-[#E0FAEB]/30 cursor-pointer"
               >

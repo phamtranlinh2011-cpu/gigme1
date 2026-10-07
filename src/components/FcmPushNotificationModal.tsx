@@ -504,7 +504,7 @@ export const FcmPushNotificationModal: React.FC<FcmPushNotificationModalProps> =
                 <div className="flex items-center space-x-2">
                   <TrendingDown className="w-4 h-4 text-blue-500" />
                   <span className="font-bold">
-                    {language === 'vi' ? 'Phòng đấu giá ngược' : 'Reverse auction room'}
+                    {language === 'vi' ? 'Kèo hỏa tốc & Flash Boost' : 'Flash & Urgent Gigs'}
                   </span>
                 </div>
               </label>
