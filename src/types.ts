@@ -253,8 +253,6 @@ export interface GigEntity {
   status: 'OPEN' | 'IN_PROGRESS' | 'SUBMITTED' | 'COMPLETED' | 'DISPUTED' | 'CLIENT_REFUNDED' | 'CANCELLED';
   isPinned: boolean;
   isFlash: boolean;
-  isReverseAuction?: boolean;
-  lowestBidPrice?: number;
   isRecurringWeekly: boolean; // Kèo định kỳ / Thuê theo tuần
   totalWorkersNeeded: number; // Kèo ghép nhóm: Cần bao nhiêu người
   confirmedWorkersCount: number;

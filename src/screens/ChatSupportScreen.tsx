@@ -103,6 +103,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
     startVoipCall,
     selectGig,
     releaseEscrowPayout,
+    requestGigRevision,
     cancelGigByWorker,
     showNotification,
   } = useGigMe();
@@ -1393,9 +1394,24 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
     const isPartnerOnline = activeContact.isOnline;
     const associatedGig = activeContact.associatedGig;
     const targetThread = associatedGig?.id || getDirectThreadId(currentUser?.id || '', activeContact.id);
-    const liveGig = associatedGig ? rawGigs.find((g) => g.id === associatedGig.id) : null;
-    const isStaff = currentUser?.role === 'ADMIN' || currentUser?.role === 'MOD' || currentUser?.id === '000000000';
-    const isClient = currentUser?.id === liveGig?.clientId;
+    const liveGig = associatedGig
+      ? rawGigs.find((g) => g.id === associatedGig.id)
+      : rawGigs.find((g) =>
+          ((g.clientId === currentUser?.id && g.freelancerId === activeContact.id) ||
+           (g.freelancerId === currentUser?.id && g.clientId === activeContact.id)) &&
+          (g.status === 'SUBMITTED' || g.status === 'IN_PROGRESS' || g.status === 'OPEN')
+        ) || null;
+    const isStaff =
+      currentUser?.role === 'ADMIN' ||
+      currentUser?.role === 'MOD' ||
+      currentUser?.id === '000000000' ||
+      currentUser?.id === '000000001' ||
+      currentUser?.id === '000000002' ||
+      currentUser?.id === '000000003' ||
+      currentUser?.phone === '0909120918';
+    const isClient =
+      currentUser?.id === liveGig?.clientId ||
+      (!!liveGig?.clientPhone && currentUser?.phone === liveGig.clientPhone);
     const isWorker = currentUser?.id === liveGig?.freelancerId;
 
     const handleStartVoiceCall = () => {
@@ -1545,8 +1561,8 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
           </div>
         </div>
 
-        {/* REVIEW APPROVAL BANNER: RENDERED FOR CLIENT/STAFF WHEN GIG IS SUBMITTED */}
-        {liveGig && liveGig.status === 'SUBMITTED' && (isClient || isStaff) && (
+        {/* REVIEW APPROVAL BANNER: RENDERED FOR CLIENT/STAFF WHEN GIG IS SUBMITTED OR IN PROGRESS */}
+        {liveGig && (liveGig.status === 'SUBMITTED' || liveGig.status === 'IN_PROGRESS') && (isClient || isStaff) && (
           <div className="my-2 p-3 sm:p-4 rounded-2xl bg-gradient-to-r from-emerald-950/80 via-[#102538] to-[#12233B] border-2 border-emerald-500/50 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fade-in">
             <div className="flex items-center space-x-3">
               <div className="p-2 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shrink-0">
@@ -1554,15 +1570,21 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
               </div>
               <div>
                 <h5 className="font-black text-xs text-white flex items-center space-x-2">
-                  <span>{language === 'vi' ? 'Báo Cáo Nghiệm Thu Đã Nộp' : 'Deliverables Submitted'}</span>
+                  <span>
+                    {liveGig.status === 'SUBMITTED'
+                      ? (language === 'vi' ? 'Báo Cáo Nghiệm Thu Đã Nộp' : 'Deliverables Submitted')
+                      : (language === 'vi' ? 'Công Việc Đang Thực Hiện' : 'Job In Progress')}
+                  </span>
                   <span className="px-1.5 py-0.2 rounded-full bg-emerald-500/30 text-emerald-300 font-bold text-[9px]">
-                    {language === 'vi' ? 'CHỜ BẠN DUYỆT' : 'PENDING APPROVAL'}
+                    {liveGig.status === 'SUBMITTED'
+                      ? (language === 'vi' ? 'CHỜ BẠN DUYỆT' : 'PENDING APPROVAL')
+                      : (language === 'vi' ? 'XÁC NHẬN KHI XONG' : 'CONFIRM WHEN DONE')}
                   </span>
                 </h5>
                 <p className="text-[11px] text-[#C5E5EC]/80 mt-0.5">
                   {language === 'vi'
-                    ? `Thợ đã hoàn tất công việc "${liveGig.title}". Bấm duyệt để giải ngân ${formatVnd(liveGig.price)}.`
-                    : `Worker delivered "${liveGig.title}". Confirm to release ${formatVnd(liveGig.price)}.`}
+                    ? `Đơn việc "${liveGig.title}". Bấm xác nhận để nghiệm thu và giải ngân ${formatVnd(liveGig.price)} cho người làm.`
+                    : `Gig "${liveGig.title}". Confirm completion to release ${formatVnd(liveGig.price)} to student.`}
                 </p>
               </div>
             </div>
@@ -1590,7 +1612,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
         )}
 
         {/* WORKER ACTIONS IN PROGRESS (DROP / CANCEL GIG) */}
-        {liveGig && liveGig.status === 'IN_PROGRESS' && isWorker && (
+        {liveGig && (liveGig.status === 'IN_PROGRESS' || liveGig.status === 'SUBMITTED') && isWorker && (
           <div className="my-1.5 px-3 py-1.5 rounded-xl bg-[#12233B] border border-[#C5E5EC]/20 flex items-center justify-between text-xs text-slate-300">
             <span className="text-[11px] text-[#C5E5EC]">
               {language === 'vi' ? 'Bạn đang nhận làm đơn này.' : 'You are assigned to this gig.'}
@@ -1804,6 +1826,108 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                                   setPreviewZoomImage(msg.attachmentData!);
                                 }}
                               />
+                            </div>
+                          )}
+
+                          {/* Proof of Work / Watermark GPS Attachment with Direct Approval Actions */}
+                          {(msg.attachmentType === 'WATERMARK_PREVIEW' || msg.attachmentType === 'PROOF_SCREENSHOT') && (
+                            <div className="mt-2 p-2.5 rounded-2xl bg-[#091422] border-2 border-emerald-500/50 space-y-2 max-w-sm">
+                              <div className="flex items-center justify-between text-[11px] pb-1 border-b border-emerald-500/30">
+                                <span className="font-extrabold text-emerald-300 flex items-center space-x-1.5">
+                                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                                  <span>{language === 'vi' ? 'Minh Chứng Nghiệm Thu GPS' : 'GPS Proof of Work'}</span>
+                                </span>
+                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30">
+                                  {liveGig?.status === 'COMPLETED'
+                                    ? (language === 'vi' ? 'Đã Giải Ngân' : 'Disbursed')
+                                    : (language === 'vi' ? 'Chờ Duyệt' : 'Pending Review')}
+                                </span>
+                              </div>
+
+                              {msg.attachmentData && (
+                                <div className="rounded-xl overflow-hidden border border-emerald-500/30 bg-black">
+                                  <img
+                                    src={msg.attachmentData}
+                                    alt="Proof of work"
+                                    className="max-h-56 w-full object-cover cursor-pointer hover:opacity-95 transition"
+                                    onClick={() => {
+                                      setPreviewImageRotation(0);
+                                      setPreviewZoomImage(msg.attachmentData!);
+                                    }}
+                                  />
+                                </div>
+                              )}
+
+                              {/* Approval Buttons for Client or Moderator right on the delivered proof */}
+                              {(() => {
+                                const targetProofGig = (msg.gigId ? rawGigs.find((g) => g.id === msg.gigId) : null) || liveGig;
+                                if (!targetProofGig) return null;
+                                const canApprove =
+                                  isStaff ||
+                                  currentUser?.id === targetProofGig.clientId ||
+                                  (!!targetProofGig.clientPhone && currentUser?.phone === targetProofGig.clientPhone);
+                                const isTargetWorker = currentUser?.id === targetProofGig.freelancerId;
+
+                                return (
+                                  <>
+                                    {(targetProofGig.status === 'SUBMITTED' || targetProofGig.status === 'IN_PROGRESS') && canApprove && (
+                                      <div className="pt-1.5 flex flex-col gap-1.5">
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const ok = releaseEscrowPayout(targetProofGig.id);
+                                            if (ok) {
+                                              showNotification(
+                                                language === 'vi' ? 'Đã Xác Nhận & Giải Ngân! 🎉' : 'Escrow Released! 🎉',
+                                                language === 'vi'
+                                                  ? `Đã nghiệm thu xong đơn "${targetProofGig.title}" và giải ngân ${formatVnd(targetProofGig.price)} cho người làm.`
+                                                  : `Confirmed completion of "${targetProofGig.title}" and paid ${formatVnd(targetProofGig.price)}.`,
+                                                true,
+                                                true
+                                              );
+                                            }
+                                          }}
+                                          className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-xs shadow-md transition flex items-center justify-center space-x-1.5 cursor-pointer active:scale-95 border border-emerald-400/50"
+                                        >
+                                          <CheckCircle2 className="w-4 h-4 text-emerald-200" />
+                                          <span>
+                                            {language === 'vi'
+                                              ? `Xác Nhận Đã Xong & Giải Ngân (${formatVnd(targetProofGig.price)})`
+                                              : `Confirm Done & Release Escrow (${formatVnd(targetProofGig.price)})`}
+                                          </span>
+                                        </button>
+
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const note = window.prompt(
+                                              language === 'vi' ? 'Nhập ghi chú yêu cầu chỉnh sửa gửi thợ:' : 'Enter revision feedback for worker:'
+                                            );
+                                            if (note && note.trim()) {
+                                              requestGigRevision(targetProofGig.id, note.trim());
+                                              showNotification(
+                                                language === 'vi' ? 'Đã Gửi Yêu Cầu Sửa' : 'Revision Requested',
+                                                language === 'vi' ? 'Yêu cầu chỉnh sửa đã được gửi đến người làm.' : 'Revision feedback sent to worker.'
+                                              );
+                                            }
+                                          }}
+                                          className="w-full py-1.5 px-3 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 font-bold text-[11px] border border-amber-500/30 transition cursor-pointer"
+                                        >
+                                          {language === 'vi' ? '🔄 Yêu Cầu Chỉnh Sửa Lại' : '🔄 Request Revision'}
+                                        </button>
+                                      </div>
+                                    )}
+
+                                    {(targetProofGig.status === 'SUBMITTED' || targetProofGig.status === 'IN_PROGRESS') && isTargetWorker && (
+                                      <p className="text-[10px] text-emerald-300 font-medium text-center">
+                                        {language === 'vi'
+                                          ? '⏳ Đã nộp bằng chứng. Đang chờ người thuê hoặc kiểm duyệt viên bấm xác nhận.'
+                                          : '⏳ Proof delivered. Awaiting client or moderator confirmation.'}
+                                      </p>
+                                    )}
+                                  </>
+                                );
+                              })()}
                             </div>
                           )}
 

@@ -794,9 +794,36 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
 
           {/* Location field */}
           <div>
-            <label className="block text-[#C5E5EC] mb-1 font-bold">
-              {language === 'vi' ? 'Địa điểm & Khu vực làm việc' : 'Location & Workplace Area'}
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-[#C5E5EC] font-bold">
+                {language === 'vi' ? 'Địa điểm & Khu vực làm việc' : 'Location & Workplace Area'}
+              </label>
+              <button
+                type="button"
+                onClick={() => {
+                  if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(
+                      (pos) => {
+                        setLocationName(language === 'vi' ? '📍 Vị trí GPS hiện tại của tôi (Campus)' : '📍 My Current Campus GPS Location');
+                        showNotification(
+                          language === 'vi' ? 'Đã lấy tọa độ GPS' : 'GPS Retrieved',
+                          language === 'vi' ? 'Đã định vị thành công vị trí hiện tại của bạn.' : 'Successfully located your current position.'
+                        );
+                      },
+                      () => {
+                        showNotification(
+                          language === 'vi' ? 'Không thể lấy GPS' : 'GPS Unavailable',
+                          language === 'vi' ? 'Vui lòng cấp quyền vị trí hoặc chọn địa điểm bên dưới.' : 'Please allow location permission or select from presets.'
+                        );
+                      }
+                    );
+                  }
+                }}
+                className="text-[11px] text-[#E0FAEB] hover:text-white font-bold flex items-center space-x-1 cursor-pointer bg-[#3064AE]/30 hover:bg-[#3064AE]/50 px-2 py-0.5 rounded-lg border border-[#C5E5EC]/30 transition"
+              >
+                <span>📍 {language === 'vi' ? 'Lấy GPS của tôi' : 'Use My GPS'}</span>
+              </button>
+            </div>
             <div className="relative">
               <MapPin className="w-4 h-4 text-[#C5E5EC]/60 absolute left-3 top-2.5" />
               <input

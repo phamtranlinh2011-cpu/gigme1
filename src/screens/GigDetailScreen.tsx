@@ -38,6 +38,7 @@ import { MultiWorkerCheckInModal } from '../components/MultiWorkerCheckInModal';
 import { DoubleBlindReviewModal } from '../components/DoubleBlindReviewModal';
 import { LateCancellationModal, CancellationModalMode } from '../components/LateCancellationModal';
 import { BlockchainProofModal } from '../components/BlockchainProofModal';
+import { JobCompletionVerificationModal } from '../components/JobCompletionVerificationModal';
 import { VerifiedIdentityBadge } from '../components/VerifiedIdentityBadge';
 import { offlineCacheManager } from '../utils/offlineCache';
 import { triggerHaptic } from '../utils/haptics';
@@ -89,6 +90,7 @@ export const GigDetailScreen: React.FC<GigDetailScreenProps> = ({
   const [isLateCancelOpen, setIsLateCancelOpen] = useState(false);
   const [cancelModalMode, setCancelModalMode] = useState<CancellationModalMode>('WORKER_CANCEL');
   const [isProofModalOpen, setIsProofModalOpen] = useState(false);
+  const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
 
   if (!gig) {
     return (
@@ -102,8 +104,15 @@ export const GigDetailScreen: React.FC<GigDetailScreenProps> = ({
   }
 
   const isClient = roleMode === 'CLIENT';
-  const isOwner = currentUser?.id === gig.clientId;
-  const isStaff = currentUser?.role === 'ADMIN' || currentUser?.role === 'MOD' || currentUser?.id === '000000000';
+  const isOwner = currentUser?.id === gig.clientId || (!!gig.clientPhone && currentUser?.phone === gig.clientPhone);
+  const isStaff =
+    currentUser?.role === 'ADMIN' ||
+    currentUser?.role === 'MOD' ||
+    currentUser?.id === '000000000' ||
+    currentUser?.id === '000000001' ||
+    currentUser?.id === '000000002' ||
+    currentUser?.id === '000000003' ||
+    currentUser?.phone === '0909120918';
   const isWorker = currentUser?.id === gig.freelancerId;
   const isNewbie = currentUser?.tier === 'NEWBIE';
 
@@ -125,7 +134,7 @@ export const GigDetailScreen: React.FC<GigDetailScreenProps> = ({
   };
 
   const handleAcceptGig = async () => {
-    if (isAcceptingGig) return;
+    if (isAcceptingGig || isWorker) return;
     if (isNewbie) {
       triggerHaptic('medium');
       onOpenVerify();
@@ -138,6 +147,24 @@ export const GigDetailScreen: React.FC<GigDetailScreenProps> = ({
     } finally {
       setIsAcceptingGig(false);
     }
+  };
+
+  const handleConfirmVerification = async (tipAmount: number, _feedbackNote?: string) => {
+    triggerHaptic('success');
+    const ok = releaseEscrowPayout(gig.id, '', tipAmount);
+    if (ok) {
+      showNotification(
+        language === 'vi' ? 'Đã Giải Ngân Thành Công! 🎉' : 'Escrow Released Successfully! 🎉',
+        language === 'vi'
+          ? `Đã nghiệm thu và chuyển ${formatVnd(gig.price + tipAmount)} vào ví của sinh viên.`
+          : `Verified deliverables and transferred ${formatVnd(gig.price + tipAmount)} to student.`,
+        true,
+        true
+      );
+      setIsDoubleBlindModalOpen(true);
+      return true;
+    }
+    return false;
   };
 
   const handleDeleteGig = async () => {
@@ -373,122 +400,208 @@ export const GigDetailScreen: React.FC<GigDetailScreenProps> = ({
           </div>
 
           {/* Action buttons */}
-          {!isOwner && gig.status === 'OPEN' && (
+          {!isOwner && (
             <div className="flex flex-wrap gap-2">
-              <button
-                id="direct-accept-gig-btn"
-                type="button"
-                disabled={isAcceptingGig}
-                onClick={handleAcceptGig}
-                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#3064AE] via-[#2A5594] to-[#25735B] text-white font-extrabold text-xs hover:brightness-110 shadow-lg shadow-[#3064AE]/20 transition flex items-center space-x-1.5 border border-[#E0FAEB]/30 disabled:opacity-50 cursor-pointer active:scale-95"
-              >
-                {isAcceptingGig ? (
-                  <Loader2 className="w-4 h-4 animate-spin text-[#E0FAEB]" />
-                ) : (
-                  <CheckCircle2 className="w-4 h-4 text-[#E0FAEB]" />
-                )}
-                <span>
-                  {isAcceptingGig
-                    ? (language === 'vi' ? 'Đang nhận việc...' : 'Accepting...')
-                    : (language === 'vi' ? 'Nhận Kèo Ngay' : 'Accept Gig Now')}
-                </span>
-              </button>
-            </div>
-          )}
-
-          {gig.status !== 'OPEN' && gig.status !== 'CANCELLED' && (
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  triggerHaptic('light');
-                  onOpenChat();
-                }}
-                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#3064AE] to-[#417AC6] text-white font-extrabold text-xs hover:brightness-110 shadow-md transition flex items-center space-x-1.5 border border-[#C5E5EC]/30 cursor-pointer"
-              >
-                <MessageSquare className="w-4 h-4 text-[#C5E5EC]" />
-                <span>{language === 'vi' ? 'Vào Khung Chat & Nghiệm Thu →' : 'Chat & Handover →'}</span>
-              </button>
-
-              {/* Nút gửi ảnh bằng chứng đóng dấu GPS & Timestamp (Chống quỵt tiền) */}
-              {(gig.status === 'IN_PROGRESS' || gig.status === 'SUBMITTED') && isWorker && (
+              {gig.status === 'OPEN' && !isWorker && (
                 <button
+                  id="direct-accept-gig-btn"
                   type="button"
-                  onClick={() => setIsProofModalOpen(true)}
-                  className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#3064AE] via-[#2A5594] to-[#25735B] text-white font-extrabold text-xs hover:brightness-110 shadow-md transition flex items-center space-x-1.5 border border-[#E0FAEB]/30 cursor-pointer"
+                  disabled={isAcceptingGig}
+                  onClick={handleAcceptGig}
+                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#3064AE] via-[#2A5594] to-[#25735B] text-white font-extrabold text-xs hover:brightness-110 shadow-lg shadow-[#3064AE]/20 transition flex items-center space-x-1.5 border border-[#E0FAEB]/30 disabled:opacity-50 cursor-pointer active:scale-95"
                 >
-                  <Camera className="w-4 h-4 text-[#E0FAEB]" />
+                  {isAcceptingGig ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-[#E0FAEB]" />
+                  ) : (
+                    <CheckCircle2 className="w-4 h-4 text-[#E0FAEB]" />
+                  )}
                   <span>
-                    {gig.status === 'SUBMITTED'
-                      ? (language === 'vi' ? 'Cập Nhật Lại Bằng Chứng' : 'Update Proof')
-                      : (language === 'vi' ? 'Chụp Ảnh Nghiệm Thu & Gửi Duyệt' : 'Upload Proof (GPS & Time)')}
+                    {isAcceptingGig
+                      ? (language === 'vi' ? 'Đang nhận việc...' : 'Applying...')
+                      : (language === 'vi' ? 'Nhận Kèo Ngay (Apply)' : 'Apply Now')}
                   </span>
                 </button>
               )}
 
-              {/* Freelancer actions when IN_PROGRESS */}
-              {gig.status === 'IN_PROGRESS' && isWorker && (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const confirmCancel = window.confirm(
-                        language === 'vi'
-                          ? 'Bạn có chắc chắn muốn hủy nhận công việc này không? Công việc sẽ được mở lại cho sinh viên khác.'
-                          : 'Are you sure you want to cancel taking this gig? It will be reopened for other students.'
-                      );
-                      if (confirmCancel) {
-                        cancelGigByWorker(gig.id, 'Thợ tự rút lui khỏi đơn');
-                      }
-                    }}
-                    className="px-4 py-2.5 rounded-xl bg-red-500/15 border border-red-500/40 text-red-400 font-bold text-xs hover:bg-red-500/25 transition flex items-center space-x-1.5 cursor-pointer"
-                  >
-                    <AlertTriangle className="w-4 h-4" />
-                    <span>{language === 'vi' ? 'Hủy Nhận Việc (Rút khỏi đơn)' : 'Cancel Job (Leave task)'}</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setCancelModalMode('WORKER_NO_SHOW_REPORT');
-                      setIsLateCancelOpen(true);
-                    }}
-                    className="px-4 py-2.5 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-300 font-bold text-xs hover:bg-amber-500/25 transition flex items-center space-x-1.5 cursor-pointer"
-                  >
-                    <UserX className="w-4 h-4" />
-                    <span>{language === 'vi' ? 'Báo Khách Boom Kèo' : 'Report Client No-Show'}</span>
-                  </button>
-                </>
+              {/* Already Applied state button when the user is currently assigned to this job */}
+              {isWorker && (
+                <button
+                  type="button"
+                  disabled
+                  id="already-applied-btn"
+                  className="px-5 py-2.5 rounded-xl bg-emerald-950/70 border-2 border-emerald-500/60 text-emerald-300 font-extrabold text-xs shadow-lg transition flex items-center space-x-1.5 cursor-not-allowed opacity-95"
+                >
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                  <span>{language === 'vi' ? '✓ Bạn Đã Nhận Việc (Already Applied)' : '✓ Already Applied'}</span>
+                </button>
               )}
 
-              {/* Owner actions when IN_PROGRESS */}
-              {gig.status === 'IN_PROGRESS' && isOwner && (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setCancelModalMode('CLIENT_CANCEL');
-                      setIsLateCancelOpen(true);
-                    }}
-                    className="px-4 py-2.5 rounded-xl bg-red-500/15 border border-red-500/40 text-red-400 font-bold text-xs hover:bg-red-500/25 transition flex items-center space-x-1.5 cursor-pointer"
-                  >
-                    <AlertTriangle className="w-4 h-4" />
-                    <span>{language === 'vi' ? 'Hủy Đơn (Phạt nếu >10p)' : 'Cancel Order (>10m fee)'}</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setCancelModalMode('NO_SHOW_REPORT');
-                      setIsLateCancelOpen(true);
-                    }}
-                    className="px-4 py-2.5 rounded-xl bg-[#3064AE]/30 border border-[#C5E5EC]/30 text-[#E0FAEB] font-bold text-xs hover:bg-[#3064AE]/50 transition flex items-center space-x-1.5 cursor-pointer"
-                  >
-                    <UserX className="w-4 h-4" />
-                    <span>{language === 'vi' ? 'Báo Thợ Bỏ Bom (No-Show)' : 'Report Worker No-Show'}</span>
-                  </button>
-                </>
+              {gig.status !== 'OPEN' && !isWorker && (
+                <div className="px-4 py-2 rounded-xl bg-slate-800/80 border border-slate-700 text-slate-400 text-xs font-semibold flex items-center space-x-1.5">
+                  <Lock className="w-3.5 h-3.5" />
+                  <span>{language === 'vi' ? 'Đã có người nhận việc' : 'Assigned to another worker'}</span>
+                </div>
               )}
+            </div>
+          )}
+
+          {gig.status !== 'OPEN' && gig.status !== 'CANCELLED' && (
+            <div className="w-full space-y-2">
+              {/* Prominent banner if current user is the assigned worker */}
+              {isWorker && (gig.status === 'IN_PROGRESS' || gig.status === 'SUBMITTED') && (
+                <div className="w-full p-3 rounded-2xl bg-gradient-to-r from-[#12233B] to-[#162D4A] border border-cyan-500/40 flex items-center justify-between">
+                  <div className="flex items-center space-x-2.5">
+                    <CheckCircle2 className="w-5 h-5 text-cyan-400 shrink-0" />
+                    <div>
+                      <p className="font-extrabold text-xs text-white">
+                        {gig.status === 'SUBMITTED' ? 'Bạn Đã Gửi Bài Nghiệm Thu' : '⚡ Bạn Đang Nhận Làm Công Việc Này'}
+                      </p>
+                      <p className="text-[11px] text-[#C5E5EC]/80">
+                        {gig.status === 'SUBMITTED'
+                          ? 'Đang chờ người thuê hoặc BQT bấm xác nhận để nhận tiền vào ví.'
+                          : 'Sau khi làm xong, bấm Chụp ảnh nghiệm thu để gửi duyệt hoặc bấm Hủy nếu không làm tiếp.'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    triggerHaptic('light');
+                    onOpenChat();
+                  }}
+                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#3064AE] to-[#417AC6] text-white font-extrabold text-xs hover:brightness-110 shadow-md transition flex items-center space-x-1.5 border border-[#C5E5EC]/30 cursor-pointer"
+                >
+                  <MessageSquare className="w-4 h-4 text-[#C5E5EC]" />
+                  <span>{language === 'vi' ? 'Vào Khung Chat & Nghiệm Thu →' : 'Chat & Handover →'}</span>
+                </button>
+
+                {/* Nút gửi ảnh bằng chứng đóng dấu GPS & Timestamp (Chống quỵt tiền) */}
+                {(gig.status === 'IN_PROGRESS' || gig.status === 'SUBMITTED') && isWorker && (
+                  <button
+                    type="button"
+                    onClick={() => setIsProofModalOpen(true)}
+                    className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#3064AE] via-[#2A5594] to-[#25735B] text-white font-extrabold text-xs hover:brightness-110 shadow-md transition flex items-center space-x-1.5 border border-[#E0FAEB]/30 cursor-pointer"
+                  >
+                    <Camera className="w-4 h-4 text-[#E0FAEB]" />
+                    <span>
+                      {gig.status === 'SUBMITTED'
+                        ? (language === 'vi' ? 'Cập Nhật Lại Bằng Chứng' : 'Update Proof')
+                        : (language === 'vi' ? 'Chụp Ảnh Nghiệm Thu & Gửi Duyệt' : 'Upload Proof (GPS & Time)')}
+                    </span>
+                  </button>
+                )}
+
+                {/* Freelancer actions when IN_PROGRESS or SUBMITTED */}
+                {(gig.status === 'IN_PROGRESS' || gig.status === 'SUBMITTED') && isWorker && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const confirmCancel = window.confirm(
+                          language === 'vi'
+                            ? 'Bạn có chắc chắn muốn hủy nhận công việc này và trả lại để sinh viên khác nhận không?'
+                            : 'Are you sure you want to cancel taking this gig and reopen it for other students?'
+                        );
+                        if (confirmCancel) {
+                          const ok = cancelGigByWorker(gig.id, 'Thợ tự rút lui khỏi đơn');
+                          if (ok) {
+                            showNotification(
+                              language === 'vi' ? 'Đã Hủy Nhận Việc' : 'Cancelled Job',
+                              language === 'vi' ? 'Công việc đã được mở lại cho sinh viên khác.' : 'Gig reopened for other students.'
+                            );
+                          }
+                        }
+                      }}
+                      className="px-4 py-2.5 rounded-xl bg-red-500/20 border border-red-500/50 text-red-300 font-bold text-xs hover:bg-red-500/30 transition flex items-center space-x-1.5 cursor-pointer"
+                    >
+                      <AlertTriangle className="w-4 h-4 text-red-400" />
+                      <span>{language === 'vi' ? '❌ Hủy Nhận Việc (Trả Lại Kèo)' : 'Cancel Job (Drop task)'}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCancelModalMode('WORKER_NO_SHOW_REPORT');
+                        setIsLateCancelOpen(true);
+                      }}
+                      className="px-4 py-2.5 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-300 font-bold text-xs hover:bg-amber-500/25 transition flex items-center space-x-1.5 cursor-pointer"
+                    >
+                      <UserX className="w-4 h-4" />
+                      <span>{language === 'vi' ? 'Báo Khách Boom Kèo' : 'Report Client No-Show'}</span>
+                    </button>
+                  </>
+                )}
+
+                {/* Owner actions when IN_PROGRESS */}
+                {gig.status === 'IN_PROGRESS' && isOwner && (
+                  <>
+                    <button
+                      type="button"
+                      id="owner-confirm-done-btn"
+                      onClick={() => {
+                        triggerHaptic('medium');
+                        setIsVerificationModalOpen(true);
+                      }}
+                      className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-[#3064AE] hover:brightness-110 text-white font-black text-xs shadow-lg transition flex items-center space-x-1.5 cursor-pointer border border-emerald-400/50 active:scale-95"
+                    >
+                      <ShieldCheck className="w-4 h-4 text-emerald-200" />
+                      <span>
+                        {language === 'vi'
+                          ? `Xác Nhận Đã Xong & Giải Ngân (${formatVnd(gig.price)})`
+                          : `Confirm Done & Release Escrow (${formatVnd(gig.price)})`}
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCancelModalMode('CLIENT_CANCEL');
+                        setIsLateCancelOpen(true);
+                      }}
+                      className="px-4 py-2.5 rounded-xl bg-red-500/15 border border-red-500/40 text-red-400 font-bold text-xs hover:bg-red-500/25 transition flex items-center space-x-1.5 cursor-pointer"
+                    >
+                      <AlertTriangle className="w-4 h-4" />
+                      <span>{language === 'vi' ? 'Hủy Đơn (Phạt nếu >10p)' : 'Cancel Order (>10m fee)'}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCancelModalMode('NO_SHOW_REPORT');
+                        setIsLateCancelOpen(true);
+                      }}
+                      className="px-4 py-2.5 rounded-xl bg-[#3064AE]/30 border border-[#C5E5EC]/30 text-[#E0FAEB] font-bold text-xs hover:bg-[#3064AE]/50 transition flex items-center space-x-1.5 cursor-pointer"
+                    >
+                      <UserX className="w-4 h-4" />
+                      <span>{language === 'vi' ? 'Báo Thợ Bỏ Bom (No-Show)' : 'Report Worker No-Show'}</span>
+                    </button>
+                  </>
+                )}
+
+                {/* Staff / Moderator actions when IN_PROGRESS and not owner */}
+                {gig.status === 'IN_PROGRESS' && isStaff && !isOwner && (
+                  <button
+                    type="button"
+                    id="staff-confirm-done-btn"
+                    onClick={() => {
+                      triggerHaptic('medium');
+                      setIsVerificationModalOpen(true);
+                    }}
+                    className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-[#3064AE] hover:brightness-110 text-white font-black text-xs shadow-lg transition flex items-center space-x-1.5 cursor-pointer border border-emerald-400/50 active:scale-95"
+                  >
+                    <ShieldCheck className="w-4 h-4 text-emerald-200" />
+                    <span>
+                      {language === 'vi'
+                        ? `Kiểm Duyệt Viên: Duyệt Hoàn Thành & Giải Ngân Hộ (${formatVnd(gig.price)})`
+                        : `Staff: Verify & Release Escrow (${formatVnd(gig.price)})`}
+                    </span>
+                  </button>
+                )}
+              </div>
             </div>
           )}
 
@@ -548,26 +661,18 @@ export const GigDetailScreen: React.FC<GigDetailScreenProps> = ({
               <div className="pt-3 border-t border-[#C5E5EC]/15 flex flex-wrap gap-2.5">
                 <button
                   type="button"
+                  id="open-verification-modal-btn"
                   onClick={() => {
-                    triggerHaptic('success');
-                    const ok = releaseEscrowPayout(gig.id);
-                    if (ok) {
-                      showNotification(
-                        language === 'vi' ? 'Đã Giải Ngân Thành Công! 🎉' : 'Escrow Released Successfully! 🎉',
-                        language === 'vi' ? `Đã hoàn tất nghiệm thu và chuyển ${formatVnd(gig.price)} vào ví của sinh viên làm việc.` : `Completed and transferred ${formatVnd(gig.price)} to worker.`,
-                        true,
-                        true
-                      );
-                      setIsDoubleBlindModalOpen(true);
-                    }
+                    triggerHaptic('medium');
+                    setIsVerificationModalOpen(true);
                   }}
                   className="flex-1 min-w-[240px] py-3.5 px-4 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-[#3064AE] hover:from-emerald-500 hover:to-[#417AC6] text-white font-black text-xs shadow-xl shadow-emerald-500/20 transition flex items-center justify-center space-x-2 active:scale-95 cursor-pointer border border-emerald-400/50"
                 >
-                  <CheckCircle2 className="w-5 h-5 text-emerald-200" />
+                  <ShieldCheck className="w-5 h-5 text-emerald-200" />
                   <span>
                     {isOwner
-                      ? (language === 'vi' ? `Xác Nhận Đã Xong & Giải Ngân Escrow (${formatVnd(gig.price)})` : `Confirm Done & Release Escrow (${formatVnd(gig.price)})`)
-                      : (language === 'vi' ? `Kiểm Duyệt Viên: Duyệt Hoàn Thành & Giải Ngân Hộ (${formatVnd(gig.price)})` : `Staff: Approve Done & Release Escrow (${formatVnd(gig.price)})`)}
+                      ? (language === 'vi' ? `Xác Nhận Nghiệm Thu & Giải Ngân (${formatVnd(gig.price)})` : `Verify & Release Escrow (${formatVnd(gig.price)})`)
+                      : (language === 'vi' ? `Kiểm Duyệt Viên: Duyệt Nghiệm Thu & Giải Ngân Hộ (${formatVnd(gig.price)})` : `Staff: Verify & Release Escrow (${formatVnd(gig.price)})`)}
                   </span>
                 </button>
 
@@ -610,29 +715,13 @@ export const GigDetailScreen: React.FC<GigDetailScreenProps> = ({
             <button
               type="button"
               onClick={() => {
-                triggerHaptic('success');
-                const okConfirm = window.confirm(
-                  language === 'vi'
-                    ? `Xác nhận thợ đã hoàn thành công việc và giải ngân ${formatVnd(gig.price)} từ quỹ Escrow vào ví của thợ ngay bây giờ?`
-                    : `Confirm worker completed task and disburse ${formatVnd(gig.price)} from Escrow vault now?`
-                );
-                if (okConfirm) {
-                  const ok = releaseEscrowPayout(gig.id);
-                  if (ok) {
-                    showNotification(
-                      language === 'vi' ? 'Đã Giải Ngân Thành Công! 🎉' : 'Escrow Released Successfully! 🎉',
-                      language === 'vi' ? `Đã hoàn tất nghiệm thu và chuyển ${formatVnd(gig.price)} vào ví của sinh viên.` : `Completed and transferred ${formatVnd(gig.price)} to worker.`,
-                      true,
-                      true
-                    );
-                    setIsDoubleBlindModalOpen(true);
-                  }
-                }
+                triggerHaptic('medium');
+                setIsVerificationModalOpen(true);
               }}
               className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs shadow-md transition flex items-center space-x-1.5 active:scale-95 cursor-pointer shrink-0 border border-emerald-400/40"
             >
               <CheckCircle2 className="w-4 h-4 text-emerald-200" />
-              <span>{language === 'vi' ? `Xác Nhận Đã Xong & Giải Ngân (${formatVnd(gig.price)})` : `Confirm Done & Release Escrow (${formatVnd(gig.price)})`}</span>
+              <span>{language === 'vi' ? `Nghiệm Thu & Giải Ngân (${formatVnd(gig.price)})` : `Verify & Release Escrow (${formatVnd(gig.price)})`}</span>
             </button>
           </div>
         )}
@@ -1011,6 +1100,14 @@ export const GigDetailScreen: React.FC<GigDetailScreenProps> = ({
         isOpen={isProofModalOpen}
         onClose={() => setIsProofModalOpen(false)}
         gigId={gig.id}
+      />
+
+      {/* Job Completion Verification & Escrow Release Modal */}
+      <JobCompletionVerificationModal
+        isOpen={isVerificationModalOpen}
+        onClose={() => setIsVerificationModalOpen(false)}
+        gig={gig}
+        onConfirmVerification={handleConfirmVerification}
       />
     </div>
   );

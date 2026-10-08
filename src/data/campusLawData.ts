@@ -125,13 +125,13 @@ export const FULL_LAW_ARTICLES: LawArticle[] = [
     summaryVi: 'Bảo vệ tuyệt đối dòng tiền của cả Người Thuê (Client) và Người Làm (Worker).',
     summaryEn: 'Total financial protection for both the Client and the Freelancer.',
     clausesVi: [
-      '4.1. Khi Người thuê chấp nhận giao kèo hoặc chọn người trúng đấu giá ngược, 100% thù lao cam kết sẽ được trừ từ ví Người thuê và phong tỏa an toàn trong Quỹ Ký Quỹ Smart Escrow.',
+      '4.1. Khi Người thuê tạo đơn hoặc chấp nhận người nhận việc, 100% thù lao cam kết sẽ được trừ từ ví Người thuê và phong tỏa an toàn trong Quỹ Ký Quỹ Smart Escrow.',
       '4.2. Người thuê không thể tự ý rút lại tiền trong thời gian Người làm đang thực hiện đúng hẹn và đúng yêu cầu.',
       '4.3. Người làm được bảo đảm 100% nhận đủ tiền thù lao ngay khi hoàn tất nhiệm vụ và có minh chứng nghiệm thu hợp lệ.',
       '4.4. Tiền chỉ được giải ngân tự động khi: (a) Người thuê bấm "Xác Nhận Hoàn Thành", hoặc (b) Quá thời hạn nghiệm thu 24 giờ mà Người thuê không đưa ra bất kỳ phản hồi hay khiếu nại chính đáng nào.',
     ],
     clausesEn: [
-      '4.1. Upon accepting a gig match or reverse bidding winner, 100% of the agreed compensation is deducted from the Client’s wallet into the Smart Escrow Vault.',
+      '4.1. Upon posting a gig or assigning a student worker, 100% of the agreed compensation is deducted from the Client’s wallet into the Smart Escrow Vault.',
       '4.2. The Client cannot unilaterally retract escrow funds while the Worker is actively fulfilling tasks within the agreed schedule.',
       '4.3. The Worker is guaranteed 100% disbursement upon successful handover and valid proof submission.',
       '4.4. Escrow releases automatically when: (a) Client clicks "Confirm Handover & Release", or (b) 24 hours elapse without any formal complaint filed.',

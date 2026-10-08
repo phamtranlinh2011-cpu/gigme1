@@ -467,7 +467,6 @@ interface GigMeContextType {
     description: string;
     category: string;
     price: number;
-    isReverseAuction?: boolean;
     isFlash: boolean;
     locationName: string;
     distanceMeters: number;
@@ -2901,7 +2900,6 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     description: string;
     category: string;
     price: number;
-    isReverseAuction?: boolean;
     isFlash: boolean;
     locationName: string;
     distanceMeters: number;
@@ -3078,69 +3076,9 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return true;
   };
 
-  // REVERSE AUCTION BID
-  const placeBid = (gigId: string, offeredPrice: number, minutes: number, note: string): boolean => {
-    if (!currentUser) return false;
-
-    // Quy định: Số dư vượt trần 200 triệu sẽ bị cấm và ép rút tiền (Admin bypass)
-    if (!isAdminUser(currentUser) && currentUser.walletBalance > 200_000_000) {
-      showNotification(
-        '⚠️ TÀI KHOẢN VƯỢT HẠN MỨC 200 TRIỆU!',
-        'Số dư ví của bạn vượt trần 200.000.000đ. Hệ thống tạm khóa đấu giá và yêu cầu rút bớt tiền về ngân hàng!',
-        true,
-        false
-      );
-      return false;
-    }
-
-    if (currentUser.tier === 'NEWBIE') {
-      showNotification(
-        'Yêu cầu Xác thực Cấp 2',
-        'Tài khoản Newbie chưa được nhận việc hoặc đấu giá để chống lừa đảo. Vui lòng xác thực E-KYC hoặc Email trường học!'
-      );
-      return false;
-    }
-
-    // Chống spam đặt giá thầu nhanh liên tục
-    const hasRecentBid = bids.some(
-      (b) => b.gigId === gigId && b.freelancerId === currentUser.id && Date.now() - b.createdAt < 3000
-    );
-    if (hasRecentBid) {
-      showNotification('Thao tác quá nhanh', 'Bạn vừa gửi đề xuất cho công việc này. Vui lòng đợi trong giây lát!');
-      return false;
-    }
-
-    const newBid: BidEntity = {
-      id: `bid_${Date.now()}`,
-      gigId,
-      freelancerId: currentUser.id,
-      freelancerName: currentUser.name,
-      freelancerTier: currentUser.tier,
-      offeredPrice,
-      estimatedMinutes: minutes,
-      proposalNote: note,
-      createdAt: Date.now(),
-    };
-
-    setBids((prev) => [newBid, ...prev]);
-    cloudService.saveBid(newBid);
-    setGigs((prev) =>
-      prev.map((g) => {
-        if (g.id === gigId && (!g.lowestBidPrice || offeredPrice < g.lowestBidPrice)) {
-          const updated = { ...g, lowestBidPrice: offeredPrice };
-          cloudService.saveGig(updated);
-          return updated;
-        }
-        return g;
-      })
-    );
-
-    showNotification(
-      'Đã gửi đề xuất thầu!',
-      `Bạn đã đề xuất mức giá ${offeredPrice.toLocaleString()}đ trong ${minutes} phút. Người thuê sẽ duyệt ngay!`,
-      true
-    );
-    return true;
+  // REVERSE AUCTION BID (DEPRECATED - GIGME REMOVED AUCTION FEATURE)
+  const placeBid = (_gigId: string, _offeredPrice: number, _minutes: number, _note: string): boolean => {
+    return false;
   };
 
   // ACCEPT GIG DIRECTLY

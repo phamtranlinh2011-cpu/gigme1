@@ -51,8 +51,6 @@ function ensureDbExists(): DatabaseSchema {
           description: 'Cần một bạn sinh viên CNTT Bách Khoa Hà Nội hoặc Online hỗ trợ rà soát thuật toán Dijkstra và fix lỗi bài tập lớn. Trao đổi qua chat hoặc gặp tại Thư viện Tạ Quang Bửu.',
           category: 'CNTT & Lập Trình',
           price: 90000,
-          isReverseAuction: false,
-          lowestBidPrice: 90000,
           distanceMeters: 150,
           locationName: 'KTX Bách Khoa B7, Hai Bà Trưng, Hà Nội',
           latitude: 21.0053,
@@ -85,8 +83,6 @@ function ensureDbExists(): DatabaseSchema {
           description: 'Cần bạn ở tòa BA2 hoặc lân cận lấy hộ túi đồ giặt sấy dưới sảnh và mang lên phòng 412. Đã ký quỹ Smart Escrow 100%.',
           category: 'Ship Hàng & Chạy Vặt',
           price: 35000,
-          isReverseAuction: false,
-          lowestBidPrice: 35000,
           distanceMeters: 200,
           locationName: 'KTX ĐHQG Khu B, Dĩ An / TP.Thủ Đức (TP.HCM)',
           latitude: 10.8808,
@@ -119,8 +115,6 @@ function ensureDbExists(): DatabaseSchema {
           description: 'Cần bạn thành thạo Canva hoặc Figma tinh chỉnh lại bộ slide 15 trang cho bài báo cáo chuyên ngành. Bàn giao file qua chat.',
           category: 'Thiết Kế & Đồ Họa',
           price: 75000,
-          isReverseAuction: true,
-          lowestBidPrice: 75000,
           distanceMeters: 300,
           locationName: 'ĐH Bách Khoa, Liên Chiểu, Đà Nẵng',
           latitude: 16.0739,
@@ -1510,6 +1504,11 @@ async function startServer() {
       return res.status(400).json({ error: 'Dữ liệu việc làm không hợp lệ' });
     }
     const db = ensureDbExists();
+    if (gig.status === 'OPEN' || !gig.freelancerId) {
+      gig.freelancerId = null;
+      gig.freelancerName = null;
+      gig.acceptedAt = null;
+    }
     const index = db.gigs.findIndex((g: any) => g.id === gig.id);
     if (index === -1) {
       db.gigs.unshift(gig);
@@ -1531,6 +1530,17 @@ async function startServer() {
     const gig = db.gigs.find((g: any) => g.id === gigId);
     if (!gig) {
       return res.status(404).json({ error: 'Công việc không tồn tại hoặc đã kết thúc' });
+    }
+
+    // Check if user is already assigned or already applied to prevent duplicate entries
+    if (gig.freelancerId === applicantId) {
+      return res.json({ success: true, message: 'Bạn đã là người nhận việc', gig });
+    }
+
+    // Check if user already submitted an application/bid for this gig
+    const existingBid = db.bids.find((b: any) => b.gigId === gigId && b.freelancerId === applicantId);
+    if (existingBid) {
+      return res.json({ success: true, message: 'Bạn đã nộp đơn trước đó, không thêm trùng lặp', bid: existingBid, gig });
     }
 
     // If multi-worker gig, join worker
