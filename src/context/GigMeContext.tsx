@@ -467,7 +467,7 @@ interface GigMeContextType {
     description: string;
     category: string;
     price: number;
-    isReverseAuction: boolean;
+    isReverseAuction?: boolean;
     isFlash: boolean;
     locationName: string;
     distanceMeters: number;
@@ -568,7 +568,9 @@ interface GigMeContextType {
       | 'IMAGE'
       | 'VOICE'
       | 'VIDEO'
-      | 'FILE',
+      | 'FILE'
+      | 'VOIP_CALL_INVITE'
+      | 'VIDEO_CALL_INVITE',
     attachmentData?: string | null,
     attachmentDuration?: number,
     mediaFileName?: string,
@@ -2899,7 +2901,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     description: string;
     category: string;
     price: number;
-    isReverseAuction: boolean;
+    isReverseAuction?: boolean;
     isFlash: boolean;
     locationName: string;
     distanceMeters: number;
@@ -3124,7 +3126,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     cloudService.saveBid(newBid);
     setGigs((prev) =>
       prev.map((g) => {
-        if (g.id === gigId && (g.lowestBidPrice === 0 || offeredPrice < g.lowestBidPrice)) {
+        if (g.id === gigId && (!g.lowestBidPrice || offeredPrice < g.lowestBidPrice)) {
           const updated = { ...g, lowestBidPrice: offeredPrice };
           cloudService.saveGig(updated);
           return updated;
@@ -3783,6 +3785,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       senderName: currentUser.name,
       isFromClient: currentUser.id === target.clientId,
       message: `🔄 [Yêu cầu chỉnh sửa / Bổ sung nghiệm thu] ${revisionNote}`,
+      attachmentType: 'NONE',
       timestamp: Date.now(),
     };
     setChats((prev) => [...prev, chatMsg]);
@@ -5897,7 +5900,9 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       | 'IMAGE'
       | 'VOICE'
       | 'VIDEO'
-      | 'FILE' = 'NONE',
+      | 'FILE'
+      | 'VOIP_CALL_INVITE'
+      | 'VIDEO_CALL_INVITE' = 'NONE',
     attachmentData: string | null = null,
     attachmentDuration?: number,
     mediaFileName?: string,

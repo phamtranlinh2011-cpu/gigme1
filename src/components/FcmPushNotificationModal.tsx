@@ -179,7 +179,7 @@ export const FcmPushNotificationModal: React.FC<FcmPushNotificationModalProps> =
     }, 1000);
   };
 
-  const triggerTestNotification = (type: 'FLASH' | 'ESCROW' | 'AUCTION' | 'KYC') => {
+  const triggerTestNotification = (type: 'FLASH' | 'ESCROW' | 'AUCTION' | 'KYC' | 'GROUP') => {
     let title = '';
     let body = '';
 

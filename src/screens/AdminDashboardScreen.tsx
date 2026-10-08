@@ -43,6 +43,7 @@ import {
   MessageSquare,
   Sparkles,
   Clock,
+  Repeat,
   UserPlus,
   Edit,
   Shield,
@@ -1225,11 +1226,11 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onBa
                 {(
                   [
                     { id: 'SUBMITTED', label: 'Chờ Duyệt', count: submittedGigs.length, highlight: true },
-                    { id: 'IN_PROGRESS', label: 'Đang Làm', count: inProgressGigs.filter((g) => g.status === 'IN_PROGRESS').length },
-                    { id: 'OPEN', label: 'Đang Mở', count: openGigs.length },
-                    { id: 'ALL', label: 'Tất Cả', count: rawGigs.length },
-                    { id: 'COMPLETED', label: 'Đã Xong', count: completedGigs.length },
-                    { id: 'DISPUTED', label: 'Khiếu Nại', count: disputedGigs.length },
+                    { id: 'IN_PROGRESS', label: 'Đang Làm', count: inProgressGigs.filter((g) => g.status === 'IN_PROGRESS').length, highlight: false },
+                    { id: 'OPEN', label: 'Đang Mở', count: openGigs.length, highlight: false },
+                    { id: 'ALL', label: 'Tất Cả', count: rawGigs.length, highlight: false },
+                    { id: 'COMPLETED', label: 'Đã Xong', count: completedGigs.length, highlight: false },
+                    { id: 'DISPUTED', label: 'Khiếu Nại', count: disputedGigs.length, highlight: false },
                   ] as const
                 ).map((f) => (
                   <button
