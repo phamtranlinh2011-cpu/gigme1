@@ -200,7 +200,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
       triggerHaptic('error');
       showNotification(
         language === 'vi' ? 'Lỗi' : 'Error',
-        language === 'vi' ? 'Vui lòng nhập họ và tên đệm (VD: Lý Hoàng Gia).' : 'Please enter your last and middle name (e.g. Smith).'
+        language === 'vi' ? 'Vui lòng nhập họ và tên đệm (VD: Nguyễn Văn).' : 'Please enter your last and middle name (e.g. Smith).'
       );
       return;
     }
@@ -208,7 +208,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
       triggerHaptic('error');
       showNotification(
         language === 'vi' ? 'Lỗi' : 'Error',
-        language === 'vi' ? 'Vui lòng nhập tên (VD: Bảo).' : 'Please enter your first name (e.g. John).'
+        language === 'vi' ? 'Vui lòng nhập tên (VD: An).' : 'Please enter your first name (e.g. John).'
       );
       return;
     }
@@ -1384,7 +1384,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                       value={editLastName}
                       onChange={(e) => setEditLastName(e.target.value)}
                       className="w-full px-3.5 py-2.5 rounded-xl bg-[#12233B] border border-[#C5E5EC]/30 text-white font-bold text-xs focus:outline-none focus:border-cyan-400"
-                      placeholder={language === 'vi' ? 'Ví dụ: Lý Hoàng Gia' : 'e.g. Smith'}
+                      placeholder={language === 'vi' ? 'Ví dụ: Nguyễn Văn' : 'e.g. Smith'}
                     />
                   </div>
                   <div>
@@ -1398,14 +1398,14 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                       value={editFirstName}
                       onChange={(e) => setEditFirstName(e.target.value)}
                       className="w-full px-3.5 py-2.5 rounded-xl bg-[#12233B] border border-[#C5E5EC]/30 text-white font-bold text-xs focus:outline-none focus:border-cyan-400"
-                      placeholder={language === 'vi' ? 'Ví dụ: Bảo' : 'e.g. John'}
+                      placeholder={language === 'vi' ? 'Ví dụ: An' : 'e.g. John'}
                     />
                   </div>
                 </div>
                 <div className="flex justify-between items-center text-[10px] text-[#C5E5EC]/70 px-1 pt-0.5">
                   <span>
                     {language === 'vi'
-                      ? 'Ví dụ: Họ và tên đệm: Lý Hoàng Gia / Tên: Bảo. Gộp lại không quá 30 ký tự.'
+                      ? 'Ví dụ: Họ và tên đệm: Nguyễn Văn / Tên: An. Gộp lại không quá 30 ký tự.'
                       : 'e.g. Combined full name cannot exceed 30 characters.'}
                   </span>
                   <span

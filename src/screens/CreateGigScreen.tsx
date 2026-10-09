@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   ArrowLeft,
   Camera,
@@ -17,14 +17,25 @@ import {
   ChevronDown,
   Check,
   Loader2,
+  Cloud,
+  CloudCheck,
+  RotateCcw,
+  FileText,
+  Trash2,
+  Save,
 } from 'lucide-react';
 import { useGigMe } from '../context/GigMeContext';
 import { useTranslation } from '../context/LanguageContext';
-import { formatVnd } from '../types';
+import { formatVnd, GigDraftEntity } from '../types';
 import { DynamicVietQrDialog } from '../components/AdvancedDialogs';
 import { GeminiTaskEstimatorModal } from '../components/GeminiTaskEstimatorModal';
 import { calculateSurgePricing } from '../utils/surgePricing';
 import { rateLimiter } from '../utils/rateLimiter';
+import {
+  saveGigDraftToCloud,
+  getGigDraftFromCloud,
+  deleteGigDraftFromCloud,
+} from '../lib/firebase';
 
 const PREDEFINED_CATEGORIES = [
   'Mua đồ ăn, cà phê, trà sữa hộ',
@@ -74,17 +85,11 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
   const [isVietQrOpen, setIsVietQrOpen] = useState(false);
   const [isEstimatorModalOpen, setIsEstimatorModalOpen] = useState(false);
 
-  // Back step navigation handler:
-  // Step 3 -> Step 2 -> Step 1 -> onBack()
-  const handleBack = () => {
-    if (step === 3) {
-      setStep(2);
-    } else if (step === 2) {
-      setStep(1);
-    } else {
-      onBack();
-    }
-  };
+  // Auto-Save Draft states in Firestore
+  const [availableDraft, setAvailableDraft] = useState<GigDraftEntity | null>(null);
+  const [draftSaveStatus, setDraftSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const [lastSavedTime, setLastSavedTime] = useState<string | null>(null);
+  const [hasUserModified, setHasUserModified] = useState(false);
 
   // Form Fields
   const [title, setTitle] = useState('');
@@ -104,6 +109,164 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
     language === 'vi' ? 'Ký túc xá Bách Khoa B7, Hai Bà Trưng, Hà Nội' : 'HUST Campus Dorm B7, Hanoi'
   );
   const [distanceMeters, setDistanceMeters] = useState(150);
+
+  // Load saved draft on mount
+  useEffect(() => {
+    let isMounted = true;
+    const userId = currentUser?.id || 'guest_user';
+
+    const loadDraft = async () => {
+      try {
+        const draft = await getGigDraftFromCloud(userId);
+        if (!isMounted || !draft) return;
+        const hasContent = (draft.title && draft.title.trim().length > 0) ||
+                           (draft.description && draft.description.trim().length > 0);
+        if (hasContent) {
+          setAvailableDraft(draft);
+        }
+      } catch (err) {
+        console.warn('Failed to load draft from Firestore:', err);
+      }
+    };
+
+    loadDraft();
+    return () => {
+      isMounted = false;
+    };
+  }, [currentUser?.id]);
+
+  // Debounced auto-save effect to Firestore & Local Storage
+  useEffect(() => {
+    const hasContent = title.trim().length > 0 || description.trim().length > 0;
+    if (!hasUserModified && !hasContent) {
+      return;
+    }
+
+    setDraftSaveStatus('saving');
+    const timer = setTimeout(async () => {
+      const userId = currentUser?.id || 'guest_user';
+      try {
+        await saveGigDraftToCloud(userId, {
+          step,
+          title,
+          description,
+          category,
+          customCategory,
+          price,
+          attachedImage,
+          isFlash,
+          isBoosted,
+          isRecurringWeekly,
+          totalWorkersNeeded,
+          estimatedDurationMinutes,
+          locationName,
+          distanceMeters,
+        });
+        setDraftSaveStatus('saved');
+        setLastSavedTime(
+          new Date().toLocaleTimeString(language === 'vi' ? 'vi-VN' : 'en-US', {
+            hour: '2-digit',
+            minute: '2-digit',
+          })
+        );
+      } catch (err) {
+        console.warn('Auto-save to Firestore failed:', err);
+        setDraftSaveStatus('idle');
+      }
+    }, 750);
+
+    return () => clearTimeout(timer);
+  }, [
+    step,
+    title,
+    description,
+    category,
+    customCategory,
+    price,
+    attachedImage,
+    isFlash,
+    isBoosted,
+    isRecurringWeekly,
+    totalWorkersNeeded,
+    estimatedDurationMinutes,
+    locationName,
+    distanceMeters,
+    hasUserModified,
+    currentUser?.id,
+    language,
+  ]);
+
+  // Restore draft handler
+  const handleRestoreDraft = () => {
+    if (!availableDraft) return;
+    if (availableDraft.title) setTitle(availableDraft.title);
+    if (availableDraft.description) setDescription(availableDraft.description);
+    if (availableDraft.category) setCategory(availableDraft.category);
+    if (availableDraft.customCategory) setCustomCategory(availableDraft.customCategory);
+    if (typeof availableDraft.price === 'number') setPrice(availableDraft.price);
+    if (availableDraft.attachedImage) setAttachedImage(availableDraft.attachedImage);
+    if (typeof availableDraft.isFlash === 'boolean') setIsFlash(availableDraft.isFlash);
+    if (typeof availableDraft.isBoosted === 'boolean') setIsBoosted(availableDraft.isBoosted);
+    if (typeof availableDraft.isRecurringWeekly === 'boolean') setIsRecurringWeekly(availableDraft.isRecurringWeekly);
+    if (typeof availableDraft.totalWorkersNeeded === 'number') setTotalWorkersNeeded(availableDraft.totalWorkersNeeded);
+    if (typeof availableDraft.estimatedDurationMinutes === 'number') setEstimatedDurationMinutes(availableDraft.estimatedDurationMinutes);
+    if (availableDraft.locationName) setLocationName(availableDraft.locationName);
+    if (typeof availableDraft.distanceMeters === 'number') setDistanceMeters(availableDraft.distanceMeters);
+    if (availableDraft.step && (availableDraft.step === 1 || availableDraft.step === 2 || availableDraft.step === 3)) {
+      setStep(availableDraft.step);
+    }
+    setHasUserModified(true);
+    setAvailableDraft(null);
+    showNotification(
+      language === 'vi' ? '📝 Đã khôi phục bản nháp' : '📝 Draft Restored',
+      language === 'vi' ? 'Dữ liệu đã được nạp lại đầy đủ từ Firestore. Bạn có thể tiếp tục chỉnh sửa.' : 'Draft loaded from Firestore. You can resume editing.',
+      true
+    );
+  };
+
+  // Discard draft handler
+  const handleDiscardDraft = async () => {
+    const userId = currentUser?.id || 'guest_user';
+    setAvailableDraft(null);
+    await deleteGigDraftFromCloud(userId);
+    showNotification(
+      language === 'vi' ? 'Đã xóa bản nháp' : 'Draft Discarded',
+      language === 'vi' ? 'Bản nháp trên Firestore đã được xóa.' : 'Draft on Firestore has been removed.',
+      false
+    );
+  };
+
+  // Back step navigation handler:
+  // Step 3 -> Step 2 -> Step 1 -> onBack()
+  const handleBack = async () => {
+    if (step === 3) {
+      setStep(2);
+    } else if (step === 2) {
+      setStep(1);
+    } else {
+      // Step 1: user is exiting form. If they wrote content, flush auto-save
+      if (hasUserModified && (title.trim() || description.trim())) {
+        const userId = currentUser?.id || 'guest_user';
+        await saveGigDraftToCloud(userId, {
+          step,
+          title,
+          description,
+          category,
+          customCategory,
+          price,
+          attachedImage,
+          isFlash,
+          isBoosted,
+          isRecurringWeekly,
+          totalWorkersNeeded,
+          estimatedDurationMinutes,
+          locationName,
+          distanceMeters,
+        });
+      }
+      onBack();
+    }
+  };
 
   const getTranslatedCategory = (cat: string) => {
     if (language === 'vi') return cat;
@@ -203,6 +366,10 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
 
       if (success) {
         rateLimiter.record('POST_GIG', currentUser?.id);
+        // Clear saved draft from Firestore and local storage
+        const userId = currentUser?.id || 'guest_user';
+        deleteGigDraftFromCloud(userId).catch((err) => console.warn('Could not delete draft:', err));
+        setAvailableDraft(null);
         onBack();
       }
     } finally {
@@ -226,9 +393,30 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
           <span>{t('back')}</span>
         </button>
 
-        <h2 className="text-sm sm:text-base font-extrabold text-white">
-          {language === 'vi' ? 'Đăng Việc Làm 3 Bước' : 'Post A Gig in 3 Steps'}
-        </h2>
+        <div className="flex items-center space-x-2">
+          <h2 className="text-sm sm:text-base font-extrabold text-white">
+            {language === 'vi' ? 'Đăng Việc Làm 3 Bước' : 'Post A Gig in 3 Steps'}
+          </h2>
+          {draftSaveStatus === 'saving' && (
+            <span className="inline-flex items-center text-[10px] sm:text-xs text-amber-300 font-medium bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 rounded-full animate-pulse shadow-sm">
+              <Loader2 className="w-3 h-3 animate-spin mr-1 text-amber-400" />
+              <span className="hidden sm:inline">{language === 'vi' ? 'Đang lưu Firestore...' : 'Saving to Firestore...'}</span>
+              <span className="sm:hidden">{language === 'vi' ? 'Đang lưu...' : 'Saving...'}</span>
+            </span>
+          )}
+          {draftSaveStatus === 'saved' && (
+            <span
+              className="inline-flex items-center text-[10px] sm:text-xs text-emerald-300 font-medium bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 rounded-full shadow-sm"
+              title={language === 'vi' ? 'Bản nháp được lưu an toàn trên Firestore' : 'Draft auto-saved securely on Firestore'}
+            >
+              <CloudCheck className="w-3.5 h-3.5 mr-1 text-emerald-400" />
+              <span className="hidden sm:inline">
+                {language === 'vi' ? `Đã lưu nháp ${lastSavedTime ? `(${lastSavedTime})` : ''}` : `Saved ${lastSavedTime ? `(${lastSavedTime})` : ''}`}
+              </span>
+              <span className="sm:hidden">{language === 'vi' ? 'Đã lưu' : 'Saved'}</span>
+            </span>
+          )}
+        </div>
 
         <span className="text-xs font-mono font-bold text-[#E0FAEB] bg-[#3064AE]/30 px-2.5 py-1 rounded-lg border border-[#C5E5EC]/30">
           {t('stepIndicator')} {step}/3
@@ -236,7 +424,7 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
       </div>
 
       {/* Step Indicator Bar */}
-      <div className="grid grid-cols-3 gap-2 mb-5">
+      <div className="grid grid-cols-3 gap-2 mb-4 sm:mb-5">
         <div
           className={`h-1.5 rounded-full transition-all ${
             step >= 1 ? 'bg-gradient-to-r from-[#3064AE] to-[#C5E5EC]' : 'bg-[#12233B] border border-[#C5E5EC]/15'
@@ -253,6 +441,65 @@ export const CreateGigScreen: React.FC<CreateGigScreenProps> = ({ onBack, onGigC
           }`}
         />
       </div>
+
+      {/* RESTORE DRAFT BANNER (Prompts user to resume unfinished draft from Firestore) */}
+      {availableDraft && (
+        <div className="mb-4 sm:mb-5 p-3.5 sm:p-4 rounded-3xl bg-gradient-to-r from-[#0E1E36] via-[#122644] to-[#0E1E36] border border-[#00E5FF]/40 shadow-xl shadow-[#00E5FF]/5 animate-fade-in text-xs relative overflow-hidden">
+          <div className="absolute top-0 inset-x-0 h-0.5 bg-gradient-to-r from-[#00E5FF] via-[#3064AE] to-[#E0FAEB]" />
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="flex items-start space-x-3">
+              <div className="p-2.5 bg-[#00E5FF]/15 text-[#00E5FF] rounded-2xl shrink-0 mt-0.5 sm:mt-0 border border-[#00E5FF]/30">
+                <FileText className="w-5 h-5 text-[#00E5FF]" />
+              </div>
+              <div>
+                <div className="flex items-center space-x-2">
+                  <span className="font-extrabold text-white text-xs sm:text-sm">
+                    {language === 'vi' ? 'Phát hiện bản nháp đã lưu trên Firestore' : 'Unfinished draft found on Firestore'}
+                  </span>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#00E5FF]/20 text-[#00E5FF] border border-[#00E5FF]/30 font-bold">
+                    Cloud Draft
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-300 mt-0.5 line-clamp-1">
+                  <span className="text-[#E0FAEB] font-semibold">"{availableDraft.title || (language === 'vi' ? 'Bản nháp chưa đặt tên' : 'Untitled draft')}"</span>
+                  {availableDraft.category && (
+                    <span className="text-slate-400 ml-1.5">• {availableDraft.category}</span>
+                  )}
+                  {availableDraft.updatedAt && (
+                    <span className="text-slate-400 ml-1.5">
+                      • {new Date(availableDraft.updatedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  )}
+                </p>
+                <p className="text-[10px] text-slate-400 mt-1">
+                  {language === 'vi'
+                    ? 'Bạn có muốn tiếp tục chỉnh sửa nội dung này để đăng việc không?'
+                    : 'Would you like to resume this draft to finish posting?'}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-2 w-full sm:w-auto justify-end shrink-0 pt-1 sm:pt-0">
+              <button
+                type="button"
+                onClick={handleDiscardDraft}
+                className="px-3 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 text-xs font-semibold transition active:scale-95 flex items-center space-x-1 cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5 mr-1 text-rose-400" />
+                <span>{language === 'vi' ? 'Xóa nháp' : 'Discard'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleRestoreDraft}
+                className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-[#00E5FF] to-[#3064AE] hover:from-[#33EAFF] hover:to-[#3874C4] text-slate-950 font-bold text-xs shadow-md transition active:scale-95 flex items-center space-x-1 cursor-pointer"
+              >
+                <RotateCcw className="w-3.5 h-3.5 mr-1 text-slate-950" />
+                <span>{language === 'vi' ? 'Tiếp tục bản nháp' : 'Resume Draft'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* STEP 1: Content & AI Recognition */}
       {step === 1 && (

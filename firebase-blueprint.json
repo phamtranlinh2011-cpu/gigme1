@@ -122,6 +122,63 @@
         "createdAt": { "type": "number" }
       },
       "required": ["id", "title", "message", "type", "createdAt"]
+    },
+    "FriendRequest": {
+      "title": "FriendRequest",
+      "description": "Friend request requiring mutual approval between campus students",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "senderId": { "type": "string", "maxLength": 100 },
+        "senderName": { "type": "string", "maxLength": 100 },
+        "senderAvatarUrl": { "type": "string", "maxLength": 500 },
+        "senderSchool": { "type": "string", "maxLength": 150 },
+        "receiverId": { "type": "string", "maxLength": 100 },
+        "receiverName": { "type": "string", "maxLength": 100 },
+        "status": { "type": "string", "enum": ["pending", "friends", "declined", "PENDING", "ACCEPTED", "DECLINED"] },
+        "createdAt": { "type": "number" },
+        "respondedAt": { "type": "number" }
+      },
+      "required": ["id", "senderId", "receiverId", "status", "createdAt"]
+    },
+    "VoipCall": {
+      "title": "VoipCall",
+      "description": "WebRTC voice and video call signaling entity",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "callerId": { "type": "string", "maxLength": 100 },
+        "callerName": { "type": "string", "maxLength": 100 },
+        "targetUserId": { "type": "string", "maxLength": 100 },
+        "isVideo": { "type": "boolean" },
+        "status": { "type": "string", "enum": ["RINGING", "ACCEPTED", "REJECTED", "ENDED"] },
+        "timestamp": { "type": "number" }
+      },
+      "required": ["id", "callerId", "targetUserId", "status", "timestamp"]
+    },
+    "GigDraft": {
+      "title": "GigDraft",
+      "description": "Auto-saved gig posting draft for a user in Firestore",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 100 },
+        "step": { "type": "number" },
+        "title": { "type": "string", "maxLength": 200 },
+        "description": { "type": "string", "maxLength": 3000 },
+        "category": { "type": "string", "maxLength": 100 },
+        "customCategory": { "type": "string", "maxLength": 100 },
+        "price": { "type": "number" },
+        "attachedImage": { "type": "string" },
+        "isFlash": { "type": "boolean" },
+        "isBoosted": { "type": "boolean" },
+        "isRecurringWeekly": { "type": "boolean" },
+        "totalWorkersNeeded": { "type": "number" },
+        "estimatedDurationMinutes": { "type": "number" },
+        "locationName": { "type": "string", "maxLength": 200 },
+        "distanceMeters": { "type": "number" },
+        "updatedAt": { "type": "number" }
+      },
+      "required": ["userId", "updatedAt"]
     }
   },
   "firestore": {
@@ -160,6 +217,18 @@
     "/notifications/{notificationId}": {
       "schema": "Notification",
       "description": "Real-time notifications collection for new gigs and status updates"
+    },
+    "/friend_requests/{requestId}": {
+      "schema": "FriendRequest",
+      "description": "Real-time mutual friend request approvals"
+    },
+    "/calls/{callId}": {
+      "schema": "VoipCall",
+      "description": "Real-time WebRTC audio and video call signaling"
+    },
+    "/gig_drafts/{userId}": {
+      "schema": "GigDraft",
+      "description": "Auto-saved gig draft per user"
     }
   }
 }

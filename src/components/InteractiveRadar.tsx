@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState, useMemo } from 'react';
 import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import {
   Map as MapIcon,
   Navigation,
@@ -66,12 +67,14 @@ const MAP_TILE_CONFIG: Record<
 > = {
   GOOGLE_STREETS: {
     name: 'Google Maps Chuẩn',
-    url: 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+    url: 'https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+    subdomains: ['0', '1', '2', '3'],
     attribution: '&copy; Google Maps',
   },
   GOOGLE_SATELLITE: {
     name: 'Google Vệ Tinh',
-    url: 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
+    url: 'https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
+    subdomains: ['0', '1', '2', '3'],
     attribution: '&copy; Google Satellite',
   },
   DARK_CYBER: {
@@ -331,16 +334,33 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
     };
   }, []);
 
-  // Invalidate map size whenever size-affecting states change
+  // Invalidate map size whenever size-affecting states change (smooth transition handling)
   useEffect(() => {
-    if (!mapInstanceRef.current) return;
-    const t1 = setTimeout(() => mapInstanceRef.current?.invalidateSize(), 60);
-    const t2 = setTimeout(() => mapInstanceRef.current?.invalidateSize(), 200);
-    const t3 = setTimeout(() => mapInstanceRef.current?.invalidateSize(), 400);
+    if (!mapInstanceRef.current || isCollapsed) return;
+
+    const triggerInvalidate = () => {
+      if (mapInstanceRef.current) {
+        try {
+          mapInstanceRef.current.invalidateSize({ pan: false });
+        } catch (e) {}
+      }
+    };
+
+    triggerInvalidate();
+    const f1 = requestAnimationFrame(triggerInvalidate);
+    const t1 = setTimeout(triggerInvalidate, 40);
+    const t2 = setTimeout(triggerInvalidate, 120);
+    const t3 = setTimeout(triggerInvalidate, 220);
+    const t4 = setTimeout(triggerInvalidate, 350);
+    const t5 = setTimeout(triggerInvalidate, 500);
+
     return () => {
+      cancelAnimationFrame(f1);
       clearTimeout(t1);
       clearTimeout(t2);
       clearTimeout(t3);
+      clearTimeout(t4);
+      clearTimeout(t5);
     };
   }, [isFullscreen, isExpanded, isCollapsed]);
 
@@ -368,8 +388,11 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
 
       const initialLayerConfig = MAP_TILE_CONFIG[mapLayer];
       const tileLayer = L.tileLayer(initialLayerConfig.url, {
-        subdomains: initialLayerConfig.subdomains || ['a', 'b', 'c'],
+        subdomains: initialLayerConfig.subdomains || ['0', '1', '2', '3'],
         maxZoom: 20,
+        keepBuffer: 12,
+        updateWhenIdle: false,
+        updateWhenZooming: true,
       }).addTo(map);
 
       tileLayerRef.current = tileLayer;
@@ -377,8 +400,10 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
       mapInstanceRef.current = map;
 
       setTimeout(() => {
-        map.invalidateSize();
-      }, 150);
+        try {
+          map.invalidateSize({ pan: false });
+        } catch (e) {}
+      }, 100);
     }
 
     // Adaptive ResizeObserver: sync Leaflet dimensions with device resizes & split screens
@@ -389,9 +414,11 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
         if (resizeTimer) clearTimeout(resizeTimer);
         resizeTimer = setTimeout(() => {
           if (mapInstanceRef.current) {
-            mapInstanceRef.current.invalidateSize();
+            try {
+              mapInstanceRef.current.invalidateSize({ pan: false });
+            } catch (e) {}
           }
-        }, 80);
+        }, 50);
       });
       resizeObserver.observe(mapContainerRef.current);
     }
@@ -410,8 +437,11 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
     }
     const config = MAP_TILE_CONFIG[mapLayer];
     const newTileLayer = L.tileLayer(config.url, {
-      subdomains: config.subdomains || ['a', 'b', 'c'],
+      subdomains: config.subdomains || ['0', '1', '2', '3'],
       maxZoom: 20,
+      keepBuffer: 12,
+      updateWhenIdle: false,
+      updateWhenZooming: true,
     }).addTo(mapInstanceRef.current);
 
     tileLayerRef.current = newTileLayer;
@@ -665,48 +695,6 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
     : 'h-[210px] sm:h-[260px]';
 
   // ==========================================
-  // RENDER: COLLAPSED BAR MODE (LÀM GỌN BẢN ĐỒ)
-  // ==========================================
-  if (isCollapsed) {
-    return (
-      <div className="relative rounded-2xl bg-[#0E1B2E] border border-[#C5E5EC]/25 p-3 sm:p-3.5 shadow-xl overflow-hidden flex items-center justify-between gap-3 animate-fadeIn">
-        <div className="absolute left-0 top-0 bottom-0 w-1 bg-brand-tri-gradient pointer-events-none" />
-        <div className="flex items-center space-x-2.5 min-w-0 pl-1">
-          <div className="p-2 rounded-xl bg-gradient-to-br from-[#3064AE] to-[#255294] text-white border border-[#C5E5EC]/30 shadow-xs shrink-0">
-            <MapIcon className="w-4 h-4 text-[#E0FAEB]" />
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-center space-x-1.5">
-              <h4 className="text-xs sm:text-sm font-black text-white truncate">
-                {language === 'vi' ? 'Bản Đồ Radar Campus' : 'Campus Radar Map'}
-              </h4>
-              <span className="w-2 h-2 rounded-full bg-[#E0FAEB] animate-ping shrink-0" />
-            </div>
-            <p className="text-[10px] sm:text-[11px] text-[#C5E5EC]/80 font-medium truncate">
-              {gigs.length} {language === 'vi' ? 'việc gần bạn' : 'nearby gigs'} • {formatDistance(radiusMeters)} •{' '}
-              {currentHubEntry ? currentHubEntry.hub.label?.split('(')[0].trim() : (language === 'vi' ? 'Vị trí hiện tại' : 'Current location')}
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center space-x-2 shrink-0">
-          <button
-            onClick={() => {
-              setIsCollapsed(false);
-              setTimeout(() => mapInstanceRef.current?.invalidateSize(), 150);
-            }}
-            className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#3064AE] to-[#255294] hover:brightness-110 text-white font-black text-xs border border-[#C5E5EC]/30 shadow-xs flex items-center space-x-1.5 transition active:scale-95 cursor-pointer"
-          >
-            <MapIcon className="w-3.5 h-3.5 text-[#E0FAEB]" />
-            <span>{language === 'vi' ? 'Mở Bản Đồ' : 'Open Map'}</span>
-            <ChevronDown className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // ==========================================
   // RENDER: STANDARD COMPACT / EXPANDED MODE
   // ==========================================
   const heightClass = isFullscreen
@@ -714,7 +702,52 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
     : 'relative rounded-3xl bg-[#0E1B2E] border border-[#C5E5EC]/25 p-3 sm:p-4 shadow-xl overflow-hidden';
 
   return (
-    <div className={`${heightClass} w-full max-w-full overflow-hidden transition-all duration-300`}>
+    <>
+      {/* ==========================================
+          RENDER: COLLAPSED BAR MODE (LÀM GỌN BẢN ĐỒ)
+         ========================================== */}
+      {isCollapsed && (
+        <div className="relative rounded-2xl bg-[#0E1B2E] border border-[#C5E5EC]/25 p-3 sm:p-3.5 shadow-xl overflow-hidden flex items-center justify-between gap-3 animate-fadeIn">
+          <div className="absolute left-0 top-0 bottom-0 w-1 bg-brand-tri-gradient pointer-events-none" />
+          <div className="flex items-center space-x-2.5 min-w-0 pl-1">
+            <div className="p-2 rounded-xl bg-gradient-to-br from-[#3064AE] to-[#255294] text-white border border-[#C5E5EC]/30 shadow-xs shrink-0">
+              <MapIcon className="w-4 h-4 text-[#E0FAEB]" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center space-x-1.5">
+                <h4 className="text-xs sm:text-sm font-black text-white truncate">
+                  {language === 'vi' ? 'Bản Đồ Radar Campus' : 'Campus Radar Map'}
+                </h4>
+                <span className="w-2 h-2 rounded-full bg-[#E0FAEB] animate-ping shrink-0" />
+              </div>
+              <p className="text-[10px] sm:text-[11px] text-[#C5E5EC]/80 font-medium truncate">
+                {gigs.length} {language === 'vi' ? 'việc gần bạn' : 'nearby gigs'} • {formatDistance(radiusMeters)} •{' '}
+                {currentHubEntry ? currentHubEntry.hub.label?.split('(')[0].trim() : (language === 'vi' ? 'Vị trí hiện tại' : 'Current location')}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-2 shrink-0">
+            <button
+              onClick={() => {
+                setIsCollapsed(false);
+              }}
+              className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#3064AE] to-[#255294] hover:brightness-110 text-white font-black text-xs border border-[#C5E5EC]/30 shadow-xs flex items-center space-x-1.5 transition active:scale-95 cursor-pointer"
+            >
+              <MapIcon className="w-3.5 h-3.5 text-[#E0FAEB]" />
+              <span>{language === 'vi' ? 'Mở Bản Đồ' : 'Open Map'}</span>
+              <ChevronDown className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Main Map Card: always kept in DOM so Leaflet instance is never unmounted or black-screened */}
+      <div
+        className={`${heightClass} w-full max-w-full overflow-hidden transition-all duration-300 ${
+          isCollapsed ? 'hidden' : ''
+        }`}
+      >
       {/* Decorative top gradient bar */}
       <div className="absolute left-0 top-0 right-0 h-1 bg-brand-tri-gradient pointer-events-none" />
 
@@ -940,6 +973,9 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
           INTERACTIVE DISPLAY CANVAS
          ========================================== */}
       <div className={`relative w-full ${mapAreaHeight} rounded-2xl overflow-hidden border border-[#C5E5EC]/25 shadow-xl bg-[#0A1424] transition-all duration-200`}>
+        {/* Radar Scanner Grid Layer for smooth visual stability while tiles adjust */}
+        <div className="absolute inset-0 bg-[radial-gradient(#3064AE_1px,transparent_1px)] [background-size:24px_24px] opacity-20 pointer-events-none z-0" />
+
         {/* LEAFLET CANVAS */}
         <div ref={mapContainerRef} className="w-full h-full absolute inset-0 z-10" />
 
@@ -1163,6 +1199,7 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 };

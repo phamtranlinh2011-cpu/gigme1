@@ -14,7 +14,14 @@ import {
   createCloudCall,
   updateCloudCall,
   subscribeToIncomingCalls,
-  subscribeToCallSession
+  subscribeToCallSession,
+  createCloudFriendRequest,
+  updateCloudFriendRequest,
+  subscribeToFriendRequests,
+  subscribeToSentFriendRequests,
+  addFriendPairInCloud,
+  sendCloudNotification,
+  addCallIceCandidate
 } from '../lib/firebase';
 import {
   UserEntity,
@@ -25,6 +32,7 @@ import {
   AppRoleMode,
   VoipCallSession,
   VoipCallEntity,
+  FriendRequestEntity,
   UiNotification,
   AiRecognitionResult,
   UserTierKey,
@@ -70,6 +78,7 @@ const STORAGE_KEYS = {
   ROLE_MODE: 'gigme_role_mode_real_v4',
   DARK_MODE: 'gigme_dark_mode_real_v4',
   LANGUAGE: 'gigme_app_lang',
+  FRIEND_REQUESTS: 'gigme_friend_requests_real_v4',
 };
 
 // Helper: Điểm uy tín tối đa 100. Nếu max (>= 100) thì không cộng thêm nữa.
@@ -455,7 +464,14 @@ interface GigMeContextType {
   loginSocial: (provider: string, emailOrName?: string) => Promise<void> | void;
   logout: () => void;
 
-  // Friends & ID 9 digits
+  // Friends & ID 9 digits & Mutual Friend Requests
+  friendRequests: FriendRequestEntity[];
+  pendingReceivedRequests: FriendRequestEntity[];
+  pendingSentRequests: FriendRequestEntity[];
+  sendFriendRequest: (targetId: string) => { success: boolean; message: string; request?: FriendRequestEntity };
+  acceptFriendRequest: (requestId: string) => Promise<{ success: boolean; message: string }>;
+  declineFriendRequest: (requestId: string) => Promise<{ success: boolean; message: string }>;
+  cancelFriendRequest: (requestId: string) => Promise<{ success: boolean; message: string }>;
   addFriendById: (targetId: string) => { success: boolean; message: string; friend?: UserEntity };
   removeFriendById: (targetId: string) => void;
   findUserByNineDigitId: (id: string) => UserEntity | null;
@@ -883,6 +899,13 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [filterMultiWorkerOnly, setFilterMultiWorkerOnly] = useState(false);
   const [aiSmartMatchActive, setAiSmartMatchActive] = useState(false);
   const [activeVoipCall, setActiveVoipCall] = useState<VoipCallSession | null>(null);
+  const [friendRequests, setFriendRequests] = useState<FriendRequestEntity[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.FRIEND_REQUESTS);
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [];
+  });
   const [selectedRadiusMeters, setSelectedRadiusMeters] = useState(3000);
   const [selectedCategory, setSelectedCategory] = useState('Tất cả');
   const [selectedGigId, setSelectedGigId] = useState<string | null>(null);
@@ -1604,6 +1627,11 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     partnerAvatarUrl?: string,
     partnerId?: string
   ) => {
+    if (partnerId && currentUser && partnerId === currentUser.id) {
+      showNotification('Không thể gọi', 'Không thể tự gọi điện cho chính mình!');
+      return;
+    }
+
     const randomSuffix = Math.floor(100 + Math.random() * 900);
     const callId = `call_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     setActiveVoipCall({
@@ -1619,6 +1647,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       isVideoOff: false,
       durationSeconds: 0,
       isIncoming: false,
+      callStatus: 'OUTGOING_RINGING',
       callerId: currentUser?.id,
       callerName: currentUser?.name,
     });
@@ -1671,15 +1700,28 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (prev.callId) {
         updateCloudCall(prev.callId, { status: 'ACCEPTED', acceptedAt: Date.now() }).catch(() => {});
       }
-      return { ...prev, isIncoming: false };
+      return { ...prev, isIncoming: false, callStatus: 'CONNECTED' };
     });
+
+    if (typeof window !== 'undefined') {
+      try {
+        const callChannel = new BroadcastChannel('gigme_voip_channel');
+        callChannel.postMessage({
+          type: 'ACCEPT_CALL',
+          callId: activeVoipCall?.callId,
+          userId: currentUser?.id,
+        });
+      } catch {}
+    }
+
     showNotification('Cuộc gọi kết nối', 'Đã bắt đầu cuộc gọi WebRTC mã hóa DTLS-SRTP!', true);
   };
 
   const endVoipCall = () => {
     playNotificationSound('CALL_HANGUP');
     if (activeVoipCall?.callId) {
-      updateCloudCall(activeVoipCall.callId, { status: 'ENDED', endedAt: Date.now() }).catch(() => {});
+      const finalStatus = activeVoipCall.callStatus === 'INCOMING_RINGING' ? 'REJECTED' : 'ENDED';
+      updateCloudCall(activeVoipCall.callId, { status: finalStatus, endedAt: Date.now() }).catch(() => {});
     }
     if (typeof window !== 'undefined') {
       try {
@@ -1688,6 +1730,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           type: 'END_CALL',
           userId: currentUser?.id,
           callId: activeVoipCall?.callId,
+          status: activeVoipCall?.callStatus === 'INCOMING_RINGING' ? 'REJECTED' : 'ENDED',
         });
       } catch {}
     }
@@ -1712,7 +1755,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (!incomingCall) return;
       setActiveVoipCall((prev) => {
         // If already in an active call, ignore duplicate ringing
-        if (prev && !prev.isIncoming) return prev;
+        if (prev && prev.callStatus === 'CONNECTED') return prev;
         if (prev && prev.callId === incomingCall.id) return prev;
         playNotificationSound('CALL_RING');
         return {
@@ -1728,6 +1771,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           isVideoOff: false,
           durationSeconds: 0,
           isIncoming: true,
+          callStatus: 'INCOMING_RINGING',
           callerId: incomingCall.callerId,
           callerName: incomingCall.callerName,
         };
@@ -1756,13 +1800,25 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               isVideoOff: false,
               durationSeconds: 0,
               isIncoming: true,
+              callStatus: 'INCOMING_RINGING',
               callerId: data.callerId,
               callerName: data.callerName,
+            });
+          } else if (data?.type === 'ACCEPT_CALL') {
+            setActiveVoipCall((prev) => {
+              if (prev && prev.callId === data.callId) {
+                return { ...prev, isIncoming: false, callStatus: 'CONNECTED' };
+              }
+              return prev;
             });
           } else if (data?.type === 'END_CALL') {
             setActiveVoipCall((prev) => {
               if (prev && (prev.partnerId === data.userId || prev.callerId === data.userId || prev.callId === data.callId)) {
                 playNotificationSound('CALL_HANGUP');
+                showNotification(
+                  'Cuộc gọi kết thúc',
+                  data.status === 'REJECTED' ? 'Đối phương bận hoặc đã từ chối cuộc gọi.' : 'Cuộc gọi đã kết thúc.'
+                );
                 return null;
               }
               return prev;
@@ -1787,16 +1843,30 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (!session) return;
       if (session.status === 'ENDED' || session.status === 'REJECTED') {
         playNotificationSound('CALL_HANGUP');
+        showNotification(
+          'Cuộc gọi kết thúc',
+          session.status === 'REJECTED' ? 'Đối phương bận hoặc đã từ chối cuộc gọi.' : 'Cuộc gọi đã kết thúc.'
+        );
         setActiveVoipCall(null);
       } else if (session.status === 'ACCEPTED') {
-        setActiveVoipCall((prev) => (prev ? { ...prev, isIncoming: false } : null));
+        setActiveVoipCall((prev) => (prev ? { ...prev, isIncoming: false, callStatus: 'CONNECTED' } : null));
       }
     });
 
+    // Ringing timeout: 35 seconds if outgoing ringing with no answer
+    let ringTimeout: any = null;
+    if (activeVoipCall.callStatus === 'OUTGOING_RINGING') {
+      ringTimeout = setTimeout(() => {
+        showNotification('Không có phản hồi', 'Đối phương hiện không tiện nghe máy.');
+        endVoipCall();
+      }, 35000);
+    }
+
     return () => {
       unsubSession();
+      if (ringTimeout) clearTimeout(ringTimeout);
     };
-  }, [activeVoipCall?.callId]);
+  }, [activeVoipCall?.callId, activeVoipCall?.callStatus]);
 
   // 1. REGISTER WITH PBKDF2 PASSWORD HASHING, GMAIL REQUIREMENT & IP LIMIT
   const register = async (
@@ -2818,13 +2888,130 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return users.find((u) => u.id === clean) || null;
   };
 
-  const addFriendById = (targetId: string): { success: boolean; message: string; friend?: UserEntity } => {
+  // Memoized pending requests
+  const pendingReceivedRequests = useMemo(() => {
+    if (!currentUser) return [];
+    return friendRequests.filter((r) => r.receiverId === currentUser.id && r.status === 'PENDING');
+  }, [friendRequests, currentUser?.id]);
+
+  const pendingSentRequests = useMemo(() => {
+    if (!currentUser) return [];
+    return friendRequests.filter((r) => r.senderId === currentUser.id && r.status === 'PENDING');
+  }, [friendRequests, currentUser?.id]);
+
+  // Real-time synchronization for Friend Requests via Cloud Firestore
+  useEffect(() => {
+    if (!currentUser) return;
+    const unsubIncoming = subscribeToFriendRequests(currentUser.id, (incoming) => {
+      setFriendRequests((prev) => {
+        const map = new Map<string, FriendRequestEntity>();
+        prev.forEach((r) => map.set(r.id, r));
+        incoming.forEach((r) => map.set(r.id, r));
+        return Array.from(map.values());
+      });
+    });
+
+    const unsubSent = subscribeToSentFriendRequests(currentUser.id, (sentList) => {
+      setFriendRequests((prev) => {
+        const map = new Map<string, FriendRequestEntity>();
+        prev.forEach((r) => map.set(r.id, r));
+        sentList.forEach((r) => {
+          map.set(r.id, r);
+          // If a request we sent was accepted in Firestore by the other user:
+          if ((r.status === 'ACCEPTED' || r.status === 'friends') && currentUser) {
+            setUsers((prevUsers) => {
+              const myDoc = prevUsers.find((u) => u.id === currentUser.id);
+              if (myDoc && !myDoc.friendIds?.includes(r.receiverId)) {
+                const nextUsers = prevUsers.map((u) => {
+                  if (u.id === currentUser.id) {
+                    return { ...u, friendIds: Array.from(new Set([...(u.friendIds || []), r.receiverId])) };
+                  }
+                  if (u.id === r.receiverId) {
+                    return { ...u, friendIds: Array.from(new Set([...(u.friendIds || []), currentUser.id])) };
+                  }
+                  return u;
+                });
+                try {
+                  localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(nextUsers));
+                } catch {}
+                showNotification(
+                  'Lời mời được chấp nhận! 🎉',
+                  `${r.receiverName} đã đồng ý lời mời kết bạn của bạn.`,
+                  true
+                );
+                return nextUsers;
+              }
+              return prevUsers;
+            });
+          }
+        });
+        return Array.from(map.values());
+      });
+    });
+
+    return () => {
+      unsubIncoming();
+      unsubSent();
+    };
+  }, [currentUser?.id]);
+
+  // Real-time cross-tab synchronization for friend requests via BroadcastChannel
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    let ch: BroadcastChannel | null = null;
+    try {
+      ch = new BroadcastChannel('gigme_friends_channel');
+      ch.onmessage = (ev) => {
+        const data = ev.data;
+        if (!data) return;
+        if (data.type === 'NEW_REQUEST' && data.request) {
+          setFriendRequests((prev) => [data.request, ...prev.filter((r) => r.id !== data.request.id)]);
+          if (currentUser && data.request.receiverId === currentUser.id) {
+            playNotificationSound('DING_DEFAULT');
+            showNotification(
+              'Lời mời kết bạn mới 🤝',
+              `${data.request.senderName} (ID: ${data.request.senderId}) đã gửi cho bạn lời mời kết bạn. Hãy vào Danh bạ để kiểm tra và đồng ý!`,
+              true
+            );
+          }
+        } else if (data.type === 'REQUEST_ACCEPTED') {
+          setFriendRequests((prev) =>
+            prev.map((r) => (r.id === data.requestId ? { ...r, status: 'ACCEPTED', respondedAt: Date.now() } : r))
+          );
+          if (currentUser && (data.userA === currentUser.id || data.userB === currentUser.id)) {
+            const partnerId = data.userA === currentUser.id ? data.userB : data.userA;
+            setUsers((prevUsers) =>
+              prevUsers.map((u) => {
+                if (u.id === currentUser.id) {
+                  return { ...u, friendIds: Array.from(new Set([...(u.friendIds || []), partnerId])) };
+                }
+                if (u.id === partnerId) {
+                  return { ...u, friendIds: Array.from(new Set([...(u.friendIds || []), currentUser.id])) };
+                }
+                return u;
+              })
+            );
+          }
+        } else if (data.type === 'REQUEST_CANCELLED' || data.type === 'REQUEST_DECLINED') {
+          setFriendRequests((prev) => prev.filter((r) => r.id !== data.requestId));
+        }
+      };
+    } catch {}
+    return () => {
+      if (ch) ch.close();
+    };
+  }, [currentUser?.id]);
+
+  // Gửi lời mời kết bạn (Đối phương phải chấp nhận mới thành bạn bè)
+  const sendFriendRequest = (
+    targetId: string
+  ): { success: boolean; message: string; request?: FriendRequestEntity } => {
     const cleanId = (targetId || '').trim();
     if (!cleanId) {
       return { success: false, message: 'Vui lòng nhập ID 9 số hợp lệ!' };
     }
     if (!currentUser) {
-      return { success: false, message: 'Bạn cần đăng nhập để kết bạn!' };
+      return { success: false, message: 'Bạn cần đăng nhập để gửi lời mời kết bạn!' };
     }
     if (currentUser.id === cleanId) {
       return { success: false, message: 'Không thể tự kết bạn với chính ID của mình!' };
@@ -2833,20 +3020,198 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!targetUser) {
       return { success: false, message: `Không tìm thấy tài khoản nào có ID "${cleanId}".` };
     }
+
     const currentFriends = currentUser.friendIds || [];
     if (currentFriends.includes(cleanId)) {
-      return { success: false, message: `Bạn và ${targetUser.name} đã là bạn bè!`, friend: targetUser };
+      return { success: false, message: `Bạn và ${targetUser.name} đã là bạn bè!` };
     }
-    const updatedUser: UserEntity = {
-      ...currentUser,
-      friendIds: [...currentFriends, cleanId],
+
+    // Nếu người này đã từng gửi lời mời kết bạn cho mình trước đó và đang PENDING:
+    const incomingPending = friendRequests.find(
+      (r) => r.senderId === cleanId && r.receiverId === currentUser.id && r.status === 'PENDING'
+    );
+    if (incomingPending) {
+      acceptFriendRequest(incomingPending.id);
+      return {
+        success: true,
+        message: `${targetUser.name} đã gửi lời mời trước đó. Hai bạn đã chính thức trở thành bạn bè!`,
+      };
+    }
+
+    // Nếu chính mình đã gửi lời mời đang chờ đối phương đồng ý:
+    const alreadySent = friendRequests.find(
+      (r) => r.senderId === currentUser.id && r.receiverId === cleanId && r.status === 'PENDING'
+    );
+    if (alreadySent) {
+      return {
+        success: false,
+        message: `Bạn đã gửi lời mời kết bạn đến ${targetUser.name}. Vui lòng chờ đối phương đồng ý!`,
+        request: alreadySent,
+      };
+    }
+
+    const reqId = `freq_${currentUser.id}_${cleanId}_${Date.now()}`;
+    const newReq: FriendRequestEntity = {
+      id: reqId,
+      senderId: currentUser.id,
+      senderName: currentUser.name || 'Người dùng Campus',
+      senderAvatarUrl: currentUser.avatarUrl,
+      senderSchool: currentUser.studentSchool || 'Sinh viên Campus',
+      receiverId: cleanId,
+      receiverName: targetUser.name || `Tài khoản ${cleanId}`,
+      status: 'PENDING',
+      createdAt: Date.now(),
     };
-    setUsers((prev) => prev.map((u) => (u.id === currentUser.id ? updatedUser : u)));
-    try {
-      localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users.map((u) => (u.id === currentUser.id ? updatedUser : u))));
-    } catch {}
-    showNotification('Kết bạn thành công! 🤝', `Đã kết bạn với ${targetUser.name} (ID: ${cleanId}).`, true);
-    return { success: true, message: `Đã kết bạn thành công với ${targetUser.name}!`, friend: targetUser };
+
+    setFriendRequests((prev) => [newReq, ...prev.filter((r) => r.id !== reqId)]);
+
+    // Broadcast across tabs
+    if (typeof window !== 'undefined') {
+      try {
+        const ch = new BroadcastChannel('gigme_friends_channel');
+        ch.postMessage({ type: 'NEW_REQUEST', request: newReq });
+      } catch {}
+    }
+
+    // Persist to Cloud Firestore
+    createCloudFriendRequest(newReq).catch((err) => console.warn('createCloudFriendRequest notice:', err));
+
+    showNotification(
+      'Đã gửi lời mời kết bạn! 📨',
+      `Đã gửi lời mời kết bạn tới ${targetUser.name} (ID: ${cleanId}). Đang chờ đối phương đồng ý.`,
+      true
+    );
+
+    return {
+      success: true,
+      message: `Đã gửi lời mời kết bạn tới ${targetUser.name}! Vui lòng chờ đối phương đồng ý.`,
+      request: newReq,
+    };
+  };
+
+  // Đồng ý lời mời kết bạn (Cả 2 người chính thức trở thành bạn bè)
+  const acceptFriendRequest = async (
+    requestId: string
+  ): Promise<{ success: boolean; message: string }> => {
+    if (!currentUser) return { success: false, message: 'Chưa đăng nhập!' };
+    const req = friendRequests.find((r) => r.id === requestId);
+    if (!req) return { success: false, message: 'Không tìm thấy lời mời kết bạn!' };
+
+    const partnerId = req.senderId === currentUser.id ? req.receiverId : req.senderId;
+    const partnerUser = users.find((u) => u.id === partnerId);
+    const partnerName = partnerUser?.name || (req.senderId === currentUser.id ? req.receiverName : req.senderName);
+
+    // 1. Cập nhật trạng thái Request thành ACCEPTED
+    const updatedReq: FriendRequestEntity = {
+      ...req,
+      status: 'ACCEPTED',
+      respondedAt: Date.now(),
+    };
+    setFriendRequests((prev) => prev.map((r) => (r.id === requestId ? updatedReq : r)));
+    updateCloudFriendRequest(requestId, { status: 'ACCEPTED', respondedAt: Date.now() }).catch(() => {});
+    addFriendPairInCloud(currentUser.id, partnerId).catch(() => {});
+    sendCloudNotification(
+      partnerId,
+      'Lời mời kết bạn được chấp nhận! 🎉',
+      `${currentUser.name || 'Người dùng Campus'} đã đồng ý lời mời kết bạn của bạn.`
+    ).catch(() => {});
+
+    // 2. Thêm ID của nhau vào danh sách bạn bè friendIds của CẢ HAI NGƯỜI
+    setUsers((prevUsers) => {
+      const nextUsers = prevUsers.map((u) => {
+        if (u.id === currentUser.id) {
+          const myFriends = Array.from(new Set([...(u.friendIds || []), partnerId]));
+          return { ...u, friendIds: myFriends };
+        }
+        if (u.id === partnerId) {
+          const theirFriends = Array.from(new Set([...(u.friendIds || []), currentUser.id]));
+          return { ...u, friendIds: theirFriends };
+        }
+        return u;
+      });
+      try {
+        localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(nextUsers));
+      } catch {}
+      return nextUsers;
+    });
+
+    // 3. Broadcast qua cùng origin / tabs
+    if (typeof window !== 'undefined') {
+      try {
+        const ch = new BroadcastChannel('gigme_friends_channel');
+        ch.postMessage({
+          type: 'REQUEST_ACCEPTED',
+          requestId,
+          userA: currentUser.id,
+          userB: partnerId,
+        });
+      } catch {}
+    }
+
+    playNotificationSound('DING_DEFAULT');
+    showNotification(
+      'Kết bạn thành công! 🤝',
+      `Bạn và ${partnerName} đã chính thức trở thành bạn bè trên Campus.`,
+      true,
+      true
+    );
+
+    return { success: true, message: `Đã đồng ý kết bạn với ${partnerName}!` };
+  };
+
+  // Từ chối lời mời kết bạn
+  const declineFriendRequest = async (
+    requestId: string
+  ): Promise<{ success: boolean; message: string }> => {
+    const req = friendRequests.find((r) => r.id === requestId);
+    if (!req) return { success: false, message: 'Không tìm thấy lời mời!' };
+
+    const updatedReq: FriendRequestEntity = {
+      ...req,
+      status: 'DECLINED',
+      respondedAt: Date.now(),
+    };
+    setFriendRequests((prev) => prev.map((r) => (r.id === requestId ? updatedReq : r)));
+    updateCloudFriendRequest(requestId, { status: 'DECLINED', respondedAt: Date.now() }).catch(() => {});
+
+    if (typeof window !== 'undefined') {
+      try {
+        const ch = new BroadcastChannel('gigme_friends_channel');
+        ch.postMessage({ type: 'REQUEST_DECLINED', requestId });
+      } catch {}
+    }
+
+    showNotification('Đã từ chối', 'Đã từ chối lời mời kết bạn.');
+    return { success: true, message: 'Đã từ chối lời mời kết bạn.' };
+  };
+
+  // Hủy lời mời kết bạn đã gửi
+  const cancelFriendRequest = async (
+    requestId: string
+  ): Promise<{ success: boolean; message: string }> => {
+    setFriendRequests((prev) => prev.filter((r) => r.id !== requestId));
+    updateCloudFriendRequest(requestId, { status: 'DECLINED', respondedAt: Date.now() }).catch(() => {});
+
+    if (typeof window !== 'undefined') {
+      try {
+        const ch = new BroadcastChannel('gigme_friends_channel');
+        ch.postMessage({ type: 'REQUEST_CANCELLED', requestId });
+      } catch {}
+    }
+
+    showNotification('Đã hủy lời mời', 'Đã hủy lời mời kết bạn.');
+    return { success: true, message: 'Đã hủy lời mời kết bạn.' };
+  };
+
+  // Wrapper giữ tương thích: Gọi sendFriendRequest để yêu cầu đối phương đồng ý
+  const addFriendById = (targetId: string): { success: boolean; message: string; friend?: UserEntity } => {
+    const result = sendFriendRequest(targetId);
+    const targetUser = users.find((u) => u.id === (targetId || '').trim());
+    return {
+      success: result.success,
+      message: result.message,
+      friend: targetUser,
+    };
   };
 
   const removeFriendById = (targetId: string): void => {
@@ -2856,7 +3221,13 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       ...currentUser,
       friendIds: (currentUser.friendIds || []).filter((id) => id !== cleanId),
     };
-    setUsers((prev) => prev.map((u) => (u.id === currentUser.id ? updatedUser : u)));
+    setUsers((prev) => {
+      const next = prev.map((u) => (u.id === currentUser.id ? updatedUser : u));
+      try {
+        localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
     showNotification('Đã xóa bạn bè', `Đã xóa ID ${cleanId} khỏi danh bạ.`);
   };
 
@@ -6368,6 +6739,13 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         loginWithMoSms,
         loginSocial,
         logout,
+        friendRequests,
+        pendingReceivedRequests,
+        pendingSentRequests,
+        sendFriendRequest,
+        acceptFriendRequest,
+        declineFriendRequest,
+        cancelFriendRequest,
         addFriendById,
         removeFriendById,
         findUserByNineDigitId,

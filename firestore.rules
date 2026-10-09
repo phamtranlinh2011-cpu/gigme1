@@ -102,9 +102,23 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // Real-time VoIP & Video Call Signaling
+    // Real-time mutual friend request approvals
+    match /friend_requests/{requestId} {
+      allow read, write: if true;
+    }
+
+    // Real-time VoIP & Video Call Signaling & ICE Candidates
     match /calls/{callId} {
       allow read, write: if true;
+
+      match /{subcollection=**} {
+        allow read, write: if true;
+      }
+    }
+
+    // Auto-saved gig drafts for users to resume posting later
+    match /gig_drafts/{userId} {
+      allow read, write, delete: if true;
     }
   }
 }

@@ -65,8 +65,8 @@ export const AuthScreen: React.FC = () => {
   const [loginPassword, setLoginPassword] = useState('');
 
   // Register form
-  const [regLastName, setRegLastName] = useState(''); // Họ và tên đệm (VD: Lý Hoàng Gia)
-  const [regFirstName, setRegFirstName] = useState(''); // Tên (VD: Bảo)
+  const [regLastName, setRegLastName] = useState(''); // Họ và tên đệm (VD: Nguyễn Văn)
+  const [regFirstName, setRegFirstName] = useState(''); // Tên (VD: An)
   const [regGmail, setRegGmail] = useState('');
   const [regPhone, setRegPhone] = useState('');
   const [regCccd, setRegCccd] = useState('');
@@ -322,11 +322,11 @@ export const AuthScreen: React.FC = () => {
     const confirm = regConfirmPassword.trim();
 
     if (!lastName) {
-      setAuthError(language === 'vi' ? 'Vui lòng nhập họ và tên đệm của bạn (VD: Lý Hoàng Gia)!' : 'Please enter your last and middle name!');
+      setAuthError(language === 'vi' ? 'Vui lòng nhập họ và tên đệm của bạn (VD: Nguyễn Văn)!' : 'Please enter your last and middle name!');
       return;
     }
     if (!firstName) {
-      setAuthError(language === 'vi' ? 'Vui lòng nhập tên của bạn (VD: Bảo)!' : 'Please enter your first name!');
+      setAuthError(language === 'vi' ? 'Vui lòng nhập tên của bạn (VD: An)!' : 'Please enter your first name!');
       return;
     }
     if (combinedName.length > 30) {
@@ -809,7 +809,7 @@ export const AuthScreen: React.FC = () => {
                         value={regLastName}
                         onChange={(e) => setRegLastName(e.target.value)}
                         className="w-full pl-9 pr-3 py-2 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-white placeholder:text-[#C5E5EC]/40 focus:border-[#C5E5EC] focus:bg-[#152844] focus:outline-none transition"
-                        placeholder={language === 'vi' ? 'Lý Hoàng Gia' : 'Smith'}
+                        placeholder={language === 'vi' ? 'Nguyễn Văn' : 'Smith'}
                       />
                     </div>
                   </div>
@@ -825,14 +825,14 @@ export const AuthScreen: React.FC = () => {
                       value={regFirstName}
                       onChange={(e) => setRegFirstName(e.target.value)}
                       className="w-full px-3 py-2 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-white placeholder:text-[#C5E5EC]/40 focus:border-[#C5E5EC] focus:bg-[#152844] focus:outline-none transition"
-                      placeholder={language === 'vi' ? 'Bảo' : 'John'}
+                      placeholder={language === 'vi' ? 'An' : 'John'}
                     />
                   </div>
                 </div>
                 <div className="flex items-center justify-between text-[10px] text-[#C5E5EC]/70 mt-1 px-1">
                   <span>
                     {language === 'vi'
-                      ? 'Ví dụ: Họ và tên đệm: Lý Hoàng Gia / Tên: Bảo'
+                      ? 'Ví dụ: Họ và tên đệm: Nguyễn Văn / Tên: An'
                       : 'Example: Middle & Last: Smith / First: John'}
                   </span>
                   <span className={`${`${regLastName.trim()} ${regFirstName.trim()}`.trim().length > 30 ? 'text-rose-400 font-bold' : 'text-[#C5E5EC]/60'}`}>

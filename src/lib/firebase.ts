@@ -15,7 +15,8 @@ import {
   orderBy,
   onSnapshot,
   runTransaction,
-  FirestoreError
+  FirestoreError,
+  arrayUnion
 } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 import { 
@@ -27,7 +28,9 @@ import {
   MarketplaceItemEntity,
   SystemMaintenanceConfig,
   FirestoreNotificationEntity,
-  VoipCallEntity
+  VoipCallEntity,
+  FriendRequestEntity,
+  GigDraftEntity
 } from '../types';
 
 // Initialize Firebase SDK
@@ -717,7 +720,7 @@ export async function updateCloudCall(callId: string, updates: Partial<VoipCallE
   const path = `calls/${callId}`;
   try {
     const cleanUpdates = JSON.parse(JSON.stringify(updates));
-    await updateDoc(doc(db, 'calls', callId), cleanUpdates);
+    await setDoc(doc(db, 'calls', callId), cleanUpdates, { merge: true });
   } catch (err) {
     handleFirestoreError(err, OperationType.WRITE, path);
   }
@@ -792,6 +795,260 @@ export function subscribeToCallSession(
   } catch (err: any) {
     if (onError) onError(err);
     return () => {};
+  }
+}
+
+export async function addCallIceCandidate(
+  callId: string,
+  role: 'caller' | 'callee',
+  candidate: { candidate: string; sdpMid?: string | null; sdpMLineIndex?: number | null }
+): Promise<void> {
+  const path = `calls/${callId}`;
+  try {
+    const field = role === 'caller' ? 'callerCandidates' : 'calleeCandidates';
+    await setDoc(
+      doc(db, 'calls', callId),
+      {
+        [field]: arrayUnion(candidate),
+      },
+      { merge: true }
+    );
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, path);
+  }
+}
+
+// ==================== WEBRTC STUN/TURN ICE CONFIGURATION ====================
+export const DEFAULT_ICE_SERVERS: RTCConfiguration = {
+  iceServers: [
+    // Google Public STUN
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun2.l.google.com:19302' },
+    { urls: 'stun:stun3.l.google.com:19302' },
+    { urls: 'stun:stun4.l.google.com:19302' },
+    // Twilio & Mozilla Fallback STUN
+    { urls: 'stun:global.stun.twilio.com:3478' },
+    { urls: 'stun:stun.services.mozilla.com' },
+    // OpenRelay Metered TURN Servers (UDP/TCP/TLS) for Symmetric NAT & Firewall Traversal
+    {
+      urls: [
+        'turn:openrelay.metered.ca:80',
+        'turn:openrelay.metered.ca:443',
+        'turn:openrelay.metered.ca:443?transport=tcp',
+        'turns:openrelay.metered.ca:443?transport=tcp',
+      ],
+      username: 'openrelay',
+      credential: 'openrelay',
+    },
+  ],
+  iceCandidatePoolSize: 10,
+};
+
+// ==================== REAL-TIME MUTUAL FRIEND REQUESTS ====================
+export async function createCloudFriendRequest(req: FriendRequestEntity): Promise<void> {
+  const path = `friend_requests/${req.id}`;
+  try {
+    const cleanData = JSON.parse(JSON.stringify(req));
+    await setDoc(doc(db, 'friend_requests', req.id), cleanData);
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, path);
+  }
+}
+
+export async function updateCloudFriendRequest(
+  reqId: string,
+  updates: Partial<FriendRequestEntity>
+): Promise<void> {
+  const path = `friend_requests/${reqId}`;
+  try {
+    const cleanUpdates = JSON.parse(JSON.stringify(updates));
+    await setDoc(doc(db, 'friend_requests', reqId), cleanUpdates, { merge: true });
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, path);
+  }
+}
+
+export async function addFriendPairInCloud(userAId: string, userBId: string): Promise<void> {
+  try {
+    const userARef = doc(db, 'users', userAId);
+    const userBRef = doc(db, 'users', userBId);
+    await updateDoc(userARef, { friendIds: arrayUnion(userBId) }).catch(() => {});
+    await updateDoc(userBRef, { friendIds: arrayUnion(userAId) }).catch(() => {});
+  } catch (err) {
+    console.warn('addFriendPairInCloud warning:', err);
+  }
+}
+
+export async function sendCloudNotification(
+  userId: string,
+  title: string,
+  message: string,
+  type: 'NEW_GIG' | 'STATUS_UPDATE' | 'INFO' = 'INFO'
+): Promise<void> {
+  const notifId = `notif_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+  try {
+    await setDoc(doc(db, 'notifications', notifId), {
+      id: notifId,
+      userId,
+      title,
+      message,
+      type,
+      createdAt: Date.now(),
+    });
+  } catch (err) {
+    console.warn('sendCloudNotification warning:', err);
+  }
+}
+
+export function subscribeToFriendRequests(
+  userId: string,
+  onUpdate: (requests: FriendRequestEntity[]) => void,
+  onError?: (err: Error) => void
+): () => void {
+  try {
+    const requestsRef = collection(db, 'friend_requests');
+    const q = query(
+      requestsRef,
+      where('receiverId', '==', userId),
+      where('status', 'in', ['pending', 'PENDING'])
+    );
+
+    return onSnapshot(
+      q,
+      (snapshot) => {
+        const list: FriendRequestEntity[] = [];
+        snapshot.forEach((d) => {
+          list.push(d.data() as FriendRequestEntity);
+        });
+        list.sort((a, b) => b.createdAt - a.createdAt);
+        onUpdate(list);
+      },
+      (error) => {
+        handleFirestoreError(error, OperationType.LIST, 'friend_requests');
+        if (onError) onError(error);
+      }
+    );
+  } catch (err: any) {
+    if (onError) onError(err);
+    return () => {};
+  }
+}
+
+export function subscribeToSentFriendRequests(
+  userId: string,
+  onUpdate: (requests: FriendRequestEntity[]) => void,
+  onError?: (err: Error) => void
+): () => void {
+  try {
+    const requestsRef = collection(db, 'friend_requests');
+    const q = query(
+      requestsRef,
+      where('senderId', '==', userId)
+    );
+
+    return onSnapshot(
+      q,
+      (snapshot) => {
+        const list: FriendRequestEntity[] = [];
+        snapshot.forEach((d) => {
+          list.push(d.data() as FriendRequestEntity);
+        });
+        list.sort((a, b) => b.createdAt - a.createdAt);
+        onUpdate(list);
+      },
+      (error) => {
+        handleFirestoreError(error, OperationType.LIST, 'friend_requests');
+        if (onError) onError(error);
+      }
+    );
+  } catch (err: any) {
+    if (onError) onError(err);
+    return () => {};
+  }
+}
+
+// ==================== AUTO-SAVED GIG POSTING DRAFTS ====================
+const DRAFT_LOCAL_PREFIX = 'gigme_create_gig_draft_';
+
+export async function saveGigDraftToCloud(userId: string, draft: Partial<GigDraftEntity>): Promise<void> {
+  const path = `gig_drafts/${userId}`;
+  const cleanData: GigDraftEntity = {
+    userId,
+    updatedAt: Date.now(),
+    step: draft.step || 1,
+    title: draft.title || '',
+    description: draft.description || '',
+    category: draft.category || '',
+    customCategory: draft.customCategory || '',
+    price: draft.price || 60000,
+    attachedImage: draft.attachedImage || '',
+    isFlash: !!draft.isFlash,
+    isBoosted: !!draft.isBoosted,
+    isRecurringWeekly: !!draft.isRecurringWeekly,
+    totalWorkersNeeded: draft.totalWorkersNeeded || 1,
+    estimatedDurationMinutes: draft.estimatedDurationMinutes || 30,
+    locationName: draft.locationName || '',
+    distanceMeters: draft.distanceMeters || 150,
+  };
+
+  // 1. Save locally first for instant offline fallback
+  try {
+    localStorage.setItem(`${DRAFT_LOCAL_PREFIX}${userId}`, JSON.stringify(cleanData));
+  } catch (e) {
+    console.warn('Could not save draft to localStorage:', e);
+  }
+
+  // 2. Synchronize to Firestore
+  try {
+    const sanitized = JSON.parse(JSON.stringify(cleanData));
+    await setDoc(doc(db, 'gig_drafts', userId), sanitized, { merge: true });
+  } catch (err) {
+    handleFirestoreError(err, OperationType.WRITE, path);
+  }
+}
+
+export async function getGigDraftFromCloud(userId: string): Promise<GigDraftEntity | null> {
+  const path = `gig_drafts/${userId}`;
+  // 1. Try reading from Firestore
+  try {
+    const snap = await getDoc(doc(db, 'gig_drafts', userId));
+    if (snap.exists()) {
+      const data = snap.data() as GigDraftEntity;
+      try {
+        localStorage.setItem(`${DRAFT_LOCAL_PREFIX}${userId}`, JSON.stringify(data));
+      } catch {}
+      return data;
+    }
+  } catch (err) {
+    handleFirestoreError(err, OperationType.GET, path);
+  }
+
+  // 2. Fallback to local storage if offline or not yet synced
+  try {
+    const local = localStorage.getItem(`${DRAFT_LOCAL_PREFIX}${userId}`);
+    if (local) {
+      return JSON.parse(local) as GigDraftEntity;
+    }
+  } catch (e) {
+    console.warn('Could not parse local draft:', e);
+  }
+
+  return null;
+}
+
+export async function deleteGigDraftFromCloud(userId: string): Promise<void> {
+  const path = `gig_drafts/${userId}`;
+  // 1. Remove from local storage
+  try {
+    localStorage.removeItem(`${DRAFT_LOCAL_PREFIX}${userId}`);
+  } catch {}
+
+  // 2. Remove from Firestore
+  try {
+    await deleteDoc(doc(db, 'gig_drafts', userId));
+  } catch (err) {
+    handleFirestoreError(err, OperationType.DELETE, path);
   }
 }
 

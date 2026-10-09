@@ -128,8 +128,8 @@ export const ALL_FALSE_PERMISSIONS: ModPermission = {
 export interface UserEntity {
   id: string;
   name: string;
-  lastName?: string; // Họ và tên đệm (VD: Lý Hoàng Gia)
-  firstName?: string; // Tên (VD: Bảo)
+  lastName?: string; // Họ và tên đệm (VD: Nguyễn Văn)
+  firstName?: string; // Tên (VD: An)
   email: string;
   phone: string;
   password?: string;
@@ -453,6 +453,19 @@ export type TransactionEntity = WalletTransactionEntity;
 
 export type AppRoleMode = 'CLIENT' | 'FREELANCER';
 
+export interface FriendRequestEntity {
+  id: string; // `freq_${senderId}_${receiverId}`
+  senderId: string;
+  senderName: string;
+  senderAvatarUrl?: string;
+  senderSchool?: string;
+  receiverId: string;
+  receiverName: string;
+  status: 'pending' | 'friends' | 'declined' | 'PENDING' | 'ACCEPTED' | 'DECLINED';
+  createdAt: number;
+  respondedAt?: number;
+}
+
 export interface VoipCallEntity {
   id: string;
   callerId: string;
@@ -467,6 +480,10 @@ export interface VoipCallEntity {
   timestamp: number;
   acceptedAt?: number;
   endedAt?: number;
+  offer?: { sdp?: string; type?: string };
+  answer?: { sdp?: string; type?: string };
+  callerCandidates?: Array<{ candidate: string; sdpMid?: string | null; sdpMLineIndex?: number | null }>;
+  calleeCandidates?: Array<{ candidate: string; sdpMid?: string | null; sdpMLineIndex?: number | null }>;
 }
 
 export interface VoipCallSession {
@@ -482,6 +499,7 @@ export interface VoipCallSession {
   isVideoOff?: boolean;
   durationSeconds: number;
   isIncoming?: boolean;
+  callStatus?: 'OUTGOING_RINGING' | 'INCOMING_RINGING' | 'CONNECTING' | 'CONNECTED' | 'REJECTED' | 'ENDED';
   callerId?: string;
   callerName?: string;
 }
@@ -580,4 +598,24 @@ export interface MoSmsSession {
   isVerified: boolean;
   senderPhone?: string;
   verifiedAt?: number;
+}
+
+export interface GigDraftEntity {
+  id?: string;
+  userId: string;
+  step?: 1 | 2 | 3;
+  title: string;
+  description: string;
+  category: string;
+  customCategory?: string;
+  price: number;
+  attachedImage?: string;
+  isFlash?: boolean;
+  isBoosted?: boolean;
+  isRecurringWeekly?: boolean;
+  totalWorkersNeeded?: number;
+  estimatedDurationMinutes?: number;
+  locationName?: string;
+  distanceMeters?: number;
+  updatedAt: number;
 }

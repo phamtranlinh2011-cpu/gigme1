@@ -43,11 +43,14 @@ import {
   GraduationCap,
   CheckCircle2,
   AlertTriangle,
+  SwitchCamera,
+  RefreshCw,
+  CameraOff,
 } from 'lucide-react';
 import { useGigMe } from '../context/GigMeContext';
 import { useTranslation } from '../context/LanguageContext';
 import { formatVnd, ChatMessageEntity, UserEntity } from '../types';
-import { generateSynthesizedVoiceWav, playSynthesizedVoiceTone } from '../utils/audio';
+import { generateSynthesizedVoiceWav, playSynthesizedVoiceTone, playNotificationSound } from '../utils/audio';
 import { rateLimiter } from '../utils/rateLimiter';
 import { compressImageToWebP } from '../utils/imageCompressor';
 import { triggerHaptic } from '../utils/haptics';
@@ -94,6 +97,13 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
     allChats,
     rawGigs,
     users,
+    friendRequests,
+    pendingReceivedRequests,
+    pendingSentRequests,
+    sendFriendRequest,
+    acceptFriendRequest,
+    declineFriendRequest,
+    cancelFriendRequest,
     addFriendById,
     removeFriendById,
     findUserByNineDigitId,
@@ -115,6 +125,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
   
   // 9-digit ID Search & Friend Connection State
   const [showAddFriendModal, setShowAddFriendModal] = useState(false);
+  const [friendModalTab, setFriendModalTab] = useState<'SEARCH' | 'RECEIVED' | 'SENT'>('SEARCH');
   const [searchIdInput, setSearchIdInput] = useState('');
   const [foundUserResult, setFoundUserResult] = useState<UserEntity | null>(null);
   const [searchIdError, setSearchIdError] = useState('');
@@ -169,6 +180,25 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
   const fileInputImageRef = useRef<HTMLInputElement | null>(null);
   const fileInputCameraRef = useRef<HTMLInputElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+
+  // Live in-app Camera capture state
+  const [showCameraModal, setShowCameraModal] = useState(false);
+  const [cameraFacingMode, setCameraFacingMode] = useState<'environment' | 'user'>('environment');
+  const [capturedPhotoPreview, setCapturedPhotoPreview] = useState<string | null>(null);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [isCameraStarting, setIsCameraStarting] = useState(false);
+  const cameraVideoRef = useRef<HTMLVideoElement | null>(null);
+  const cameraStreamRef = useRef<MediaStream | null>(null);
+
+  // Stop camera tracks on unmount
+  useEffect(() => {
+    return () => {
+      if (cameraStreamRef.current) {
+        cameraStreamRef.current.getTracks().forEach((track) => track.stop());
+        cameraStreamRef.current = null;
+      }
+    };
+  }, []);
 
   // Helpers tính toán dung lượng tệp và trạng thái Hoạt động thật (Real-time Online/Offline)
   const formatFileSize = (bytes?: number): string => {
@@ -939,7 +969,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
     }
   };
 
-  // Image File Picker (Tự động nén chuẩn WebP tiết kiệm 4G)
+  // Image File Picker (Chọn ảnh từ thư viện - tự động nén chuẩn WebP tiết kiệm 4G)
   const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -947,19 +977,23 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
     try {
       const compressed = await compressImageToWebP(file, { maxWidth: 1280, maxHeight: 1280, quality: 0.82 });
       setPendingImage(compressed.dataUrl);
+      setPendingFile(null); // Đảm bảo chỉ gửi ảnh, không bị xung đột với tệp
       setShowAttachmentMenu(false);
+      triggerHaptic('light');
       showNotification(
-        language === 'vi' ? '⚡ Nén Ảnh WebP Tự Động' : '⚡ Auto WebP Compression',
+        language === 'vi' ? '⚡ Đã Chọn Ảnh' : '⚡ Photo Selected',
         language === 'vi'
-          ? `Đã nén tiết kiệm ${compressed.savedPercent}% dữ liệu 4G (${compressed.originalSizeFormatted} ➔ ${compressed.compressedSizeFormatted}).`
-          : `Saved ${compressed.savedPercent}% cellular data (${compressed.originalSizeFormatted} ➔ ${compressed.compressedSizeFormatted}).`
+          ? `Đã tối ưu nén ảnh (${compressed.originalSizeFormatted} ➔ ${compressed.compressedSizeFormatted}). Bấm gửi để chuyển ảnh!`
+          : `Optimized image (${compressed.originalSizeFormatted} ➔ ${compressed.compressedSizeFormatted}). Tap send!`
       );
     } catch {
       const reader = new FileReader();
       reader.onload = () => {
         if (typeof reader.result === 'string') {
           setPendingImage(reader.result);
+          setPendingFile(null);
           setShowAttachmentMenu(false);
+          triggerHaptic('light');
         }
       };
       reader.readAsDataURL(file);
@@ -967,17 +1001,17 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
     e.target.value = '';
   };
 
-  // Document / File Picker (Hỗ trợ PDF, Word, Excel, ZIP, TXT... tối đa 15MB)
+  // Document / File Picker (Đính kèm tệp: Hỗ trợ PDF, Word, Excel, ZIP, TXT... tối đa 25MB)
   const handleDocFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 15 * 1024 * 1024) {
+    if (file.size > 25 * 1024 * 1024) {
       showNotification(
         language === 'vi' ? '⚠️ Tệp quá dung lượng' : '⚠️ File too large',
         language === 'vi'
-          ? `Dung lượng tệp tối đa là 15MB (Tệp hiện tại: ${formatFileSize(file.size)}).`
-          : `Maximum file size is 15MB (Current: ${formatFileSize(file.size)}).`,
+          ? `Dung lượng tệp tối đa là 25MB (Tệp hiện tại: ${formatFileSize(file.size)}).`
+          : `Maximum file size is 25MB (Current: ${formatFileSize(file.size)}).`,
         false
       );
       e.target.value = '';
@@ -995,12 +1029,149 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
           dataUrl: reader.result,
           extension: ext,
         });
+        setPendingImage(null); // Đảm bảo chỉ gửi tệp, không bị xung đột với ảnh
         setShowAttachmentMenu(false);
-        triggerHaptic('light');
+        triggerHaptic('medium');
+        showNotification(
+          language === 'vi' ? '📁 Đã Đính Kèm Tệp' : '📁 File Attached',
+          language === 'vi'
+            ? `Tệp "${file.name}" (${formatFileSize(file.size)}) đã sẵn sàng. Bấm nút gửi để chuyển tệp!`
+            : `File "${file.name}" ready. Tap send!`
+        );
       }
     };
     reader.readAsDataURL(file);
     e.target.value = '';
+  };
+
+  // Camera stream controls for live camera viewfinder modal
+  const stopCameraStream = () => {
+    if (cameraStreamRef.current) {
+      cameraStreamRef.current.getTracks().forEach((track) => track.stop());
+      cameraStreamRef.current = null;
+    }
+    if (cameraVideoRef.current) {
+      cameraVideoRef.current.srcObject = null;
+    }
+  };
+
+  const startCameraStream = async (facing: 'environment' | 'user' = cameraFacingMode) => {
+    stopCameraStream();
+    setCameraError(null);
+    setIsCameraStarting(true);
+    setCapturedPhotoPreview(null);
+
+    try {
+      if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
+        throw new Error(
+          language === 'vi'
+            ? 'Trình duyệt không hỗ trợ mở camera trực tiếp.'
+            : 'Browser does not support direct camera stream.'
+        );
+      }
+
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: facing },
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          },
+          audio: false,
+        });
+      } catch {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false,
+        });
+      }
+
+      cameraStreamRef.current = stream;
+      if (cameraVideoRef.current) {
+        cameraVideoRef.current.srcObject = stream;
+        cameraVideoRef.current.play().catch(() => {});
+      }
+    } catch (err: any) {
+      console.warn('Camera stream error:', err);
+      setCameraError(
+        language === 'vi'
+          ? 'Không thể mở máy ảnh trực tiếp trên trình duyệt này. Bạn có thể sử dụng máy ảnh hệ thống.'
+          : 'Unable to open camera stream. You can use your device native camera.'
+      );
+    } finally {
+      setIsCameraStarting(false);
+    }
+  };
+
+  const handleToggleCameraFacing = () => {
+    triggerHaptic('light');
+    const nextFacing = cameraFacingMode === 'environment' ? 'user' : 'environment';
+    setCameraFacingMode(nextFacing);
+    startCameraStream(nextFacing);
+  };
+
+  const handleOpenLiveCamera = () => {
+    triggerHaptic('light');
+    setShowAttachmentMenu(false);
+    setShowCameraModal(true);
+    setCapturedPhotoPreview(null);
+    startCameraStream(cameraFacingMode);
+  };
+
+  const handleCloseCameraModal = () => {
+    stopCameraStream();
+    setShowCameraModal(false);
+    setCapturedPhotoPreview(null);
+    setCameraError(null);
+  };
+
+  const handleCapturePhotoFromStream = () => {
+    if (!cameraVideoRef.current) return;
+    const video = cameraVideoRef.current;
+    if (video.videoWidth === 0 || video.videoHeight === 0) return;
+
+    triggerHaptic('medium');
+    playNotificationSound('BUTTON_CLICK');
+
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    if (cameraFacingMode === 'user') {
+      ctx.translate(canvas.width, 0);
+      ctx.scale(-1, 1);
+    }
+
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.88);
+    setCapturedPhotoPreview(dataUrl);
+    stopCameraStream();
+  };
+
+  const handleRetakePhoto = () => {
+    triggerHaptic('light');
+    setCapturedPhotoPreview(null);
+    startCameraStream(cameraFacingMode);
+  };
+
+  const handleConfirmCapturedPhoto = async () => {
+    if (!capturedPhotoPreview) return;
+    triggerHaptic('success');
+    setPendingImage(capturedPhotoPreview);
+    setPendingFile(null); // Clear file attachment
+    handleCloseCameraModal();
+    showNotification(
+      language === 'vi' ? '📸 Đã Chụp Ảnh Xong' : '📸 Photo Captured',
+      language === 'vi' ? 'Ảnh đã sẵn sàng. Bấm nút gửi để chuyển tin nhắn!' : 'Photo is ready. Tap send to send it!'
+    );
+  };
+
+  const handleTriggerNativeCamera = () => {
+    handleCloseCameraModal();
+    fileInputCameraRef.current?.click();
   };
 
   // Voice Note Recording (Support both hardware microphone & guaranteed playable synthesized WAV)
@@ -2211,67 +2382,11 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
           </div>
         )}
 
-        {/* ATTACHMENT POPUP MENU */}
-        {showAttachmentMenu && (
-          <div className="mb-2 p-2 rounded-2xl bg-[#12233B]/95 backdrop-blur-md border border-[#00E5FF]/30 shadow-2xl flex items-center space-x-2 shrink-0 animate-fadeIn flex-wrap gap-y-1.5">
-            <button
-              type="button"
-              onClick={() => {
-                triggerHaptic('light');
-                setShowAttachmentMenu(false);
-                fileInputImageRef.current?.click();
-              }}
-              className="flex items-center space-x-2 px-3 py-2 rounded-xl bg-[#0E1B2E] hover:bg-[#162B48] active:scale-95 text-xs font-bold text-[#E0FAEB] border border-[#00E5FF]/20 transition cursor-pointer"
-            >
-              <div className="w-6 h-6 rounded-lg bg-blue-500/20 text-[#0084FF] flex items-center justify-center">
-                <ImageIcon className="w-4 h-4" />
-              </div>
-              <span>{language === 'vi' ? 'Chọn từ thư viện' : 'Photo Library'}</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                triggerHaptic('light');
-                setShowAttachmentMenu(false);
-                fileInputCameraRef.current?.click();
-              }}
-              className="flex items-center space-x-2 px-3 py-2 rounded-xl bg-[#0E1B2E] hover:bg-[#162B48] active:scale-95 text-xs font-bold text-[#E0FAEB] border border-[#00E5FF]/20 transition cursor-pointer"
-            >
-              <div className="w-6 h-6 rounded-lg bg-purple-500/20 text-purple-400 flex items-center justify-center">
-                <Camera className="w-4 h-4" />
-              </div>
-              <span>{language === 'vi' ? 'Chụp ảnh nhanh' : 'Take Photo'}</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                triggerHaptic('light');
-                setShowAttachmentMenu(false);
-                fileInputDocRef.current?.click();
-              }}
-              className="flex items-center space-x-2 px-3 py-2 rounded-xl bg-[#0E1B2E] hover:bg-[#162B48] active:scale-95 text-xs font-bold text-[#E0FAEB] border border-[#00E5FF]/20 transition cursor-pointer"
-            >
-              <div className="w-6 h-6 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
-                <FileText className="w-4 h-4" />
-              </div>
-              <span>{language === 'vi' ? 'Tài liệu / Tệp tin' : 'Document / File'}</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowAttachmentMenu(false)}
-              className="p-2 ml-auto rounded-full text-slate-400 hover:text-white transition cursor-pointer"
-              title={language === 'vi' ? 'Đóng menu đính kèm' : 'Close attachment menu'}
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        )}
-
         {/* Hidden inputs for camera, gallery, and documents */}
         <input
           ref={fileInputImageRef}
           type="file"
-          accept="image/*"
+          accept="image/png,image/jpeg,image/webp,image/gif,image/*"
           className="hidden"
           onChange={handleImageFileChange}
         />
@@ -2286,7 +2401,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
         <input
           ref={fileInputDocRef}
           type="file"
-          accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar,.7z,.tar,.gz,.json,.csv"
+          accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar,.7z,.tar,.gz,.json,.csv,.rtf,application/*,text/*"
           className="hidden"
           onChange={handleDocFileChange}
         />
@@ -2369,45 +2484,38 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
 
             {/* MESSENGER BOTTOM INPUT BAR */}
             <form onSubmit={handleSendMessage} className="flex items-center space-x-1 sm:space-x-1.5">
-            {/* Attachment Button (Paperclip) */}
+            {/* 1. NÚT ĐÍNH KÈM TỆP (Paperclip) - Gửi các file tệp tài liệu, văn bản, lưu trữ */}
             <button
               type="button"
               onClick={() => {
                 triggerHaptic('light');
-                setShowAttachmentMenu(!showAttachmentMenu);
+                fileInputDocRef.current?.click();
               }}
-              className={`p-2 rounded-full transition shrink-0 cursor-pointer ${
-                showAttachmentMenu
-                  ? 'bg-[#0084FF] text-white shadow-md shadow-[#0084FF]/30'
-                  : 'hover:bg-white/10 text-[#0084FF]'
-              }`}
-              title={language === 'vi' ? 'Đính kèm tệp, ảnh hoặc chụp ảnh' : 'Attach file, photo or take photo'}
+              className="p-2 rounded-full hover:bg-white/10 text-[#0084FF] hover:scale-105 active:scale-95 transition shrink-0 cursor-pointer"
+              title={language === 'vi' ? 'Đính kèm tệp (PDF, Word, Excel, ZIP...)' : 'Attach file'}
             >
               <Paperclip className="w-5 h-5 text-[#0084FF]" />
             </button>
 
-            {/* Gallery Image Button */}
+            {/* 2. NÚT CHỌN ẢNH TỪ THƯ VIỆN (ImageIcon) */}
             <button
               type="button"
               onClick={() => {
                 triggerHaptic('light');
                 fileInputImageRef.current?.click();
               }}
-              className="p-2 rounded-full hover:bg-white/10 text-[#0084FF] transition shrink-0 cursor-pointer"
+              className="p-2 rounded-full hover:bg-white/10 text-[#0084FF] hover:scale-105 active:scale-95 transition shrink-0 cursor-pointer"
               title={language === 'vi' ? 'Chọn ảnh từ thư viện' : 'Choose photo from gallery'}
             >
               <ImageIcon className="w-5 h-5 text-[#0084FF]" />
             </button>
 
-            {/* Camera Button */}
+            {/* 3. NÚT CHỤP ẢNH (Camera - Mở camera chụp ảnh trực tiếp) */}
             <button
               type="button"
-              onClick={() => {
-                triggerHaptic('light');
-                fileInputCameraRef.current?.click();
-              }}
-              className="p-2 rounded-full hover:bg-white/10 text-[#0084FF] transition shrink-0 cursor-pointer"
-              title={language === 'vi' ? 'Chụp ảnh nhanh' : 'Take photo'}
+              onClick={handleOpenLiveCamera}
+              className="p-2 rounded-full hover:bg-white/10 text-[#0084FF] hover:scale-105 active:scale-95 transition shrink-0 cursor-pointer"
+              title={language === 'vi' ? 'Chụp ảnh' : 'Take photo'}
             >
               <Camera className="w-5 h-5 text-[#0084FF]" />
             </button>
@@ -2421,8 +2529,8 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
               className="flex-1 py-2 px-3 sm:px-3.5 rounded-full bg-[#1e2c3d] border border-white/10 text-white text-[13px] placeholder:text-[#C5E5EC]/40 focus:border-[#0084FF] focus:bg-[#1a2636] transition outline-none min-w-0"
             />
 
-            {/* Voice Message Microphone Button (Hiển thị khi không có text) */}
-            {!messageInput.trim() && !pendingImage && (
+            {/* Voice Message Microphone Button (Hiển thị khi không có text, không có ảnh và không có tệp chờ gửi) */}
+            {!messageInput.trim() && !pendingImage && !pendingFile && (
               <button
                 type="button"
                 onClick={() => {
@@ -2437,7 +2545,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
             )}
 
             {/* Send Button or Thumbs-up if empty */}
-            {messageInput.trim() || pendingImage ? (
+            {messageInput.trim() || pendingImage || pendingFile ? (
               <button
                 type="submit"
                 className="p-2 rounded-full bg-[#0084FF] hover:bg-[#0073e6] active:scale-95 text-white transition shadow-md shadow-[#0084FF]/30 shrink-0 cursor-pointer flex items-center justify-center"
@@ -2528,6 +2636,192 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                 <PhoneCall className="w-4 h-4" />
                 <span>{language === 'vi' ? 'Gọi Thoại Miễn Phí' : 'Free Voice Call'}</span>
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* LIVE CAMERA CAPTURE MODAL */}
+        {showCameraModal && (
+          <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 animate-fadeIn">
+            <div className="relative w-full max-w-lg bg-[#0F1E34] border border-[#00E5FF]/40 rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[92vh]">
+              {/* Camera Header */}
+              <div className="px-4 py-3 bg-[#132642] border-b border-[#00E5FF]/20 flex items-center justify-between shrink-0">
+                <div className="flex items-center space-x-2">
+                  <div className="w-8 h-8 rounded-xl bg-purple-500/20 text-purple-400 border border-purple-500/30 flex items-center justify-center">
+                    <Camera className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-white">
+                      {language === 'vi' ? 'Chụp ảnh tin nhắn' : 'Take Message Photo'}
+                    </h3>
+                    <p className="text-[11px] text-[#C5E5EC]/70">
+                      {capturedPhotoPreview
+                        ? (language === 'vi' ? 'Xem lại ảnh đã chụp' : 'Review captured photo')
+                        : (language === 'vi' ? 'Căn chỉnh và bấm chụp' : 'Aim and capture photo')}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-1.5">
+                  {!capturedPhotoPreview && !cameraError && (
+                    <button
+                      type="button"
+                      onClick={handleToggleCameraFacing}
+                      className="p-2 rounded-xl bg-[#0B1524] hover:bg-[#1A2E4C] text-[#00E5FF] border border-[#00E5FF]/30 transition active:scale-95 cursor-pointer"
+                      title={language === 'vi' ? 'Đổi camera trước/sau' : 'Flip camera'}
+                    >
+                      <SwitchCamera className="w-4 h-4" />
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleCloseCameraModal}
+                    className="p-2 rounded-xl bg-[#0B1524] hover:bg-rose-900/40 text-slate-400 hover:text-white border border-white/10 transition cursor-pointer"
+                    title={language === 'vi' ? 'Đóng' : 'Close'}
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Viewfinder / Preview Container */}
+              <div className="relative flex-1 bg-black flex items-center justify-center min-h-[320px] max-h-[520px] overflow-hidden">
+                {capturedPhotoPreview ? (
+                  /* Review captured photo */
+                  <img
+                    src={capturedPhotoPreview}
+                    alt="Captured preview"
+                    className="w-full h-full object-contain max-h-[520px]"
+                  />
+                ) : cameraError ? (
+                  /* Error state: permissions or device missing */
+                  <div className="p-6 text-center space-y-4 max-w-sm">
+                    <div className="w-16 h-16 mx-auto rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/30 flex items-center justify-center">
+                      <CameraOff className="w-8 h-8" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-white mb-1">
+                        {language === 'vi' ? 'Không thể truy cập Camera' : 'Camera Unavailable'}
+                      </p>
+                      <p className="text-xs text-[#C5E5EC]/70 leading-relaxed">
+                        {cameraError}
+                      </p>
+                    </div>
+                    <div className="pt-2 flex flex-col gap-2">
+                      <button
+                        type="button"
+                        onClick={handleTriggerNativeCamera}
+                        className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 hover:brightness-110 text-white font-bold text-xs flex items-center justify-center space-x-2 transition cursor-pointer shadow-lg"
+                      >
+                        <Camera className="w-4 h-4" />
+                        <span>{language === 'vi' ? 'Mở máy ảnh hệ thống thiết bị' : 'Use Native Device Camera'}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => startCameraStream(cameraFacingMode)}
+                        className="w-full py-2 px-4 rounded-xl bg-[#132642] hover:bg-[#1C365C] text-[#C5E5EC] font-semibold text-xs transition cursor-pointer border border-white/10"
+                      >
+                        {language === 'vi' ? 'Thử lại' : 'Retry'}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  /* Live Camera Video Viewfinder */
+                  <div className="relative w-full h-full flex items-center justify-center">
+                    <video
+                      ref={cameraVideoRef}
+                      autoPlay
+                      playsInline
+                      muted
+                      className={`w-full h-full object-cover min-h-[320px] ${
+                        cameraFacingMode === 'user' ? 'scale-x-[-1]' : ''
+                      }`}
+                    />
+
+                    {/* Viewfinder Reticle Framing */}
+                    <div className="absolute inset-8 pointer-events-none border border-white/20 rounded-2xl flex flex-col justify-between p-2">
+                      <div className="flex justify-between">
+                        <span className="w-4 h-4 border-t-2 border-l-2 border-[#00E5FF] -mt-2 -ml-2 rounded-tl" />
+                        <span className="w-4 h-4 border-t-2 border-r-2 border-[#00E5FF] -mt-2 -mr-2 rounded-tr" />
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="w-4 h-4 border-b-2 border-l-2 border-[#00E5FF] -mb-2 -ml-2 rounded-bl" />
+                        <span className="w-4 h-4 border-b-2 border-r-2 border-[#00E5FF] -mb-2 -mr-2 rounded-br" />
+                      </div>
+                    </div>
+
+                    {isCameraStarting && (
+                      <div className="absolute inset-0 bg-black/60 flex items-center justify-center space-x-2 text-white text-xs">
+                        <RefreshCw className="w-4 h-4 animate-spin text-[#00E5FF]" />
+                        <span>{language === 'vi' ? 'Đang bật máy ảnh...' : 'Starting camera...'}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Camera Action Footer */}
+              <div className="p-4 bg-[#132642] border-t border-[#00E5FF]/20 shrink-0">
+                {capturedPhotoPreview ? (
+                  /* Review Actions: Retake vs Use */
+                  <div className="flex items-center space-x-3">
+                    <button
+                      type="button"
+                      onClick={handleRetakePhoto}
+                      className="flex-1 py-2.5 px-4 rounded-xl bg-[#0B1524] hover:bg-[#1A2E4C] text-[#C5E5EC] hover:text-white font-bold text-xs border border-white/10 transition active:scale-95 flex items-center justify-center space-x-1.5 cursor-pointer"
+                    >
+                      <RotateCw className="w-4 h-4" />
+                      <span>{language === 'vi' ? 'Chụp lại' : 'Retake'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleConfirmCapturedPhoto}
+                      className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:brightness-110 text-white font-bold text-xs transition active:scale-95 flex items-center justify-center space-x-1.5 shadow-lg shadow-emerald-600/30 cursor-pointer"
+                    >
+                      <Check className="w-4 h-4" />
+                      <span>{language === 'vi' ? 'Sử dụng ảnh này' : 'Use Photo'}</span>
+                    </button>
+                  </div>
+                ) : !cameraError ? (
+                  /* Live Capture Controls */
+                  <div className="flex items-center justify-around">
+                    {/* Fallback to native input if desired */}
+                    <button
+                      type="button"
+                      onClick={handleTriggerNativeCamera}
+                      className="p-3 rounded-2xl bg-[#0B1524] hover:bg-[#1A2E4C] text-[#C5E5EC] border border-white/10 transition active:scale-95 cursor-pointer flex flex-col items-center space-y-1"
+                      title={language === 'vi' ? 'Máy ảnh hệ thống' : 'Native camera'}
+                    >
+                      <Camera className="w-5 h-5 text-cyan-400" />
+                      <span className="text-[10px]">{language === 'vi' ? 'Máy ảnh gốc' : 'Native'}</span>
+                    </button>
+
+                    {/* Big Shutter Button */}
+                    <button
+                      type="button"
+                      onClick={handleCapturePhotoFromStream}
+                      disabled={isCameraStarting}
+                      className="w-16 h-16 rounded-full bg-gradient-to-tr from-cyan-400 to-[#0084FF] p-1.5 shadow-xl shadow-[#0084FF]/40 active:scale-90 hover:scale-105 transition cursor-pointer flex items-center justify-center group disabled:opacity-50"
+                      title={language === 'vi' ? 'Chụp ảnh' : 'Snap photo'}
+                    >
+                      <div className="w-full h-full rounded-full border-2 border-white flex items-center justify-center bg-white/20 group-hover:bg-white/30 transition">
+                        <Camera className="w-6 h-6 text-white" />
+                      </div>
+                    </button>
+
+                    {/* Flip camera */}
+                    <button
+                      type="button"
+                      onClick={handleToggleCameraFacing}
+                      className="p-3 rounded-2xl bg-[#0B1524] hover:bg-[#1A2E4C] text-[#C5E5EC] border border-white/10 transition active:scale-95 cursor-pointer flex flex-col items-center space-y-1"
+                      title={language === 'vi' ? 'Đổi chiều camera' : 'Flip'}
+                    >
+                      <SwitchCamera className="w-5 h-5 text-purple-400" />
+                      <span className="text-[10px]">{language === 'vi' ? 'Đổi cam' : 'Flip'}</span>
+                    </button>
+                  </div>
+                ) : null}
+              </div>
             </div>
           </div>
         )}
@@ -2625,14 +2919,22 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
 
         {/* Header Action Buttons */}
         <div className="flex items-center space-x-2">
-          {/* Add Friend Button */}
+          {/* Add Friend Button with Request Badge */}
           <button
-            onClick={() => setShowAddFriendModal(true)}
-            className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#3064AE] to-[#255294] hover:from-[#255294] hover:to-[#1d3d6b] text-white border border-[#C5E5EC]/30 font-bold text-xs transition flex items-center space-x-1.5 shadow-md cursor-pointer"
+            onClick={() => {
+              setFriendModalTab(pendingReceivedRequests.length > 0 ? 'RECEIVED' : 'SEARCH');
+              setShowAddFriendModal(true);
+            }}
+            className="relative px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#3064AE] to-[#255294] hover:from-[#255294] hover:to-[#1d3d6b] text-white border border-[#C5E5EC]/30 font-bold text-xs transition flex items-center space-x-1.5 shadow-md cursor-pointer"
             title={language === 'vi' ? 'Thêm bạn bè qua ID 9 số' : 'Add friend via 9-digit ID'}
           >
             <UserPlus className="w-4 h-4 text-[#E0FAEB]" />
             <span>{t('addFriendBtn')}</span>
+            {pendingReceivedRequests.length > 0 && (
+              <span className="ml-1 px-1.5 py-0.5 rounded-full bg-rose-500 text-white text-[10px] font-black animate-pulse">
+                {pendingReceivedRequests.length}
+              </span>
+            )}
           </button>
           <button
             onClick={() => setShowNewChatModal(true)}
@@ -2649,6 +2951,39 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
           </button>
         </div>
       </div>
+
+      {/* PENDING RECEIVED FRIEND REQUESTS BANNER */}
+      {pendingReceivedRequests.length > 0 && (
+        <div className="mb-2 p-3 rounded-2xl bg-gradient-to-r from-emerald-950/70 via-[#102038] to-[#12233B] border border-emerald-500/40 flex items-center justify-between shadow-lg animate-fadeIn">
+          <div className="flex items-center space-x-2.5">
+            <div className="p-2 rounded-xl bg-emerald-500/20 text-emerald-400">
+              <UserCheck className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-white">
+                {language === 'vi'
+                  ? `Bạn có ${pendingReceivedRequests.length} lời mời kết bạn đang chờ đồng ý`
+                  : `You have ${pendingReceivedRequests.length} pending friend request(s)`}
+              </p>
+              <p className="text-[10px] text-[#C5E5EC]/70">
+                {language === 'vi'
+                  ? 'Đối phương phải được bạn đồng ý mới trở thành bạn bè'
+                  : 'Mutual acceptance required to connect'}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              setFriendModalTab('RECEIVED');
+              setShowAddFriendModal(true);
+            }}
+            className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition flex items-center space-x-1 cursor-pointer shrink-0 shadow"
+          >
+            <span>{language === 'vi' ? 'Xem & Đồng ý' : 'Review & Accept'}</span>
+            <ChevronRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
 
       {/* 9-DIGIT ID SYSTEM & QUICK FRIEND SEARCH - CHỈ HIỆN KHI BẤM NÚT ADDFRIEND */}
       {showAddFriendModal && (
@@ -2673,7 +3008,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                   <UserPlus className="w-4 h-4" />
                 </div>
                 <h3 className="font-extrabold text-sm text-white">
-                  {language === 'vi' ? 'Kết Bạn Qua ID 9 Số' : 'Add Friend via 9-Digit ID'}
+                  {language === 'vi' ? 'Kết Bạn & Lời Mời Campus' : 'Campus Friends & Requests'}
                 </h3>
               </div>
               <button
@@ -2688,160 +3023,390 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
               </button>
             </div>
 
-            {/* User's Own ID & Admin Badge */}
-            <div className="p-3 rounded-2xl bg-[#12233B] border border-[#C5E5EC]/25 flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <span className="text-xs text-[#C5E5EC]/80 font-bold">
-                  {language === 'vi' ? 'ID 9 Số Của Bạn:' : 'Your 9-Digit ID:'}
-                </span>
-                <span className="px-2.5 py-0.5 rounded-lg bg-[#3064AE]/40 border border-[#C5E5EC]/30 text-white font-mono font-black text-sm tracking-wider">
-                  {currentUser?.id || '000000000'}
-                </span>
-                {currentUser?.id === '000000000' && (
-                  <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] font-black">
-                    ADMIN
+            {/* Friend Modal Tabs */}
+            <div className="flex items-center p-1 rounded-2xl bg-[#12233B] border border-[#C5E5EC]/20 shrink-0">
+              <button
+                onClick={() => setFriendModalTab('SEARCH')}
+                className={`flex-1 py-1.5 rounded-xl text-xs font-bold transition flex items-center justify-center space-x-1 cursor-pointer ${
+                  friendModalTab === 'SEARCH'
+                    ? 'bg-[#3064AE] text-white shadow'
+                    : 'text-[#C5E5EC]/70 hover:text-white'
+                }`}
+              >
+                <Search className="w-3.5 h-3.5" />
+                <span>{language === 'vi' ? 'Tìm ID 9 Số' : 'Search ID'}</span>
+              </button>
+              <button
+                onClick={() => setFriendModalTab('RECEIVED')}
+                className={`flex-1 py-1.5 rounded-xl text-xs font-bold transition flex items-center justify-center space-x-1 cursor-pointer relative ${
+                  friendModalTab === 'RECEIVED'
+                    ? 'bg-emerald-600 text-white shadow'
+                    : 'text-[#C5E5EC]/70 hover:text-white'
+                }`}
+              >
+                <UserCheck className="w-3.5 h-3.5" />
+                <span>{language === 'vi' ? 'Đã nhận' : 'Received'}</span>
+                {pendingReceivedRequests.length > 0 && (
+                  <span className="ml-1 px-1.5 py-0.2 rounded-full bg-rose-500 text-white text-[10px] font-black">
+                    {pendingReceivedRequests.length}
                   </span>
                 )}
-              </div>
-
+              </button>
               <button
-                onClick={() => {
-                  if (currentUser?.id) {
-                    navigator.clipboard.writeText(currentUser.id);
-                    setCopiedMyId(true);
-                    showNotification(
-                      language === 'vi' ? 'Đã sao chép ID' : 'ID Copied',
-                      language === 'vi' ? `ID ${currentUser.id} đã được lưu vào bộ nhớ tạm.` : `ID ${currentUser.id} copied to clipboard.`
-                    );
-                    setTimeout(() => setCopiedMyId(false), 2000);
-                  }
-                }}
-                className="flex items-center space-x-1 text-xs font-bold text-[#E0FAEB] hover:text-white bg-[#0E1B2E] px-2.5 py-1 rounded-xl border border-[#E0FAEB]/30 transition cursor-pointer"
+                onClick={() => setFriendModalTab('SENT')}
+                className={`flex-1 py-1.5 rounded-xl text-xs font-bold transition flex items-center justify-center space-x-1 cursor-pointer ${
+                  friendModalTab === 'SENT'
+                    ? 'bg-[#3064AE] text-white shadow'
+                    : 'text-[#C5E5EC]/70 hover:text-white'
+                }`}
               >
-                <Copy className="w-3.5 h-3.5" />
-                <span>
-                  {copiedMyId
-                    ? (language === 'vi' ? 'Đã sao chép!' : 'Copied!')
-                    : (language === 'vi' ? 'Sao chép ID' : 'Copy ID')}
-                </span>
+                <Send className="w-3 h-3" />
+                <span>{language === 'vi' ? 'Đã gửi' : 'Sent'}</span>
+                {pendingSentRequests.length > 0 && (
+                  <span className="ml-1 px-1.5 py-0.2 rounded-full bg-blue-500 text-white text-[10px] font-black">
+                    {pendingSentRequests.length}
+                  </span>
+                )}
               </button>
             </div>
 
-            {/* Search Friend By 9-digit ID Input */}
-            <div className="space-y-2 pt-1">
-              <label className="text-xs font-bold text-[#C5E5EC]/90 block">
-                {language === 'vi' ? 'Tìm bạn mới bằng mã ID:' : 'Find friend by ID code:'}
-              </label>
-              <div className="flex items-center space-x-2">
-                <input
-                  type="text"
-                  maxLength={9}
-                  value={searchIdInput}
-                  onChange={(e) => {
-                    setSearchIdInput(e.target.value.replace(/\D/g, ''));
-                    setSearchIdError('');
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleSearchById();
-                  }}
-                  placeholder={
-                    language === 'vi'
-                      ? 'Nhập ID 9 số để tìm bạn (000000000 -> 999999999)...'
-                      : 'Enter 9-digit ID to find peers (000000000 -> 999999999)...'
-                  }
-                  className="flex-1 px-3 py-2.5 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-xs text-white placeholder:text-[#C5E5EC]/40 focus:border-[#3064AE] outline-none font-mono"
-                />
-                <button
-                  onClick={handleSearchById}
-                  className="px-3.5 py-2.5 rounded-xl bg-[#3064AE] hover:bg-[#255294] text-white font-bold text-xs border border-[#C5E5EC]/30 transition flex items-center space-x-1 cursor-pointer shrink-0"
-                >
-                  <Search className="w-3.5 h-3.5" />
-                  <span>{language === 'vi' ? 'Tìm ID' : 'Search ID'}</span>
-                </button>
-              </div>
-
-              {searchIdError && (
-                <p className="text-[11px] text-rose-300 font-medium">{searchIdError}</p>
-              )}
-
-              {/* Found User Result Card */}
-              {foundUserResult && (
-                <div className="p-3 rounded-xl bg-[#12233B] border border-[#C5E5EC]/30 flex items-center justify-between mt-2">
-                  <div className="flex items-center space-x-2.5 min-w-0">
-                    <div className="w-9 h-9 rounded-full bg-[#3064AE] flex items-center justify-center text-white font-black text-xs shrink-0">
-                      {(foundUserResult.name || 'U').charAt(0).toUpperCase()}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center space-x-1.5">
-                        <span className="font-extrabold text-xs text-white truncate">{foundUserResult.name}</span>
-                        <span className="text-[10px] text-[#C5E5EC] font-mono font-bold">({foundUserResult.id})</span>
-                      </div>
-                      <p className="text-[10px] text-[#C5E5EC]/70 truncate">
-                        {foundUserResult.studentSchool || (language === 'vi' ? 'Sinh viên Campus' : 'Campus Student')}
-                      </p>
-                    </div>
+            {/* TAB 1: SEARCH & SEND FRIEND REQUEST */}
+            {friendModalTab === 'SEARCH' && (
+              <div className="space-y-3.5">
+                {/* User's Own ID & Admin Badge */}
+                <div className="p-3 rounded-2xl bg-[#12233B] border border-[#C5E5EC]/25 flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-xs text-[#C5E5EC]/80 font-bold">
+                      {language === 'vi' ? 'ID 9 Số Của Bạn:' : 'Your 9-Digit ID:'}
+                    </span>
+                    <span className="px-2.5 py-0.5 rounded-lg bg-[#3064AE]/40 border border-[#C5E5EC]/30 text-white font-mono font-black text-sm tracking-wider">
+                      {currentUser?.id || '000000000'}
+                    </span>
+                    {currentUser?.id === '000000000' && (
+                      <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] font-black">
+                        ADMIN
+                      </span>
+                    )}
                   </div>
 
-                  <div className="flex items-center space-x-1.5 shrink-0">
-                    {currentUser?.friendIds?.includes(foundUserResult.id) ? (
-                      <span className="text-[11px] text-emerald-400 font-bold px-2 py-1 rounded bg-emerald-500/15 border border-emerald-500/30">
-                        ✓ {language === 'vi' ? 'Bạn bè' : 'Friend'}
-                      </span>
-                    ) : (
-                      <button
-                        onClick={() => {
-                          if (addFriendById) addFriendById(foundUserResult.id);
-                          showNotification(
-                            language === 'vi' ? 'Kết bạn' : 'Add Friend',
-                            language === 'vi' ? `Đã thêm ${foundUserResult.name} vào danh bạ.` : `Added ${foundUserResult.name} to contacts.`
-                          );
-                        }}
-                        className="px-2.5 py-1 rounded-lg bg-emerald-600/30 hover:bg-emerald-600/50 text-[#E0FAEB] border border-emerald-500/40 text-[11px] font-bold transition flex items-center space-x-1 cursor-pointer"
-                      >
-                        <UserPlus className="w-3 h-3" />
-                        <span>{language === 'vi' ? 'Kết bạn' : 'Add Friend'}</span>
-                      </button>
-                    )}
-                    <button
-                      onClick={() => {
-                        handleSelectContact(foundUserResult.id);
-                        setShowAddFriendModal(false);
-                        setFoundUserResult(null);
-                        setSearchIdInput('');
+                  <button
+                    onClick={() => {
+                      if (currentUser?.id) {
+                        navigator.clipboard.writeText(currentUser.id);
+                        setCopiedMyId(true);
+                        showNotification(
+                          language === 'vi' ? 'Đã sao chép ID' : 'ID Copied',
+                          language === 'vi'
+                            ? `ID ${currentUser.id} đã được lưu vào bộ nhớ tạm.`
+                            : `ID ${currentUser.id} copied to clipboard.`
+                        );
+                        setTimeout(() => setCopiedMyId(false), 2000);
+                      }
+                    }}
+                    className="flex items-center space-x-1 text-xs font-bold text-[#E0FAEB] hover:text-white bg-[#0E1B2E] px-2.5 py-1 rounded-xl border border-[#E0FAEB]/30 transition cursor-pointer"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>
+                      {copiedMyId
+                        ? language === 'vi'
+                          ? 'Đã sao chép!'
+                          : 'Copied!'
+                        : language === 'vi'
+                        ? 'Sao chép ID'
+                        : 'Copy ID'}
+                    </span>
+                  </button>
+                </div>
+
+                {/* Search Friend By 9-digit ID Input */}
+                <div className="space-y-2 pt-1">
+                  <label className="text-xs font-bold text-[#C5E5EC]/90 block">
+                    {language === 'vi' ? 'Tìm bạn mới bằng mã ID:' : 'Find friend by ID code:'}
+                  </label>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="text"
+                      maxLength={9}
+                      value={searchIdInput}
+                      onChange={(e) => {
+                        setSearchIdInput(e.target.value.replace(/\D/g, ''));
+                        setSearchIdError('');
                       }}
-                      className="px-2.5 py-1 rounded-lg bg-[#3064AE] hover:bg-[#255294] text-white border border-[#C5E5EC]/30 text-[11px] font-bold transition flex items-center space-x-1 cursor-pointer"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleSearchById();
+                      }}
+                      placeholder={
+                        language === 'vi'
+                          ? 'Nhập ID 9 số để tìm bạn (000000000 -> 999999999)...'
+                          : 'Enter 9-digit ID to find peers (000000000 -> 999999999)...'
+                      }
+                      className="flex-1 px-3 py-2.5 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-xs text-white placeholder:text-[#C5E5EC]/40 focus:border-[#3064AE] outline-none font-mono"
+                    />
+                    <button
+                      onClick={handleSearchById}
+                      className="px-3.5 py-2.5 rounded-xl bg-[#3064AE] hover:bg-[#255294] text-white font-bold text-xs border border-[#C5E5EC]/30 transition flex items-center space-x-1 cursor-pointer shrink-0"
                     >
-                      <MessageCircle className="w-3 h-3" />
-                      <span>{language === 'vi' ? 'Nhắn' : 'Chat'}</span>
+                      <Search className="w-3.5 h-3.5" />
+                      <span>{language === 'vi' ? 'Tìm ID' : 'Search ID'}</span>
                     </button>
                   </div>
-                </div>
-              )}
-            </div>
 
-            {/* Cloud Backup & Terms Quick Access */}
-            <div className="flex items-center gap-2 pt-3 border-t border-[#C5E5EC]/15">
-              <button
-                onClick={() => {
-                  setShowAddFriendModal(false);
-                  setShowBackupModal(true);
-                }}
-                className="flex-1 py-2 px-2.5 rounded-xl bg-[#12233B] hover:bg-[#162B48] border border-[#C5E5EC]/25 text-[#C5E5EC] hover:text-white text-[11px] font-bold transition flex items-center justify-center space-x-1.5 cursor-pointer"
-              >
-                <Cloud className="w-3.5 h-3.5 text-[#C5E5EC]" />
-                <span>{language === 'vi' ? 'Sao lưu danh bạ Cloud' : 'Cloud Backup Contacts'}</span>
-              </button>
-              <button
-                onClick={() => {
-                  setShowAddFriendModal(false);
-                  setShowTermsModal(true);
-                }}
-                className="py-2 px-2.5 rounded-xl bg-[#12233B] hover:bg-[#162B48] border border-[#C5E5EC]/25 text-[#E0FAEB] hover:text-white text-[11px] font-bold transition flex items-center justify-center space-x-1.5 cursor-pointer shrink-0"
-              >
-                <ShieldCheck className="w-3.5 h-3.5 text-[#E0FAEB]" />
-                <span>{language === 'vi' ? 'Điều khoản & Hoàn tiền' : 'Terms & Refunds'}</span>
-              </button>
-            </div>
+                  {searchIdError && (
+                    <p className="text-[11px] text-rose-300 font-medium">{searchIdError}</p>
+                  )}
+
+                  {/* Found User Result Card */}
+                  {foundUserResult && (() => {
+                    const isAlreadyFriend = currentUser?.friendIds?.includes(foundUserResult.id);
+                    const sentReq = pendingSentRequests.find((r) => r.receiverId === foundUserResult.id);
+                    const receivedReq = pendingReceivedRequests.find((r) => r.senderId === foundUserResult.id);
+
+                    return (
+                      <div className="p-3.5 rounded-2xl bg-[#12233B] border border-[#C5E5EC]/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-2">
+                        <div className="flex items-center space-x-2.5 min-w-0">
+                          <div className="w-10 h-10 rounded-full bg-[#3064AE] flex items-center justify-center text-white font-black text-sm shrink-0">
+                            {(foundUserResult.name || 'U').charAt(0).toUpperCase()}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center space-x-1.5">
+                              <span className="font-extrabold text-xs text-white truncate">
+                                {foundUserResult.name}
+                              </span>
+                              <span className="text-[10px] text-[#C5E5EC] font-mono font-bold">
+                                ({foundUserResult.id})
+                              </span>
+                            </div>
+                            <p className="text-[10px] text-[#C5E5EC]/70 truncate">
+                              {foundUserResult.studentSchool ||
+                                (language === 'vi' ? 'Sinh viên Campus' : 'Campus Student')}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center space-x-2 shrink-0">
+                          {isAlreadyFriend ? (
+                            <span className="text-[11px] text-emerald-400 font-bold px-2.5 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30">
+                              ✓ {language === 'vi' ? 'Bạn bè' : 'Friend'}
+                            </span>
+                          ) : sentReq ? (
+                            <div className="flex items-center space-x-1.5">
+                              <span className="text-[10px] text-amber-300 font-bold px-2 py-1 rounded bg-amber-500/15 border border-amber-500/30">
+                                ⏳ {language === 'vi' ? 'Đã gửi lời mời (Chờ đồng ý)' : 'Request Sent'}
+                              </span>
+                              <button
+                                onClick={() => cancelFriendRequest(sentReq.id)}
+                                className="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] font-bold transition cursor-pointer"
+                              >
+                                {language === 'vi' ? 'Hủy' : 'Cancel'}
+                              </button>
+                            </div>
+                          ) : receivedReq ? (
+                            <div className="flex items-center space-x-1.5">
+                              <button
+                                onClick={() => acceptFriendRequest(receivedReq.id)}
+                                className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold transition flex items-center space-x-1 cursor-pointer"
+                              >
+                                <Check className="w-3 h-3" />
+                                <span>{language === 'vi' ? 'Đồng ý' : 'Accept'}</span>
+                              </button>
+                              <button
+                                onClick={() => declineFriendRequest(receivedReq.id)}
+                                className="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-rose-300 text-[11px] font-bold transition cursor-pointer"
+                              >
+                                {language === 'vi' ? 'Từ chối' : 'Decline'}
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => {
+                                const res = sendFriendRequest(foundUserResult.id);
+                                if (!res.success && res.message) {
+                                  setSearchIdError(res.message);
+                                }
+                              }}
+                              className="px-2.5 py-1 rounded-lg bg-emerald-600/30 hover:bg-emerald-600/50 text-[#E0FAEB] border border-emerald-500/40 text-[11px] font-bold transition flex items-center space-x-1 cursor-pointer"
+                            >
+                              <UserPlus className="w-3 h-3" />
+                              <span>{language === 'vi' ? 'Gửi lời mời kết bạn' : 'Add Friend'}</span>
+                            </button>
+                          )}
+
+                          <button
+                            onClick={() => {
+                              handleSelectContact(foundUserResult.id);
+                              setShowAddFriendModal(false);
+                              setFoundUserResult(null);
+                              setSearchIdInput('');
+                            }}
+                            className="px-2.5 py-1 rounded-lg bg-[#3064AE] hover:bg-[#255294] text-white border border-[#C5E5EC]/30 text-[11px] font-bold transition flex items-center space-x-1 cursor-pointer"
+                          >
+                            <MessageCircle className="w-3 h-3" />
+                            <span>{language === 'vi' ? 'Nhắn' : 'Chat'}</span>
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                {/* Cloud Backup & Terms Quick Access */}
+                <div className="flex items-center gap-2 pt-2 border-t border-[#C5E5EC]/15">
+                  <button
+                    onClick={() => {
+                      setShowAddFriendModal(false);
+                      setShowBackupModal(true);
+                    }}
+                    className="flex-1 py-2 px-2.5 rounded-xl bg-[#12233B] hover:bg-[#162B48] border border-[#C5E5EC]/25 text-[#C5E5EC] hover:text-white text-[11px] font-bold transition flex items-center justify-center space-x-1.5 cursor-pointer"
+                  >
+                    <Cloud className="w-3.5 h-3.5 text-[#C5E5EC]" />
+                    <span>{language === 'vi' ? 'Sao lưu danh bạ Cloud' : 'Cloud Backup Contacts'}</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowAddFriendModal(false);
+                      setShowTermsModal(true);
+                    }}
+                    className="py-2 px-2.5 rounded-xl bg-[#12233B] hover:bg-[#162B48] border border-[#C5E5EC]/25 text-[#E0FAEB] hover:text-white text-[11px] font-bold transition flex items-center justify-center space-x-1.5 cursor-pointer shrink-0"
+                  >
+                    <ShieldCheck className="w-3.5 h-3.5 text-[#E0FAEB]" />
+                    <span>{language === 'vi' ? 'Điều khoản & Hoàn tiền' : 'Terms & Refunds'}</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* TAB 2: RECEIVED FRIEND REQUESTS (CHỜ PHÊ DUYỆT ĐỒNG Ý) */}
+            {friendModalTab === 'RECEIVED' && (
+              <div className="space-y-2.5">
+                <div className="p-2.5 rounded-xl bg-[#12233B]/60 border border-[#C5E5EC]/20 text-[11px] text-[#C5E5EC]">
+                  💡 {language === 'vi'
+                    ? 'Bạn chỉ trở thành bạn bè khi bấm "Đồng ý" các lời mời dưới đây.'
+                    : 'You only become mutual friends after clicking "Accept" below.'}
+                </div>
+
+                {pendingReceivedRequests.length === 0 ? (
+                  <div className="text-center py-8 text-slate-400 space-y-2">
+                    <UserCheck className="w-8 h-8 mx-auto text-slate-500 opacity-60" />
+                    <p className="text-xs font-semibold">
+                      {language === 'vi'
+                        ? 'Chưa có lời mời kết bạn nào đang chờ duyệt.'
+                        : 'No pending incoming friend requests.'}
+                    </p>
+                    <p className="text-[10px] text-slate-500">
+                      {language === 'vi'
+                        ? 'Khi người khác tìm ID của bạn và gửi lời mời, bạn sẽ duyệt tại đây.'
+                        : 'When others search your ID and send requests, they appear here.'}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                    {pendingReceivedRequests.map((req) => (
+                      <div
+                        key={req.id}
+                        className="p-3 rounded-2xl bg-[#12233B] border border-emerald-500/30 flex items-center justify-between gap-2 shadow"
+                      >
+                        <div className="flex items-center space-x-2.5 min-w-0">
+                          <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-[#3064AE] to-emerald-600 flex items-center justify-center text-white font-black text-xs shrink-0 overflow-hidden">
+                            {req.senderAvatarUrl ? (
+                              <img src={req.senderAvatarUrl} alt={req.senderName} className="w-full h-full object-cover" />
+                            ) : (
+                              (req.senderName || 'U').charAt(0).toUpperCase()
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center space-x-1.5">
+                              <span className="font-extrabold text-xs text-white truncate">
+                                {req.senderName}
+                              </span>
+                              <span className="text-[10px] text-[#C5E5EC] font-mono font-bold">
+                                ({req.senderId})
+                              </span>
+                            </div>
+                            <p className="text-[10px] text-[#C5E5EC]/70 truncate">
+                              {req.senderSchool || (language === 'vi' ? 'Sinh viên Campus' : 'Campus Student')}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center space-x-1.5 shrink-0">
+                          {/* Decline button */}
+                          <button
+                            onClick={() => declineFriendRequest(req.id)}
+                            className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-rose-300 border border-slate-700 text-[11px] font-bold transition flex items-center space-x-1 cursor-pointer"
+                            title={language === 'vi' ? 'Từ chối lời mời' : 'Decline request'}
+                          >
+                            <X className="w-3.5 h-3.5" />
+                            <span>{language === 'vi' ? 'Từ chối' : 'Decline'}</span>
+                          </button>
+
+                          {/* Accept button */}
+                          <button
+                            onClick={() => acceptFriendRequest(req.id)}
+                            className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] transition flex items-center space-x-1 cursor-pointer shadow-md"
+                            title={language === 'vi' ? 'Đồng ý kết bạn' : 'Accept friend'}
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                            <span>{language === 'vi' ? 'Đồng ý' : 'Accept'}</span>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* TAB 3: SENT FRIEND REQUESTS (CHỜ ĐỐI PHƯƠNG PHẢN HỒI) */}
+            {friendModalTab === 'SENT' && (
+              <div className="space-y-2.5">
+                <div className="p-2.5 rounded-xl bg-[#12233B]/60 border border-[#C5E5EC]/20 text-[11px] text-[#C5E5EC]">
+                  📨 {language === 'vi'
+                    ? 'Danh sách lời mời bạn đã gửi đi. Bạn có thể bấm "Hủy" bất cứ lúc nào.'
+                    : 'Requests you sent. You can cancel them at any time.'}
+                </div>
+
+                {pendingSentRequests.length === 0 ? (
+                  <div className="text-center py-8 text-slate-400 space-y-2">
+                    <Send className="w-8 h-8 mx-auto text-slate-500 opacity-60" />
+                    <p className="text-xs font-semibold">
+                      {language === 'vi'
+                        ? 'Bạn chưa gửi lời mời kết bạn nào đang chờ duyệt.'
+                        : 'No pending outgoing friend requests.'}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                    {pendingSentRequests.map((req) => (
+                      <div
+                        key={req.id}
+                        className="p-3 rounded-2xl bg-[#12233B] border border-[#C5E5EC]/20 flex items-center justify-between gap-2 shadow"
+                      >
+                        <div className="min-w-0">
+                          <div className="flex items-center space-x-1.5">
+                            <span className="font-extrabold text-xs text-white truncate">
+                              {req.receiverName}
+                            </span>
+                            <span className="text-[10px] text-[#C5E5EC] font-mono font-bold">
+                              ({req.receiverId})
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-amber-300/80">
+                            ⏳ {language === 'vi' ? 'Đang chờ đối phương đồng ý...' : 'Waiting for approval...'}
+                          </p>
+                        </div>
+
+                        <button
+                          onClick={() => cancelFriendRequest(req.id)}
+                          className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-[11px] font-bold transition cursor-pointer shrink-0"
+                        >
+                          {language === 'vi' ? 'Hủy lời mời' : 'Cancel'}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -3025,6 +3590,8 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
               ? lastMsg.message ||
                 (lastMsg.attachmentType === 'IMAGE'
                   ? (language === 'vi' ? '📷 Hình ảnh' : '📷 Photo')
+                  : lastMsg.attachmentType === 'FILE'
+                  ? (language === 'vi' ? '📁 Tệp đính kèm' : '📁 File attachment')
                   : (language === 'vi' ? '🎙️ Tin nhắn thoại' : '🎙️ Voice message'))
               : contact.specialtyOrNeed;
             const timeText = lastMsg
