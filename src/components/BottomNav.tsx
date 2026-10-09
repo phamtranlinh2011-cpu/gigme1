@@ -69,12 +69,10 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentTab, onSelectTab })
         >
           <div className="relative">
             <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5" />
-            {unreadChatCount > 0 ? (
+            {unreadChatCount > 0 && (
               <span className="absolute -top-1.5 -right-2.5 min-w-[17px] h-[17px] px-1 rounded-full bg-[#E0FAEB] text-[#09111D] text-[9px] font-black flex items-center justify-center border border-[#09111D] shadow-sm animate-pulse">
                 {unreadChatCount > 9 ? '9+' : unreadChatCount}
               </span>
-            ) : (
-              <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-[#3064AE] dark:bg-[#E0FAEB] animate-pulse" />
             )}
           </div>
           <span className="text-[10px] font-bold mt-0.5 truncate max-w-full">{t('navChat')}</span>

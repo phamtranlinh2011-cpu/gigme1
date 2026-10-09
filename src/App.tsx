@@ -114,13 +114,18 @@ const MainLayout: React.FC = () => {
         return;
       }
 
+      // Tuyệt đối không hiện thông báo tin nhắn chat lên đây
+      if ((notif as any).type === 'MESSAGE' || (notif as any).type === 'CHAT') {
+        return;
+      }
+
       // Check notification type
       if (notif.type === 'NEW_GIG') {
         showNotification(
           notif.title || '🔥 Việc Mới Vừa Đăng!',
           notif.message || (notif.gigTitle ? `Việc mới: "${notif.gigTitle}" vừa xuất hiện trên campus.` : 'Có công việc mới phù hợp với bạn!'),
           true,
-          true
+          false
         );
       } else if (notif.type === 'STATUS_UPDATE') {
         showNotification(

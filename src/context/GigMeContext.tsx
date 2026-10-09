@@ -870,7 +870,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           if (currentUserId) {
             markUserEmailVerified(currentUserId);
           }
-          showNotification('Xác thực thành công! 🎉', 'Email của bạn đã được xác nhận qua Firebase Authentication.', true, true);
+          showNotification('Xác thực thành công! 🎉', 'Email của bạn đã được xác nhận qua Firebase Authentication.', true, false);
         })
         .catch((err) => {
           console.warn('Firebase apply action code notice:', err);
@@ -1538,6 +1538,15 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     titleEn?: string,
     messageEn?: string
   ) => {
+    // Quy tắc: Chỉ có hiệu ứng pháo hoa (confetti) khi nạp tiền hoặc rút tiền
+    const isDepositOrWithdraw =
+      title.toLowerCase().includes('nạp') ||
+      title.toLowerCase().includes('rút') ||
+      message.toLowerCase().includes('nạp') ||
+      message.toLowerCase().includes('rút');
+
+    const effectiveCelebration = Boolean(isCelebration && isDepositOrWithdraw);
+
     const notif: UiNotification = {
       id: `notif_${Date.now()}`,
       title,
@@ -1547,7 +1556,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       titleEn,
       messageEn,
       isDingSound,
-      isCelebration,
+      isCelebration: effectiveCelebration,
     };
     setNotification(notif);
 
@@ -1556,7 +1565,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       playNotificationSound(sound);
     }
 
-    if (isCelebration) {
+    if (effectiveCelebration) {
       try {
         confetti({
           particleCount: 80,
@@ -1612,7 +1621,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         } catch {
           // ignore
         }
-        showNotification('🔔 WebPush Đã Kích Hoạt', 'Đã phát âm thanh và đẩy thông báo chuông Ting Ting ra thiết bị của bạn!', true, true);
+        showNotification('🔔 WebPush Đã Kích Hoạt', 'Đã phát âm thanh và đẩy thông báo chuông Ting Ting ra thiết bị của bạn!', true, false);
       } else if (Notification.permission !== 'denied') {
         Notification.requestPermission().then((perm) => {
           if (perm === 'granted') {
@@ -1624,7 +1633,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             } catch {
               // ignore
             }
-            showNotification('🔔 WebPush Đã Cấp Quyền', 'Đã cấp quyền thông báo thành công cho thiết bị của bạn!', true, true);
+            showNotification('🔔 WebPush Đã Cấp Quyền', 'Đã cấp quyền thông báo thành công cho thiết bị của bạn!', true, false);
           } else {
             showNotification('🔔 Đã Phát Chuông Ting Ting', 'Âm thanh thông báo đã phát. (Bạn có thể cho phép thông báo trên trình duyệt để nhận khi ẩn tab)', true);
           }
@@ -5473,7 +5482,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       '⏳ Yêu Cầu Rút Tiền Đã Tiếp Nhận!',
       `Đã tạo lệnh rút ${amount.toLocaleString('vi-VN')}đ về ${bankName} (${accountNumber}). Tiền sẽ được Quản trị viên chuyển khoản Napas 247 tới bạn (5 - 15 phút).`,
       true,
-      false
+      true
     );
     return true;
   };
@@ -5890,6 +5899,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     showNotification(
       `Rút về ${walletType} thành công!`,
       `Đã chuyển ${amount.toLocaleString()}đ vào ví ${walletType} (${phone}). Tiền vào ví sau 30 giây.`,
+      true,
       true
     );
     return true;
@@ -6770,12 +6780,11 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setGigs((prev) => prev.map((g) => (g.id === gigId ? updatedGig : g)));
     cloudService.saveGig(updatedGig);
 
-    confetti({ particleCount: 50, spread: 60 });
     showNotification(
       '⭐ Đánh Giá & Cập Nhật ELO Thành Công!',
       `Đã chấm ${rating} sao cho công việc. Freelancer nhận ${eloDelta >= 0 ? `+${eloDelta}` : eloDelta} Điểm ELO vinh danh!`,
       true,
-      true
+      false
     );
     return true;
   };
@@ -6844,12 +6853,11 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         })
       );
 
-      confetti({ particleCount: 60, spread: 70 });
       showNotification(
         '🎉 Đánh Giá Hai Chiều Đã Mở Khóa!',
         'Cả khách hàng và freelancer đều đã hoàn tất đánh giá mù. Nội dung đánh giá hai chiều đã chính thức được công khai minh bạch!',
         true,
-        true
+        false
       );
     } else {
       showNotification(
@@ -6871,7 +6879,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     targetUrl?: string
   ) => {
     playNotificationSound('BANK_TING');
-    showNotification(title, body, true, true);
+    showNotification(title, body, true, false);
 
     if (typeof window === 'undefined') return;
 
