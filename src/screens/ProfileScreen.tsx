@@ -635,7 +635,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
               className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-black font-extrabold text-xs shadow-md transition flex items-center space-x-1 cursor-pointer"
             >
               <Award className="w-3.5 h-3.5 text-black" />
-              <span>{currentUser.eloRating ?? 200} ELO</span>
+              <span>{currentUser.eloRating ?? 0} ELO</span>
             </button>
           </div>
         </div>

@@ -182,7 +182,7 @@ export interface UserEntity {
   emailVerifiedAt?: number; // Thời điểm xác thực email hoàn tất (timestamp ms)
   firebaseUid?: string; // Firebase Authentication UID liên kết
   friendIds?: string[]; // Danh sách ID bạn bè kết nối qua ID 9 số
-  eloRating?: number; // Thang ELO sinh viên (khởi đầu 200 -> 2500+)
+  eloRating?: number; // Thang ELO sinh viên (khởi đầu 0 -> 2500+)
   eloTier?: 'BRONZE' | 'SILVER' | 'GOLD' | 'PLATINUM' | 'DIAMOND' | 'CHALLENGER';
   winStreak?: number; // Chuỗi đơn 5 sao liên tiếp
   studentBadges?: string[]; // Danh sách huy hiệu vinh danh ELO

@@ -3998,7 +3998,7 @@ send_bank_alert("MB: TK 0909120918 +100,000VND. ND: GIGME 0909120918")`,
                   <div className="flex justify-between text-[#C5E5EC]/85">
                     <span className="text-[#C5E5EC]/60">Điểm ELO / Hạng:</span>
                     <span className="font-mono text-white">
-                      {selectedUserForModal.eloRating ?? 200} ({selectedUserForModal.eloTier || 'BRONZE'})
+                      {selectedUserForModal.eloRating ?? 0} ({selectedUserForModal.eloTier || 'BRONZE'})
                     </span>
                   </div>
                 </div>

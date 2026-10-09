@@ -2105,7 +2105,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       businessName: '',
       businessTaxId: '',
       trustScore: trimmedCccd ? 80 : 50,
-      eloRating: 200,
+      eloRating: 0,
       eloTier: 'BRONZE',
       winStreak: 0,
       notificationSound: 'DING_DEFAULT',
@@ -2739,7 +2739,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         businessName: '',
         businessTaxId: '',
         trustScore: 0,
-        eloRating: 200,
+        eloRating: 0,
         eloTier: 'BRONZE',
         winStreak: 0,
         notificationSound: 'DING_DEFAULT',
@@ -2837,7 +2837,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         businessName: '',
         businessTaxId: '',
         trustScore: 100,
-        eloRating: 200,
+        eloRating: 0,
         eloTier: 'BRONZE',
         winStreak: 0,
         notificationSound: 'BANK_TING',
@@ -2971,7 +2971,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             businessName: '',
             businessTaxId: '',
             trustScore: 100,
-            eloRating: 200,
+            eloRating: 0,
             eloTier: 'BRONZE',
             winStreak: 0,
             notificationSound: 'BANK_TING',
@@ -6716,7 +6716,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setUsers((prev) =>
         prev.map((u) => {
           if (u.id === targetUserId) {
-            const currentElo = u.eloRating ?? 200;
+            const currentElo = u.eloRating ?? 0;
             const currentStreak = rating === 5 ? (u.winStreak || 0) + 1 : 0;
             const streakBonus = currentStreak >= 3 ? 10 : 0;
             const finalElo = Math.max(0, currentElo + eloDelta + streakBonus);
@@ -6831,7 +6831,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setUsers((prev) =>
         prev.map((u) => {
           if (gig.freelancerId && u.id === gig.freelancerId) {
-            const currentElo = u.eloRating ?? 200;
+            const currentElo = u.eloRating ?? 0;
             const delta =
               clientScore === 5 ? 25 : clientScore === 4 ? 15 : clientScore === 3 ? 5 : clientScore === 2 ? -10 : -25;
             const newElo = Math.max(0, currentElo + delta);
