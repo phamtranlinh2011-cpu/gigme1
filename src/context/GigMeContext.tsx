@@ -618,6 +618,7 @@ interface GigMeContextType {
   ) => void;
   markConversationAsRead: (partnerOrThreadId: string) => void;
   reactToChatMessage: (messageId: string, emoji: string) => void;
+  recallChatMessage: (messageId: string) => { success: boolean; error?: string };
   analyzePhotoWithAi: (presetType: string) => void;
   clearAiResult: () => void;
 
@@ -6611,6 +6612,41 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     );
   };
 
+  const recallChatMessage = (messageId: string): { success: boolean; error?: string } => {
+    const msg = chats.find((c) => c.id === messageId);
+    if (!msg) return { success: false, error: 'Tin nhắn không tồn tại' };
+
+    // Must be sender or Admin
+    if (msg.senderId !== currentUser?.id && currentUser?.role !== 'ADMIN' && currentUser?.id !== '000000000') {
+      return { success: false, error: 'Bạn chỉ có thể thu hồi tin nhắn do chính mình gửi' };
+    }
+
+    // 24 hours rule: 24 * 60 * 60 * 1000 = 86,400,000 ms
+    const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
+    const elapsed = Date.now() - msg.timestamp;
+    if (elapsed > TWENTY_FOUR_HOURS_MS) {
+      return {
+        success: false,
+        error: 'Đã quá 24 giờ kể từ khi gửi tin nhắn. Theo quy định hệ thống, bạn không thể thu hồi tin nhắn này nữa.',
+      };
+    }
+
+    const updatedMsg: ChatMessageEntity = {
+      ...msg,
+      isRecalled: true,
+      recalledAt: Date.now(),
+      message: 'Tin nhắn đã được thu hồi',
+      attachmentType: 'NONE',
+      attachmentData: null,
+      mediaFileName: undefined,
+    };
+
+    setChats((prev) => prev.map((c) => (c.id === messageId ? updatedMsg : c)));
+    cloudService.saveChatMessage(updatedMsg);
+
+    return { success: true };
+  };
+
   const analyzePhotoWithAi = (presetType: string) => {
     setTimeout(() => {
       let result: AiRecognitionResult;
@@ -7089,6 +7125,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         sendChat,
         markConversationAsRead,
         reactToChatMessage,
+        recallChatMessage,
         analyzePhotoWithAi,
         clearAiResult,
         boostGig,

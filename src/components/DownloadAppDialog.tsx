@@ -114,11 +114,11 @@ export const DownloadAppDialog: React.FC<DownloadAppDialogProps> = ({ isOpen, on
         {/* Header */}
         <div className="flex items-center justify-between pb-4 border-b border-[#C5E5EC]/15 pt-1">
           <div className="flex items-center space-x-3">
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-[#3064AE] via-[#437DD2] to-[#C5E5EC] p-0.5 shadow-md shadow-[#3064AE]/30">
+            <div className="w-11 h-11 rounded-full bg-gradient-to-tr from-[#3064AE] via-[#437DD2] to-[#C5E5EC] p-0.5 shadow-md shadow-[#3064AE]/30">
               <img
                 src="/logo.png"
                 alt="GigMe Logo"
-                className="w-full h-full rounded-[14px] object-cover bg-[#0A0F1D]"
+                className="w-full h-full rounded-full object-cover bg-[#0A0F1D]"
               />
             </div>
             <div>

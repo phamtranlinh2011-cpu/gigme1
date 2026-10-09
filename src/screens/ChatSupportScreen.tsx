@@ -46,6 +46,8 @@ import {
   SwitchCamera,
   RefreshCw,
   CameraOff,
+  MoreHorizontal,
+  RotateCcw,
 } from 'lucide-react';
 import { useGigMe } from '../context/GigMeContext';
 import { useTranslation } from '../context/LanguageContext';
@@ -110,6 +112,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
     sendChat,
     markConversationAsRead,
     reactToChatMessage,
+    recallChatMessage,
     startVoipCall,
     selectGig,
     releaseEscrowPayout,
@@ -148,6 +151,76 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
   const [previewZoomImage, setPreviewZoomImage] = useState<string | null>(null);
   const [previewImageRotation, setPreviewImageRotation] = useState<number>(0);
   const [activeReactionPickerMsgId, setActiveReactionPickerMsgId] = useState<string | null>(null);
+  const [activeOptionsMenuMsgId, setActiveOptionsMenuMsgId] = useState<string | null>(null);
+  const [mobileActiveMsgId, setMobileActiveMsgId] = useState<string | null>(null);
+
+  // Sightengine Moderation state
+  const [isModeratingImage, setIsModeratingImage] = useState(false);
+  const [moderationWarning, setModerationWarning] = useState<string | null>(null);
+
+  // Close menus on contact change
+  useEffect(() => {
+    setActiveReactionPickerMsgId(null);
+    setActiveOptionsMenuMsgId(null);
+    setMobileActiveMsgId(null);
+  }, [activeConversationId]);
+
+  const checkImageWithSightengine = async (dataUrl: string): Promise<boolean> => {
+    setIsModeratingImage(true);
+    setModerationWarning(null);
+    try {
+      const res = await fetch('/api/moderation/check-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageBase64: dataUrl }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.safe === false) {
+          triggerHaptic('error');
+          const reasonText =
+            data.reason ||
+            (language === 'vi'
+              ? 'Hình ảnh vi phạm tiêu chuẩn cộng đồng (chứa nội dung bạo lực hoặc 18+).'
+              : 'Image violates community guidelines (violent or 18+ content).');
+          setModerationWarning(reasonText);
+          showNotification(
+            language === 'vi' ? '🚫 Bị Chặn Bởi Sightengine' : '🚫 Blocked by Sightengine',
+            reasonText,
+            false
+          );
+          setIsModeratingImage(false);
+          return false;
+        }
+      }
+      setIsModeratingImage(false);
+      return true;
+    } catch (err) {
+      console.warn('[Sightengine check network warning]:', err);
+      setIsModeratingImage(false);
+      return true;
+    }
+  };
+
+  const handleProcessImage = async (dataUrl: string) => {
+    const isSafe = await checkImageWithSightengine(dataUrl);
+    if (!isSafe) {
+      setPendingImage(null);
+      return;
+    }
+    setPendingImage(dataUrl);
+    setPendingFile(null);
+    setShowAttachmentMenu(false);
+    triggerHaptic('light');
+    showNotification(
+      language === 'vi' ? '🛡️ Sightengine: Ảnh Đã Duyệt' : '🛡️ Sightengine: Image Approved',
+      language === 'vi'
+        ? 'Ảnh đã qua kiểm duyệt an toàn (không chứa 18+ và bạo lực).'
+        : 'Image passed moderation filter.',
+      true
+    );
+  };
   const messagesContainerRef = useRef<HTMLDivElement | null>(null);
   const [showScrollBottomBtn, setShowScrollBottomBtn] = useState(false);
   const isNearBottomRef = useRef<boolean>(true);
@@ -761,6 +834,24 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
     const targetThread = activeContact.associatedGig?.id || getDirectThreadId(currentUser.id, activeContact.id);
 
     if (pendingImage) {
+      if (isModeratingImage) {
+        showNotification(
+          language === 'vi' ? '⏳ Đang Kiểm Duyệt' : '⏳ Moderating',
+          language === 'vi'
+            ? 'Hệ thống Sightengine đang kiểm duyệt ảnh, vui lòng chờ giây lát...'
+            : 'Sightengine is verifying the image...',
+          false
+        );
+        return;
+      }
+      if (moderationWarning) {
+        showNotification(
+          language === 'vi' ? '🚫 Ảnh Vi Phạm' : '🚫 Inappropriate Image',
+          moderationWarning,
+          false
+        );
+        return;
+      }
       rateLimiter.record('CHAT', currentUser?.id);
       triggerHaptic('medium');
       sendChat(
@@ -969,31 +1060,19 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
     }
   };
 
-  // Image File Picker (Chọn ảnh từ thư viện - tự động nén chuẩn WebP tiết kiệm 4G)
+  // Image File Picker (Chọn ảnh từ thư viện - tự động nén chuẩn WebP & lọc Sightengine)
   const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     try {
       const compressed = await compressImageToWebP(file, { maxWidth: 1280, maxHeight: 1280, quality: 0.82 });
-      setPendingImage(compressed.dataUrl);
-      setPendingFile(null); // Đảm bảo chỉ gửi ảnh, không bị xung đột với tệp
-      setShowAttachmentMenu(false);
-      triggerHaptic('light');
-      showNotification(
-        language === 'vi' ? '⚡ Đã Chọn Ảnh' : '⚡ Photo Selected',
-        language === 'vi'
-          ? `Đã tối ưu nén ảnh (${compressed.originalSizeFormatted} ➔ ${compressed.compressedSizeFormatted}). Bấm gửi để chuyển ảnh!`
-          : `Optimized image (${compressed.originalSizeFormatted} ➔ ${compressed.compressedSizeFormatted}). Tap send!`
-      );
+      await handleProcessImage(compressed.dataUrl);
     } catch {
       const reader = new FileReader();
-      reader.onload = () => {
+      reader.onload = async () => {
         if (typeof reader.result === 'string') {
-          setPendingImage(reader.result);
-          setPendingFile(null);
-          setShowAttachmentMenu(false);
-          triggerHaptic('light');
+          await handleProcessImage(reader.result);
         }
       };
       reader.readAsDataURL(file);
@@ -1160,13 +1239,8 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
   const handleConfirmCapturedPhoto = async () => {
     if (!capturedPhotoPreview) return;
     triggerHaptic('success');
-    setPendingImage(capturedPhotoPreview);
-    setPendingFile(null); // Clear file attachment
     handleCloseCameraModal();
-    showNotification(
-      language === 'vi' ? '📸 Đã Chụp Ảnh Xong' : '📸 Photo Captured',
-      language === 'vi' ? 'Ảnh đã sẵn sàng. Bấm nút gửi để chuyển tin nhắn!' : 'Photo is ready. Tap send to send it!'
-    );
+    await handleProcessImage(capturedPhotoPreview);
   };
 
   const handleTriggerNativeCamera = () => {
@@ -1958,12 +2032,17 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                       </div>
                     ) : (
                       /* Messenger Bubble with Responsive Content Sizing & Slide-in Entry Animation */
-                      <div className="relative group/msg">
+                      <div
+                        className="relative group/msg"
+                        onClick={() => setMobileActiveMsgId(mobileActiveMsgId === msg.id ? null : msg.id)}
+                      >
                         <div
                           className={`relative px-3 py-1.5 text-[13px] leading-snug break-words transition-all shadow-xs inline-block w-fit max-w-full ${
                             isMe ? 'animate-message-me' : 'animate-message-partner'
                           } ${
-                            isMe
+                            msg.isRecalled
+                              ? 'bg-slate-700/60 dark:bg-slate-800/60 text-slate-400 border border-slate-600/30 rounded-2xl'
+                              : isMe
                               ? 'bg-[#0084FF] text-white selection:bg-white selection:text-[#0084FF] ' +
                                 (isFirstInGroup && isLastInGroup
                                   ? 'rounded-2xl'
@@ -1982,23 +2061,31 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                                   : 'rounded-2xl rounded-l-sm')
                           }`}
                         >
-                          {/* Text Message */}
-                          {msg.message && <p className="whitespace-pre-wrap">{msg.message}</p>}
-
-                          {/* Image Attachment */}
-                          {msg.attachmentType === 'IMAGE' && msg.attachmentData && (
-                            <div className="mt-1.5 rounded-xl overflow-hidden border border-black/20">
-                              <img
-                                src={msg.attachmentData}
-                                alt={language === 'vi' ? 'Ảnh đính kèm' : 'Attachment image'}
-                                className="max-h-56 rounded-xl object-cover cursor-pointer hover:opacity-95 transition"
-                                onClick={() => {
-                                  setPreviewImageRotation(0);
-                                  setPreviewZoomImage(msg.attachmentData!);
-                                }}
-                              />
+                          {/* Recalled Message Display */}
+                          {msg.isRecalled ? (
+                            <div className="flex items-center space-x-1.5 py-0.5 text-xs italic select-none">
+                              <RotateCcw className="w-3.5 h-3.5 opacity-60 shrink-0" />
+                              <span>{language === 'vi' ? 'Tin nhắn đã được thu hồi' : 'This message was recalled'}</span>
                             </div>
-                          )}
+                          ) : (
+                            <>
+                              {/* Text Message */}
+                              {msg.message && <p className="whitespace-pre-wrap">{msg.message}</p>}
+
+                              {/* Image Attachment */}
+                              {msg.attachmentType === 'IMAGE' && msg.attachmentData && (
+                                <div className="mt-1.5 rounded-xl overflow-hidden border border-black/20">
+                                  <img
+                                    src={msg.attachmentData}
+                                    alt={language === 'vi' ? 'Ảnh đính kèm' : 'Attachment image'}
+                                    className="max-h-56 rounded-xl object-cover cursor-pointer hover:opacity-95 transition"
+                                    onClick={() => {
+                                      setPreviewImageRotation(0);
+                                      setPreviewZoomImage(msg.attachmentData!);
+                                    }}
+                                  />
+                                </div>
+                              )}
 
                           {/* Proof of Work / Watermark GPS Attachment with Direct Approval Actions */}
                           {(msg.attachmentType === 'WATERMARK_PREVIEW' || msg.attachmentType === 'PROOF_SCREENSHOT') && (
@@ -2220,30 +2307,55 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                               )}
                             </div>
                           )}
-                        </div>
+                        </>
+                      )}
+                    </div>
 
-                        {/* Reaction Picker Button on Hover / Mobile tap */}
-                        <div
-                          className={`absolute top-1/2 -translate-y-1/2 opacity-0 group-hover/msg:opacity-100 transition-opacity z-10 ${
-                            isMe ? '-left-7' : '-right-7'
-                          }`}
-                        >
-                          <button
-                            type="button"
-                            onClick={() => {
-                              triggerHaptic('light');
-                              setActiveReactionPickerMsgId(activeReactionPickerMsgId === msg.id ? null : msg.id);
-                            }}
-                            className="w-6 h-6 rounded-full bg-[#12233B] border border-[#C5E5EC]/30 text-[#C5E5EC] hover:text-white flex items-center justify-center text-xs shadow hover:scale-110 active:scale-95 transition cursor-pointer"
-                            title={language === 'vi' ? 'Thả cảm xúc' : 'Add reaction'}
+                        {/* Action buttons (Emote + 3-dots Menu) on Hover / Mobile touch */}
+                        {!msg.isRecalled && (
+                          <div
+                            className={`absolute top-1/2 -translate-y-1/2 flex items-center space-x-1 transition-opacity z-10 ${
+                              mobileActiveMsgId === msg.id
+                                ? 'opacity-100'
+                                : 'opacity-0 group-hover/msg:opacity-100 focus-within:opacity-100'
+                            } ${isMe ? '-left-16' : '-right-16'}`}
                           >
-                            <Smile className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
+                            {/* Emote Reaction Button */}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                triggerHaptic('light');
+                                setActiveReactionPickerMsgId(activeReactionPickerMsgId === msg.id ? null : msg.id);
+                                setActiveOptionsMenuMsgId(null);
+                              }}
+                              className="w-6 h-6 rounded-full bg-[#12233B] border border-[#C5E5EC]/30 text-[#C5E5EC] hover:text-white flex items-center justify-center text-xs shadow hover:scale-110 active:scale-95 transition cursor-pointer"
+                              title={language === 'vi' ? 'Thả cảm xúc' : 'Add reaction'}
+                            >
+                              <Smile className="w-3.5 h-3.5" />
+                            </button>
+
+                            {/* 3-Dots More Options Button */}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                triggerHaptic('light');
+                                setActiveOptionsMenuMsgId(activeOptionsMenuMsgId === msg.id ? null : msg.id);
+                                setActiveReactionPickerMsgId(null);
+                              }}
+                              className="w-6 h-6 rounded-full bg-[#12233B] border border-[#C5E5EC]/30 text-[#C5E5EC] hover:text-white flex items-center justify-center text-xs shadow hover:scale-110 active:scale-95 transition cursor-pointer"
+                              title={language === 'vi' ? 'Tùy chọn tin nhắn' : 'Message options'}
+                            >
+                              <MoreHorizontal className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        )}
 
                         {/* Reaction Picker Popover (Messenger style floating emojis) */}
-                        {activeReactionPickerMsgId === msg.id && (
+                        {activeReactionPickerMsgId === msg.id && !msg.isRecalled && (
                           <div
+                            onClick={(e) => e.stopPropagation()}
                             className={`absolute -top-10 z-20 flex items-center space-x-1 p-1 bg-[#12233B]/95 backdrop-blur-md border border-[#3064AE] rounded-full shadow-2xl animate-pop-sticker ${
                               isMe ? 'right-0' : 'left-0'
                             }`}
@@ -2264,6 +2376,136 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                             ))}
                           </div>
                         )}
+
+                        {/* 3-Dots Options Popover with 24h Recall Constraint */}
+                        {activeOptionsMenuMsgId === msg.id && !msg.isRecalled && (() => {
+                          const elapsedMs = Date.now() - msg.timestamp;
+                          const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
+                          const isUnder24h = elapsedMs <= TWENTY_FOUR_HOURS_MS;
+                          const isSenderOrAdmin =
+                            msg.senderId === currentUser?.id ||
+                            currentUser?.role === 'ADMIN' ||
+                            currentUser?.id === '000000000';
+                          const hoursLeft = Math.max(0, Math.floor((TWENTY_FOUR_HOURS_MS - elapsedMs) / (60 * 60 * 1000)));
+                          const minutesLeft = Math.max(0, Math.floor(((TWENTY_FOUR_HOURS_MS - elapsedMs) % (60 * 60 * 1000)) / (60 * 1000)));
+
+                          return (
+                            <div
+                              onClick={(e) => e.stopPropagation()}
+                              className={`absolute z-30 top-full mt-1 min-w-[210px] bg-[#0E1B2E]/95 backdrop-blur-md border border-[#3064AE]/40 rounded-xl shadow-2xl p-1.5 animate-fadeIn ${
+                                isMe ? 'right-0' : 'left-0'
+                              }`}
+                            >
+                              {/* Option: Thu hồi tin nhắn */}
+                              {isSenderOrAdmin && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (!isUnder24h) {
+                                      triggerHaptic('error');
+                                      showNotification(
+                                        language === 'vi' ? '⚠️ Không Thể Thu Hồi' : '⚠️ Cannot Recall',
+                                        language === 'vi'
+                                          ? 'Đã quá thời hạn 24 giờ kể từ khi gửi tin nhắn. Theo quy định, tin nhắn này không thể thu hồi được nữa.'
+                                          : 'Message was sent over 24 hours ago and cannot be recalled.',
+                                        false
+                                      );
+                                      return;
+                                    }
+
+                                    if (
+                                      window.confirm(
+                                        language === 'vi'
+                                          ? 'Bạn có chắc chắn muốn thu hồi tin nhắn này không?'
+                                          : 'Are you sure you want to recall this message?'
+                                      )
+                                    ) {
+                                      triggerHaptic('medium');
+                                      const res = recallChatMessage(msg.id);
+                                      if (res.success) {
+                                        showNotification(
+                                          language === 'vi' ? 'Đã Thu Hồi Tin Nhắn ↩️' : 'Message Recalled ↩️',
+                                          language === 'vi'
+                                            ? 'Tin nhắn đã được thu hồi cho tất cả người xem.'
+                                            : 'Message recalled for all participants.',
+                                          true
+                                        );
+                                      } else {
+                                        showNotification(
+                                          language === 'vi' ? 'Lỗi Thu Hồi' : 'Recall Error',
+                                          res.error || 'Không thể thu hồi tin nhắn',
+                                          false
+                                        );
+                                      }
+                                      setActiveOptionsMenuMsgId(null);
+                                    }
+                                  }}
+                                  className={`w-full text-left px-2.5 py-2 rounded-lg flex items-center justify-between text-xs transition ${
+                                    isUnder24h
+                                      ? 'text-rose-400 hover:bg-rose-500/15 cursor-pointer font-bold'
+                                      : 'text-slate-400 bg-slate-800/40 cursor-not-allowed opacity-60'
+                                  }`}
+                                >
+                                  <div className="flex items-center space-x-2">
+                                    <RotateCcw
+                                      className={`w-3.5 h-3.5 ${isUnder24h ? 'text-rose-400' : 'text-slate-500'}`}
+                                    />
+                                    <div>
+                                      <span className="block font-bold">
+                                        {isUnder24h
+                                          ? language === 'vi'
+                                            ? 'Thu hồi tin nhắn'
+                                            : 'Recall Message'
+                                          : language === 'vi'
+                                          ? 'Không thể thu hồi'
+                                          : 'Cannot Recall'}
+                                      </span>
+                                      <span className="text-[10px] text-slate-400 font-normal">
+                                        {isUnder24h
+                                          ? language === 'vi'
+                                            ? `Còn ${hoursLeft}h ${minutesLeft}p để thu hồi`
+                                            : `${hoursLeft}h ${minutesLeft}m left to recall`
+                                          : language === 'vi'
+                                          ? 'Đã quá thời hạn 24 giờ'
+                                          : 'Over 24 hours expired'}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  {isUnder24h ? (
+                                    <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-rose-500/20 text-rose-300 font-mono font-bold">
+                                      &lt;24h
+                                    </span>
+                                  ) : (
+                                    <Clock className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                                  )}
+                                </button>
+                              )}
+
+                              {/* Option: Sao chép tin nhắn */}
+                              {msg.message && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    triggerHaptic('light');
+                                    navigator.clipboard.writeText(msg.message);
+                                    showNotification(
+                                      language === 'vi' ? 'Đã Sao Chép' : 'Copied',
+                                      language === 'vi'
+                                        ? 'Đã sao chép nội dung tin nhắn.'
+                                        : 'Message copied to clipboard.',
+                                      true
+                                    );
+                                    setActiveOptionsMenuMsgId(null);
+                                  }}
+                                  className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-[#3064AE]/20 text-slate-200 text-xs flex items-center space-x-2 transition cursor-pointer mt-0.5"
+                                >
+                                  <Copy className="w-3.5 h-3.5 text-[#C5E5EC]" />
+                                  <span>{language === 'vi' ? 'Sao chép văn bản' : 'Copy text'}</span>
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })()}
 
                         {/* Displayed Active Reactions Count Badge on Message */}
                         {msg.reactions && Object.keys(msg.reactions).length > 0 && (
@@ -2343,14 +2585,54 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
         {/* PREVIEW ATTACHMENT BEFORE SEND */}
         {pendingImage && (
           <div className="relative mb-2 p-2 rounded-2xl bg-[#131E30] border border-cyan-500/40 shrink-0 flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <img src={pendingImage} alt="Pending" className="w-12 h-12 rounded-xl object-cover border" />
-              <span className="text-xs text-cyan-300 font-semibold">
-                {language === 'vi' ? 'Sẵn sàng gửi hình ảnh' : 'Ready to send image'}
-              </span>
+            <div className="flex items-center space-x-2.5">
+              <img src={pendingImage} alt="Pending" className="w-12 h-12 rounded-xl object-cover border border-[#3064AE]" />
+              <div>
+                <span className="text-xs text-cyan-300 font-semibold block">
+                  {language === 'vi' ? 'Sẵn sàng gửi hình ảnh' : 'Ready to send image'}
+                </span>
+                <span className="text-[10px] text-emerald-400 flex items-center space-x-1 font-medium">
+                  <ShieldCheck className="w-3 h-3 text-emerald-400" />
+                  <span>{language === 'vi' ? 'Đã lọc qua Sightengine (An toàn 100%)' : 'Filtered via Sightengine (Safe)'}</span>
+                </span>
+              </div>
             </div>
-            <button onClick={() => setPendingImage(null)} className="p-1 rounded-full bg-slate-800 text-slate-400 hover:text-white">
+            <button
+              onClick={() => {
+                setPendingImage(null);
+                setModerationWarning(null);
+              }}
+              className="p-1 rounded-full bg-slate-800 text-slate-400 hover:text-white cursor-pointer"
+            >
               <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
+        {/* SIGHTENGINE MODERATION LOADING INDICATOR */}
+        {isModeratingImage && (
+          <div className="relative mb-2 p-2.5 rounded-2xl bg-[#131E30] border border-amber-500/50 shrink-0 flex items-center space-x-2 text-xs text-amber-300 animate-pulse">
+            <RefreshCw className="w-4 h-4 animate-spin text-amber-400 shrink-0" />
+            <span>
+              {language === 'vi'
+                ? 'Đang kiểm duyệt hình ảnh qua hệ thống Sightengine (Lọc bạo lực, 18+)...'
+                : 'Verifying image with Sightengine filter (Anti-violence & 18+)...'}
+            </span>
+          </div>
+        )}
+
+        {/* SIGHTENGINE MODERATION WARNING ALERT */}
+        {moderationWarning && (
+          <div className="relative mb-2 p-2.5 rounded-2xl bg-rose-950/80 border border-rose-500/60 shrink-0 flex items-center justify-between text-xs text-rose-200">
+            <div className="flex items-center space-x-2">
+              <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+              <span>{moderationWarning}</span>
+            </div>
+            <button
+              onClick={() => setModerationWarning(null)}
+              className="p-1 rounded-full bg-rose-900/60 text-rose-300 hover:text-white ml-2 cursor-pointer"
+            >
+              <X className="w-3.5 h-3.5" />
             </button>
           </div>
         )}

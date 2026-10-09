@@ -712,7 +712,7 @@ export const AuthScreen: React.FC = () => {
             alt="GigMe Logo"
             onClick={handleLogoClick}
             title="GigMe Logo"
-            className="w-20 h-20 rounded-2xl mx-auto shadow-xl border border-[#C5E5EC]/30 object-cover mb-3 ring-2 ring-[#3064AE]/30 cursor-pointer select-none active:scale-95 transition-transform"
+            className="w-20 h-20 rounded-full mx-auto shadow-xl border border-[#C5E5EC]/30 object-cover mb-3 ring-2 ring-[#3064AE]/30 cursor-pointer select-none active:scale-95 transition-transform"
           />
           <h1 className="text-3xl font-black tracking-tight text-white select-none">
             Gig<span className="text-[#C5E5EC]">Me</span>

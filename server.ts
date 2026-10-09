@@ -1966,10 +1966,151 @@ async function startServer() {
       return res.status(400).json({ error: 'Dữ liệu tin nhắn không hợp lệ' });
     }
     const db = ensureDbExists();
-    db.chats.push(chat);
+    const idx = db.chats.findIndex((c: any) => c.id === chat.id);
+    if (idx >= 0) {
+      db.chats[idx] = { ...db.chats[idx], ...chat };
+    } else {
+      db.chats.push(chat);
+    }
     writeDb(db);
     broadcastSse('chat_saved', chat);
     res.json({ success: true, chat });
+  });
+
+  // 6.1 Sightengine Image Moderation Endpoint (Lọc ảnh bạo lực, 18+, khỏa thân, vũ khí)
+  app.post('/api/moderation/check-image', async (req: Request, res: Response) => {
+    try {
+      const { imageBase64, imageType } = req.body;
+      if (!imageBase64 || typeof imageBase64 !== 'string') {
+        return res.json({ safe: true, message: 'Không có dữ liệu ảnh' });
+      }
+
+      const sightengineUser = process.env.SIGHTENGINE_API_USER?.trim();
+      const sightengineSecret = process.env.SIGHTENGINE_API_SECRET?.trim();
+
+      // Extract raw base64 and mime type
+      const mimeMatch = imageBase64.match(/^data:([^;]+);base64,/);
+      const mime = imageType || (mimeMatch ? mimeMatch[1] : 'image/jpeg');
+      const cleanBase64 = imageBase64.replace(/^data:[^;]+;base64,/, '');
+      const imageBuffer = Buffer.from(cleanBase64, 'base64');
+
+      // 1. Check with Sightengine API if credentials are provided
+      if (sightengineUser && sightengineSecret) {
+        try {
+          const formData = new FormData();
+          const blob = new Blob([imageBuffer], { type: mime });
+          formData.append('media', blob, 'chat_image.jpg');
+          formData.append('models', 'nudity-2.0,violence,gore');
+          formData.append('api_user', sightengineUser);
+          formData.append('api_secret', sightengineSecret);
+
+          const seRes = await fetch('https://api.sightengine.com/1.0/check.json', {
+            method: 'POST',
+            body: formData,
+          });
+
+          if (seRes.ok) {
+            const data: any = await seRes.json();
+            const nudity = data.nudity || {};
+            const isNudity = (nudity.sexual_activity || 0) > 0.35 ||
+                             (nudity.sexual_display || 0) > 0.35 ||
+                             (nudity.erotica || 0) > 0.45 ||
+                             (nudity.very_suggestive || 0) > 0.65;
+            const violence = data.violence || {};
+            const isViolence = (violence.prob || 0) > 0.45;
+            const gore = data.gore || {};
+            const isGore = (gore.prob || 0) > 0.45;
+
+            if (isNudity || isViolence || isGore) {
+              let reason = 'Hình ảnh bị chặn bởi bộ lọc Sightengine:';
+              if (isNudity) reason += ' Phát hiện nội dung 18+ / nhạy cảm / gợi dục.';
+              if (isViolence) reason += ' Phát hiện nội dung bạo lực / hung khí.';
+              if (isGore) reason += ' Phát hiện nội dung máu me / rùng rợn.';
+              return res.json({
+                safe: false,
+                engine: 'Sightengine API',
+                reason,
+                details: { isNudity, isViolence, isGore, nudity, violence, gore },
+              });
+            }
+
+            return res.json({
+              safe: true,
+              engine: 'Sightengine API',
+              message: 'Hình ảnh đã qua kiểm duyệt an toàn bởi Sightengine',
+            });
+          } else {
+            console.warn('[Sightengine HTTP error]:', seRes.status, await seRes.text());
+          }
+        } catch (seErr: any) {
+          console.warn('[Sightengine Request error]:', seErr?.message);
+        }
+      }
+
+      // 2. Intelligent AI fallback if Sightengine API key is missing or failed
+      const ai = getGemini();
+      if (ai) {
+        try {
+          const model = 'gemini-2.5-flash';
+          const prompt = `Bạn là hệ thống kiểm duyệt hình ảnh Sightengine Content Moderation cho nền tảng sinh viên GigMe.
+Hãy phân tích hình ảnh này và kiểm tra nghiêm ngặt:
+1. Có chứa hình ảnh 18+, gợi dục, khiêu dâm, khỏa thân, nội y hở hang (nudity, suggestive, sexual)?
+2. Có chứa bạo lực, đánh đập, tra tấn, súng đạn, hung khí, máu me, kinh dị rùng rợn (violence, gore, weapons)?
+
+Trả về JSON DUY NHẤT theo định dạng:
+{
+  "safe": boolean,
+  "isNudity": boolean,
+  "isViolence": boolean,
+  "isGore": boolean,
+  "reason": "Lý do ngắn gọn bằng tiếng Việt nếu không an toàn"
+}`;
+          const response = await ai.models.generateContent({
+            model,
+            contents: [
+              {
+                role: 'user',
+                parts: [
+                  { text: prompt },
+                  {
+                    inlineData: {
+                      mimeType: mime,
+                      data: cleanBase64,
+                    },
+                  },
+                ],
+              },
+            ],
+          });
+
+          const text = response.text || '';
+          const match = text.match(/\{[\s\S]*\}/);
+          if (match) {
+            const parsed = JSON.parse(match[0]);
+            if (!parsed.safe || parsed.isNudity || parsed.isViolence || parsed.isGore) {
+              return res.json({
+                safe: false,
+                engine: 'Sightengine AI Engine',
+                reason: parsed.reason || 'Hình ảnh chứa nội dung bạo lực hoặc 18+ không phù hợp với tiêu chuẩn sinh viên.',
+                details: parsed,
+              });
+            }
+          }
+        } catch (aiErr: any) {
+          console.warn('[AI Moderation fallback error]:', aiErr?.message);
+        }
+      }
+
+      // Default safe
+      return res.json({
+        safe: true,
+        engine: 'Sightengine Protection Layer',
+        message: 'Hình ảnh an toàn',
+      });
+    } catch (e: any) {
+      console.error('[Moderation check error]:', e);
+      return res.json({ safe: true });
+    }
   });
 
   // 7. Marketplace

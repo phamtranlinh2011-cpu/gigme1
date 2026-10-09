@@ -415,6 +415,10 @@ export interface ChatMessageEntity {
   partnerName?: string;
   reactions?: Record<string, number>;
   isRead?: boolean;
+  isRecalled?: boolean; // Tin nhắn đã bị thu hồi (trong 24h)
+  recalledAt?: number;
+  moderationStatus?: 'APPROVED' | 'REJECTED' | 'UNCHECKED';
+  moderationReason?: string;
 }
 
 export interface WalletTransactionEntity {
