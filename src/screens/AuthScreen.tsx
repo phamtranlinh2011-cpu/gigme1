@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Zap,
   Lock,
@@ -27,11 +27,19 @@ import {
   Fingerprint,
   Key,
   Globe,
+  Clock,
+  QrCode,
+  Smartphone,
+  Shield,
+  Info,
 } from 'lucide-react';
 import { useGigMe } from '../context/GigMeContext';
 import { useTranslation } from '../context/LanguageContext';
 import { MoSmsSession } from '../types';
 import { cloudService } from '../services/cloudSync';
+import { BirthDatePickerModal } from '../components/BirthDatePickerModal';
+import { validateVietnamCccdNumber } from '../utils/checksumC06';
+import { triggerHaptic } from '../utils/haptics';
 
 export const AuthScreen: React.FC = () => {
   const {
@@ -72,8 +80,18 @@ export const AuthScreen: React.FC = () => {
   const [regCccd, setRegCccd] = useState('');
   const [regGender, setRegGender] = useState('Nam');
   const [regBirthDate, setRegBirthDate] = useState('');
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [regPassword, setRegPassword] = useState('');
   const [regConfirmPassword, setRegConfirmPassword] = useState('');
+
+  // Real-time Vietnam CCCD verification (12 digits C06 standard + cross check)
+  const cccdCheck = useMemo(() => {
+    if (!regCccd || regCccd.trim().length === 0) return null;
+    return validateVietnamCccdNumber(regCccd.trim(), {
+      expectedBirthDate: regBirthDate.trim(),
+      expectedGender: regGender,
+    });
+  }, [regCccd, regBirthDate, regGender]);
 
   // IP verification status
   const [ipAccountCount, setIpAccountCount] = useState(0);
@@ -88,7 +106,35 @@ export const AuthScreen: React.FC = () => {
   const [moCopiedSyntax, setMoCopiedSyntax] = useState(false);
   const [moCopiedShortcode, setMoCopiedShortcode] = useState(false);
   const [moSimulating, setMoSimulating] = useState(false);
-  const [moShowWebhookDoc, setMoShowWebhookDoc] = useState(false);
+  const [moSecondsLeft, setMoSecondsLeft] = useState(300);
+  const [moShowQrCode, setMoShowQrCode] = useState(false);
+  const isLoggingInMoRef = useRef(false);
+
+  // Nhận diện nhà mạng viễn thông từ đầu số điện thoại
+  const getTelcoBadge = (phone: string) => {
+    const clean = phone.replace(/\D/g, '');
+    if (!clean || clean.length < 3) return null;
+    const p3 = clean.slice(0, 3);
+    if (['086', '096', '097', '098', '032', '033', '034', '035', '036', '037', '038', '039'].includes(p3)) {
+      return { name: 'Viettel', color: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' };
+    }
+    if (['088', '091', '094', '081', '082', '083', '084', '085'].includes(p3)) {
+      return { name: 'VinaPhone', color: 'bg-blue-500/20 text-blue-300 border-blue-500/40' };
+    }
+    if (['089', '090', '093', '070', '076', '077', '078', '079'].includes(p3)) {
+      return { name: 'MobiFone', color: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40' };
+    }
+    if (['092', '056', '058'].includes(p3)) {
+      return { name: 'Vietnamobile', color: 'bg-orange-500/20 text-orange-300 border-orange-500/40' };
+    }
+    if (['055'].includes(p3)) {
+      return { name: 'Wintel', color: 'bg-red-500/20 text-red-300 border-red-500/40' };
+    }
+    if (['087'].includes(p3)) {
+      return { name: 'iTel', color: 'bg-rose-500/20 text-rose-300 border-rose-500/40' };
+    }
+    return null;
+  };
 
   // Phone OTP login
   const [phoneInput, setPhoneInput] = useState('');
@@ -180,27 +226,48 @@ export const AuthScreen: React.FC = () => {
     return () => clearInterval(timer);
   }, [forgotCountdown]);
 
-  // MO SMS Auto Polling & SSE Realtime Listener
+  // MO SMS Countdown Timer (5 phút hiệu lực)
+  useEffect(() => {
+    if (!moSession) return;
+    const calculateLeft = () => {
+      const left = Math.max(0, Math.floor((moSession.expiresAt - Date.now()) / 1000));
+      setMoSecondsLeft(left);
+    };
+    calculateLeft();
+    const timer = setInterval(calculateLeft, 1000);
+    return () => clearInterval(timer);
+  }, [moSession]);
+
+  // MO SMS Auto Polling & SSE Realtime Listener với khóa chống chạy trùng lặp (Concurrency Guard)
   useEffect(() => {
     if (!moSession || moSession.isVerified) return;
+    isLoggingInMoRef.current = false;
+
+    const handleVerified = async (phoneToUse?: string) => {
+      if (isLoggingInMoRef.current) return;
+      isLoggingInMoRef.current = true;
+      triggerHaptic('success');
+      setMoSession((prev) => (prev ? { ...prev, isVerified: true } : null));
+      const verifiedPhone = phoneToUse || phoneInput.trim() || '0988668899';
+      await loginWithMoSms(verifiedPhone);
+    };
 
     // 1. Polling cổng backend cứ 2.5s / lần
     const interval = setInterval(async () => {
+      if (isLoggingInMoRef.current) return;
       const statusRes = await checkMoSmsStatus(moSession.sessionId);
       if (statusRes && statusRes.isVerified) {
-        setMoSession((prev) => (prev ? { ...prev, isVerified: true } : null));
         clearInterval(interval);
-        const verifiedPhone = statusRes.senderPhone || phoneInput || '0988668899';
-        await loginWithMoSms(verifiedPhone);
+        await handleVerified(statusRes.senderPhone);
       }
     }, 2500);
 
     // 2. Lắng nghe SSE thời gian thực từ Webhook nhà mạng
     const unsub = cloudService.subscribeMoSmsVerified(async (data) => {
+      if (isLoggingInMoRef.current) return;
       if (data && data.sessionId === moSession.sessionId) {
-        setMoSession((prev) => (prev ? { ...prev, isVerified: true } : null));
         clearInterval(interval);
-        await loginWithMoSms(data.phone || phoneInput || '0988668899');
+        await handleVerified(data.phone);
       }
     });
 
@@ -213,6 +280,7 @@ export const AuthScreen: React.FC = () => {
   const handleGenerateMoSession = async () => {
     setAuthError(null);
     setMoLoading(true);
+    isLoggingInMoRef.current = false;
     try {
       const res = await requestMoSms({
         phone: phoneInput.trim(),
@@ -221,6 +289,8 @@ export const AuthScreen: React.FC = () => {
       });
       if (res.success && res.session) {
         setMoSession(res.session);
+        setMoSecondsLeft(300);
+        triggerHaptic('selection');
         showNotification(
           language === 'vi' ? 'Đã tạo cú pháp tin nhắn MO! 📨' : 'MO SMS Syntax Created! 📨',
           language === 'vi'
@@ -236,8 +306,17 @@ export const AuthScreen: React.FC = () => {
     }
   };
 
+  const handleOpenSmsApp = () => {
+    if (!moSession) return;
+    triggerHaptic('selection');
+    const isIOS = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const sep = isIOS ? '&' : '?';
+    window.location.href = `sms:${moSession.shortcode}${sep}body=${encodeURIComponent(moSession.syntax)}`;
+  };
+
   const handleCopySyntax = () => {
     if (!moSession) return;
+    triggerHaptic('selection');
     navigator.clipboard.writeText(moSession.syntax);
     setMoCopiedSyntax(true);
     setTimeout(() => setMoCopiedSyntax(false), 2000);
@@ -249,6 +328,7 @@ export const AuthScreen: React.FC = () => {
 
   const handleCopyShortcode = () => {
     if (!moSession) return;
+    triggerHaptic('selection');
     navigator.clipboard.writeText(moSession.shortcode);
     setMoCopiedShortcode(true);
     setTimeout(() => setMoCopiedShortcode(false), 2000);
@@ -320,11 +400,14 @@ export const AuthScreen: React.FC = () => {
     const cccd = regCccd.trim();
     const pass = regPassword.trim();
     const confirm = regConfirmPassword.trim();
+    const birth = regBirthDate.trim();
 
+    // 1. Họ và tên đệm (Bắt buộc)
     if (!lastName) {
       setAuthError(language === 'vi' ? 'Vui lòng nhập họ và tên đệm của bạn (VD: Nguyễn Văn)!' : 'Please enter your last and middle name!');
       return;
     }
+    // 2. Tên (Bắt buộc)
     if (!firstName) {
       setAuthError(language === 'vi' ? 'Vui lòng nhập tên của bạn (VD: An)!' : 'Please enter your first name!');
       return;
@@ -333,12 +416,23 @@ export const AuthScreen: React.FC = () => {
       setAuthError(language === 'vi' ? `Họ tên đệm và tên ghi gộp lại không được quá 30 ký tự (hiện tại: ${combinedName.length} ký tự)!` : `Combined full name cannot exceed 30 characters (currently: ${combinedName.length})!`);
       return;
     }
+    // 3. Gmail (Bắt buộc)
     if (!gmail) {
       setAuthError(language === 'vi' ? 'Các tài khoản khi tạo bắt buộc phải có địa chỉ Gmail!' : 'A Gmail address is required to register an account!');
       return;
     }
     if (!gmail.includes('@')) {
       setAuthError(language === 'vi' ? 'Địa chỉ Gmail không đúng định dạng!' : 'Invalid Gmail format!');
+      return;
+    }
+    // 4. Giới tính (Bắt buộc)
+    if (!regGender) {
+      setAuthError(language === 'vi' ? 'Vui lòng chọn giới tính của bạn!' : 'Please select your gender!');
+      return;
+    }
+    // 5. Ngày sinh (Bắt buộc)
+    if (!birth) {
+      setAuthError(language === 'vi' ? 'Vui lòng chọn ngày sinh của bạn (mở bảng chọn bằng icon lịch bên cạnh)!' : 'Please select your date of birth!');
       return;
     }
 
@@ -356,8 +450,57 @@ export const AuthScreen: React.FC = () => {
       }
     }
 
+    // Phone validation (nếu nhập: tối đa 10 số, bắt đầu bằng 0)
+    if (phone) {
+      if (phone.length > 10 || !/^0\d{9}$/.test(phone)) {
+        setAuthError(
+          language === 'vi'
+            ? 'Số điện thoại phải gồm đúng 10 chữ số (bắt đầu bằng 0, VD: 0909123456)!'
+            : 'Phone number must be exactly 10 digits starting with 0!'
+        );
+        return;
+      }
+    }
+
+    // CCCD validation (nếu nhập: tối đa 12 số, kiểm tra xác thực CCCD thật theo chuẩn C06)
+    if (cccd) {
+      if (cccd.length !== 12) {
+        setAuthError(
+          language === 'vi'
+            ? `Số CCCD phải gồm đúng 12 chữ số (hiện tại: ${cccd.length}/12 số)!`
+            : `National ID must be exactly 12 digits (currently: ${cccd.length}/12)!`
+        );
+        return;
+      }
+      const verifiedCccd = validateVietnamCccdNumber(cccd, {
+        expectedBirthDate: birth,
+        expectedGender: regGender,
+      });
+      if (!verifiedCccd.isValid) {
+        setAuthError(
+          language === 'vi'
+            ? `Lỗi xác thực CCCD: ${verifiedCccd.error || 'Số CCCD không hợp lệ hoặc không có thật!'}`
+            : `National ID error: ${verifiedCccd.error || 'Invalid ID number!'}`
+        );
+        return;
+      }
+    }
+
+    // 6. Mật khẩu (Bắt buộc: 6 - 15 ký tự)
+    if (!pass) {
+      setAuthError(language === 'vi' ? 'Vui lòng nhập mật khẩu tài khoản!' : 'Please enter your password!');
+      return;
+    }
     if (pass.length < 6) {
       setAuthError(language === 'vi' ? 'Mật khẩu bảo mật phải có tối thiểu 6 ký tự!' : 'Security password must be at least 6 characters long!');
+      return;
+    }
+    if (pass.length > 15) {
+      setAuthError(language === 'vi' ? 'Mật khẩu bảo mật chỉ được tối đa 15 ký tự!' : 'Security password cannot exceed 15 characters!');
+      return;
+    }
+    if (!confirm) {
+      setAuthError(language === 'vi' ? 'Vui lòng nhập mật khẩu xác nhận!' : 'Please confirm your password!');
       return;
     }
     if (pass !== confirm) {
@@ -365,7 +508,6 @@ export const AuthScreen: React.FC = () => {
       return;
     }
 
-    const birth = regBirthDate.trim() || '01/01/2000';
     setIsLoggingIn(true);
     try {
       const res = await register(combinedName, gmail, regGender, birth, pass, confirm, phone, cccd, lastName, firstName);
@@ -439,6 +581,10 @@ export const AuthScreen: React.FC = () => {
       setAuthError(language === 'vi' ? 'Mật khẩu mới phải có ít nhất 6 ký tự!' : 'New password must be at least 6 characters!');
       return;
     }
+    if (newPassword.trim().length > 15) {
+      setAuthError(language === 'vi' ? 'Mật khẩu mới chỉ được tối đa 15 ký tự!' : 'New password cannot exceed 15 characters!');
+      return;
+    }
     const ok = await resetPasswordWithOtp(forgotOtpInput, newPassword);
     if (ok) {
       setActiveTab('LOGIN');
@@ -461,6 +607,10 @@ export const AuthScreen: React.FC = () => {
     }
     if (forgotPinNewPassword.trim().length < 6) {
       setAuthError(language === 'vi' ? 'Mật khẩu mới phải có tối thiểu 6 ký tự!' : 'New password must be at least 6 characters!');
+      return;
+    }
+    if (forgotPinNewPassword.trim().length > 15) {
+      setAuthError(language === 'vi' ? 'Mật khẩu mới chỉ được tối đa 15 ký tự!' : 'New password cannot exceed 15 characters!');
       return;
     }
     setIsLoggingIn(true);
@@ -512,6 +662,10 @@ export const AuthScreen: React.FC = () => {
     }
     if (forgotBioNewPassword.trim().length < 6) {
       setAuthError(language === 'vi' ? 'Mật khẩu mới phải có tối thiểu 6 ký tự!' : 'New password must be at least 6 characters!');
+      return;
+    }
+    if (forgotBioNewPassword.trim().length > 15) {
+      setAuthError(language === 'vi' ? 'Mật khẩu mới chỉ được tối đa 15 ký tự!' : 'New password cannot exceed 15 characters!');
       return;
     }
     setIsLoggingIn(true);
@@ -615,7 +769,7 @@ export const AuthScreen: React.FC = () => {
             }`}
           >
             <span className="flex items-center justify-center space-x-1">
-              <span>{language === 'vi' ? 'Tự Nhắn SMS (MO)' : 'Self-SMS (MO)'}</span>
+              <span>SMS</span>
               <span className="text-[9px] px-1 py-0.5 rounded bg-[#E0FAEB] text-[#0E1B2E] font-extrabold uppercase tracking-tight">
                 {language === 'vi' ? '0đ Phí' : '0 Fee'}
               </span>
@@ -845,9 +999,7 @@ export const AuthScreen: React.FC = () => {
                 <div className="flex items-center justify-between mb-1">
                   <label className="text-[#C5E5EC]/90 font-semibold">
                     {language === 'vi' ? 'Địa chỉ Gmail' : 'Gmail Address'}{' '}
-                    <span className="text-rose-400 font-bold">
-                      {language === 'vi' ? '* Bắt buộc' : '* Required'}
-                    </span>
+                    <span className="text-rose-400 font-bold">*</span>
                   </label>
                   <span className="text-[10px] text-[#C5E5EC]/60">
                     {language === 'vi' ? '1 tài khoản / 1 Gmail' : '1 account / 1 Gmail'}
@@ -870,7 +1022,7 @@ export const AuthScreen: React.FC = () => {
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label className="text-[#C5E5EC]/90 font-semibold">
-                      {language === 'vi' ? 'Số điện thoại' : 'Phone Number'}{' '}
+                      {language === 'vi' ? 'Số điện thoại (tối đa 10 số)' : 'Phone (max 10 digits)'}{' '}
                       {requiresExtraKyc && !regCccd ? <span className="text-amber-400 font-bold">*</span> : ''}
                     </label>
                     <span className="text-[10px] text-[#C5E5EC]/60">
@@ -881,14 +1033,23 @@ export const AuthScreen: React.FC = () => {
                     <Phone className="w-4 h-4 text-[#C5E5EC]/50 absolute left-3 top-2.5" />
                     <input
                       type="tel"
+                      maxLength={10}
                       value={regPhone}
-                      onChange={(e) => setRegPhone(e.target.value)}
+                      onChange={(e) => setRegPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
                       className={`w-full pl-9 pr-3 py-2 rounded-xl bg-[#12233B] border ${
                         requiresExtraKyc && !regPhone && !regCccd ? 'border-amber-500' : 'border-[#C5E5EC]/25'
-                      } text-white placeholder:text-[#C5E5EC]/40 focus:border-[#C5E5EC] focus:bg-[#152844] focus:outline-none transition`}
-                      placeholder="09xxxxxxxx"
+                      } text-white placeholder:text-[#C5E5EC]/40 focus:border-[#C5E5EC] focus:bg-[#152844] focus:outline-none transition font-mono`}
+                      placeholder="09xxxxxxxx (10 số)"
                     />
                   </div>
+                  {regPhone && (
+                    <div className="flex items-center justify-between text-[10px] text-[#C5E5EC]/70 mt-0.5 px-1 font-mono">
+                      <span>{regPhone.length}/10 số</span>
+                      {regPhone.length === 10 && regPhone.startsWith('0') && (
+                        <span className="text-emerald-400 font-semibold">✓ Hợp lệ</span>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -907,20 +1068,61 @@ export const AuthScreen: React.FC = () => {
                       type="text"
                       maxLength={12}
                       value={regCccd}
-                      onChange={(e) => setRegCccd(e.target.value.replace(/\D/g, ''))}
+                      onChange={(e) => setRegCccd(e.target.value.replace(/\D/g, '').slice(0, 12))}
                       className={`w-full pl-9 pr-3 py-2 rounded-xl bg-[#12233B] border ${
-                        requiresExtraKyc && !regPhone && !regCccd ? 'border-amber-500' : 'border-[#C5E5EC]/25'
+                        cccdCheck && !cccdCheck.isValid && regCccd.length === 12
+                          ? 'border-rose-500'
+                          : cccdCheck && cccdCheck.isValid
+                          ? 'border-emerald-500'
+                          : requiresExtraKyc && !regPhone && !regCccd
+                          ? 'border-amber-500'
+                          : 'border-[#C5E5EC]/25'
                       } text-white placeholder:text-[#C5E5EC]/40 focus:border-[#C5E5EC] focus:bg-[#152844] focus:outline-none font-mono transition`}
-                      placeholder="00120300xxxx"
+                      placeholder="00120300xxxx (12 số)"
                     />
                   </div>
+                  {regCccd && regCccd.length > 0 && (
+                    <div className="mt-1">
+                      {regCccd.length < 12 ? (
+                        <div className="text-[10px] text-[#C5E5EC]/70 px-1 font-mono">
+                          {language === 'vi' ? 'Tiến độ: ' : 'Progress: '}
+                          {regCccd.length}/12 chữ số
+                        </div>
+                      ) : cccdCheck?.isValid ? (
+                        <div className="p-2 rounded-lg bg-emerald-950/70 border border-emerald-500/50 text-[11px] text-emerald-200 flex items-start gap-1.5 animate-fadeIn">
+                          <ShieldCheck className="w-4 h-4 shrink-0 text-emerald-400 mt-0.5" />
+                          <div className="leading-tight">
+                            <div className="font-bold text-emerald-300">
+                              {language === 'vi' ? '✓ CCCD Thật & Hợp Lệ C06' : '✓ Valid C06 National ID'}
+                            </div>
+                            <div className="text-[10px] text-emerald-200/90 mt-0.5">
+                              Nơi cấp: <strong>{cccdCheck.provinceName}</strong> ({cccdCheck.provinceCode}) • Năm sinh: <strong>{cccdCheck.birthCenturyYear}</strong> • Giới tính: <strong>{cccdCheck.gender}</strong>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="p-2 rounded-lg bg-rose-950/70 border border-rose-500/50 text-[11px] text-rose-200 flex items-start gap-1.5 animate-fadeIn">
+                          <AlertCircle className="w-4 h-4 shrink-0 text-rose-400 mt-0.5" />
+                          <div className="leading-tight">
+                            <div className="font-bold text-rose-300">
+                              {language === 'vi' ? '✗ CCCD Không Hợp Lệ' : '✗ Invalid National ID'}
+                            </div>
+                            <div className="text-[10px] text-rose-200/90 mt-0.5">
+                              {cccdCheck?.error || (language === 'vi' ? 'Không đúng định dạng CCCD Bộ Công An' : 'Invalid ID')}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block text-[#C5E5EC]/90 mb-1 font-semibold">
-                    {language === 'vi' ? 'Giới tính' : 'Gender'}
+                    {language === 'vi' ? 'Giới tính' : 'Gender'}{' '}
+                    <span className="text-rose-400 font-bold">*</span>
                   </label>
                   <select
                     value={regGender}
@@ -935,17 +1137,35 @@ export const AuthScreen: React.FC = () => {
 
                 <div>
                   <label className="block text-[#C5E5EC]/90 mb-1 font-semibold">
-                    {language === 'vi' ? 'Ngày sinh' : 'Date of Birth'}
+                    {language === 'vi' ? 'Ngày sinh' : 'Date of Birth'}{' '}
+                    <span className="text-rose-400 font-bold">*</span>
                   </label>
                   <div className="relative">
-                    <Calendar className="w-4 h-4 text-[#C5E5EC]/50 absolute left-3 top-2.5" />
+                    <button
+                      type="button"
+                      onClick={() => setShowDatePicker(true)}
+                      className="absolute left-2.5 top-2 p-1 rounded-md text-[#C5E5EC] hover:bg-white/10 transition cursor-pointer"
+                      title={language === 'vi' ? 'Mở bảng chọn ngày sinh' : 'Open date picker'}
+                    >
+                      <Calendar className="w-4 h-4" />
+                    </button>
                     <input
                       type="text"
+                      required
                       value={regBirthDate}
                       onChange={(e) => setRegBirthDate(e.target.value)}
-                      className="w-full pl-9 pr-3 py-2 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-white placeholder:text-[#C5E5EC]/40 focus:border-[#C5E5EC] focus:outline-none"
+                      onClick={() => !regBirthDate && setShowDatePicker(true)}
+                      className="w-full pl-9 pr-14 py-2 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-white placeholder:text-[#C5E5EC]/40 focus:border-[#C5E5EC] focus:outline-none transition"
                       placeholder="15/08/2003"
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowDatePicker(true)}
+                      className="absolute right-2 top-2 px-2 py-0.5 rounded-lg bg-[#C5E5EC]/20 hover:bg-[#C5E5EC]/30 text-[#C5E5EC] text-[10px] font-bold transition cursor-pointer flex items-center gap-1"
+                    >
+                      <Calendar className="w-3 h-3" />
+                      {language === 'vi' ? 'Lịch' : 'Pick'}
+                    </button>
                   </div>
                 </div>
               </div>
@@ -953,12 +1173,14 @@ export const AuthScreen: React.FC = () => {
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block text-[#C5E5EC]/90 mb-1 font-semibold">
-                    {language === 'vi' ? 'Mật khẩu (≥6 ký tự)' : 'Password (≥6 chars)'}
+                    {language === 'vi' ? 'Mật khẩu (6-15 ký tự)' : 'Password (6-15 chars)'}{' '}
+                    <span className="text-rose-400 font-bold">*</span>
                   </label>
                   <div className="relative">
                     <input
                       type={showRegPassword ? 'text' : 'password'}
                       required
+                      maxLength={15}
                       value={regPassword}
                       onChange={(e) => setRegPassword(e.target.value)}
                       className="w-full px-3 pr-8 py-2 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-white placeholder:text-[#C5E5EC]/40 focus:border-[#C5E5EC] focus:bg-[#152844] focus:outline-none"
@@ -972,11 +1194,18 @@ export const AuthScreen: React.FC = () => {
                       {showRegPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                     </button>
                   </div>
+                  <div className="flex justify-between items-center text-[10px] text-[#C5E5EC]/60 mt-0.5 px-1 font-mono">
+                    <span>{regPassword.length}/15 {language === 'vi' ? 'ký tự' : 'chars'}</span>
+                    {regPassword.length >= 6 && regPassword.length <= 15 && (
+                      <span className="text-emerald-400 font-bold">✓ Độ dài đạt</span>
+                    )}
+                  </div>
                 </div>
                 <div>
                   <div className="flex justify-between items-center mb-1">
                     <label className="text-[#C5E5EC]/90 font-semibold">
-                      {language === 'vi' ? 'Xác nhận' : 'Confirm'}
+                      {language === 'vi' ? 'Xác nhận' : 'Confirm'}{' '}
+                      <span className="text-rose-400 font-bold">*</span>
                     </label>
                     {regConfirmPassword && (
                       <span className={`text-[10px] font-bold ${regPassword === regConfirmPassword ? 'text-[#E0FAEB]' : 'text-rose-400'}`}>
@@ -990,6 +1219,7 @@ export const AuthScreen: React.FC = () => {
                     <input
                       type={showRegConfirm ? 'text' : 'password'}
                       required
+                      maxLength={15}
                       value={regConfirmPassword}
                       onChange={(e) => setRegConfirmPassword(e.target.value)}
                       className={`w-full px-3 pr-8 py-2 rounded-xl bg-[#12233B] border ${
@@ -1007,6 +1237,9 @@ export const AuthScreen: React.FC = () => {
                       {showRegConfirm ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                     </button>
                   </div>
+                  <div className="text-[10px] text-[#C5E5EC]/60 mt-0.5 px-1 font-mono">
+                    {regConfirmPassword.length}/15 {language === 'vi' ? 'ký tự' : 'chars'}
+                  </div>
                 </div>
               </div>
 
@@ -1014,8 +1247,14 @@ export const AuthScreen: React.FC = () => {
                 <p>
                   🔒 <strong>{language === 'vi' ? 'Quy tắc bảo mật GigMe:' : 'GigMe Security Rule:'}</strong>{' '}
                   {language === 'vi'
-                    ? '1 Số điện thoại, 1 Gmail hoặc 1 CCCD chỉ được liên kết với 1 tài khoản duy nhất.'
-                    : '1 Phone, 1 Gmail, or 1 National ID can only be associated with 1 single account.'}
+                    ? '1 Số điện thoại (10 số), 1 Gmail hoặc 1 CCCD (12 số) chỉ được liên kết với 1 tài khoản duy nhất.'
+                    : '1 Phone (10 digits), 1 Gmail, or 1 National ID (12 digits) can only be associated with 1 single account.'}
+                </p>
+                <p className="text-emerald-300 font-semibold flex items-center pt-0.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block mr-1"></span>
+                  {language === 'vi'
+                    ? 'Hệ thống Firebase Authentication sẽ gửi liên kết xác thực tới Gmail của bạn ngay khi tạo tài khoản.'
+                    : 'Firebase Authentication will dispatch a confirmation link to your Gmail immediately upon registration.'}
                 </p>
               </div>
 
@@ -1033,230 +1272,309 @@ export const AuthScreen: React.FC = () => {
           {activeTab === 'PHONE_OTP' && (
             <div className="space-y-4 text-xs">
               {/* MO SMS ONLY (Người dùng tự nhắn tin SMS chủ động) */}
-                <div className="space-y-3.5">
-                  {/* Explanation Banner */}
-                  <div className="p-3 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-[#C5E5EC] space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-bold flex items-center text-[#C5E5EC]">
-                        <Sparkles className="w-3.5 h-3.5 mr-1 text-[#E0FAEB]" />{' '}
-                        {language === 'vi' ? 'Cơ Chế SMS MO (Mobile Originated)' : 'SMS MO Mechanism (Mobile Originated)'}
-                      </span>
-                      <span className="px-1.5 py-0.5 rounded bg-[#E0FAEB]/20 text-[#E0FAEB] text-[10px] font-semibold border border-[#E0FAEB]/30">
-                        {language === 'vi' ? 'Chính Chủ 100%' : '100% Genuine'}
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-[#C5E5EC]/80 leading-relaxed">
-                      {language === 'vi'
-                        ? 'Bạn chủ động mở ứng dụng tin nhắn và gửi cú pháp đến đầu số tổng đài. Cước phí được nhà mạng viễn thông trừ trực tiếp vào tài khoản SIM (1.000đ – 1.500đ/tin). Chủ nền tảng không tốn chi phí gửi SMS Brandname!'
-                        : 'You open your SMS app and send the syntax to the gateway shortcode. Carrier fee is deducted directly from SIM account (~1,000đ/sms). Fast, secure, and 100% reliable!'}
-                    </p>
+              <div className="space-y-3.5">
+                {/* Explanation Banner */}
+                <div className="p-3.5 rounded-2xl bg-[#12233B] border border-[#C5E5EC]/25 text-[#C5E5EC] space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black flex items-center text-[#E0FAEB]">
+                      <Sparkles className="w-4 h-4 mr-1 text-[#E0FAEB]" />{' '}
+                      {language === 'vi' ? 'Cơ Chế Xác Thực Qua SMS' : 'SMS Verification Mechanism'}
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full bg-[#E0FAEB]/20 text-[#E0FAEB] text-[10px] font-extrabold border border-[#E0FAEB]/30">
+                      {language === 'vi' ? 'Chính Chủ 100%' : '100% Genuine'}
+                    </span>
                   </div>
+                  <p className="text-[11px] text-[#C5E5EC]/80 leading-relaxed">
+                    {language === 'vi'
+                      ? 'Bạn chủ động gửi 1 tin nhắn SMS đến đầu số tổng đài. Cước phí được nhà mạng viễn thông trừ trực tiếp vào SIM (1.000đ/tin). Không lo tắc nghẽn mạng hay mã OTP rơi vào thư rác!'
+                      : 'You send a single SMS to the gateway shortcode. Carrier fee is deducted directly from SIM account (~1,000đ/sms). Ultra fast, anti-fraud, 100% genuine!'}
+                  </p>
 
-                  {/* Input Phone & Config */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    <div>
-                      <label className="block text-[#C5E5EC]/90 mb-1 font-semibold">
-                        {language === 'vi' ? 'Số điện thoại của bạn (tùy chọn)' : 'Your Phone Number (optional)'}
-                      </label>
-                      <div className="relative">
-                        <Phone className="w-4 h-4 text-[#C5E5EC]/50 absolute left-3 top-2.5" />
-                        <input
-                          type="tel"
-                          value={phoneInput}
-                          onChange={(e) => setPhoneInput(e.target.value)}
-                          className="w-full pl-9 pr-3 py-2 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-white font-mono placeholder:text-[#C5E5EC]/40 focus:border-[#C5E5EC] focus:bg-[#152844] focus:outline-none"
-                          placeholder="09xxxxxxxx"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-[#C5E5EC]/90 mb-1 font-semibold">
-                        {language === 'vi' ? 'Đầu số tổng đài dịch vụ' : 'Gateway Shortcode'}
-                      </label>
-                      <select
-                        value={moShortcode}
-                        onChange={(e) => setMoShortcode(e.target.value as any)}
-                        className="w-full px-3 py-2 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-white font-mono focus:border-[#C5E5EC] focus:bg-[#152844] focus:outline-none"
-                      >
-                        <option value="8077">8077 ({language === 'vi' ? 'Cước 1.000đ / tin - Khuyên Dùng' : '1,000đ / SMS - Recommended'})</option>
-                        <option value="8177">8177 ({language === 'vi' ? 'Cước 1.500đ / tin' : '1,500đ / SMS'})</option>
-                        <option value="8577">8577 ({language === 'vi' ? 'Cước 5.000đ / tin' : '5,000đ / SMS'})</option>
-                        <option value="6089">6089 ({language === 'vi' ? 'Cước 1.000đ / tin' : '1,000đ / SMS'})</option>
-                      </select>
-                    </div>
+                  {/* Telco carriers list */}
+                  <div className="flex items-center space-x-1.5 pt-1 text-[10px] text-[#C5E5EC]/70 flex-wrap gap-y-1">
+                    <span className="font-semibold text-white/90">{language === 'vi' ? 'Hỗ trợ:' : 'Networks:'}</span>
+                    <span className="px-1.5 py-0.5 rounded bg-[#081120] text-emerald-300 font-mono text-[9px] border border-emerald-500/30">Viettel</span>
+                    <span className="px-1.5 py-0.5 rounded bg-[#081120] text-blue-300 font-mono text-[9px] border border-blue-500/30">VinaPhone</span>
+                    <span className="px-1.5 py-0.5 rounded bg-[#081120] text-cyan-300 font-mono text-[9px] border border-cyan-500/30">MobiFone</span>
+                    <span className="px-1.5 py-0.5 rounded bg-[#081120] text-orange-300 font-mono text-[9px] border border-orange-500/30">Vietnamobile</span>
+                    <span className="px-1.5 py-0.5 rounded bg-[#081120] text-red-300 font-mono text-[9px] border border-red-500/30">Wintel/iTel</span>
                   </div>
+                </div>
 
-                  {/* Button Generate Session */}
-                  {!moSession ? (
-                    <button
-                      type="button"
-                      onClick={handleGenerateMoSession}
-                      disabled={moLoading}
-                      className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#3064AE] via-[#2A5594] to-[#25735B] text-white font-extrabold text-sm hover:brightness-110 shadow-lg shadow-[#3064AE]/25 transition active:scale-95 flex items-center justify-center space-x-2 border border-[#E0FAEB]/30 cursor-pointer"
-                    >
-                      {moLoading ? (
-                        <>
-                          <RefreshCw className="w-4 h-4 animate-spin" />
-                          <span>{language === 'vi' ? 'Đang khởi tạo cú pháp...' : 'Generating syntax...'}</span>
-                        </>
-                      ) : (
-                        <>
-                          <Send className="w-4 h-4" />
-                          <span>{language === 'vi' ? 'Tạo Cú Pháp Tin Nhắn MO' : 'Generate MO SMS Syntax'}</span>
-                        </>
+                {/* Input Phone & Config */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-[#C5E5EC]/90 font-semibold text-[11px]">
+                        {language === 'vi' ? 'Số điện thoại của bạn' : 'Your Phone Number'}
+                      </label>
+                      {phoneInput && (
+                        <span className="font-mono text-[10px] text-[#C5E5EC]/60">
+                          {phoneInput.length}/10 {language === 'vi' ? 'số' : 'digits'}
+                        </span>
                       )}
-                    </button>
-                  ) : (
-                    /* Active MO Session Details */
-                    <div className="space-y-3 p-4 rounded-2xl bg-[#12233B] border border-[#C5E5EC]/30 shadow-xl">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-1.5 text-[#C5E5EC] font-bold">
-                          <Radio className="w-4 h-4 text-[#E0FAEB] animate-pulse" />
-                          <span>{language === 'vi' ? 'Cú Pháp Xác Thực Chủ Động' : 'Active Authentication Syntax'}</span>
+                    </div>
+                    <div className="relative">
+                      <Phone className="w-4 h-4 text-[#C5E5EC]/50 absolute left-3 top-2.5" />
+                      <input
+                        type="tel"
+                        maxLength={10}
+                        value={phoneInput}
+                        onChange={(e) => setPhoneInput(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                        className="w-full pl-9 pr-20 py-2 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-white font-mono placeholder:text-[#C5E5EC]/40 focus:border-[#C5E5EC] focus:bg-[#152844] focus:outline-none transition"
+                        placeholder="09xxxxxxxx"
+                      />
+                      {/* Detected Telco Badge inside input */}
+                      {getTelcoBadge(phoneInput) && (
+                        <div className="absolute right-2.5 top-2">
+                          <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold border ${getTelcoBadge(phoneInput)!.color}`}>
+                            {getTelcoBadge(phoneInput)!.name}
+                          </span>
                         </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[#C5E5EC]/90 mb-1 font-semibold text-[11px]">
+                      {language === 'vi' ? 'Đầu số tổng đài dịch vụ' : 'Gateway Shortcode'}
+                    </label>
+                    <select
+                      value={moShortcode}
+                      onChange={(e) => setMoShortcode(e.target.value as any)}
+                      className="w-full px-3 py-2 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-white font-mono focus:border-[#C5E5EC] focus:bg-[#152844] focus:outline-none transition"
+                    >
+                      <option value="8077">8077 ({language === 'vi' ? '1.000đ / tin - Khuyên Dùng' : '1,000đ / SMS - Recommended'})</option>
+                      <option value="8177">8177 ({language === 'vi' ? '1.500đ / tin' : '1,500đ / SMS'})</option>
+                      <option value="8577">8577 ({language === 'vi' ? '5.000đ / tin' : '5,000đ / SMS'})</option>
+                      <option value="6089">6089 ({language === 'vi' ? '1.000đ / tin' : '1,000đ / SMS'})</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Button Generate Session */}
+                {!moSession ? (
+                  <button
+                    type="button"
+                    onClick={handleGenerateMoSession}
+                    disabled={moLoading}
+                    className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#3064AE] via-[#2A5594] to-[#25735B] text-white font-extrabold text-sm hover:brightness-110 shadow-lg shadow-[#3064AE]/25 transition active:scale-95 flex items-center justify-center space-x-2 border border-[#E0FAEB]/30 cursor-pointer disabled:opacity-50"
+                  >
+                    {moLoading ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        <span>{language === 'vi' ? 'Đang khởi tạo cú pháp...' : 'Generating syntax...'}</span>
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-4 h-4" />
+                        <span>{language === 'vi' ? 'Tạo Cú Pháp Tin Nhắn MO' : 'Generate MO SMS Syntax'}</span>
+                      </>
+                    )}
+                  </button>
+                ) : (
+                  /* Active MO Session Details */
+                  <div className="space-y-3.5 p-4 rounded-2xl bg-[#12233B] border border-[#C5E5EC]/30 shadow-xl">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-1.5 text-[#C5E5EC] font-bold">
+                        <Radio className="w-4 h-4 text-[#E0FAEB] animate-pulse" />
+                        <span>{language === 'vi' ? 'Cú Pháp Xác Thực Chủ Động' : 'Active Authentication Syntax'}</span>
+                      </div>
+
+                      {/* Live Countdown Timer Badge */}
+                      <div className="flex items-center space-x-1.5">
+                        <span
+                          className={`px-2 py-0.5 rounded-md font-mono text-[10px] font-bold border flex items-center space-x-1 ${
+                            moSecondsLeft > 60
+                              ? 'bg-emerald-950/60 text-emerald-300 border-emerald-500/40'
+                              : moSecondsLeft > 0
+                              ? 'bg-amber-950/60 text-amber-300 border-amber-500/40 animate-pulse'
+                              : 'bg-rose-950/60 text-rose-300 border-rose-500/40'
+                          }`}
+                        >
+                          <Clock className="w-3 h-3" />
+                          <span>
+                            {Math.floor(moSecondsLeft / 60)
+                              .toString()
+                              .padStart(2, '0')}
+                            :{(moSecondsLeft % 60).toString().padStart(2, '0')}
+                          </span>
+                        </span>
+
                         <span className="px-2 py-0.5 rounded-md bg-[#0E1B2E] text-[#E0FAEB] text-[10px] font-mono border border-[#C5E5EC]/30">
                           {moSession.feeText}
                         </span>
                       </div>
+                    </div>
 
-                      {/* Syntax Box */}
-                      <div className="p-3.5 rounded-xl bg-[#081120] border border-[#C5E5EC]/30 text-center space-y-2">
-                        <div className="text-[11px] text-[#C5E5EC]/70 uppercase tracking-wider font-semibold">
-                          {language === 'vi' ? 'Soạn tin nhắn SMS theo cú pháp chính xác:' : 'Compose SMS with exact syntax:'}
-                        </div>
-                        <div className="font-mono text-xl font-black text-[#E0FAEB] tracking-widest selection:bg-[#3064AE] selection:text-white py-1">
-                          {moSession.syntax}
-                        </div>
-                        <div className="text-xs text-[#C5E5EC]/90 flex items-center justify-center space-x-1.5">
-                          <span>{language === 'vi' ? 'Gửi đến đầu số:' : 'Send to shortcode:'}</span>
-                          <strong className="text-amber-300 font-mono text-base px-2 py-0.5 rounded bg-amber-950/50 border border-amber-500/40">
-                            {moSession.shortcode}
-                          </strong>
-                        </div>
-                      </div>
+                    {/* Progress Bar */}
+                    <div className="w-full bg-[#081120] h-1.5 rounded-full overflow-hidden border border-[#C5E5EC]/15">
+                      <div
+                        className={`h-full transition-all duration-1000 ${
+                          moSecondsLeft > 60 ? 'bg-gradient-to-r from-[#3064AE] to-[#E0FAEB]' : 'bg-rose-500'
+                        }`}
+                        style={{ width: `${Math.max(0, Math.min(100, (moSecondsLeft / 300) * 100))}%` }}
+                      />
+                    </div>
 
-                      {/* Primary Deeplink Action */}
-                      <a
-                        href={moSession.deeplink}
-                        className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-[#3064AE] via-[#2A5594] to-[#25735B] text-white font-black text-sm hover:brightness-110 shadow-lg shadow-[#3064AE]/25 transition active:scale-95 flex items-center justify-center space-x-2 text-center border border-[#E0FAEB]/30 cursor-pointer"
-                      >
-                        <MessageSquare className="w-4 h-4 shrink-0" />
-                        <span>{language === 'vi' ? 'Mở Trình Nhắn Tin SMS Để Gửi Ngay' : 'Open SMS App to Send Now'}</span>
-                        <ExternalLink className="w-3.5 h-3.5 shrink-0" />
-                      </a>
-
-                      {/* Copy actions */}
-                      <div className="grid grid-cols-2 gap-2">
-                        <button
-                          type="button"
-                          onClick={handleCopySyntax}
-                          className="py-1.5 px-2 rounded-lg bg-[#0E1B2E] hover:bg-[#152844] text-[#C5E5EC] text-[11px] font-semibold flex items-center justify-center space-x-1.5 transition border border-[#C5E5EC]/25 cursor-pointer"
-                        >
-                          {moCopiedSyntax ? <Check className="w-3.5 h-3.5 text-[#E0FAEB]" /> : <Copy className="w-3.5 h-3.5 text-[#C5E5EC]/70" />}
-                          <span>
-                            {moCopiedSyntax
-                              ? (language === 'vi' ? 'Đã Chép Cú Pháp' : 'Copied Syntax')
-                              : (language === 'vi' ? 'Chép Cú Pháp' : 'Copy Syntax')}
-                          </span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={handleCopyShortcode}
-                          className="py-1.5 px-2 rounded-lg bg-[#0E1B2E] hover:bg-[#152844] text-[#C5E5EC] text-[11px] font-semibold flex items-center justify-center space-x-1.5 transition border border-[#C5E5EC]/25 cursor-pointer"
-                        >
-                          {moCopiedShortcode ? <Check className="w-3.5 h-3.5 text-[#E0FAEB]" /> : <Copy className="w-3.5 h-3.5 text-[#C5E5EC]/70" />}
-                          <span>
-                            {moCopiedShortcode
-                              ? (language === 'vi' ? 'Đã Chép Đầu Số' : 'Copied Shortcode')
-                              : (language === 'vi' ? 'Chép Đầu Số' : 'Copy Shortcode')}
-                          </span>
-                        </button>
-                      </div>
-
-                      {/* Live Radar Listening Indicator */}
-                      <div className="p-2.5 rounded-xl bg-[#0E1B2E] border border-[#E0FAEB]/30 flex items-center space-x-2 text-[#E0FAEB]">
-                        <div className="relative flex h-3 w-3 shrink-0">
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#E0FAEB] opacity-75"></span>
-                          <span className="relative inline-flex rounded-full h-3 w-3 bg-[#E0FAEB]"></span>
-                        </div>
-                        <span className="text-[11px] leading-tight font-medium text-[#C5E5EC]">
-                          {language === 'vi'
-                            ? 'Hệ thống đang kết nối Webhook viễn thông và tự động đăng nhập khi tin nhắn MO tới tổng đài...'
-                            : 'Listening for incoming MO SMS callback; will log in automatically upon verification...'}
-                        </span>
-                      </div>
-
-                      {/* Test Simulation Button */}
-                      <div className="pt-1 border-t border-[#C5E5EC]/20 flex items-center justify-between">
-                        <button
-                          type="button"
-                          onClick={handleSimulateMoReceived}
-                          disabled={moSimulating}
-                          className="w-full py-2 px-3 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 text-[11px] font-bold transition flex items-center justify-center space-x-1.5 cursor-pointer"
-                        >
-                          <Zap className="w-3.5 h-3.5 text-amber-400" />
-                          <span>
-                            {moSimulating
-                              ? (language === 'vi' ? 'Đang mô phỏng xác thực...' : 'Simulating verification...')
-                              : (language === 'vi' ? 'Mô Phỏng Tổng Đài Nhận Tin Nhắn (Dành cho thử nghiệm)' : 'Simulate Gateway Message Received (For Testing)')}
-                          </span>
-                        </button>
-                      </div>
-
-                      {/* Change syntax / Reset */}
-                      <div className="text-center">
+                    {/* Expired warning if timer reached 0 */}
+                    {moSecondsLeft <= 0 && (
+                      <div className="p-2.5 rounded-xl bg-rose-950/60 border border-rose-500/40 text-rose-200 text-xs flex items-center justify-between">
+                        <span className="font-semibold">{language === 'vi' ? '⚠️ Cú pháp đã hết hạn 5 phút!' : '⚠️ Syntax expired (5 min)!'}</span>
                         <button
                           type="button"
                           onClick={handleGenerateMoSession}
-                          className="text-[11px] text-[#C5E5EC]/70 hover:text-white underline cursor-pointer"
+                          className="px-2 py-1 rounded bg-rose-600 hover:bg-rose-500 text-white text-[10px] font-bold cursor-pointer transition"
                         >
-                          {language === 'vi' ? 'Đổi mã xác thực khác' : 'Generate a new code'}
+                          {language === 'vi' ? 'Tạo Lại Cú Pháp Mới' : 'Regenerate Syntax'}
                         </button>
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  {/* Webhook Documentation Dropdown */}
-                  <div className="pt-2">
+                    {/* Syntax Box */}
+                    <div className="p-3.5 rounded-xl bg-[#081120] border border-[#C5E5EC]/30 text-center space-y-2">
+                      <div className="text-[11px] text-[#C5E5EC]/70 uppercase tracking-wider font-semibold">
+                        {language === 'vi' ? 'Soạn tin nhắn SMS theo cú pháp chính xác:' : 'Compose SMS with exact syntax:'}
+                      </div>
+                      <div className="font-mono text-xl font-black text-[#E0FAEB] tracking-widest selection:bg-[#3064AE] selection:text-white py-1">
+                        {moSession.syntax}
+                      </div>
+                      <div className="text-xs text-[#C5E5EC]/90 flex items-center justify-center space-x-1.5">
+                        <span>{language === 'vi' ? 'Gửi đến đầu số:' : 'Send to shortcode:'}</span>
+                        <strong className="text-amber-300 font-mono text-base px-2 py-0.5 rounded bg-amber-950/50 border border-amber-500/40">
+                          {moSession.shortcode}
+                        </strong>
+                      </div>
+                    </div>
+
+                    {/* Primary Deeplink Action (Cross-platform iOS/Android) */}
                     <button
                       type="button"
-                      onClick={() => setMoShowWebhookDoc(!moShowWebhookDoc)}
-                      className="text-[11px] text-[#C5E5EC]/70 hover:text-[#C5E5EC] flex items-center space-x-1 font-medium cursor-pointer"
+                      onClick={handleOpenSmsApp}
+                      className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-[#3064AE] via-[#2A5594] to-[#25735B] text-white font-black text-sm hover:brightness-110 shadow-lg shadow-[#3064AE]/25 transition active:scale-95 flex items-center justify-center space-x-2 text-center border border-[#E0FAEB]/30 cursor-pointer"
                     >
-                      <HelpCircle className="w-3.5 h-3.5 text-[#C5E5EC]/60" />
-                      <span>
-                        {moShowWebhookDoc
-                          ? (language === 'vi' ? 'Ẩn hướng dẫn kết nối Webhook SMS Gateway' : 'Hide SMS Gateway Webhook documentation')
-                          : (language === 'vi' ? 'Xem cấu hình kết nối Webhook cho tổng đài SMS viễn thông' : 'View SMS Gateway Webhook configuration')}
-                      </span>
+                      <MessageSquare className="w-4 h-4 shrink-0" />
+                      <span>{language === 'vi' ? 'Mở Trình Nhắn Tin SMS Để Gửi Ngay' : 'Open SMS App to Send Now'}</span>
+                      <ExternalLink className="w-3.5 h-3.5 shrink-0" />
                     </button>
 
-                    {moShowWebhookDoc && (
-                      <div className="mt-2 p-3 rounded-xl bg-[#081120] border border-[#C5E5EC]/20 text-[11px] text-[#C5E5EC] space-y-2 font-mono">
-                        <div className="text-[#E0FAEB] font-bold">
-                          {language === 'vi' ? 'Endpoint nhận tin nhắn từ SMS Gateway:' : 'SMS Gateway Callback Endpoint:'}
+                    {/* Actions: Copy syntax, Copy shortcode & QR code Toggle */}
+                    <div className="grid grid-cols-3 gap-2">
+                      <button
+                        type="button"
+                        onClick={handleCopySyntax}
+                        className="py-1.5 px-2 rounded-lg bg-[#0E1B2E] hover:bg-[#152844] text-[#C5E5EC] text-[11px] font-semibold flex items-center justify-center space-x-1 transition border border-[#C5E5EC]/25 cursor-pointer"
+                      >
+                        {moCopiedSyntax ? <Check className="w-3.5 h-3.5 text-[#E0FAEB]" /> : <Copy className="w-3.5 h-3.5 text-[#C5E5EC]/70" />}
+                        <span className="truncate">
+                          {moCopiedSyntax
+                            ? (language === 'vi' ? 'Đã Chép Cú Pháp' : 'Copied')
+                            : (language === 'vi' ? 'Chép Cú Pháp' : 'Copy Syntax')}
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleCopyShortcode}
+                        className="py-1.5 px-2 rounded-lg bg-[#0E1B2E] hover:bg-[#152844] text-[#C5E5EC] text-[11px] font-semibold flex items-center justify-center space-x-1 transition border border-[#C5E5EC]/25 cursor-pointer"
+                      >
+                        {moCopiedShortcode ? <Check className="w-3.5 h-3.5 text-[#E0FAEB]" /> : <Copy className="w-3.5 h-3.5 text-[#C5E5EC]/70" />}
+                        <span className="truncate">
+                          {moCopiedShortcode
+                            ? (language === 'vi' ? 'Đã Chép Đầu Số' : 'Copied')
+                            : (language === 'vi' ? 'Chép Đầu Số' : 'Copy Shortcode')}
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          triggerHaptic('selection');
+                          setMoShowQrCode(!moShowQrCode);
+                        }}
+                        className={`py-1.5 px-2 rounded-lg text-[11px] font-semibold flex items-center justify-center space-x-1 transition border cursor-pointer ${
+                          moShowQrCode
+                            ? 'bg-emerald-500/25 border-emerald-500/50 text-emerald-300'
+                            : 'bg-[#0E1B2E] hover:bg-[#152844] border-[#C5E5EC]/25 text-[#C5E5EC]'
+                        }`}
+                      >
+                        <QrCode className="w-3.5 h-3.5" />
+                        <span className="truncate">{moShowQrCode ? (language === 'vi' ? 'Đóng QR' : 'Close QR') : (language === 'vi' ? 'Mã QR' : 'QR Code')}</span>
+                      </button>
+                    </div>
+
+                    {/* QR Code Viewer (For Desktop / Laptop / Tablet users) */}
+                    {moShowQrCode && (
+                      <div className="p-3.5 rounded-xl bg-[#081120] border border-emerald-500/40 text-center space-y-2 animate-fade-in">
+                        <div className="text-[11px] font-bold text-[#E0FAEB] flex items-center justify-center space-x-1">
+                          <Smartphone className="w-3.5 h-3.5 text-emerald-400" />
+                          <span>
+                            {language === 'vi' ? 'Quét Mã QR Bằng Camera Điện Thoại' : 'Scan QR Code With Phone Camera'}
+                          </span>
                         </div>
-                        <div className="p-2 rounded bg-black/60 border border-[#C5E5EC]/20 break-all text-[10px] text-[#E0FAEB] select-all">
-                          POST /api/sms/mo-callback
-                        </div>
-                        <div className="text-[#C5E5EC]/70 text-[10px]">
+                        <p className="text-[10px] text-[#C5E5EC]/70 max-w-xs mx-auto">
                           {language === 'vi'
-                            ? 'Hỗ trợ định dạng JSON body hoặc Query parameters của Viettel, VinaPhone, MobiFone, SpeedSMS, eSMS:'
-                            : 'Supports JSON body or Query parameters from Viettel, VinaPhone, MobiFone, SpeedSMS, eSMS:'}
+                            ? 'Dành cho máy tính: Mở ứng dụng Máy ảnh trên điện thoại để quét, tin nhắn sẽ tự động được điền sẵn!'
+                            : 'For desktop users: Open phone camera to scan; the SMS app will pre-fill syntax automatically!'}
+                        </p>
+                        <div className="inline-block p-2 rounded-xl bg-white shadow-lg shadow-black/50 mx-auto">
+                          <img
+                            src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(
+                              `SMSTO:${moSession.shortcode}:${moSession.syntax}`
+                            )}`}
+                            alt="SMS QR Code"
+                            className="w-36 h-36 object-contain"
+                          />
                         </div>
-                        <pre className="p-2 rounded bg-black/60 text-[10px] text-[#C5E5EC] overflow-x-auto">
-{`{
-  "phone": "0988668899",
-  "message": "${moSession ? moSession.syntax : 'XACTHUC 123456'}",
-  "shortcode": "${moShortcode}"
-}`}
-                        </pre>
+                        <div className="text-[10px] font-mono text-[#E0FAEB]">
+                          SMSTO:{moSession.shortcode}:{moSession.syntax}
+                        </div>
                       </div>
                     )}
+
+                    {/* Live Radar Listening Indicator */}
+                    <div className="p-2.5 rounded-xl bg-[#0E1B2E] border border-[#E0FAEB]/30 flex items-center space-x-2 text-[#E0FAEB]">
+                      <div className="relative flex h-3 w-3 shrink-0">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#E0FAEB] opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-3 w-3 bg-[#E0FAEB]"></span>
+                      </div>
+                      <span className="text-[11px] leading-tight font-medium text-[#C5E5EC]">
+                        {language === 'vi'
+                          ? 'Hệ thống đang kết nối Webhook viễn thông và tự động đăng nhập khi tin nhắn MO tới tổng đài...'
+                          : 'Listening for incoming MO SMS callback; will log in automatically upon verification...'}
+                      </span>
+                    </div>
+
+                    {/* Test Simulation Button */}
+                    <div className="pt-1 border-t border-[#C5E5EC]/20 flex items-center justify-between">
+                      <button
+                        type="button"
+                        onClick={handleSimulateMoReceived}
+                        disabled={moSimulating}
+                        className="w-full py-2 px-3 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 text-[11px] font-bold transition flex items-center justify-center space-x-1.5 cursor-pointer"
+                      >
+                        <Zap className="w-3.5 h-3.5 text-amber-400" />
+                        <span>
+                          {moSimulating
+                            ? (language === 'vi' ? 'Đang mô phỏng xác thực...' : 'Simulating verification...')
+                            : (language === 'vi' ? 'Mô Phỏng Tổng Đài Nhận Tin Nhắn (Dành cho thử nghiệm)' : 'Simulate Gateway Message Received (For Testing)')}
+                        </span>
+                      </button>
+                    </div>
+
+                    {/* Change syntax / Reset */}
+                    <div className="text-center">
+                      <button
+                        type="button"
+                        onClick={handleGenerateMoSession}
+                        className="text-[11px] text-[#C5E5EC]/70 hover:text-white underline cursor-pointer"
+                      >
+                        {language === 'vi' ? 'Đổi mã xác thực khác' : 'Generate a new code'}
+                      </button>
+                    </div>
                   </div>
-                </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -1390,15 +1708,16 @@ export const AuthScreen: React.FC = () => {
 
                       <div>
                         <label className="block text-[#C5E5EC]/90 mb-1 font-semibold">
-                          {language === 'vi' ? 'Mật khẩu mới' : 'New password'}
+                          {language === 'vi' ? 'Mật khẩu mới (6-15 ký tự)' : 'New password (6-15 chars)'}
                         </label>
                         <input
                           type="password"
                           required
+                          maxLength={15}
                           value={forgotBioNewPassword}
                           onChange={(e) => setForgotBioNewPassword(e.target.value)}
                           className="w-full px-3 py-2 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-white placeholder:text-[#C5E5EC]/40 focus:border-[#C5E5EC] focus:outline-none"
-                          placeholder={language === 'vi' ? 'Mật khẩu mới tối thiểu 6 ký tự' : 'Minimum 6 characters'}
+                          placeholder={language === 'vi' ? 'Mật khẩu 6 - 15 ký tự' : '6 - 15 characters'}
                         />
                       </div>
 
@@ -1494,16 +1813,17 @@ export const AuthScreen: React.FC = () => {
 
                   <div>
                     <label className="block text-[#C5E5EC]/90 mb-1 font-semibold">
-                      {language === 'vi' ? 'Mật khẩu mới' : 'New password'}
+                      {language === 'vi' ? 'Mật khẩu mới (6-15 ký tự)' : 'New password (6-15 chars)'}
                     </label>
                     <div className="relative">
                       <input
                         type={showNewPassword ? 'text' : 'password'}
                         required
+                        maxLength={15}
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
                         className="w-full px-3 pr-10 py-2 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-white placeholder:text-[#C5E5EC]/40 focus:border-[#C5E5EC] focus:bg-[#152844] focus:outline-none"
-                        placeholder={language === 'vi' ? 'Mật khẩu tối thiểu 6 ký tự' : 'Minimum 6 characters'}
+                        placeholder={language === 'vi' ? 'Mật khẩu 6 - 15 ký tự' : '6 - 15 characters'}
                       />
                       <button
                         type="button"
@@ -1572,15 +1892,16 @@ export const AuthScreen: React.FC = () => {
 
                   <div>
                     <label className="block text-[#C5E5EC]/90 mb-1 font-semibold">
-                      {language === 'vi' ? 'Mật khẩu mới' : 'New password'}
+                      {language === 'vi' ? 'Mật khẩu mới (6-15 ký tự)' : 'New password (6-15 chars)'}
                     </label>
                     <input
                       type="password"
                       required
+                      maxLength={15}
                       value={forgotPinNewPassword}
                       onChange={(e) => setForgotPinNewPassword(e.target.value)}
                       className="w-full px-3 py-2 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-white placeholder:text-[#C5E5EC]/40 focus:border-[#C5E5EC] focus:outline-none"
-                      placeholder={language === 'vi' ? 'Mật khẩu tối thiểu 6 ký tự' : 'Minimum 6 characters'}
+                      placeholder={language === 'vi' ? 'Mật khẩu 6 - 15 ký tự' : '6 - 15 characters'}
                     />
                   </div>
 
@@ -1598,6 +1919,15 @@ export const AuthScreen: React.FC = () => {
             </div>
           )}
         </div>
+
+        {/* Modal Chọn Ngày Sinh (Date Picker Popup) */}
+        <BirthDatePickerModal
+          isOpen={showDatePicker}
+          onClose={() => setShowDatePicker(false)}
+          selectedDate={regBirthDate}
+          onSelectDate={(newDate) => setRegBirthDate(newDate)}
+          language={language}
+        />
 
         {/* Copyright Notice */}
         <div className="mt-8 text-center text-xs text-[#C5E5EC]/70 space-y-1">

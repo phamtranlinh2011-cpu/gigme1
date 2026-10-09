@@ -223,6 +223,20 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
       return;
     }
 
+    if (editPhone.trim()) {
+      const p = editPhone.trim();
+      if (p.length > 10 || !/^0\d{9}$/.test(p)) {
+        triggerHaptic('error');
+        showNotification(
+          language === 'vi' ? 'Lỗi số điện thoại' : 'Phone error',
+          language === 'vi'
+            ? 'Số điện thoại phải gồm đúng 10 chữ số (bắt đầu bằng số 0, VD: 0909123456)!'
+            : 'Phone number must be exactly 10 digits starting with 0!'
+        );
+        return;
+      }
+    }
+
     triggerHaptic('success');
     const campusBadge = editSchool.trim()
       ? `${editSchool.trim()}${editFaculty.trim() ? ` • ${editFaculty.trim()}` : ''}`
@@ -1426,10 +1440,11 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                 </label>
                 <input
                   type="tel"
+                  maxLength={10}
                   value={editPhone}
-                  onChange={(e) => setEditPhone(e.target.value)}
+                  onChange={(e) => setEditPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-[#12233B] border border-[#C5E5EC]/30 text-white font-mono text-xs focus:outline-none focus:border-cyan-400"
-                  placeholder={language === 'vi' ? 'Ví dụ: 0909120918' : 'e.g. 0909120918'}
+                  placeholder={language === 'vi' ? 'Ví dụ: 0909120918 (10 số)' : 'e.g. 0909120918 (10 digits)'}
                 />
 
                 {/* Phone Privacy Radio Selector */}

@@ -21,7 +21,12 @@ import {
   subscribeToSentFriendRequests,
   addFriendPairInCloud,
   sendCloudNotification,
-  addCallIceCandidate
+  addCallIceCandidate,
+  sendFirebaseVerificationEmail,
+  reloadFirebaseUser,
+  applyFirebaseActionCode,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword
 } from '../lib/firebase';
 import {
   UserEntity,
@@ -66,6 +71,7 @@ import { triggerHaptic } from '../utils/haptics';
 import { offlineSyncManager } from '../utils/offlineSync';
 import { executeInstantDisbursement } from '../services/napasDisbursementService';
 import { Language, Translations, translations } from '../utils/i18n';
+import { validateVietnamCccdNumber } from '../utils/checksumC06';
 export { LanguageProvider, useLanguage, useTranslation } from './LanguageContext';
 
 const STORAGE_KEYS = {
@@ -136,6 +142,8 @@ const DEFAULT_ADMIN: UserEntity = {
   securityPin: '123456',
   badges: 'Quản Trị Viên Tối Cao',
   isLocked: false,
+  isEmailVerified: true,
+  emailVerifiedAt: 1700000000000,
   createdAt: 1700000000000,
 };
 
@@ -199,6 +207,8 @@ export const DEFAULT_MODS: UserEntity[] = [
     securityPin: '111111',
     badges: 'Kiểm Duyệt Viên • Mod 1',
     isLocked: false,
+    isEmailVerified: true,
+    emailVerifiedAt: 1700000000001,
     createdAt: 1700000000001,
   },
   {
@@ -260,6 +270,8 @@ export const DEFAULT_MODS: UserEntity[] = [
     securityPin: '222222',
     badges: 'Kiểm Duyệt Viên • Mod 2',
     isLocked: false,
+    isEmailVerified: true,
+    emailVerifiedAt: 1700000000002,
     createdAt: 1700000000002,
   },
   {
@@ -321,6 +333,8 @@ export const DEFAULT_MODS: UserEntity[] = [
     securityPin: '333333',
     badges: 'Kiểm Duyệt Viên • Mod 3',
     isLocked: false,
+    isEmailVerified: true,
+    emailVerifiedAt: 1700000000003,
     createdAt: 1700000000003,
   },
 ];
@@ -463,6 +477,12 @@ interface GigMeContextType {
   loginWithMoSms: (phone: string) => Promise<boolean>;
   loginSocial: (provider: string, emailOrName?: string) => Promise<void> | void;
   logout: () => void;
+
+  // Real-Time Email Verification Flow (Firebase Authentication Template)
+  sendEmailVerificationLink: (targetEmail?: string) => Promise<{ success: boolean; error?: string; verificationLink?: string }>;
+  checkEmailVerificationStatus: () => Promise<{ isVerified: boolean; error?: string }>;
+  markUserEmailVerified: (userId?: string) => Promise<void>;
+  updateUserEmailAddress: (newEmail: string) => Promise<{ success: boolean; error?: string }>;
 
   // Friends & ID 9 digits & Mutual Friend Requests
   friendRequests: FriendRequestEntity[];
@@ -835,6 +855,41 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     window.addEventListener('gigme_language_changed' as any, handleLangEvent);
     return () => window.removeEventListener('gigme_language_changed' as any, handleLangEvent);
   }, [language]);
+
+  // 📧 Real-time Firebase Email Verification Link Listener (URL Action Codes)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const urlParams = new URLSearchParams(window.location.search);
+    const mode = urlParams.get('mode');
+    const oobCode = urlParams.get('oobCode');
+    const isVerifiedQuery = urlParams.get('verified') === 'true';
+
+    if (mode === 'verifyEmail' && oobCode) {
+      applyFirebaseActionCode(oobCode)
+        .then(() => {
+          if (currentUserId) {
+            markUserEmailVerified(currentUserId);
+          }
+          showNotification('Xác thực thành công! 🎉', 'Email của bạn đã được xác nhận qua Firebase Authentication.', true, true);
+        })
+        .catch((err) => {
+          console.warn('Firebase apply action code notice:', err);
+        });
+
+      fetch(`/api/auth/verify-email-link?token=${encodeURIComponent(oobCode)}`)
+        .then(() => {
+          if (currentUserId) {
+            markUserEmailVerified(currentUserId);
+          }
+        })
+        .catch(() => {});
+
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (isVerifiedQuery && currentUserId) {
+      markUserEmailVerified(currentUserId);
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, [currentUserId]);
 
   const t = (key: keyof Translations): string => {
     const dict = translations[language] || translations.vi;
@@ -1911,13 +1966,48 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       showNotification('Lỗi đăng ký', 'Địa chỉ Gmail không đúng định dạng!');
       return { success: false, error: 'Địa chỉ Gmail không đúng định dạng!' };
     }
+    if (!cleanBirthDate || cleanBirthDate === '01/01/2000' && !birthDate) {
+      showNotification('Lỗi đăng ký', 'Vui lòng chọn ngày sinh của bạn!');
+      return { success: false, error: 'Vui lòng chọn ngày sinh của bạn!' };
+    }
     if (trimmedPass.length < 6) {
       showNotification('Lỗi đăng ký', 'Mật khẩu phải có tối thiểu 6 ký tự!');
       return { success: false, error: 'Mật khẩu phải có tối thiểu 6 ký tự!' };
     }
+    if (trimmedPass.length > 15) {
+      showNotification('Lỗi đăng ký', 'Mật khẩu chỉ được tối đa 15 ký tự!');
+      return { success: false, error: 'Mật khẩu chỉ được tối đa 15 ký tự!' };
+    }
     if (trimmedPass !== trimmedConfirm) {
       showNotification('Lỗi đăng ký', 'Mật khẩu xác nhận không khớp! Vui lòng kiểm tra lại.');
       return { success: false, error: 'Mật khẩu xác nhận không khớp! Vui lòng kiểm tra lại.' };
+    }
+
+    // Phone validation: max 10 digits, must start with 0 if provided
+    if (trimmedPhone) {
+      if (trimmedPhone.length > 10 || !/^0\d{9}$/.test(trimmedPhone)) {
+        const msg = 'Số điện thoại phải gồm đúng 10 chữ số (bắt đầu bằng 0, ví dụ 0909123456)!';
+        showNotification('Lỗi đăng ký', msg);
+        return { success: false, error: msg };
+      }
+    }
+
+    // CCCD validation: max 12 digits, must be a real C06-standard CCCD if provided
+    if (trimmedCccd) {
+      if (trimmedCccd.length > 12) {
+        const msg = 'Số CCCD chỉ được tối đa 12 chữ số!';
+        showNotification('Lỗi đăng ký', msg);
+        return { success: false, error: msg };
+      }
+      const cccdCheck = validateVietnamCccdNumber(trimmedCccd, {
+        expectedBirthDate: cleanBirthDate,
+        expectedGender: gender,
+      });
+      if (!cccdCheck.isValid) {
+        const msg = cccdCheck.error || 'Số CCCD không hợp lệ hoặc không có thật trên hệ thống!';
+        showNotification('Lỗi xác thực CCCD', msg);
+        return { success: false, error: msg };
+      }
     }
 
     // Check IP status limit: if >= 3 accounts created on this IP, require Phone or CCCD
@@ -2027,8 +2117,45 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       securityPin: '',
       badges: 'Thành viên mới',
       isLocked: false,
+      isEmailVerified: false,
       createdAt: Date.now(),
     };
+
+    // Firebase Authentication Integration & Email Verification Template Dispatch
+    let fbUid = '';
+    try {
+      const fbCred = await createUserWithEmailAndPassword(auth, trimmedEmail, trimmedPass);
+      fbUid = fbCred.user.uid;
+      newUser.firebaseUid = fbUid;
+      await sendFirebaseVerificationEmail(fbCred.user);
+    } catch (fbErr: any) {
+      if (fbErr?.code === 'auth/email-already-in-use') {
+        try {
+          const signInRes = await signInWithEmailAndPassword(auth, trimmedEmail, trimmedPass);
+          fbUid = signInRes.user.uid;
+          newUser.firebaseUid = fbUid;
+          if (!signInRes.user.emailVerified) {
+            await sendFirebaseVerificationEmail(signInRes.user);
+          } else {
+            newUser.isEmailVerified = true;
+            newUser.emailVerifiedAt = Date.now();
+          }
+        } catch {}
+      }
+    }
+
+    // Also dispatch email verification via backend service with Firebase Auth template
+    try {
+      await fetch('/api/auth/send-verification-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: trimmedEmail,
+          userId: newUserId,
+          userName: trimmedName,
+        }),
+      });
+    } catch {}
 
     // Cloud registration & sync first to ensure server constraints pass
     const cloudRes = await cloudService.registerUser(newUser);
@@ -2049,8 +2176,8 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } catch {}
 
     showNotification(
-      'Đăng ký tài khoản thành công! 🎉',
-      `Chào mừng ${trimmedName} gia nhập GigMe. Bạn đã được đăng nhập tự động!`,
+      'Đăng ký tài khoản thành công! 📨',
+      `Chào mừng ${trimmedName}! Vui lòng xác nhận liên kết trong email gửi tới ${trimmedEmail} để kích hoạt quyền truy cập toàn bộ nền tảng.`,
       true,
       true
     );
@@ -2227,6 +2354,21 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setCurrentUserId(user.id);
       showNotification('Chào mừng Kiểm Duyệt Viên!', `Đã đăng nhập tài khoản Mod: ${user.name} (ID: ${user.id}).`, true);
       return true;
+    }
+
+    // Check Firebase Auth email verification state if unverified
+    if (user.email && !user.isEmailVerified) {
+      try {
+        const fbRes = await signInWithEmailAndPassword(auth, user.email, trimmedPass);
+        if (fbRes.user.emailVerified) {
+          user.isEmailVerified = true;
+          user.emailVerifiedAt = Date.now();
+          setUsers((prev) => prev.map((u) => (u.id === user.id ? { ...u, isEmailVerified: true, emailVerifiedAt: Date.now() } : u)));
+          try {
+            cloudService.updateUser(user.id, { isEmailVerified: true, emailVerifiedAt: Date.now() });
+          } catch {}
+        }
+      } catch {}
     }
 
     setCurrentUserId(user.id);
@@ -2644,13 +2786,26 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const loginWithMoSms = async (phone: string): Promise<boolean> => {
-    const trimmedPhone = (phone || '').trim();
+    let cleanPhone = (phone || '').toString().replace(/\D/g, '').trim();
+    if (cleanPhone.startsWith('84') && cleanPhone.length >= 11) {
+      cleanPhone = '0' + cleanPhone.slice(2);
+    }
+    if (!cleanPhone.startsWith('0') && cleanPhone.length === 9) {
+      cleanPhone = '0' + cleanPhone;
+    }
+    const trimmedPhone = cleanPhone.slice(0, 10);
+
     if (!trimmedPhone) {
       showNotification('Lỗi xác thực', 'Không tìm thấy số điện thoại của tin nhắn MO!');
       return false;
     }
 
-    let user = users.find((u) => u.phone === trimmedPhone);
+    let user = users.find((u) => {
+      if (!u.phone) return false;
+      let up = u.phone.replace(/\D/g, '');
+      if (up.startsWith('84') && up.length >= 11) up = '0' + up.slice(2);
+      return up === trimmedPhone;
+    });
     if (!user) {
       const newUserId = generateUniqueUserId(users);
       user = {
@@ -2879,6 +3034,139 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setGeneratedOtp(null);
     setOtpTargetContact(null);
     showNotification('Đã đăng xuất', 'Bạn đã đăng xuất tài khoản an toàn.', true);
+  };
+
+  // ==========================================
+  // REAL-TIME EMAIL VERIFICATION METHODS (FIREBASE AUTHENTICATION TEMPLATE)
+  // ==========================================
+  const sendEmailVerificationLink = async (targetEmail?: string): Promise<{ success: boolean; error?: string; verificationLink?: string }> => {
+    const emailToSend = (targetEmail || currentUser?.email || '').trim().toLowerCase();
+    if (!emailToSend) {
+      return { success: false, error: 'Không tìm thấy địa chỉ email cần xác thực!' };
+    }
+
+    let fbSuccess = false;
+    try {
+      const fbRes = await sendFirebaseVerificationEmail(auth.currentUser);
+      if (fbRes.success) fbSuccess = true;
+    } catch (e) {
+      console.warn('Firebase sendEmailVerification notice:', e);
+    }
+
+    try {
+      const res = await fetch('/api/auth/send-verification-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: emailToSend,
+          userId: currentUser?.id,
+          userName: currentUser?.name || emailToSend.split('@')[0],
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        return { success: true, verificationLink: data.verificationLink };
+      }
+      return { success: fbSuccess, error: data.error };
+    } catch (err: any) {
+      return { success: fbSuccess, error: err?.message };
+    }
+  };
+
+  const checkEmailVerificationStatus = async (): Promise<{ isVerified: boolean; error?: string }> => {
+    if (!currentUser) return { isVerified: false };
+
+    // 1. Check Firebase Auth user reload
+    try {
+      const fbCheck = await reloadFirebaseUser();
+      if (fbCheck.isVerified) {
+        await markUserEmailVerified(currentUser.id);
+        return { isVerified: true };
+      }
+    } catch (e) {
+      console.warn('Firebase reload check notice:', e);
+    }
+
+    // 2. Check server verification status endpoint
+    try {
+      const res = await fetch(`/api/auth/email-verification-status/${encodeURIComponent(currentUser.id)}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.isVerified) {
+          await markUserEmailVerified(currentUser.id);
+          return { isVerified: true };
+        }
+      }
+    } catch (e) {
+      // quiet poll
+    }
+
+    // 3. Check Firestore users collection directly
+    try {
+      const cloudUser = await cloudService.getUser(currentUser.id);
+      if (cloudUser && cloudUser.isEmailVerified) {
+        await markUserEmailVerified(currentUser.id);
+        return { isVerified: true };
+      }
+    } catch (e) {}
+
+    return { isVerified: false };
+  };
+
+  const markUserEmailVerified = async (userId?: string): Promise<void> => {
+    const targetId = userId || currentUser?.id;
+    if (!targetId) return;
+
+    const now = Date.now();
+    setUsers((prev) =>
+      prev.map((u) => (u.id === targetId ? { ...u, isEmailVerified: true, emailVerifiedAt: now } : u))
+    );
+
+    // Save to storage
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.USERS);
+      if (saved) {
+        const parsed: UserEntity[] = JSON.parse(saved);
+        const updated = parsed.map((u) => (u.id === targetId ? { ...u, isEmailVerified: true, emailVerifiedAt: now } : u));
+        localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(updated));
+      }
+    } catch {}
+
+    // Cloud sync to Firestore
+    try {
+      await cloudService.updateUser(targetId, {
+        isEmailVerified: true,
+        emailVerifiedAt: now,
+      });
+    } catch {}
+  };
+
+  const updateUserEmailAddress = async (newEmail: string): Promise<{ success: boolean; error?: string }> => {
+    const cleanEmail = (newEmail || '').trim().toLowerCase();
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      return { success: false, error: 'Địa chỉ email không đúng định dạng!' };
+    }
+    if (!currentUser) return { success: false, error: 'Chưa đăng nhập!' };
+
+    // Check duplicate
+    const exists = users.some((u) => u.id !== currentUser.id && u.email?.toLowerCase() === cleanEmail);
+    if (exists) {
+      return { success: false, error: 'Địa chỉ email này đã được sử dụng bởi tài khoản khác!' };
+    }
+
+    setUsers((prev) =>
+      prev.map((u) => (u.id === currentUser.id ? { ...u, email: cleanEmail, isEmailVerified: false } : u))
+    );
+
+    try {
+      await cloudService.updateUser(currentUser.id, {
+        email: cleanEmail,
+        isEmailVerified: false,
+      });
+    } catch {}
+
+    await sendEmailVerificationLink(cleanEmail);
+    return { success: true };
   };
 
   // Quản lý bạn bè & Tìm tài khoản theo ID 9 chữ số (000000000 - 999999999)
@@ -6739,6 +7027,10 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         loginWithMoSms,
         loginSocial,
         logout,
+        sendEmailVerificationLink,
+        checkEmailVerificationStatus,
+        markUserEmailVerified,
+        updateUserEmailAddress,
         friendRequests,
         pendingReceivedRequests,
         pendingSentRequests,

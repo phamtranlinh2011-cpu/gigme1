@@ -178,6 +178,9 @@ export interface UserEntity {
   onlineSeconds?: number; // Thời gian online tích lũy (giây)
   isForceWithdrawOnly?: boolean; // Bị khóa tính năng, ép rút tiền do vượt trần 200 triệu
   isKycVerified?: boolean;
+  isEmailVerified?: boolean; // Xác thực liên kết Email Firebase Auth trước khi truy cập nền tảng
+  emailVerifiedAt?: number; // Thời điểm xác thực email hoàn tất (timestamp ms)
+  firebaseUid?: string; // Firebase Authentication UID liên kết
   friendIds?: string[]; // Danh sách ID bạn bè kết nối qua ID 9 số
   eloRating?: number; // Thang ELO sinh viên (khởi đầu 200 -> 2500+)
   eloTier?: 'BRONZE' | 'SILVER' | 'GOLD' | 'PLATINUM' | 'DIAMOND' | 'CHALLENGER';
@@ -595,6 +598,7 @@ export interface MoSmsSession {
   feeText: string; // chi phí ví dụ: "1.000đ/tin"
   deeplink: string; // sms:8077?&body=XACTHUC%20849201
   expiresAt: number;
+  remainingSeconds?: number;
   isVerified: boolean;
   senderPhone?: string;
   verifiedAt?: number;

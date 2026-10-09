@@ -6,6 +6,7 @@ import { BottomNav, TabScreen } from './components/BottomNav';
 import { HomeScreen } from './screens/HomeScreen';
 import { AuthScreen } from './screens/AuthScreen';
 import { AccountLockedScreen } from './screens/AccountLockedScreen';
+import { EmailVerificationScreen } from './screens/EmailVerificationScreen';
 import { SystemMaintenanceOverlay } from './components/SystemMaintenanceOverlay';
 import { Wrench, Loader2 } from 'lucide-react';
 
@@ -178,6 +179,19 @@ const MainLayout: React.FC = () => {
   // If user account is locked or banned by admin, lock screen immediately!
   if (currentUser.isLocked) {
     return <AccountLockedScreen />;
+  }
+
+  // 📧 REAL-TIME EMAIL VERIFICATION GATE:
+  // Users must confirm their link before accessing the full platform!
+  if (
+    !currentUser.isEmailVerified &&
+    currentUser.role !== 'ADMIN' &&
+    currentUser.id !== '000000000' &&
+    currentUser.id !== '000000001' &&
+    currentUser.id !== '000000002' &&
+    currentUser.id !== '000000003'
+  ) {
+    return <EmailVerificationScreen />;
   }
 
   const handleSelectTab = (tab: TabScreen) => {

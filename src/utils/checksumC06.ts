@@ -30,20 +30,98 @@ export function verifyIcaoCheckDigit(data: string, checkDigitStr: string): boole
   return expected === actual;
 }
 
+export const VIETNAM_PROVINCES: Record<string, string> = {
+  '001': 'Hà Nội',
+  '002': 'Hà Giang',
+  '004': 'Cao Bằng',
+  '006': 'Bắc Kạn',
+  '008': 'Tuyên Quang',
+  '010': 'Lào Cai',
+  '011': 'Điện Biên',
+  '012': 'Lai Châu',
+  '014': 'Sơn La',
+  '015': 'Yên Bái',
+  '017': 'Hoà Bình',
+  '019': 'Thái Nguyên',
+  '020': 'Lạng Sơn',
+  '022': 'Quảng Ninh',
+  '024': 'Bắc Giang',
+  '025': 'Phú Thọ',
+  '026': 'Vĩnh Phúc',
+  '027': 'Bắc Ninh',
+  '030': 'Hải Dương',
+  '031': 'Hải Phòng',
+  '033': 'Hưng Yên',
+  '034': 'Thái Bình',
+  '035': 'Hà Nam',
+  '036': 'Nam Định',
+  '037': 'Ninh Bình',
+  '038': 'Thanh Hóa',
+  '040': 'Nghệ An',
+  '042': 'Hà Tĩnh',
+  '044': 'Quảng Bình',
+  '045': 'Quảng Trị',
+  '046': 'Thừa Thiên Huế',
+  '048': 'Đà Nẵng',
+  '049': 'Quảng Nam',
+  '051': 'Quảng Ngãi',
+  '052': 'Bình Định',
+  '054': 'Phú Yên',
+  '056': 'Khánh Hòa',
+  '058': 'Ninh Thuận',
+  '060': 'Bình Thuận',
+  '062': 'Kon Tum',
+  '064': 'Gia Lai',
+  '066': 'Đắk Lắk',
+  '067': 'Đắk Nông',
+  '068': 'Lâm Đồng',
+  '070': 'Bình Phước',
+  '072': 'Tây Ninh',
+  '074': 'Bình Dương',
+  '075': 'Đồng Nai',
+  '077': 'Bà Rịa - Vũng Tàu',
+  '079': 'TP. Hồ Chí Minh',
+  '080': 'Long An',
+  '082': 'Tiền Giang',
+  '083': 'Bến Tre',
+  '084': 'Trà Vinh',
+  '086': 'Vĩnh Long',
+  '087': 'Đồng Tháp',
+  '089': 'An Giang',
+  '091': 'Kiên Giang',
+  '092': 'Cần Thơ',
+  '093': 'Hậu Giang',
+  '094': 'Sóc Trăng',
+  '095': 'Bạc Liêu',
+  '096': 'Cà Mau',
+};
+
 // Kiểm tra tính hợp lệ số thẻ CCCD 12 số theo quy định C06 Bộ Công An:
-// 3 số đầu: Mã tỉnh/thành phố (001 - 096)
-// 1 số thứ 4: Thế kỷ sinh & Giới tính (0: Nam TK 20, 1: Nữ TK 20, 2: Nam TK 21, 3: Nữ TK 21...)
+// 3 số đầu: Mã tỉnh/thành phố khai sinh (001 - 096)
+// 1 số thứ 4: Thế kỷ sinh & Giới tính:
+//   TK 20 (1900-1999): Nam 0, Nữ 1
+//   TK 21 (2000-2099): Nam 2, Nữ 3
+//   TK 22 (2100-2199): Nam 4, Nữ 5
+//   TK 23 (2200-2299): Nam 6, Nữ 7
+//   TK 24 (2300-2399): Nam 8, Nữ 9
 // 2 số thứ 5-6: 2 số cuối năm sinh
-// 6 số cuối: Dãy số ngẫu nhiên
-export function validateVietnamCccdNumber(cccd: string): {
+// 6 số cuối: Dãy số ngẫu nhiên cá nhân (000001 - 999999)
+export function validateVietnamCccdNumber(
+  cccd: string,
+  options?: {
+    expectedBirthDate?: string; // DD/MM/YYYY hoặc YYYY
+    expectedGender?: string; // 'Nam' | 'Nữ'
+  }
+): {
   isValid: boolean;
   provinceCode?: string;
   provinceName?: string;
   gender?: 'Nam' | 'Nữ';
   birthCenturyYear?: string;
+  randomCode?: string;
   error?: string;
 } {
-  const clean = cccd.replace(/\D/g, '');
+  const clean = (cccd || '').replace(/\D/g, '');
   if (clean.length !== 12) {
     return { isValid: false, error: 'Số CCCD phải bao gồm đúng 12 chữ số' };
   }
@@ -51,29 +129,32 @@ export function validateVietnamCccdNumber(cccd: string): {
   const provCode = clean.substring(0, 3);
   const genderCenturyCode = parseInt(clean[3], 10);
   const birth2Digits = clean.substring(4, 6);
+  const randomSuffix = clean.substring(6, 12);
 
-  const PROVINCE_MAP: Record<string, string> = {
-    '001': 'Hà Nội',
-    '079': 'TP. Hồ Chí Minh',
-    '048': 'Đà Nẵng',
-    '031': 'Hải Phòng',
-    '092': 'Cần Thơ',
-    '075': 'Đồng Nai',
-    '074': 'Bình Dương',
-    '040': 'Nghệ An',
-    '038': 'Thanh Hóa',
-    '042': 'Hà Tĩnh',
-    '049': 'Quảng Nam',
-    '056': 'Khánh Hòa',
-    '068': 'Lâm Đồng',
-    '080': 'Long An',
-    '082': 'Tiền Giang',
-    '086': 'Vĩnh Long',
-    '089': 'An Giang',
-    '096': 'Cà Mau',
-  };
+  // 1. Kiểm tra mã tỉnh theo danh mục 63 tỉnh thành Việt Nam
+  const provinceName = VIETNAM_PROVINCES[provCode];
+  if (!provinceName) {
+    return {
+      isValid: false,
+      error: `Mã tỉnh/thành [${provCode}] không tồn tại trong danh mục 63 tỉnh thành Việt Nam`,
+    };
+  }
 
-  const provinceName = PROVINCE_MAP[provCode] || `Tỉnh/TP Mã ${provCode}`;
+  // 2. Kiểm tra mã giới tính & thế kỷ (0 - 9)
+  if (isNaN(genderCenturyCode) || genderCenturyCode < 0 || genderCenturyCode > 9) {
+    return {
+      isValid: false,
+      error: 'Chữ số thứ 4 của CCCD không hợp lệ (mã thế kỷ & giới tính)',
+    };
+  }
+
+  // 3. Kiểm tra 6 số cuối không thể toàn số 0
+  if (randomSuffix === '000000') {
+    return {
+      isValid: false,
+      error: '6 số cuối của CCCD không thể là 000000',
+    };
+  }
 
   let gender: 'Nam' | 'Nữ' = 'Nam';
   let century = '19';
@@ -83,13 +164,56 @@ export function validateVietnamCccdNumber(cccd: string): {
   else if (genderCenturyCode === 3) { gender = 'Nữ'; century = '20'; }
   else if (genderCenturyCode === 4) { gender = 'Nam'; century = '21'; }
   else if (genderCenturyCode === 5) { gender = 'Nữ'; century = '21'; }
+  else if (genderCenturyCode === 6) { gender = 'Nam'; century = '22'; }
+  else if (genderCenturyCode === 7) { gender = 'Nữ'; century = '22'; }
+  else if (genderCenturyCode === 8) { gender = 'Nam'; century = '23'; }
+  else if (genderCenturyCode === 9) { gender = 'Nữ'; century = '23'; }
+
+  const fullBirthYear = `${century}${birth2Digits}`;
+
+  // 4. Đối chiếu chéo (Cross-check) với thông tin Ngày sinh nếu người dùng đã nhập
+  if (options?.expectedBirthDate) {
+    const rawBirth = options.expectedBirthDate.trim();
+    // Trích xuất năm: nếu dạng DD/MM/YYYY thì lấy 4 số cuối
+    const yearMatch = rawBirth.match(/(\d{4})$/);
+    if (yearMatch) {
+      const expYear = yearMatch[1];
+      if (expYear !== fullBirthYear) {
+        return {
+          isValid: false,
+          provinceCode: provCode,
+          provinceName,
+          gender,
+          birthCenturyYear: fullBirthYear,
+          randomCode: randomSuffix,
+          error: `CCCD ghi năm sinh ${fullBirthYear}, không khớp với năm sinh bạn đã chọn (${expYear})`,
+        };
+      }
+    }
+  }
+
+  // 5. Đối chiếu chéo (Cross-check) với Giới tính nếu người dùng đã chọn
+  if (options?.expectedGender && (options.expectedGender === 'Nam' || options.expectedGender === 'Nữ')) {
+    if (gender !== options.expectedGender) {
+      return {
+        isValid: false,
+        provinceCode: provCode,
+        provinceName,
+        gender,
+        birthCenturyYear: fullBirthYear,
+        randomCode: randomSuffix,
+        error: `CCCD định danh giới tính ${gender}, không khớp với giới tính bạn đã chọn (${options.expectedGender})`,
+      };
+    }
+  }
 
   return {
     isValid: true,
     provinceCode: provCode,
     provinceName,
     gender,
-    birthCenturyYear: `${century}${birth2Digits}`,
+    birthCenturyYear: fullBirthYear,
+    randomCode: randomSuffix,
   };
 }
 

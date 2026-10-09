@@ -16,6 +16,7 @@ import {
   fetchGigsFromCloud,
   subscribeToGigs,
   syncUserToCloud,
+  getUserFromCloud,
   deleteUserFromCloud,
   subscribeToUsers,
   syncMessageToCloud,
@@ -465,6 +466,17 @@ export const cloudService = {
       } catch {
         // Safe ignore
       }
+    }
+  },
+
+  async getUser(userId: string): Promise<UserEntity | null> {
+    return getUserFromCloud(userId);
+  },
+
+  async updateUser(userId: string, updates: Partial<UserEntity>): Promise<void> {
+    const existing = await getUserFromCloud(userId);
+    if (existing) {
+      await syncUserToCloud({ ...existing, ...updates });
     }
   },
 
@@ -1163,6 +1175,7 @@ export const cloudService = {
         feeText: '1.000đ/tin',
         deeplink: `sms:${shortcode}?&body=${encodeURIComponent(syntax)}`,
         expiresAt: Date.now() + 5 * 60 * 1000,
+        remainingSeconds: 300,
         isVerified: false,
       };
       return { success: true, session };

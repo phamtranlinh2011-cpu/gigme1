@@ -1,5 +1,13 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { 
+  getAuth,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  sendEmailVerification,
+  applyActionCode,
+  onAuthStateChanged,
+  User as FirebaseUser
+} from 'firebase/auth';
 import { 
   initializeFirestore,
   doc, 
@@ -46,6 +54,60 @@ export const db = initializeFirestore(
   firebaseConfig.firestoreDatabaseId
 );
 export const auth = getAuth(app);
+
+// ==================== FIREBASE AUTH EMAIL VERIFICATION ====================
+export async function sendFirebaseVerificationEmail(user?: FirebaseUser | null): Promise<{ success: boolean; error?: string }> {
+  try {
+    const targetUser = user || auth.currentUser;
+    if (!targetUser) {
+      return { success: false, error: 'Chưa đăng nhập Firebase Auth!' };
+    }
+    const actionCodeSettings = {
+      url: typeof window !== 'undefined' ? `${window.location.origin}/?verified=true` : 'https://gigme.vn/?verified=true',
+      handleCodeInApp: true,
+    };
+    await sendEmailVerification(targetUser, actionCodeSettings);
+    return { success: true };
+  } catch (err: any) {
+    console.warn('Firebase sendEmailVerification notice:', err?.code, err?.message);
+    return { success: false, error: err?.message || 'Không thể gửi email xác thực Firebase' };
+  }
+}
+
+export async function reloadFirebaseUser(): Promise<{ isVerified: boolean; user: FirebaseUser | null; error?: string }> {
+  try {
+    if (!auth.currentUser) {
+      return { isVerified: false, user: null };
+    }
+    await auth.currentUser.reload();
+    return { isVerified: !!auth.currentUser.emailVerified, user: auth.currentUser };
+  } catch (err: any) {
+    console.warn('Firebase reload notice:', err?.message);
+    return { isVerified: false, user: auth.currentUser, error: err?.message };
+  }
+}
+
+export async function applyFirebaseActionCode(actionCode: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    await applyActionCode(auth, actionCode);
+    if (auth.currentUser) {
+      await auth.currentUser.reload();
+    }
+    return { success: true };
+  } catch (err: any) {
+    console.warn('Firebase applyActionCode notice:', err?.message);
+    return { success: false, error: err?.message || 'Mã xác thực không hợp lệ hoặc đã hết hạn' };
+  }
+}
+
+export {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  sendEmailVerification,
+  applyActionCode,
+  onAuthStateChanged,
+  type FirebaseUser
+};
 
 export enum OperationType {
   CREATE = 'create',
