@@ -24,6 +24,9 @@ import {
   ChevronUp,
   Check,
   Loader2,
+  Search,
+  Building2,
+  GraduationCap,
 } from 'lucide-react';
 import { GigEntity, formatVnd } from '../types';
 import {
@@ -37,6 +40,7 @@ import {
   DEFAULT_USER_LOCATION,
 } from '../utils/geo';
 import { inspectGpsIntegrity, GpsIntegrityReport } from '../utils/mockGpsDetector';
+import { triggerHaptic } from '../utils/haptics';
 import { useGigMe } from '../context/GigMeContext';
 
 interface InteractiveRadarProps {
@@ -95,7 +99,7 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
   userCoords: propUserCoords,
   onUserCoordsChange,
 }) => {
-  const { language } = useGigMe();
+  const { language, showNotification } = useGigMe();
 
   // Current user GPS coordinates
   const [currentUserCoords, setCurrentUserCoords] = useState<GeoLocation>(
@@ -107,7 +111,9 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
-  const [showHubDropdown, setShowHubDropdown] = useState(false);
+  const [showHubModal, setShowHubModal] = useState(false);
+  const [hubSearchTerm, setHubSearchTerm] = useState('');
+  const [selectedCityTab, setSelectedCityTab] = useState<'ALL' | 'TPHCM' | 'HANOI' | 'OTHER'>('ALL');
   const [showLayerDropdown, setShowLayerDropdown] = useState(false);
 
   // GPS state
@@ -125,6 +131,7 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
   const workerMarkerRef = useRef<L.Marker | null>(null);
   const userMarkerRef = useRef<L.Marker | null>(null);
   const radiusCircleRef = useRef<L.Circle | null>(null);
+  const layerDropdownRef = useRef<HTMLDivElement | null>(null);
 
   // Live Tracking & OSRM Routing states
   const [isLiveTracking, setIsLiveTracking] = useState<boolean>(true);
@@ -184,11 +191,39 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
   const currentHubEntry = useMemo(() => {
     const found = Object.entries(VIETNAM_HUBS).find(
       ([, hub]) =>
-        Math.abs(hub.latitude - currentUserCoords.latitude) < 0.001 &&
-        Math.abs(hub.longitude - currentUserCoords.longitude) < 0.001
+        (currentUserCoords.label && currentUserCoords.label === hub.label) ||
+        (Math.abs(hub.latitude - currentUserCoords.latitude) < 0.005 &&
+          Math.abs(hub.longitude - currentUserCoords.longitude) < 0.005)
     );
     return found ? { key: found[0], hub: found[1] } : null;
   }, [currentUserCoords]);
+
+  // Filtered hub entries for the Campus Hub Modal
+  const filteredHubEntries = useMemo(() => {
+    const term = hubSearchTerm.trim().toLowerCase();
+    return Object.entries(VIETNAM_HUBS).filter(([key, hub]) => {
+      const label = (hub.label || '').toLowerCase();
+      const matchesSearch = !term || label.includes(term) || key.toLowerCase().includes(term);
+      if (!matchesSearch) return false;
+
+      if (selectedCityTab === 'TPHCM') {
+        return (
+          key.includes('TPHCM') ||
+          key.includes('Q7') ||
+          key.includes('Q1') ||
+          key.includes('THUDUC') ||
+          key.includes('DHQG')
+        );
+      }
+      if (selectedCityTab === 'HANOI') {
+        return key.includes('HANOI');
+      }
+      if (selectedCityTab === 'OTHER') {
+        return key.includes('DANANG') || key.includes('CANTHO');
+      }
+      return true;
+    });
+  }, [hubSearchTerm, selectedCityTab]);
 
   // Fetch authentic route from OSRM Routing Engine
   useEffect(() => {
@@ -312,16 +347,37 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
 
   // Quick select campus location
   const handleSelectCampus = (hubKey: string) => {
+    triggerHaptic('medium');
     const hub = VIETNAM_HUBS[hubKey];
     if (!hub) return;
     setCurrentUserCoords(hub);
-    setShowHubDropdown(false);
+    setShowHubModal(false);
     if (onUserCoordsChange) {
       onUserCoordsChange(hub);
     }
     if (mapInstanceRef.current) {
-      mapInstanceRef.current.setView([hub.latitude, hub.longitude], 15, { animate: true });
+      try {
+        mapInstanceRef.current.setView([hub.latitude, hub.longitude], 15, { animate: true });
+        mapInstanceRef.current.invalidateSize({ pan: false });
+      } catch (e) {}
     }
+    if (showNotification) {
+      showNotification(
+        language === 'vi' ? '🏛️ Đã Đổi Khu Vực Campus' : '🏛️ Campus Hub Updated',
+        language === 'vi'
+          ? `Đã cập nhật vị trí radar sang: ${hub.label}`
+          : `Map radar location set to: ${hub.label}`,
+        true,
+        false
+      );
+    }
+  };
+
+  // Quick switch back to real device GPS
+  const handleSelectLiveGps = () => {
+    triggerHaptic('medium');
+    setShowHubModal(false);
+    handleGetLiveGps();
   };
 
   // Cleanup Leaflet Map on Unmount
@@ -675,17 +731,23 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
     }
   };
 
-  // Close dropdowns on backdrop click
+  // Close layer dropdown on click outside (Supports mouse & touch)
   useEffect(() => {
-    const handleGlobalClick = () => {
-      setShowHubDropdown(false);
-      setShowLayerDropdown(false);
+    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
+      const target = e.target as Node;
+      if (layerDropdownRef.current && !layerDropdownRef.current.contains(target)) {
+        setShowLayerDropdown(false);
+      }
     };
-    if (showHubDropdown || showLayerDropdown) {
-      document.addEventListener('click', handleGlobalClick);
-      return () => document.removeEventListener('click', handleGlobalClick);
+    if (showLayerDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+        document.removeEventListener('touchstart', handleClickOutside);
+      };
     }
-  }, [showHubDropdown, showLayerDropdown]);
+  }, [showLayerDropdown]);
 
   // Compact layout heights
   const mapAreaHeight = isFullscreen
@@ -699,7 +761,7 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
   // ==========================================
   const heightClass = isFullscreen
     ? 'fixed inset-0 z-50 p-4 bg-[#0A1424] flex flex-col'
-    : 'relative rounded-3xl bg-[#0E1B2E] border border-[#C5E5EC]/25 p-3 sm:p-4 shadow-xl overflow-hidden';
+    : 'relative rounded-3xl bg-[#0E1B2E] border border-[#C5E5EC]/25 p-3 sm:p-4 shadow-xl';
 
   return (
     <>
@@ -744,7 +806,7 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
 
       {/* Main Map Card: always kept in DOM so Leaflet instance is never unmounted or black-screened */}
       <div
-        className={`${heightClass} w-full max-w-full overflow-hidden transition-all duration-300 ${
+        className={`${heightClass} w-full max-w-full transition-all duration-300 ${
           isCollapsed ? 'hidden' : ''
         }`}
       >
@@ -824,16 +886,17 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
       </div>
 
       {/* Streamlined Compact Control Bar: Radius Chips + Hub Dropdown + Layer Switcher */}
-      <div className="flex items-center justify-between gap-1.5 pb-2 mb-1.5 text-xs overflow-x-auto scrollbar-none w-full">
-        {/* Radius Chips (Neat 5-item segmented strip) */}
-        <div className="flex items-center space-x-1 shrink-0">
+      <div className="flex items-center justify-between gap-1.5 pb-2 mb-1.5 text-xs w-full relative z-30">
+        {/* Radius Chips (Horizontally scrollable segment without clipping dropdown popovers) */}
+        <div className="flex items-center space-x-1 shrink overflow-x-auto scrollbar-none py-0.5 min-w-0 pr-1">
           {PRIMARY_RADIUS_OPTIONS.map((opt) => {
             const isActive = radiusMeters === opt.value;
             return (
               <button
                 key={opt.value}
+                type="button"
                 onClick={() => onRadiusChange(opt.value)}
-                className={`px-2 py-1 rounded-lg text-[10px] font-extrabold transition whitespace-nowrap border active:scale-95 cursor-pointer ${
+                className={`px-2 py-1 rounded-lg text-[10px] font-extrabold transition whitespace-nowrap border active:scale-95 cursor-pointer shrink-0 ${
                   isActive
                     ? 'bg-gradient-to-r from-[#3064AE] to-[#255294] text-white border-[#C5E5EC]/50 shadow-xs'
                     : 'bg-[#12233B] text-[#C5E5EC]/80 border-[#C5E5EC]/20 hover:bg-[#162B48] hover:text-white'
@@ -845,64 +908,35 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
           })}
         </div>
 
-        {/* Right dropdowns: Campus Hub + Map Layer */}
-        <div className="flex items-center space-x-1.5 shrink-0 ml-auto">
-          {/* Campus Hub Selector Dropdown */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowHubDropdown((prev) => !prev);
-                setShowLayerDropdown(false);
-              }}
-              className="px-2 py-1 rounded-lg bg-[#12233B] hover:bg-[#162B48] text-[#C5E5EC] border border-[#C5E5EC]/25 text-[10px] font-black transition flex items-center space-x-1 cursor-pointer"
-            >
-              <span>🏛️ {currentHubEntry ? currentHubEntry.hub.label?.split('(')[0].trim() : (language === 'vi' ? 'Khu vực' : 'Hub')}</span>
-              <ChevronDown className="w-3 h-3 text-[#C5E5EC]/70" />
-            </button>
-
-            {showHubDropdown && (
-              <div
-                onClick={(e) => e.stopPropagation()}
-                className="absolute right-0 top-full mt-1.5 z-40 w-56 rounded-2xl bg-[#0E1B2E] border border-[#C5E5EC]/30 shadow-2xl p-1.5 space-y-0.5 animate-fadeIn max-h-60 overflow-y-auto"
-              >
-                <div className="px-2 py-1 text-[9px] font-black text-[#C5E5EC]/70 uppercase tracking-wider">
-                  {language === 'vi' ? 'Chọn Khu Vực / Trường' : 'Select Campus Hub'}
-                </div>
-                {Object.entries(VIETNAM_HUBS).map(([key, hub]) => {
-                  const isCurrent =
-                    Math.abs(hub.latitude - currentUserCoords.latitude) < 0.001 &&
-                    Math.abs(hub.longitude - currentUserCoords.longitude) < 0.001;
-                  return (
-                    <button
-                      key={key}
-                      onClick={() => handleSelectCampus(key)}
-                      className={`w-full text-left px-2.5 py-1.5 rounded-xl text-[11px] font-bold flex items-center justify-between transition cursor-pointer ${
-                        isCurrent
-                          ? 'bg-[#3064AE] text-white font-black'
-                          : 'text-[#C5E5EC] hover:bg-[#12233B] hover:text-white'
-                      }`}
-                    >
-                      <span className="truncate">{hub.label}</span>
-                      {isCurrent && <Check className="w-3.5 h-3.5 text-[#E0FAEB] shrink-0 ml-1" />}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+        {/* Right dropdowns: Campus Hub Modal Button + Map Layer */}
+        <div className="flex items-center space-x-1.5 shrink-0 ml-auto relative">
+          {/* Campus Hub Selector Button */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              triggerHaptic('light');
+              setShowHubModal(true);
+              setShowLayerDropdown(false);
+            }}
+            className="px-2 sm:px-2.5 py-1 rounded-lg bg-[#12233B] hover:bg-[#162B48] text-[#C5E5EC] hover:text-white border border-[#C5E5EC]/25 hover:border-[#C5E5EC]/45 text-[10px] font-black transition flex items-center space-x-1 cursor-pointer active:scale-95 shadow-xs"
+            title={language === 'vi' ? 'Chọn Khu Vực / Trường Campus' : 'Select Campus Hub'}
+          >
+            <span className="truncate max-w-[85px] sm:max-w-[130px]">
+              🏛️ {currentHubEntry ? currentHubEntry.hub.label?.split('(')[0].trim() : (language === 'vi' ? 'Khu vực' : 'Hub')}
+            </span>
+            <ChevronDown className="w-3 h-3 text-[#C5E5EC]/70 shrink-0" />
+          </button>
 
           {/* Map Layer Selector Dropdown */}
-          <div className="relative">
+          <div className="relative" ref={layerDropdownRef}>
             <button
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 setShowLayerDropdown((prev) => !prev);
-                setShowHubDropdown(false);
               }}
-              className="p-1 sm:px-2 sm:py-1 rounded-lg bg-[#12233B] hover:bg-[#162B48] text-[#C5E5EC] border border-[#C5E5EC]/25 text-[10px] font-bold transition flex items-center space-x-1 cursor-pointer"
+              className="p-1 sm:px-2 sm:py-1 rounded-lg bg-[#12233B] hover:bg-[#162B48] text-[#C5E5EC] border border-[#C5E5EC]/25 text-[10px] font-bold transition flex items-center space-x-1 cursor-pointer active:scale-95 shadow-xs"
               title={language === 'vi' ? 'Lớp bản đồ' : 'Map layer'}
             >
               <Layers className="w-3.5 h-3.5" />
@@ -914,7 +948,7 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
             {showLayerDropdown && (
               <div
                 onClick={(e) => e.stopPropagation()}
-                className="absolute right-0 top-full mt-1.5 z-40 w-36 rounded-2xl bg-[#0E1B2E] border border-[#C5E5EC]/30 shadow-2xl p-1.5 space-y-0.5 animate-fadeIn"
+                className="absolute right-0 top-full mt-1.5 z-50 w-40 rounded-2xl bg-[#0E1B2E]/98 backdrop-blur-xl border border-[#C5E5EC]/35 shadow-[0_16px_50px_rgba(0,0,0,0.85)] p-1.5 space-y-0.5 animate-fadeIn"
               >
                 {[
                   { key: 'GOOGLE_STREETS', label: language === 'vi' ? 'Chuẩn (Street)' : 'Standard' },
@@ -923,6 +957,7 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
                 ].map((item) => (
                   <button
                     key={item.key}
+                    type="button"
                     onClick={() => {
                       setMapLayer(item.key as MapLayer);
                       setShowLayerDropdown(false);
@@ -1194,6 +1229,197 @@ export const InteractiveRadar: React.FC<InteractiveRadarProps> = ({
                 <span>
                   {language === 'vi' ? 'Quét Cập Nhật Tọa Độ GPS' : 'Scan & Update GPS'}
                 </span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ==========================================
+          CAMPUS HUB SELECTION MODAL (100% UNCLIPPED & ACCESSIBLE)
+         ========================================== */}
+      {showHubModal && (
+        <div
+          className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-fadeIn"
+          onClick={() => setShowHubModal(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="relative w-full max-w-lg rounded-3xl bg-[#0E1B2E] border border-[#C5E5EC]/30 shadow-[0_20px_60px_rgba(0,0,0,0.85)] flex flex-col max-h-[85vh] overflow-hidden text-white"
+          >
+            {/* Top decorative gradient bar */}
+            <div className="h-1.5 w-full bg-brand-tri-gradient shrink-0" />
+
+            {/* Modal Header */}
+            <div className="p-4 pb-3 border-b border-[#C5E5EC]/15 flex items-center justify-between gap-3 shrink-0">
+              <div className="flex items-center space-x-2.5 min-w-0">
+                <div className="p-2 rounded-xl bg-gradient-to-br from-[#3064AE] to-[#255294] text-white border border-[#C5E5EC]/30 shadow-xs shrink-0">
+                  <Building2 className="w-5 h-5 text-[#E0FAEB]" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-sm sm:text-base font-black text-white truncate">
+                    {language === 'vi' ? 'Chọn Khu Vực / Trường Campus' : 'Select Campus Hub'}
+                  </h3>
+                  <p className="text-[11px] text-[#C5E5EC]/75 truncate">
+                    {language === 'vi' ? 'Đổi vị trí Radar tìm việc quanh các trường' : 'Change radar location to explore jobs'}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowHubModal(false)}
+                className="p-1.5 rounded-xl bg-[#12233B] hover:bg-[#162B48] text-[#C5E5EC]/70 hover:text-white border border-[#C5E5EC]/20 transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Search Input & Live GPS Option */}
+            <div className="p-3 sm:p-4 space-y-2.5 border-b border-[#C5E5EC]/15 shrink-0 bg-[#0B1524]">
+              {/* Keyword Search */}
+              <div className="relative">
+                <Search className="w-4 h-4 text-[#C5E5EC]/60 absolute left-3 top-2.5" />
+                <input
+                  type="text"
+                  value={hubSearchTerm}
+                  onChange={(e) => setHubSearchTerm(e.target.value)}
+                  placeholder={
+                    language === 'vi'
+                      ? 'Tìm trường, quận, cơ sở... (VD: Bách Khoa, KTX, Q7)'
+                      : 'Search campus, district... (e.g. Bach Khoa, Dorm)'
+                  }
+                  className="w-full pl-9 pr-8 py-2 rounded-xl bg-[#12233B] border border-[#C5E5EC]/25 text-white text-xs placeholder:text-[#C5E5EC]/40 focus:outline-hidden focus:border-[#C5E5EC]"
+                />
+                {hubSearchTerm && (
+                  <button
+                    type="button"
+                    onClick={() => setHubSearchTerm('')}
+                    className="absolute right-2.5 top-2.5 text-[#C5E5EC]/60 hover:text-white cursor-pointer"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Real GPS Option Button */}
+              <button
+                type="button"
+                onClick={handleSelectLiveGps}
+                className="w-full p-2.5 rounded-xl bg-gradient-to-r from-[#12233B] to-[#162B48] hover:from-[#173052] hover:to-[#1C365C] border border-[#E0FAEB]/30 text-left transition flex items-center justify-between group active:scale-98 cursor-pointer shadow-xs"
+              >
+                <div className="flex items-center space-x-2.5 min-w-0">
+                  <div className="p-1.5 rounded-lg bg-emerald-500/20 text-[#E0FAEB] border border-[#E0FAEB]/30 shrink-0">
+                    <Crosshair className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <span className="text-xs font-black text-[#E0FAEB] block truncate">
+                      🎯 {language === 'vi' ? 'Sử dụng GPS thực tế của tôi' : 'Use My Real GPS Location'}
+                    </span>
+                    <span className="text-[10px] text-[#C5E5EC]/70 block truncate">
+                      {language === 'vi' ? 'Quét định vị thiết bị hiện tại' : 'Scan device current location'}
+                    </span>
+                  </div>
+                </div>
+                <span className="text-[10px] font-bold text-[#E0FAEB] px-2 py-0.5 rounded-md bg-[#E0FAEB]/10 border border-[#E0FAEB]/20 shrink-0">
+                  GPS
+                </span>
+              </button>
+
+              {/* City Filter Tabs */}
+              <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pt-1">
+                {[
+                  { key: 'ALL', label: language === 'vi' ? 'Tất cả (12)' : 'All (12)' },
+                  { key: 'TPHCM', label: 'TP.HCM (6)' },
+                  { key: 'HANOI', label: 'Hà Nội (4)' },
+                  { key: 'OTHER', label: language === 'vi' ? 'Đà Nẵng & Cần Thơ' : 'Other (2)' },
+                ].map((tab) => (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    onClick={() => setSelectedCityTab(tab.key as any)}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap transition cursor-pointer ${
+                      selectedCityTab === tab.key
+                        ? 'bg-[#3064AE] text-white shadow-xs font-black'
+                        : 'bg-[#12233B] text-[#C5E5EC]/70 hover:text-white'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Hub List */}
+            <div className="p-3 sm:p-4 overflow-y-auto space-y-1.5 max-h-[50vh]">
+              {filteredHubEntries.length === 0 ? (
+                <div className="text-center py-8 text-xs text-[#C5E5EC]/60">
+                  {language === 'vi' ? 'Không tìm thấy điểm trường phù hợp.' : 'No matching campus hubs found.'}
+                </div>
+              ) : (
+                filteredHubEntries.map(([key, hub]) => {
+                  const isCurrent =
+                    (currentUserCoords.label && currentUserCoords.label === hub.label) ||
+                    (Math.abs(hub.latitude - currentUserCoords.latitude) < 0.005 &&
+                      Math.abs(hub.longitude - currentUserCoords.longitude) < 0.005);
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => handleSelectCampus(key)}
+                      className={`w-full p-2.5 sm:p-3 rounded-2xl text-left border transition flex items-center justify-between gap-2.5 active:scale-98 cursor-pointer ${
+                        isCurrent
+                          ? 'bg-gradient-to-r from-[#3064AE] to-[#255294] text-white border-[#E0FAEB]/40 shadow-md ring-1 ring-[#E0FAEB]/30'
+                          : 'bg-[#12233B]/80 hover:bg-[#162B48] text-[#C5E5EC] border-[#C5E5EC]/15 hover:border-[#C5E5EC]/35'
+                      }`}
+                    >
+                      <div className="flex items-center space-x-2.5 min-w-0">
+                        <div
+                          className={`p-2 rounded-xl shrink-0 ${
+                            isCurrent
+                              ? 'bg-white/20 text-white'
+                              : 'bg-[#0E1B2E] text-[#C5E5EC] border border-[#C5E5EC]/20'
+                          }`}
+                        >
+                          <GraduationCap className="w-4 h-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <h4
+                            className={`text-xs font-black truncate ${
+                              isCurrent ? 'text-white' : 'text-white group-hover:text-[#E0FAEB]'
+                            }`}
+                          >
+                            {hub.label}
+                          </h4>
+                          <p className="text-[10px] text-[#C5E5EC]/70 truncate mt-0.5">
+                            {hub.latitude.toFixed(4)}, {hub.longitude.toFixed(4)}
+                          </p>
+                        </div>
+                      </div>
+                      {isCurrent ? (
+                        <span className="shrink-0 flex items-center space-x-1 px-2 py-0.5 rounded-full bg-[#E0FAEB] text-[#09111D] text-[10px] font-black shadow-2xs">
+                          <Check className="w-3 h-3 stroke-[3]" />
+                          <span>{language === 'vi' ? 'Đang chọn' : 'Active'}</span>
+                        </span>
+                      ) : (
+                        <span className="shrink-0 text-[10px] text-[#C5E5EC]/60 font-semibold px-2 py-0.5 rounded-md bg-[#0E1B2E]">
+                          {language === 'vi' ? 'Chọn' : 'Select'}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-3 bg-[#0B1524] border-t border-[#C5E5EC]/15 flex items-center justify-between text-[11px] text-[#C5E5EC]/70 shrink-0">
+              <span>{language === 'vi' ? 'Hỗ trợ 12 trường & khu KTX trọng điểm' : '12 Campus hubs supported'}</span>
+              <button
+                type="button"
+                onClick={() => setShowHubModal(false)}
+                className="px-3 py-1 rounded-xl bg-[#12233B] text-white font-bold hover:bg-[#162B48] transition cursor-pointer"
+              >
+                {language === 'vi' ? 'Đóng' : 'Close'}
               </button>
             </div>
           </div>

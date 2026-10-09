@@ -502,40 +502,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         </div>
       )}
 
-      {/* Interactive Geofence Radar & Google Maps Discovery View */}
-      <Suspense
-        fallback={
-          <div className="w-full h-80 rounded-3xl bg-gradient-to-b from-[#0D192B] to-[#102038] border border-[#3064AE]/30 flex flex-col items-center justify-center p-6 space-y-3 relative overflow-hidden shadow-xl">
-            <div className="absolute inset-0 bg-[radial-gradient(#3064AE_1px,transparent_1px)] [background-size:16px_16px] opacity-20" />
-            <div className="relative flex items-center justify-center">
-              <div className="w-16 h-16 rounded-full border border-[#3064AE]/50 animate-ping absolute opacity-30" />
-              <div className="w-12 h-12 rounded-full border-2 border-t-[#3064AE] border-r-[#C5E5EC] border-b-transparent border-l-transparent animate-spin" />
-              <Navigation className="w-5 h-5 text-[#C5E5EC] absolute" />
-            </div>
-            <div className="text-center relative z-10">
-              <p className="text-xs font-bold text-white tracking-wide">
-                {language === 'vi' ? 'Đang nạp Bản đồ Radar GPS Campus' : 'Loading Campus GPS Radar Map'}
-              </p>
-              <p className="text-[11px] text-[#C5E5EC]/70 mt-0.5">
-                {language === 'vi' ? 'Tải nền bất đồng bộ - Tiết kiệm dung lượng & khởi động siêu tốc' : 'Async background load - Ultra fast & data saving'}
-              </p>
-            </div>
-          </div>
-        }
-      >
-        <InteractiveRadar
-          gigs={filteredGigs}
-          selectedGigId={selectedGigId}
-          onSelectGig={(id) => {
-            selectGig(id ? id : null);
-          }}
-          radiusMeters={selectedRadiusMeters}
-          onRadiusChange={setRadius}
-          isClientMode={isClient}
-          userCoords={userCoords}
-          onUserCoordsChange={setUserCoords}
-        />
-      </Suspense>
 
 
       {/* Campus Quick Hub Shortcuts - Sleek swipeable carousel on mobile, neat grid on desktop */}
@@ -1107,6 +1073,59 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             {filteredGigs.map((gig) => renderGigCard(gig, false))}
           </div>
         )}
+      </div>
+
+      {/* Interactive Geofence Radar & Google Maps Discovery View (Bản Đồ Radar Campus - Chuyển xuống cuối trang theo yêu cầu) */}
+      <div className="space-y-3 pt-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <span className="p-1.5 rounded-xl bg-gradient-to-r from-[#3064AE] to-[#417AC6] text-white shadow-xs">
+              <Navigation className="w-4 h-4 text-[#E0FAEB]" />
+            </span>
+            <div>
+              <h3 className="text-sm sm:text-base font-extrabold text-white">
+                {language === 'vi' ? 'Bản Đồ Radar Định Vị Việc Làm' : 'Campus Jobs Radar Map'}
+              </h3>
+              <p className="text-[11px] text-[#C5E5EC]/70">
+                {language === 'vi' ? 'Quét định vị GPS & bắt kèo theo thời gian thực quanh Campus' : 'Real-time GPS radar matching around campuses'}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <Suspense
+          fallback={
+            <div className="w-full h-80 rounded-3xl bg-gradient-to-b from-[#0D192B] to-[#102038] border border-[#3064AE]/30 flex flex-col items-center justify-center p-6 space-y-3 relative overflow-hidden shadow-xl">
+              <div className="absolute inset-0 bg-[radial-gradient(#3064AE_1px,transparent_1px)] [background-size:16px_16px] opacity-20" />
+              <div className="relative flex items-center justify-center">
+                <div className="w-16 h-16 rounded-full border border-[#3064AE]/50 animate-ping absolute opacity-30" />
+                <div className="w-12 h-12 rounded-full border-2 border-t-[#3064AE] border-r-[#C5E5EC] border-b-transparent border-l-transparent animate-spin" />
+                <Navigation className="w-5 h-5 text-[#C5E5EC] absolute" />
+              </div>
+              <div className="text-center relative z-10">
+                <p className="text-xs font-bold text-white tracking-wide">
+                  {language === 'vi' ? 'Đang nạp Bản đồ Radar GPS Campus' : 'Loading Campus GPS Radar Map'}
+                </p>
+                <p className="text-[11px] text-[#C5E5EC]/70 mt-0.5">
+                  {language === 'vi' ? 'Tải nền bất đồng bộ - Tiết kiệm dung lượng & khởi động siêu tốc' : 'Async background load - Ultra fast & data saving'}
+                </p>
+              </div>
+            </div>
+          }
+        >
+          <InteractiveRadar
+            gigs={filteredGigs}
+            selectedGigId={selectedGigId}
+            onSelectGig={(id) => {
+              selectGig(id ? id : null);
+            }}
+            radiusMeters={selectedRadiusMeters}
+            onRadiusChange={setRadius}
+            isClientMode={isClient}
+            userCoords={userCoords}
+            onUserCoordsChange={setUserCoords}
+          />
+        </Suspense>
       </div>
 
       {/* Voice Search Modal */}

@@ -48,6 +48,26 @@ export const VIETNAM_HUBS: Record<string, GeoLocation> = {
     longitude: 105.7684,
     label: 'ĐH Cần Thơ (Ninh Kiều)',
   },
+  UEH_TPHCM: {
+    latitude: 10.7828,
+    longitude: 106.6958,
+    label: 'ĐH Kinh Tế TP.HCM - UEH (Quận 3)',
+  },
+  UTE_THUDUC: {
+    latitude: 10.8515,
+    longitude: 106.7719,
+    label: 'ĐH Sư Phạm Kỹ Thuật (Thủ Đức)',
+  },
+  NEU_HANOI: {
+    latitude: 20.9996,
+    longitude: 105.8431,
+    label: 'ĐH Kinh Tế Quốc Dân - NEU (Hà Nội)',
+  },
+  VNU_HANOI: {
+    latitude: 21.0378,
+    longitude: 105.7822,
+    label: 'ĐHQG Hà Nội (Cầu Giấy, HN)',
+  },
 };
 
 export const DEFAULT_USER_LOCATION: GeoLocation = VIETNAM_HUBS.TDTU_Q7;
