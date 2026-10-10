@@ -267,7 +267,7 @@ function ensureDbExists(): DatabaseSchema {
             onTimeRate: 100,
             postedGigsCount: 10,
             totalSpent: 0,
-            walletBalance: 10000000,
+            walletBalance: 0,
             escrowLockedBalance: 0,
             securityPin: '123456',
             badges: 'Quản Trị Viên Tối Cao',
@@ -1662,7 +1662,7 @@ async function startServer() {
           email: 'admin@admin.vn',
           phone: '0909120918',
           role: 'ADMIN',
-          walletBalance: 999000000,
+          walletBalance: 0,
           kycStatus: 'APPROVED',
           trustScore: 100,
         };

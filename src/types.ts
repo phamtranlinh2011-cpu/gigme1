@@ -495,6 +495,11 @@ export interface VoipCallEntity {
   answer?: { sdp?: string; type?: string };
   callerCandidates?: Array<{ candidate: string; sdpMid?: string | null; sdpMLineIndex?: number | null }>;
   calleeCandidates?: Array<{ candidate: string; sdpMid?: string | null; sdpMLineIndex?: number | null }>;
+  callerMuted?: boolean;
+  callerVideoOff?: boolean;
+  calleeMuted?: boolean;
+  calleeVideoOff?: boolean;
+  callDurationSeconds?: number;
 }
 
 export interface VoipCallSession {
@@ -513,6 +518,10 @@ export interface VoipCallSession {
   callStatus?: 'OUTGOING_RINGING' | 'INCOMING_RINGING' | 'CONNECTING' | 'CONNECTED' | 'REJECTED' | 'ENDED';
   callerId?: string;
   callerName?: string;
+  isMinimized?: boolean;
+  isRemoteMuted?: boolean;
+  isRemoteVideoOff?: boolean;
+  cameraFacingMode?: 'user' | 'environment';
 }
 
 export interface UiNotification {

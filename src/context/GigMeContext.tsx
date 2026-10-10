@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useRef } from 'react';
 import confetti from 'canvas-confetti';
 import {
   signInWithPopup,
@@ -47,7 +47,7 @@ import {
   MoSmsSession,
   ModPermission,
 } from '../types';
-import { playNotificationSound } from '../utils/audio';
+import { playNotificationSound, startRingtone, stopRingtone } from '../utils/audio';
 import {
   GeoLocation,
   DEFAULT_USER_LOCATION,
@@ -137,7 +137,7 @@ const DEFAULT_ADMIN: UserEntity = {
   onTimeRate: 100,
   postedGigsCount: 10,
   totalSpent: 0,
-  walletBalance: 999999999,
+  walletBalance: 0,
   escrowLockedBalance: 0,
   securityPin: '123456',
   badges: 'Quản Trị Viên Tối Cao',
@@ -443,6 +443,9 @@ interface GigMeContextType {
   endVoipCall: () => void;
   toggleMuteVoip: () => void;
   toggleVideoVoip: () => void;
+  toggleMinimizeVoip: () => void;
+  flipCameraVoip: () => void;
+  switchVoipToVideo: () => void;
   toggleRoleMode: () => void;
   toggleRole: () => void;
   setWalletPin: (oldPin: string, newPin: string) => boolean;
@@ -712,7 +715,14 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           (u: UserEntity) => u.id === '000000000' || u.id === 'admin_root' || u.email === 'admin@gigme.vn' || u.email === 'admin@admin.vn' || u.role === 'ADMIN'
         );
         const consolidatedAdmin: UserEntity = adminFound
-          ? { ...DEFAULT_ADMIN, ...adminFound, id: '000000000', email: 'admin@gigme.vn', role: 'ADMIN' }
+          ? {
+              ...DEFAULT_ADMIN,
+              ...adminFound,
+              id: '000000000',
+              email: 'admin@gigme.vn',
+              role: 'ADMIN',
+              walletBalance: (adminFound.walletBalance && adminFound.walletBalance >= 10000000) ? 0 : (adminFound.walletBalance ?? 0),
+            }
           : DEFAULT_ADMIN;
 
         // Đảm bảo các tài khoản Mod mặc định luôn sẵn sàng
@@ -957,6 +967,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [filterMultiWorkerOnly, setFilterMultiWorkerOnly] = useState(false);
   const [aiSmartMatchActive, setAiSmartMatchActive] = useState(false);
   const [activeVoipCall, setActiveVoipCall] = useState<VoipCallSession | null>(null);
+  const callConnectedAtRef = useRef<number | null>(null);
   const [friendRequests, setFriendRequests] = useState<FriendRequestEntity[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.FRIEND_REQUESTS);
@@ -1686,6 +1697,11 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     });
   };
 
+  const getDirectThreadId = (userA: string, userB: string): string => {
+    const sorted = [userA, userB].sort();
+    return `direct_${sorted[0]}_${sorted[1]}`;
+  };
+
   const startVoipCall = (
     partnerName: string,
     role = '',
@@ -1699,6 +1715,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return;
     }
 
+    callConnectedAtRef.current = null;
     const randomSuffix = Math.floor(100 + Math.random() * 900);
     const callId = `call_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     setActiveVoipCall({
@@ -1717,9 +1734,12 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       callStatus: 'OUTGOING_RINGING',
       callerId: currentUser?.id,
       callerName: currentUser?.name,
+      isMinimized: false,
+      cameraFacingMode: 'user',
     });
 
-    playNotificationSound('CALL_RING');
+    // Start outgoing ringback tone loop
+    startRingtone('OUTGOING');
 
     if (partnerId && partnerId !== currentUser?.id) {
       // 1. Cloud Firestore call signaling for real cross-device P2P
@@ -1762,6 +1782,8 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const acceptIncomingCall = () => {
+    stopRingtone();
+    callConnectedAtRef.current = Date.now();
     setActiveVoipCall((prev) => {
       if (!prev) return null;
       if (prev.callId) {
@@ -1785,31 +1807,151 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const endVoipCall = () => {
+    stopRingtone();
     playNotificationSound('CALL_HANGUP');
-    if (activeVoipCall?.callId) {
-      const finalStatus = activeVoipCall.callStatus === 'INCOMING_RINGING' ? 'REJECTED' : 'ENDED';
-      updateCloudCall(activeVoipCall.callId, { status: finalStatus, endedAt: Date.now() }).catch(() => {});
+
+    const currentCall = activeVoipCall;
+    if (currentCall) {
+      const finalStatus = currentCall.callStatus === 'INCOMING_RINGING' ? 'REJECTED' : 'ENDED';
+      if (currentCall.callId) {
+        updateCloudCall(currentCall.callId, { status: finalStatus, endedAt: Date.now() }).catch(() => {});
+      }
+      if (typeof window !== 'undefined') {
+        try {
+          const callChannel = new BroadcastChannel('gigme_voip_channel');
+          callChannel.postMessage({
+            type: 'END_CALL',
+            userId: currentUser?.id,
+            callId: currentCall.callId,
+            status: finalStatus,
+          });
+        } catch {}
+      }
+
+      // Record Call Log message into chat conversation
+      const duration = callConnectedAtRef.current
+        ? Math.max(1, Math.round((Date.now() - callConnectedAtRef.current) / 1000))
+        : (currentCall.durationSeconds || 0);
+
+      const targetThread = currentCall.gigId && currentCall.gigId !== 'call'
+        ? currentCall.gigId
+        : getDirectThreadId(currentUser?.id || '000000000', currentCall.partnerId || '000000000');
+
+      if (callConnectedAtRef.current || duration > 0) {
+        const mins = Math.floor(duration / 60);
+        const secs = duration % 60;
+        const durText = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        const isVideo = !!currentCall.isVideo;
+        sendChat(
+          isVideo
+            ? (language === 'vi' ? `📹 Cuộc gọi video đã kết thúc (${durText})` : `📹 Video call ended (${durText})`)
+            : (language === 'vi' ? `📞 Cuộc gọi thoại đã kết thúc (${durText})` : `📞 Voice call ended (${durText})`),
+          'CALL_LOG',
+          null,
+          duration,
+          undefined,
+          targetThread,
+          currentCall.partnerId,
+          currentCall.partnerName
+        );
+      } else if (currentCall.callStatus === 'INCOMING_RINGING') {
+        sendChat(
+          language === 'vi' ? '⚠️ Cuộc gọi nhỡ' : '⚠️ Missed call',
+          'CALL_LOG',
+          null,
+          0,
+          undefined,
+          targetThread,
+          currentCall.partnerId,
+          currentCall.partnerName
+        );
+      } else if (currentCall.callStatus === 'OUTGOING_RINGING') {
+        sendChat(
+          language === 'vi' ? '📞 Cuộc gọi đi không có phản hồi' : '📞 Unanswered outgoing call',
+          'CALL_LOG',
+          null,
+          0,
+          undefined,
+          targetThread,
+          currentCall.partnerId,
+          currentCall.partnerName
+        );
+      }
     }
-    if (typeof window !== 'undefined') {
-      try {
-        const callChannel = new BroadcastChannel('gigme_voip_channel');
-        callChannel.postMessage({
-          type: 'END_CALL',
-          userId: currentUser?.id,
-          callId: activeVoipCall?.callId,
-          status: activeVoipCall?.callStatus === 'INCOMING_RINGING' ? 'REJECTED' : 'ENDED',
-        });
-      } catch {}
-    }
+
+    callConnectedAtRef.current = null;
     setActiveVoipCall(null);
   };
 
   const toggleMuteVoip = () => {
-    setActiveVoipCall((prev) => (prev ? { ...prev, isMuted: !prev.isMuted } : null));
+    setActiveVoipCall((prev) => {
+      if (!prev) return null;
+      const nextMuted = !prev.isMuted;
+      if (prev.callId) {
+        const isCaller = prev.callerId === currentUser?.id;
+        updateCloudCall(prev.callId, { [isCaller ? 'callerMuted' : 'calleeMuted']: nextMuted }).catch(() => {});
+        try {
+          const callChannel = new BroadcastChannel('gigme_voip_channel');
+          callChannel.postMessage({
+            type: 'MEDIA_STATE_CHANGE',
+            callId: prev.callId,
+            userId: currentUser?.id,
+            isMuted: nextMuted,
+            isVideoOff: prev.isVideoOff,
+          });
+        } catch {}
+      }
+      return { ...prev, isMuted: nextMuted };
+    });
   };
 
   const toggleVideoVoip = () => {
-    setActiveVoipCall((prev) => (prev ? { ...prev, isVideoOff: !prev.isVideoOff } : null));
+    setActiveVoipCall((prev) => {
+      if (!prev) return null;
+      const nextVideoOff = !prev.isVideoOff;
+      if (prev.callId) {
+        const isCaller = prev.callerId === currentUser?.id;
+        updateCloudCall(prev.callId, { [isCaller ? 'callerVideoOff' : 'calleeVideoOff']: nextVideoOff }).catch(() => {});
+        try {
+          const callChannel = new BroadcastChannel('gigme_voip_channel');
+          callChannel.postMessage({
+            type: 'MEDIA_STATE_CHANGE',
+            callId: prev.callId,
+            userId: currentUser?.id,
+            isMuted: prev.isMuted,
+            isVideoOff: nextVideoOff,
+          });
+        } catch {}
+      }
+      return { ...prev, isVideoOff: nextVideoOff };
+    });
+  };
+
+  const toggleMinimizeVoip = () => {
+    setActiveVoipCall((prev) => (prev ? { ...prev, isMinimized: !prev.isMinimized } : null));
+  };
+
+  const flipCameraVoip = () => {
+    setActiveVoipCall((prev) => {
+      if (!prev) return null;
+      const nextFacing = prev.cameraFacingMode === 'environment' ? 'user' : 'environment';
+      return { ...prev, cameraFacingMode: nextFacing };
+    });
+  };
+
+  const switchVoipToVideo = () => {
+    setActiveVoipCall((prev) => (prev ? { ...prev, isVideo: true, isVideoOff: false } : null));
+    if (activeVoipCall?.callId) {
+      updateCloudCall(activeVoipCall.callId, { isVideo: true }).catch(() => {});
+      try {
+        const callChannel = new BroadcastChannel('gigme_voip_channel');
+        callChannel.postMessage({
+          type: 'UPGRADE_TO_VIDEO',
+          callId: activeVoipCall.callId,
+          userId: currentUser?.id,
+        });
+      } catch {}
+    }
   };
 
   // Listen for incoming VoIP calls from Cloud Firestore and local BroadcastChannel
@@ -1824,7 +1966,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         // If already in an active call, ignore duplicate ringing
         if (prev && prev.callStatus === 'CONNECTED') return prev;
         if (prev && prev.callId === incomingCall.id) return prev;
-        playNotificationSound('CALL_RING');
+        startRingtone('INCOMING');
         return {
           callId: incomingCall.id,
           gigId: incomingCall.gigId || 'call',
@@ -1841,6 +1983,8 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           callStatus: 'INCOMING_RINGING',
           callerId: incomingCall.callerId,
           callerName: incomingCall.callerName,
+          isMinimized: false,
+          cameraFacingMode: 'user',
         };
       });
     });
@@ -1853,7 +1997,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         channel.onmessage = (event) => {
           const data = event.data;
           if (data?.type === 'INCOMING_CALL' && data.targetUserId === currentUserId) {
-            playNotificationSound('CALL_RING');
+            startRingtone('INCOMING');
             setActiveVoipCall({
               callId: data.callId,
               gigId: data.gigId,
@@ -1870,8 +2014,12 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               callStatus: 'INCOMING_RINGING',
               callerId: data.callerId,
               callerName: data.callerName,
+              isMinimized: false,
+              cameraFacingMode: 'user',
             });
           } else if (data?.type === 'ACCEPT_CALL') {
+            stopRingtone();
+            callConnectedAtRef.current = Date.now();
             setActiveVoipCall((prev) => {
               if (prev && prev.callId === data.callId) {
                 return { ...prev, isIncoming: false, callStatus: 'CONNECTED' };
@@ -1879,6 +2027,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               return prev;
             });
           } else if (data?.type === 'END_CALL') {
+            stopRingtone();
             setActiveVoipCall((prev) => {
               if (prev && (prev.partnerId === data.userId || prev.callerId === data.userId || prev.callId === data.callId)) {
                 playNotificationSound('CALL_HANGUP');
@@ -1887,6 +2036,24 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                   data.status === 'REJECTED' ? 'Đối phương bận hoặc đã từ chối cuộc gọi.' : 'Cuộc gọi đã kết thúc.'
                 );
                 return null;
+              }
+              return prev;
+            });
+          } else if (data?.type === 'MEDIA_STATE_CHANGE') {
+            setActiveVoipCall((prev) => {
+              if (prev && prev.callId === data.callId && data.userId !== currentUserId) {
+                return {
+                  ...prev,
+                  isRemoteMuted: !!data.isMuted,
+                  isRemoteVideoOff: !!data.isVideoOff,
+                };
+              }
+              return prev;
+            });
+          } else if (data?.type === 'UPGRADE_TO_VIDEO') {
+            setActiveVoipCall((prev) => {
+              if (prev && prev.callId === data.callId) {
+                return { ...prev, isVideo: true, isVideoOff: false };
               }
               return prev;
             });
@@ -1905,18 +2072,45 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   useEffect(() => {
     if (!activeVoipCall?.callId) return;
     const activeCallId = activeVoipCall.callId;
+    const isCaller = activeVoipCall.callerId === currentUser?.id;
 
     const unsubSession = subscribeToCallSession(activeCallId, (session) => {
       if (!session) return;
       if (session.status === 'ENDED' || session.status === 'REJECTED') {
+        stopRingtone();
         playNotificationSound('CALL_HANGUP');
         showNotification(
           'Cuộc gọi kết thúc',
           session.status === 'REJECTED' ? 'Đối phương bận hoặc đã từ chối cuộc gọi.' : 'Cuộc gọi đã kết thúc.'
         );
+        callConnectedAtRef.current = null;
         setActiveVoipCall(null);
       } else if (session.status === 'ACCEPTED') {
-        setActiveVoipCall((prev) => (prev ? { ...prev, isIncoming: false, callStatus: 'CONNECTED' } : null));
+        stopRingtone();
+        if (!callConnectedAtRef.current) callConnectedAtRef.current = Date.now();
+        setActiveVoipCall((prev) => {
+          if (!prev) return null;
+          const remoteMuted = isCaller ? !!session.calleeMuted : !!session.callerMuted;
+          const remoteVideoOff = isCaller ? !!session.calleeVideoOff : !!session.callerVideoOff;
+          return {
+            ...prev,
+            isIncoming: false,
+            callStatus: 'CONNECTED',
+            isVideo: !!(session.isVideo || prev.isVideo),
+            isRemoteMuted: remoteMuted,
+            isRemoteVideoOff: remoteVideoOff,
+          };
+        });
+      } else {
+        // Sync media state even if already connected
+        const remoteMuted = isCaller ? !!session.calleeMuted : !!session.callerMuted;
+        const remoteVideoOff = isCaller ? !!session.calleeVideoOff : !!session.callerVideoOff;
+        setActiveVoipCall((prev) => (prev ? {
+          ...prev,
+          isVideo: !!(session.isVideo || prev.isVideo),
+          isRemoteMuted: remoteMuted,
+          isRemoteVideoOff: remoteVideoOff,
+        } : null));
       }
     });
 
@@ -1924,6 +2118,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     let ringTimeout: any = null;
     if (activeVoipCall.callStatus === 'OUTGOING_RINGING') {
       ringTimeout = setTimeout(() => {
+        stopRingtone();
         showNotification('Không có phản hồi', 'Đối phương hiện không tiện nghe máy.');
         endVoipCall();
       }, 35000);
@@ -7122,6 +7317,9 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         endVoipCall,
         toggleMuteVoip,
         toggleVideoVoip,
+        toggleMinimizeVoip,
+        flipCameraVoip,
+        switchVoipToVideo,
         toggleRoleMode,
         toggleRole: toggleRoleMode,
         setWalletPin: changeSecurityPin,

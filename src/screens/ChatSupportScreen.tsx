@@ -2,6 +2,8 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   ArrowLeft,
   PhoneCall,
+  PhoneMissed,
+  PhoneOff,
   Video,
   Send,
   Camera,
@@ -2361,6 +2363,87 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                               )}
                             </div>
                           )}
+
+                          {/* Dedicated VoIP / Video Call Log Attachment */}
+                          {msg.attachmentType === 'CALL_LOG' && (() => {
+                            const isMissed =
+                              msg.message.toLowerCase().includes('nhỡ') ||
+                              msg.message.toLowerCase().includes('missed') ||
+                              msg.message.toLowerCase().includes('không có phản hồi');
+                            const isVideoLog =
+                              msg.message.includes('📹') || msg.message.toLowerCase().includes('video');
+
+                            return (
+                              <div
+                                className={`mt-2 p-3 rounded-2xl border min-w-[230px] space-y-2.5 shadow-md ${
+                                  isMissed
+                                    ? 'bg-gradient-to-r from-red-950/60 via-[#1C121A] to-[#121B2A] border-red-500/40 text-red-200'
+                                    : 'bg-gradient-to-r from-[#0C1B2E] via-[#10243C] to-[#12233B] border-[#00E5FF]/40 text-cyan-200'
+                                }`}
+                              >
+                                <div className="flex items-center space-x-2.5">
+                                  <div
+                                    className={`p-2 rounded-xl shrink-0 ${
+                                      isMissed
+                                        ? 'bg-red-500/20 text-red-400 border border-red-500/40'
+                                        : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                                    }`}
+                                  >
+                                    {isMissed ? (
+                                      <PhoneMissed className="w-5 h-5 animate-pulse" />
+                                    ) : isVideoLog ? (
+                                      <Video className="w-5 h-5 text-emerald-400" />
+                                    ) : (
+                                      <PhoneCall className="w-5 h-5 text-cyan-400" />
+                                    )}
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <span className="font-extrabold text-white text-xs block truncate">
+                                      {msg.message}
+                                    </span>
+                                    <span className="text-[10px] text-slate-300 block">
+                                      {isMissed
+                                        ? (language === 'vi' ? 'Không có phản hồi • Chạm để gọi lại' : 'No answer • Tap to call back')
+                                        : (language === 'vi' ? 'Mã hóa P2P DTLS-SRTP bảo mật' : 'Encrypted P2P DTLS-SRTP')}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                {/* Quick Call Back Button */}
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    triggerHaptic('success');
+                                    startVoipCall(
+                                      activeContact.name,
+                                      activeContact.roleLabel,
+                                      associatedGig?.id,
+                                      isVideoLog,
+                                      activeContact.avatarUrl,
+                                      activeContact.id
+                                    );
+                                  }}
+                                  className={`w-full py-1.5 px-3 rounded-xl font-extrabold text-xs flex items-center justify-center space-x-1.5 shadow transition cursor-pointer active:scale-95 ${
+                                    isMissed
+                                      ? 'bg-gradient-to-r from-red-600 to-rose-600 hover:brightness-110 text-white'
+                                      : 'bg-gradient-to-r from-cyan-600 via-teal-600 to-emerald-600 hover:brightness-110 text-white'
+                                  }`}
+                                >
+                                  {isVideoLog ? (
+                                    <Video className="w-3.5 h-3.5" />
+                                  ) : (
+                                    <PhoneCall className="w-3.5 h-3.5" />
+                                  )}
+                                  <span>
+                                    {isVideoLog
+                                      ? (language === 'vi' ? 'Gọi Lại Bằng Video' : 'Video Call Back')
+                                      : (language === 'vi' ? 'Gọi Lại Ngay' : 'Call Back')}
+                                  </span>
+                                </button>
+                              </div>
+                            );
+                          })()}
 
                           {/* VoIP or Video Call Invite Attachment */}
                           {(msg.attachmentType === 'VOIP_CALL_INVITE' || msg.attachmentType === 'VIDEO_CALL_INVITE') && (
