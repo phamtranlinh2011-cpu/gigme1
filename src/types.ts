@@ -208,6 +208,8 @@ export interface UserEntity {
   isFlaggedSybil?: boolean; // Cảnh báo tài khoản bot/gian lận chéo
   sybilFlagReason?: string;
   studentSsoProvider?: string; // Cổng đào tạo đã xác thực
+  hasAcceptedTerms?: boolean; // Đã đọc và chấp thuận Bộ Luật & Điều Khoản Sử Dụng Campus
+  termsAcceptedAt?: number; // Thời điểm chấp thuận điều khoản
   defaultBank?: {
     bankName: string;
     accountNumber: string;
@@ -414,9 +416,11 @@ export interface ChatMessageEntity {
   partnerId?: string;
   partnerName?: string;
   reactions?: Record<string, number>;
+  userReactions?: Record<string, string>; // userId -> emoji reaction (chuẩn Messenger)
   isRead?: boolean;
   isRecalled?: boolean; // Tin nhắn đã bị thu hồi (trong 24h)
   recalledAt?: number;
+  isPinned?: boolean; // Ghim tin nhắn (stick message)
   moderationStatus?: 'APPROVED' | 'REJECTED' | 'UNCHECKED';
   moderationReason?: string;
 }

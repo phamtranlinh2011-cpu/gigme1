@@ -619,6 +619,8 @@ interface GigMeContextType {
   markConversationAsRead: (partnerOrThreadId: string) => void;
   reactToChatMessage: (messageId: string, emoji: string) => void;
   recallChatMessage: (messageId: string) => { success: boolean; error?: string };
+  togglePinChatMessage: (messageId: string) => boolean;
+  acceptCampusLawAndTerms: () => void;
   analyzePhotoWithAi: (presetType: string) => void;
   clearAiResult: () => void;
 
@@ -2128,6 +2130,7 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       badges: 'Thành viên mới',
       isLocked: false,
       isEmailVerified: false,
+      hasAcceptedTerms: false,
       createdAt: Date.now(),
     };
 
@@ -6597,13 +6600,33 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const reactToChatMessage = (messageId: string, emoji: string) => {
+    if (!currentUser) return;
     setChats((prev) =>
       prev.map((msg) => {
         if (msg.id === messageId) {
           const reactions = { ...(msg.reactions || {}) };
-          // Toggle reaction: if already reacted with this emoji, remove it; otherwise increment or set
-          reactions[emoji] = (reactions[emoji] || 0) + 1;
-          const updatedMsg = { ...msg, reactions };
+          const userReactions = { ...(msg.userReactions || {}) };
+          const previousEmoji = userReactions[currentUser.id];
+
+          if (previousEmoji === emoji) {
+            // Tapped the same emoji again: remove reaction (toggle off like Messenger)
+            if (reactions[emoji]) {
+              reactions[emoji] = Math.max(0, reactions[emoji] - 1);
+              if (reactions[emoji] === 0) delete reactions[emoji];
+            }
+            delete userReactions[currentUser.id];
+          } else {
+            // Remove previous reaction if user already reacted with another emoji
+            if (previousEmoji && reactions[previousEmoji]) {
+              reactions[previousEmoji] = Math.max(0, reactions[previousEmoji] - 1);
+              if (reactions[previousEmoji] === 0) delete reactions[previousEmoji];
+            }
+            // Add new emoji reaction
+            reactions[emoji] = (reactions[emoji] || 0) + 1;
+            userReactions[currentUser.id] = emoji;
+          }
+
+          const updatedMsg: ChatMessageEntity = { ...msg, reactions, userReactions };
           cloudService.saveChatMessage(updatedMsg);
           return updatedMsg;
         }
@@ -6616,12 +6639,12 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const msg = chats.find((c) => c.id === messageId);
     if (!msg) return { success: false, error: 'Tin nhắn không tồn tại' };
 
-    // Must be sender or Admin
-    if (msg.senderId !== currentUser?.id && currentUser?.role !== 'ADMIN' && currentUser?.id !== '000000000') {
-      return { success: false, error: 'Bạn chỉ có thể thu hồi tin nhắn do chính mình gửi' };
+    // BẮT BUỘC: Chỉ thu hồi được tin nhắn do chính bản thân mình gửi, không cho phép thu hồi bên người khác
+    if (msg.senderId !== currentUser?.id) {
+      return { success: false, error: 'Bạn chỉ có thể thu hồi tin nhắn do chính bản thân mình gửi' };
     }
 
-    // 24 hours rule: 24 * 60 * 60 * 1000 = 86,400,000 ms
+    // Quy định 24 giờ: 24 * 60 * 60 * 1000 = 86,400,000 ms
     const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
     const elapsed = Date.now() - msg.timestamp;
     if (elapsed > TWENTY_FOUR_HOURS_MS) {
@@ -6639,12 +6662,64 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       attachmentType: 'NONE',
       attachmentData: null,
       mediaFileName: undefined,
+      reactions: {},
+      userReactions: {},
+      isPinned: false, // Bỏ ghim khi đã thu hồi
     };
 
     setChats((prev) => prev.map((c) => (c.id === messageId ? updatedMsg : c)));
     cloudService.saveChatMessage(updatedMsg);
 
     return { success: true };
+  };
+
+  const togglePinChatMessage = (messageId: string): boolean => {
+    let nextPinned = false;
+    setChats((prev) =>
+      prev.map((m) => {
+        if (m.id === messageId) {
+          nextPinned = !m.isPinned;
+          const updated: ChatMessageEntity = { ...m, isPinned: nextPinned };
+          cloudService.saveChatMessage(updated);
+          return updated;
+        }
+        return m;
+      })
+    );
+    return nextPinned;
+  };
+
+  const acceptCampusLawAndTerms = () => {
+    if (!currentUser) return;
+    const now = Date.now();
+    const hash = `GIGME-SHA256-${currentUser.id}-${now.toString(16).toUpperCase()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+
+    const updatedUser: UserEntity = {
+      ...currentUser,
+      hasAcceptedTerms: true,
+      termsAcceptedAt: now,
+    };
+
+    setUsers((prev) => prev.map((u) => (u.id === currentUser.id ? updatedUser : u)));
+    try {
+      localStorage.setItem(`gigme_law_signed_${currentUser.id}`, JSON.stringify({
+        isSigned: true,
+        signedAt: now,
+        signatureHash: hash,
+      }));
+      localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(
+        users.map((u) => (u.id === currentUser.id ? updatedUser : u))
+      ));
+    } catch {}
+
+    cloudService.updateUser(currentUser.id, { hasAcceptedTerms: true, termsAcceptedAt: now }).catch((err) => console.warn('cloudService updateUser error:', err));
+
+    showNotification(
+      'Cam Kết Pháp Lý Thành Công! ⚖️',
+      'Bạn đã đồng ý Bộ Luật & Điều Khoản Sử Dụng GigMe Campus. Chào mừng bạn vào Trang Chủ!',
+      true,
+      true
+    );
   };
 
   const analyzePhotoWithAi = (presetType: string) => {
@@ -7126,6 +7201,8 @@ export const GigMeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         markConversationAsRead,
         reactToChatMessage,
         recallChatMessage,
+        togglePinChatMessage,
+        acceptCampusLawAndTerms,
         analyzePhotoWithAi,
         clearAiResult,
         boostGig,

@@ -33,13 +33,17 @@ import {
 interface CampusLawScreenProps {
   onBack?: () => void;
   onOpenContactAdmin?: () => void;
+  onAcceptCommitment?: () => void;
+  isOnboardingMode?: boolean;
 }
 
 export const CampusLawScreen: React.FC<CampusLawScreenProps> = ({
   onBack,
   onOpenContactAdmin,
+  onAcceptCommitment,
+  isOnboardingMode = false,
 }) => {
-  const { currentUser, showNotification, sendChat } = useGigMe();
+  const { currentUser, showNotification, sendChat, acceptCampusLawAndTerms } = useGigMe();
   const { language, t } = useTranslation();
   const [selectedChapter, setSelectedChapter] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -221,14 +225,21 @@ export const CampusLawScreen: React.FC<CampusLawScreenProps> = ({
       // ignore
     }
 
+    // Call context to update currentUser.hasAcceptedTerms = true and save to database
+    acceptCampusLawAndTerms();
+
     showNotification(
       language === 'vi' ? 'Cam Kết Pháp Lý Thành Công! ⚖️' : 'Legal Commitment Signed! ⚖️',
       language === 'vi'
-        ? `Tài khoản ID ${currentUser?.id || '000000000'} đã ký điện tử cam kết tuân thủ 100% Bộ Luật & Quy chế GigMe Campus. Mã chứng thư số: ${hash}`
-        : `Account ID ${currentUser?.id || '000000000'} digitally signed 100% compliance with GigMe Campus Code. Certificate hash: ${hash}`,
+        ? `Tài khoản ID ${currentUser?.id || '000000000'} đã ký điện tử cam kết tuân thủ 100% Bộ Luật & Quy chế GigMe Campus. Chào mừng bạn vào Trang Chủ!`
+        : `Account ID ${currentUser?.id || '000000000'} digitally signed 100% compliance with GigMe Campus Code. Welcome to Home!`,
       true,
       true
     );
+
+    if (onAcceptCommitment) {
+      onAcceptCommitment();
+    }
   };
 
   // Download / Export plain text summary of law
@@ -375,6 +386,27 @@ export const CampusLawScreen: React.FC<CampusLawScreenProps> = ({
               </p>
             </div>
           </div>
+
+          {/* Onboarding Notice Banner */}
+          {isOnboardingMode && (
+            <div className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/20 via-yellow-500/15 to-amber-600/20 border-2 border-amber-400/50 shadow-xl flex items-start space-x-3 animate-pulse">
+              <div className="p-2 rounded-xl bg-amber-500 text-black shrink-0 font-black">
+                <AlertTriangle className="w-5 h-5 text-black" />
+              </div>
+              <div className="space-y-0.5">
+                <h4 className="text-xs font-black text-amber-300 uppercase tracking-wide">
+                  {language === 'vi'
+                    ? '⚡ ĐIỀU KIỆN TIÊN QUYẾT TRƯỚC KHI VÀO TRANG CHỦ'
+                    : '⚡ PREREQUISITE BEFORE ENTERING HOME'}
+                </h4>
+                <p className="text-[11px] text-[#E0FAEB] leading-relaxed">
+                  {language === 'vi'
+                    ? 'Chào mừng bạn đến với GigMe! Vui lòng đọc kỹ các điều khoản bên dưới và bấm nút Ký Cam Kết Điện Tử ở chân trang để mở khóa truy cập toàn sàn.'
+                    : 'Welcome to GigMe! Please read the platform rules below and digitally sign your commitment at the bottom to unlock full platform access.'}
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

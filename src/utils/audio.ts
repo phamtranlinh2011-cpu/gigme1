@@ -487,3 +487,92 @@ export function playSynthesizedVoiceTone(durationSeconds = 3, onEnd?: () => void
   }
 }
 
+// ============================================================================
+// CONTINUOUS RINGTONE & HAPTIC VIBRATION (FOR INCOMING & OUTGOING VOIP CALLS)
+// ============================================================================
+let activeRingtoneTimer: any = null;
+
+export function stopRingtone(): void {
+  if (activeRingtoneTimer) {
+    clearInterval(activeRingtoneTimer);
+    activeRingtoneTimer = null;
+  }
+  if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+    try {
+      navigator.vibrate(0);
+    } catch {
+      // ignore
+    }
+  }
+}
+
+export function startRingtone(mode: 'INCOMING' | 'OUTGOING' = 'INCOMING'): void {
+  stopRingtone();
+  if (isAudioMuted()) return;
+
+  const playPulse = () => {
+    try {
+      const ctx = getAudioContext();
+      const now = ctx.currentTime;
+
+      if (mode === 'INCOMING') {
+        // Modern melodic chime sequence (E5 -> G#5 -> B5 -> E6)
+        const notes = [659.25, 830.61, 987.77, 1318.51];
+        notes.forEach((freq, idx) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, now + idx * 0.12);
+
+          gain.gain.setValueAtTime(0, now + idx * 0.12);
+          gain.gain.linearRampToValueAtTime(0.18, now + idx * 0.12 + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.12 + 0.32);
+
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now + idx * 0.12);
+          osc.stop(now + idx * 0.12 + 0.34);
+        });
+
+        // Haptic pulse on mobile devices
+        if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+          try {
+            navigator.vibrate([350, 150, 350, 800]);
+          } catch {
+            // ignore
+          }
+        }
+      } else {
+        // Soft outgoing ringback tone (440Hz + 480Hz classic harmony)
+        const osc1 = ctx.createOscillator();
+        const osc2 = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc1.type = 'sine';
+        osc2.type = 'sine';
+        osc1.frequency.setValueAtTime(440, now);
+        osc2.frequency.setValueAtTime(480, now);
+
+        gain.gain.setValueAtTime(0, now);
+        gain.gain.linearRampToValueAtTime(0.12, now + 0.05);
+        gain.gain.setValueAtTime(0.12, now + 0.65);
+        gain.gain.linearRampToValueAtTime(0.001, now + 0.85);
+
+        osc1.connect(gain);
+        osc2.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc1.start(now);
+        osc2.start(now);
+        osc1.stop(now + 0.85);
+        osc2.stop(now + 0.85);
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  playPulse();
+  activeRingtoneTimer = setInterval(playPulse, mode === 'INCOMING' ? 2400 : 3000);
+}
+

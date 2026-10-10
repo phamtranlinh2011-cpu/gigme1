@@ -32,6 +32,7 @@ import {
   Eye,
   EyeOff,
   RefreshCw,
+  Settings,
 } from 'lucide-react';
 import { useGigMe } from '../context/GigMeContext';
 import { useTranslation } from '../context/LanguageContext';
@@ -50,6 +51,7 @@ interface ProfileScreenProps {
   onOpenFaceDialog?: () => void;
   onOpenSsoDialog: () => void;
   onOpenAdminDashboard: () => void;
+  onOpenSettings?: () => void;
 }
 
 export const ProfileScreen: React.FC<ProfileScreenProps> = ({
@@ -57,6 +59,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   onOpenFaceDialog,
   onOpenSsoDialog,
   onOpenAdminDashboard,
+  onOpenSettings,
 }) => {
   const {
     currentUser,
@@ -862,138 +865,42 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
         </form>
       </div>
 
-      {/* 4. BẢO MẬT & TIỆN ÍCH ỨNG DỤNG */}
+      {/* 4. CÀI ĐẶT & QUẢN TRỊ TÀI KHOẢN (Bảo Mật & Tiện Ích Đã Chuyển Sang Tab Cài Đặt) */}
       <div className="rounded-3xl bg-[#0E1B2E] border border-[#C5E5EC]/25 p-5 sm:p-6 shadow-xl space-y-2.5">
-        <h3 className="text-sm font-extrabold text-white mb-1">{t('securitySectionTitle')}</h3>
+        <h3 className="text-sm font-extrabold text-white mb-1">
+          {language === 'vi' ? 'Hệ Thống & Quản Trị' : 'System & Administration'}
+        </h3>
 
-        {/* 1. BIOMETRICS (VÂN TAY / FACEID) */}
-        <div className="w-full p-3.5 rounded-2xl bg-[#12233B] border border-[#C5E5EC]/15 flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <Fingerprint className="w-5 h-5 text-[#E0FAEB]" />
-            <div>
-              <h4 className="font-bold text-white text-xs flex items-center space-x-2">
-                <span>{t('biometricsTitle')}</span>
-                <span className={`text-[9px] px-1.5 py-0.2 rounded font-bold ${
-                  currentUser.isBiometricsEnabled
-                    ? 'bg-[#E0FAEB]/20 text-[#E0FAEB] border border-[#E0FAEB]/30'
-                    : 'bg-slate-700/50 text-slate-300'
-                }`}>
-                  {currentUser.isBiometricsEnabled ? (language === 'vi' ? 'Đang Bật' : 'Enabled') : (language === 'vi' ? 'Chưa Bật' : 'Disabled')}
-                </span>
-              </h4>
-              <p className="text-[10px] text-[#C5E5EC]/70">
-                {t('biometricsDesc')}
-              </p>
-            </div>
-          </div>
+        {/* Nút Chuyển Nhanh Tới Màn Hình Cài Đặt (Nơi chứa toàn bộ Bảo Mật & Tiện Ích) */}
+        {onOpenSettings && (
           <button
             type="button"
-            onClick={() => {
-              setBioAccountPassword('');
-              setBioScanned(false);
-              setBioError(null);
-              setShowBioModal(true);
-            }}
-            className="px-3 py-1.5 rounded-xl bg-[#3064AE]/30 hover:bg-[#3064AE]/50 border border-[#C5E5EC]/30 text-white font-bold text-xs transition cursor-pointer active:scale-95"
+            onClick={onOpenSettings}
+            className="w-full p-3.5 rounded-2xl bg-gradient-to-r from-[#12233B] via-[#162B48] to-[#12233B] hover:border-[#00E5FF]/40 border border-[#C5E5EC]/20 flex items-center justify-between transition text-left cursor-pointer active:scale-98 shadow-sm group"
           >
-            {currentUser.isBiometricsEnabled ? (language === 'vi' ? 'Cấu Hình' : 'Settings') : (language === 'vi' ? 'Kích Hoạt' : 'Enable')}
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 rounded-xl bg-[#3064AE]/30 border border-[#C5E5EC]/30 flex items-center justify-center text-[#E0FAEB] group-hover:scale-105 transition">
+                <Settings className="w-4 h-4" />
+              </div>
+              <div>
+                <h4 className="font-extrabold text-white text-xs flex items-center space-x-2">
+                  <span>{language === 'vi' ? 'Bảo Mật & Tiện Ích Ứng Dụng' : 'Security & App Preferences'}</span>
+                  <span className="text-[9px] px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-400/30 font-bold">
+                    {language === 'vi' ? 'Tab Cài Đặt' : 'Settings'}
+                  </span>
+                </h4>
+                <p className="text-[10px] text-[#C5E5EC]/70">
+                  {language === 'vi'
+                    ? 'Mã PIN 6 số, Sinh trắc học vân tay, Quyền riêng tư SĐT, Sao lưu Cloud & Âm thanh'
+                    : '6-digit PIN, Biometrics, Phone Privacy, Cloud Backup & Sounds'}
+                </p>
+              </div>
+            </div>
+            <ChevronRight className="w-4 h-4 text-[#C5E5EC]/60 group-hover:text-white group-hover:translate-x-0.5 transition" />
           </button>
-        </div>
+        )}
 
-        {/* 2. MÃ PIN VÍ BẢO MẬT 6 SỐ */}
-        <button
-          type="button"
-          onClick={() => {
-            setPinAccountPassword('');
-            setOldPin('');
-            setNewPin('');
-            setConfirmPin('');
-            setPinError(null);
-            setShowPinModal(true);
-          }}
-          className="w-full p-3.5 rounded-2xl bg-[#12233B] hover:bg-[#162B48] border border-[#C5E5EC]/15 flex items-center justify-between transition text-left cursor-pointer"
-        >
-          <div className="flex items-center space-x-3">
-            <KeyRound className="w-5 h-5 text-[#C5E5EC]" />
-            <div>
-              <h4 className="font-bold text-white text-xs flex items-center space-x-2">
-                <span>{t('pinSecurityTitle')}</span>
-                <span className={`text-[9px] px-1.5 py-0.2 rounded font-bold ${
-                  hasExistingPin
-                    ? 'bg-[#E0FAEB]/20 text-[#E0FAEB] border border-[#E0FAEB]/30'
-                    : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                }`}>
-                  {hasExistingPin ? (language === 'vi' ? 'Đã có PIN' : 'Active PIN') : (language === 'vi' ? 'Chưa có PIN' : 'No PIN')}
-                </span>
-              </h4>
-              <p className="text-[10px] text-[#C5E5EC]/70">
-                {t('pinSecurityDesc')}
-              </p>
-            </div>
-          </div>
-          <ChevronRight className="w-4 h-4 text-[#C5E5EC]/60" />
-        </button>
-
-        {/* 3. CLOUD FRIEND BACKUP & RESTORE */}
-        <button
-          type="button"
-          onClick={() => setShowBackupModal(true)}
-          className="w-full p-3.5 rounded-2xl bg-[#12233B] hover:bg-[#162B48] border border-[#C5E5EC]/15 flex items-center justify-between transition text-left cursor-pointer"
-        >
-          <div className="flex items-center space-x-3">
-            <Cloud className="w-5 h-5 text-sky-400" />
-            <div>
-              <h4 className="font-bold text-white text-xs flex items-center space-x-1.5">
-                <span>{t('cloudBackupTitle')}</span>
-                <span className="text-[9px] px-1.5 py-0.2 rounded bg-sky-500/20 text-sky-300 border border-sky-500/30 font-bold">Cloud Sync</span>
-              </h4>
-              <p className="text-[10px] text-[#C5E5EC]/70">
-                {t('cloudBackupDesc')}
-              </p>
-            </div>
-          </div>
-          <ChevronRight className="w-4 h-4 text-[#C5E5EC]/60" />
-        </button>
-
-        {/* 4. QUYỀN RIÊNG TƯ SỐ ĐIỆN THOẠI (PHONE PRIVACY GUARD) */}
-        <button
-          type="button"
-          onClick={() => {
-            triggerHaptic('light');
-            setShowPhonePrivacyModal(true);
-          }}
-          className="w-full p-3.5 rounded-2xl bg-[#12233B] hover:bg-[#162B48] border border-[#C5E5EC]/15 flex items-center justify-between transition text-left cursor-pointer"
-        >
-          <div className="flex items-center space-x-3">
-            <Phone className="w-5 h-5 text-emerald-400" />
-            <div>
-              <h4 className="font-bold text-white text-xs flex items-center space-x-2">
-                <span>{language === 'vi' ? 'Quyền Riêng Tư Số Điện Thoại' : 'Phone Privacy Guard'}</span>
-                <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold border ${
-                  currentUser.phonePrivacy === 'PRIVATE'
-                    ? 'bg-slate-700/60 text-slate-300 border-slate-600'
-                    : currentUser.phonePrivacy === 'PUBLIC'
-                    ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
-                    : 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30'
-                }`}>
-                  {currentUser.phonePrivacy === 'PRIVATE'
-                    ? (language === 'vi' ? 'Ẩn Hoàn Toàn' : 'Hidden')
-                    : currentUser.phonePrivacy === 'PUBLIC'
-                    ? (language === 'vi' ? 'Công Khai' : 'Public')
-                    : (language === 'vi' ? 'Chỉ Khi Escrow' : 'Escrow Only')}
-                </span>
-              </h4>
-              <p className="text-[10px] text-[#C5E5EC]/70">
-                {language === 'vi'
-                  ? 'Bảo vệ SĐT khỏi làm phiền, chỉ hiển thị với đối tác sau khi đã cọc hoặc nhận việc'
-                  : 'Shield phone from spam, reveal only to verified Escrow partners'}
-              </p>
-            </div>
-          </div>
-          <ChevronRight className="w-4 h-4 text-[#C5E5EC]/60" />
-        </button>
-
-        {/* 4. MASTER ADMIN PANEL ENTRY (CHỈ DÀNH CHO ROOT ADMIN 000000000) */}
+        {/* MASTER ADMIN PANEL ENTRY (CHỈ DÀNH CHO ROOT ADMIN 000000000) */}
         {isSuperAdmin && (
           <button
             id="admin-dashboard-link-btn"
@@ -1016,7 +923,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
           </button>
         )}
 
-        {/* 5. LOGOUT */}
+        {/* LOGOUT */}
         <button
           type="button"
           onClick={logout}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Radar, Wallet, UserCheck, PlusCircle, MessageSquare, BookOpen, Scale } from 'lucide-react';
+import { Radar, Wallet, UserCheck, PlusCircle, MessageSquare, BookOpen, Settings } from 'lucide-react';
 import { useGigMe } from '../context/GigMeContext';
 import { useTranslation } from '../context/LanguageContext';
 import { triggerHaptic } from '../utils/haptics';
@@ -12,6 +12,7 @@ export type TabScreen =
   | 'CHAT'
   | 'ADMIN'
   | 'MARKETPLACE'
+  | 'SETTINGS'
   | 'LAW';
 
 interface BottomNavProps {
@@ -121,7 +122,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentTab, onSelectTab })
           <span className="text-[10px] font-bold mt-0.5 truncate max-w-full">{t('navWallet')}</span>
         </button>
 
-        {/* Tab 6: 2-in-1 Profile */}
+        {/* Tab 5: 2-in-1 Profile */}
         <button
           id="nav-profile-btn"
           onClick={() => handleTabClick('PROFILE')}
@@ -135,19 +136,19 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentTab, onSelectTab })
           <span className="text-[10px] font-bold mt-0.5 truncate max-w-full">{t('navProfile')}</span>
         </button>
 
-        {/* Tab 7: Luật & Điều Khoản Chặt Chẽ (Kế bên Hồ Sơ) */}
+        {/* Tab 6: Cài Đặt Hệ Thống & Bảo Mật */}
         <button
-          id="nav-law-btn"
-          onClick={() => handleTabClick('LAW')}
+          id="nav-settings-btn"
+          onClick={() => handleTabClick('SETTINGS')}
           className={`flex-1 min-w-0 flex flex-col items-center py-1 px-1 rounded-xl transition cursor-pointer ${
-            currentTab === 'LAW'
+            currentTab === 'SETTINGS'
               ? 'text-[#3064AE] dark:text-[#E0FAEB] bg-[#3064AE]/10 dark:bg-[#3064AE]/35 font-black border border-[#3064AE]/30 dark:border-[#C5E5EC]/30 shadow-xs'
               : 'text-slate-500 hover:text-slate-900 dark:text-[#C5E5EC]/70 dark:hover:text-white'
           }`}
-          title={t('navLaw')}
+          title={t('navSettings')}
         >
-          <Scale className="w-4 h-4 sm:w-5 sm:h-5" />
-          <span className="text-[10px] font-bold mt-0.5 truncate max-w-full">{t('navLaw')}</span>
+          <Settings className="w-4 h-4 sm:w-5 sm:h-5" />
+          <span className="text-[10px] font-bold mt-0.5 truncate max-w-full">{t('navSettings')}</span>
         </button>
       </div>
     </nav>

@@ -70,6 +70,9 @@ const BlockchainProofModal = lazy(() =>
 const CampusLawScreen = lazy(() =>
   import('./screens/CampusLawScreen').then((m) => ({ default: m.CampusLawScreen }))
 );
+const SettingsScreen = lazy(() =>
+  import('./screens/SettingsScreen').then((m) => ({ default: m.SettingsScreen }))
+);
 
 // High-performance smooth loading skeleton for lazy loaded tab screens
 const ScreenLoadingSpinner: React.FC<{ label?: string }> = ({ label = 'Đang tải dữ liệu...' }) => (
@@ -199,6 +202,36 @@ const MainLayout: React.FC = () => {
     return <EmailVerificationScreen />;
   }
 
+  // ⚖️ MANDATORY CAMPUS LAW & TERMS ACCEPTANCE GATE (Sau khi đăng ký / xác thực):
+  // Người dùng bắt buộc phải đọc và ký điện tử đồng ý Điều khoản & Bộ luật mới được vào Trang Chủ!
+  const hasUserSignedLaw = Boolean(
+    currentUser.hasAcceptedTerms ||
+    (currentUser.role === 'ADMIN' || currentUser.id === '000000000') ||
+    (() => {
+      try {
+        const saved = localStorage.getItem(`gigme_law_signed_${currentUser.id}`);
+        return saved ? JSON.parse(saved).isSigned : false;
+      } catch {
+        return false;
+      }
+    })()
+  );
+
+  if (!hasUserSignedLaw) {
+    return (
+      <div className="min-h-screen bg-[#070D18]">
+        <Suspense fallback={<ScreenLoadingSpinner label="Đang tải Bộ Luật GigMe Campus..." />}>
+          <CampusLawScreen
+            isOnboardingMode={true}
+            onAcceptCommitment={() => {
+              setCurrentTab('HOME');
+            }}
+          />
+        </Suspense>
+      </div>
+    );
+  }
+
   const handleSelectTab = (tab: TabScreen) => {
     selectGig(null);
     setCurrentTab(tab);
@@ -218,6 +251,7 @@ const MainLayout: React.FC = () => {
             onOpenNfcDialog={() => setShowNfcModal(true)}
             onOpenSsoDialog={() => setShowSsoModal(true)}
             onOpenAdminDashboard={() => setCurrentTab('ADMIN')}
+            onOpenSettings={() => setCurrentTab('SETTINGS')}
           />
         );
       }
@@ -284,6 +318,14 @@ const MainLayout: React.FC = () => {
             onOpenFaceDialog={() => setShowFaceModal(true)}
             onOpenSsoDialog={() => setShowSsoModal(true)}
             onOpenAdminDashboard={() => setCurrentTab('ADMIN')}
+            onOpenSettings={() => setCurrentTab('SETTINGS')}
+          />
+        );
+      case 'SETTINGS':
+        return (
+          <SettingsScreen
+            onOpenAdminDashboard={() => setCurrentTab('ADMIN')}
+            onOpenCampusLaw={() => setCurrentTab('LAW')}
           />
         );
       case 'ADMIN':

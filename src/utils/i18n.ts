@@ -28,6 +28,7 @@ export interface Translations {
   navProfile: string;
   navWallet: string;
   navLaw: string;
+  navSettings: string;
 
   // Header dropdown items
   walletAndPay: string;
@@ -264,6 +265,7 @@ export const translations: Record<Language, Translations> = {
     navProfile: 'Cá nhân',
     navWallet: 'Ví tiền',
     navLaw: 'Bộ luật',
+    navSettings: 'Cài đặt',
 
     // Header dropdown
     walletAndPay: 'Ví & Thanh Toán',
@@ -498,6 +500,7 @@ export const translations: Record<Language, Translations> = {
     navProfile: 'Profile',
     navWallet: 'Wallet',
     navLaw: 'Campus Law',
+    navSettings: 'Settings',
 
     // Header dropdown
     walletAndPay: 'Wallet & Payments',

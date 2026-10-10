@@ -48,6 +48,8 @@ import {
   CameraOff,
   MoreHorizontal,
   RotateCcw,
+  Pin,
+  PinOff,
 } from 'lucide-react';
 import { useGigMe } from '../context/GigMeContext';
 import { useTranslation } from '../context/LanguageContext';
@@ -113,6 +115,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
     markConversationAsRead,
     reactToChatMessage,
     recallChatMessage,
+    togglePinChatMessage,
     startVoipCall,
     selectGig,
     releaseEscrowPayout,
@@ -164,6 +167,48 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
     setActiveOptionsMenuMsgId(null);
     setMobileActiveMsgId(null);
   }, [activeConversationId]);
+
+  // Click-outside listener for floating popovers (Emote Reaction Picker & 3-dots Options Menu) [giống Messenger]
+  useEffect(() => {
+    if (!activeReactionPickerMsgId && !activeOptionsMenuMsgId && !mobileActiveMsgId) {
+      return;
+    }
+
+    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+
+      // If clicked inside an active popover or trigger button, do not close
+      if (
+        target.closest('[data-chat-popover="true"]') ||
+        target.closest('[data-chat-trigger="true"]')
+      ) {
+        return;
+      }
+
+      setActiveReactionPickerMsgId(null);
+      setActiveOptionsMenuMsgId(null);
+      setMobileActiveMsgId(null);
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setActiveReactionPickerMsgId(null);
+        setActiveOptionsMenuMsgId(null);
+        setMobileActiveMsgId(null);
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [activeReactionPickerMsgId, activeOptionsMenuMsgId, mobileActiveMsgId]);
 
   const checkImageWithSightengine = async (dataUrl: string): Promise<boolean> => {
     setIsModeratingImage(true);
@@ -1960,6 +2005,44 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
           ))}
         </div>
 
+        {/* PINNED (STICK) MESSAGE BAR - MESSENGER STYLE */}
+        {(() => {
+          const pinnedMsg = currentConversationMessages.find((m) => m.isPinned && !m.isRecalled);
+          if (!pinnedMsg) return null;
+          return (
+            <div className="mx-1 mb-1 px-3 py-2 rounded-xl bg-[#0E1B2E]/95 border border-[#3064AE]/40 flex items-center justify-between text-xs shadow-md shrink-0 animate-fadeIn">
+              <div className="flex items-center space-x-2 min-w-0 flex-1 mr-2">
+                <Pin className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <div className="min-w-0 truncate">
+                  <span className="font-bold text-white mr-1.5">
+                    {pinnedMsg.senderId === currentUser?.id
+                      ? (language === 'vi' ? 'Bạn' : 'You')
+                      : pinnedMsg.senderName || activeContact.name}:
+                  </span>
+                  <span className="text-[#C5E5EC]/85 truncate">
+                    {pinnedMsg.message || (language === 'vi' ? '[Tệp đính kèm]' : '[Attachment]')}
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  togglePinChatMessage(pinnedMsg.id);
+                  triggerHaptic('light');
+                  showNotification(
+                    language === 'vi' ? 'Đã Bỏ Ghim' : 'Unpinned',
+                    language === 'vi' ? 'Đã gỡ ghim tin nhắn khỏi đầu đoạn chat' : 'Message unpinned',
+                    true
+                  );
+                }}
+                className="text-[#C5E5EC]/70 hover:text-white text-[11px] px-2 py-0.5 rounded bg-white/5 hover:bg-white/10 transition shrink-0 cursor-pointer"
+              >
+                {language === 'vi' ? 'Bỏ ghim' : 'Unpin'}
+              </button>
+            </div>
+          );
+        })()}
+
         {/* MESSENGER MESSAGES STREAM */}
         <div
           ref={messagesContainerRef}
@@ -2041,7 +2124,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                             isMe ? 'animate-message-me' : 'animate-message-partner'
                           } ${
                             msg.isRecalled
-                              ? 'bg-slate-700/60 dark:bg-slate-800/60 text-slate-400 border border-slate-600/30 rounded-2xl'
+                              ? 'bg-slate-800/40 dark:bg-slate-900/50 text-slate-400 border border-slate-700/50 rounded-2xl'
                               : isMe
                               ? 'bg-[#0084FF] text-white selection:bg-white selection:text-[#0084FF] ' +
                                 (isFirstInGroup && isLastInGroup
@@ -2061,11 +2144,27 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                                   : 'rounded-2xl rounded-l-sm')
                           }`}
                         >
-                          {/* Recalled Message Display */}
+                          {/* Pinned (Stick) indicator on message bubble */}
+                          {msg.isPinned && !msg.isRecalled && (
+                            <div
+                              className="absolute -top-2.5 -right-2 px-1.5 py-0.5 rounded-full bg-amber-500/20 border border-amber-400/40 text-amber-300 shadow-xs z-10 flex items-center space-x-0.5"
+                              title={language === 'vi' ? 'Tin nhắn đã ghim (Stick)' : 'Pinned message'}
+                            >
+                              <Pin className="w-2.5 h-2.5 fill-amber-300/40 text-amber-300" />
+                            </div>
+                          )}
+
+                          {/* Recalled Message Display - Messenger style */}
                           {msg.isRecalled ? (
-                            <div className="flex items-center space-x-1.5 py-0.5 text-xs italic select-none">
+                            <div className="flex items-center space-x-1.5 py-1 px-1 text-[13px] italic select-none text-slate-400">
                               <RotateCcw className="w-3.5 h-3.5 opacity-60 shrink-0" />
-                              <span>{language === 'vi' ? 'Tin nhắn đã được thu hồi' : 'This message was recalled'}</span>
+                              <span>
+                                {isMe
+                                  ? (language === 'vi' ? 'Bạn đã thu hồi một tin nhắn' : 'You unsent a message')
+                                  : (language === 'vi'
+                                      ? `${msg.senderName || activeContact.name || 'Đối phương'} đã thu hồi một tin nhắn`
+                                      : `${msg.senderName || activeContact.name || 'Partner'} unsent a message`)}
+                              </span>
                             </div>
                           ) : (
                             <>
@@ -2315,7 +2414,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                         {!msg.isRecalled && (
                           <div
                             className={`absolute top-1/2 -translate-y-1/2 flex items-center space-x-1 transition-opacity z-10 ${
-                              mobileActiveMsgId === msg.id
+                              mobileActiveMsgId === msg.id || activeReactionPickerMsgId === msg.id || activeOptionsMenuMsgId === msg.id
                                 ? 'opacity-100'
                                 : 'opacity-0 group-hover/msg:opacity-100 focus-within:opacity-100'
                             } ${isMe ? '-left-16' : '-right-16'}`}
@@ -2323,6 +2422,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                             {/* Emote Reaction Button */}
                             <button
                               type="button"
+                              data-chat-trigger="true"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 triggerHaptic('light');
@@ -2330,7 +2430,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                                 setActiveOptionsMenuMsgId(null);
                               }}
                               className="w-6 h-6 rounded-full bg-[#12233B] border border-[#C5E5EC]/30 text-[#C5E5EC] hover:text-white flex items-center justify-center text-xs shadow hover:scale-110 active:scale-95 transition cursor-pointer"
-                              title={language === 'vi' ? 'Thả cảm xúc' : 'Add reaction'}
+                              title={language === 'vi' ? 'Bày tỏ cảm xúc' : 'Add reaction'}
                             >
                               <Smile className="w-3.5 h-3.5" />
                             </button>
@@ -2338,6 +2438,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                             {/* 3-Dots More Options Button */}
                             <button
                               type="button"
+                              data-chat-trigger="true"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 triggerHaptic('light');
@@ -2352,52 +2453,114 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                           </div>
                         )}
 
-                        {/* Reaction Picker Popover (Messenger style floating emojis) */}
+                        {/* Reaction Picker Popover (Messenger style floating emojis bar) */}
                         {activeReactionPickerMsgId === msg.id && !msg.isRecalled && (
                           <div
+                            data-chat-popover="true"
                             onClick={(e) => e.stopPropagation()}
-                            className={`absolute -top-10 z-20 flex items-center space-x-1 p-1 bg-[#12233B]/95 backdrop-blur-md border border-[#3064AE] rounded-full shadow-2xl animate-pop-sticker ${
+                            className={`absolute -top-12 z-30 flex items-center space-x-1.5 px-2.5 py-1.5 bg-[#0E1B2E]/95 dark:bg-[#0E1B2E]/95 backdrop-blur-xl border border-[#3064AE]/50 rounded-full shadow-2xl shadow-black/70 animate-pop-sticker ${
                               isMe ? 'right-0' : 'left-0'
                             }`}
                           >
-                            {['❤️', '👍', '😂', '😮', '😢', '🔥'].map((emoji) => (
-                              <button
-                                key={emoji}
-                                type="button"
-                                onClick={() => {
-                                  triggerHaptic('medium');
-                                  reactToChatMessage(msg.id, emoji);
-                                  setActiveReactionPickerMsgId(null);
-                                }}
-                                className="w-7 h-7 flex items-center justify-center text-base hover:scale-135 active:scale-95 transition cursor-pointer select-none"
-                              >
-                                {emoji}
-                              </button>
-                            ))}
+                            {['👍', '❤️', '😂', '😮', '😢', '😡'].map((emoji) => {
+                              const isMyReaction = msg.userReactions?.[currentUser?.id || ''] === emoji;
+                              return (
+                                <button
+                                  key={emoji}
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    triggerHaptic('medium');
+                                    reactToChatMessage(msg.id, emoji);
+                                    setActiveReactionPickerMsgId(null);
+                                  }}
+                                  className={`relative w-8 h-8 flex items-center justify-center text-2xl hover:scale-135 hover:-translate-y-1 active:scale-95 transition-all duration-150 cursor-pointer select-none rounded-full ${
+                                    isMyReaction ? 'bg-[#3064AE]/40 ring-1 ring-[#00E5FF]' : ''
+                                  }`}
+                                  title={
+                                    emoji === '👍'
+                                      ? 'Thích'
+                                      : emoji === '❤️'
+                                      ? 'Yêu thích'
+                                      : emoji === '😂'
+                                      ? 'Haha'
+                                      : emoji === '😮'
+                                      ? 'Wow'
+                                      : emoji === '😢'
+                                      ? 'Buồn'
+                                      : 'Phẫn nộ'
+                                  }
+                                >
+                                  <span>{emoji}</span>
+                                  {isMyReaction && (
+                                    <span className="absolute -bottom-0.5 w-1 h-1 rounded-full bg-[#00E5FF]" />
+                                  )}
+                                </button>
+                              );
+                            })}
                           </div>
                         )}
 
-                        {/* 3-Dots Options Popover with 24h Recall Constraint */}
+                        {/* 3-Dots Options Popover with Stick and Recall Options */}
                         {activeOptionsMenuMsgId === msg.id && !msg.isRecalled && (() => {
                           const elapsedMs = Date.now() - msg.timestamp;
                           const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
                           const isUnder24h = elapsedMs <= TWENTY_FOUR_HOURS_MS;
-                          const isSenderOrAdmin =
-                            msg.senderId === currentUser?.id ||
-                            currentUser?.role === 'ADMIN' ||
-                            currentUser?.id === '000000000';
                           const hoursLeft = Math.max(0, Math.floor((TWENTY_FOUR_HOURS_MS - elapsedMs) / (60 * 60 * 1000)));
                           const minutesLeft = Math.max(0, Math.floor(((TWENTY_FOUR_HOURS_MS - elapsedMs) % (60 * 60 * 1000)) / (60 * 1000)));
 
                           return (
                             <div
+                              data-chat-popover="true"
                               onClick={(e) => e.stopPropagation()}
-                              className={`absolute z-30 top-full mt-1 min-w-[210px] bg-[#0E1B2E]/95 backdrop-blur-md border border-[#3064AE]/40 rounded-xl shadow-2xl p-1.5 animate-fadeIn ${
+                              className={`absolute z-30 top-full mt-1.5 min-w-[210px] bg-[#0E1B2E]/95 backdrop-blur-xl border border-[#3064AE]/50 rounded-2xl shadow-2xl shadow-black/70 p-1.5 animate-fadeIn ${
                                 isMe ? 'right-0' : 'left-0'
                               }`}
                             >
-                              {/* Option: Thu hồi tin nhắn */}
-                              {isSenderOrAdmin && (
+                              {/* Nút 1: Nút Stick / Ghim tin nhắn */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  triggerHaptic('light');
+                                  const isNowPinned = togglePinChatMessage(msg.id);
+                                  showNotification(
+                                    isNowPinned
+                                      ? (language === 'vi' ? 'Đã Ghim Tin Nhắn 📌' : 'Pinned Message 📌')
+                                      : (language === 'vi' ? 'Đã Bỏ Ghim Tin Nhắn' : 'Unpinned Message'),
+                                    isNowPinned
+                                      ? (language === 'vi'
+                                          ? 'Tin nhắn đã được ghim lên đầu cuộc trò chuyện (Stick).'
+                                          : 'Message pinned to top of conversation.')
+                                      : (language === 'vi'
+                                          ? 'Đã gỡ ghim tin nhắn khỏi đầu cuộc trò chuyện.'
+                                          : 'Message unpinned.'),
+                                    true
+                                  );
+                                  setActiveOptionsMenuMsgId(null);
+                                }}
+                                className="w-full text-left px-2.5 py-2 rounded-xl hover:bg-[#3064AE]/25 text-slate-200 text-xs flex items-center justify-between transition cursor-pointer"
+                              >
+                                <div className="flex items-center space-x-2">
+                                  {msg.isPinned ? (
+                                    <PinOff className="w-4 h-4 text-amber-400" />
+                                  ) : (
+                                    <Pin className="w-4 h-4 text-[#00E5FF]" />
+                                  )}
+                                  <span className="font-semibold">
+                                    {msg.isPinned
+                                      ? (language === 'vi' ? 'Bỏ ghim (Stick)' : 'Unpin message')
+                                      : (language === 'vi' ? 'Ghim tin nhắn (Stick)' : 'Stick / Pin message')}
+                                  </span>
+                                </div>
+                                {msg.isPinned && (
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-bold">
+                                    {language === 'vi' ? 'Đang ghim' : 'Pinned'}
+                                  </span>
+                                )}
+                              </button>
+
+                              {/* Nút 2: Nút Thu hồi tin nhắn - CHỈ HIỂN THỊ KHI CHÍNH BẢN THÂN GỬI (isMe) */}
+                              {isMe && (
                                 <button
                                   type="button"
                                   onClick={() => {
@@ -2406,7 +2569,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                                       showNotification(
                                         language === 'vi' ? '⚠️ Không Thể Thu Hồi' : '⚠️ Cannot Recall',
                                         language === 'vi'
-                                          ? 'Đã quá thời hạn 24 giờ kể từ khi gửi tin nhắn. Theo quy định, tin nhắn này không thể thu hồi được nữa.'
+                                          ? 'Đã quá thời hạn 24 giờ kể từ khi gửi tin nhắn. Theo quy định, không thể thu hồi tin nhắn này nữa.'
                                           : 'Message was sent over 24 hours ago and cannot be recalled.',
                                         false
                                       );
@@ -2416,8 +2579,8 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                                     if (
                                       window.confirm(
                                         language === 'vi'
-                                          ? 'Bạn có chắc chắn muốn thu hồi tin nhắn này không?'
-                                          : 'Are you sure you want to recall this message?'
+                                          ? 'Bạn có chắc chắn muốn thu hồi tin nhắn này không? Tin nhắn sẽ được thu hồi với tất cả mọi người.'
+                                          : 'Are you sure you want to recall this message? It will be unsent for everyone.'
                                       )
                                     ) {
                                       triggerHaptic('medium');
@@ -2426,7 +2589,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                                         showNotification(
                                           language === 'vi' ? 'Đã Thu Hồi Tin Nhắn ↩️' : 'Message Recalled ↩️',
                                           language === 'vi'
-                                            ? 'Tin nhắn đã được thu hồi cho tất cả người xem.'
+                                            ? 'Bạn đã thu hồi một tin nhắn thành công.'
                                             : 'Message recalled for all participants.',
                                           true
                                         );
@@ -2440,7 +2603,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                                       setActiveOptionsMenuMsgId(null);
                                     }
                                   }}
-                                  className={`w-full text-left px-2.5 py-2 rounded-lg flex items-center justify-between text-xs transition ${
+                                  className={`w-full text-left px-2.5 py-2 rounded-xl flex items-center justify-between text-xs transition mt-0.5 ${
                                     isUnder24h
                                       ? 'text-rose-400 hover:bg-rose-500/15 cursor-pointer font-bold'
                                       : 'text-slate-400 bg-slate-800/40 cursor-not-allowed opacity-60'
@@ -2448,7 +2611,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                                 >
                                   <div className="flex items-center space-x-2">
                                     <RotateCcw
-                                      className={`w-3.5 h-3.5 ${isUnder24h ? 'text-rose-400' : 'text-slate-500'}`}
+                                      className={`w-4 h-4 ${isUnder24h ? 'text-rose-400' : 'text-slate-500'}`}
                                     />
                                     <div>
                                       <span className="block font-bold">
@@ -2481,7 +2644,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                                 </button>
                               )}
 
-                              {/* Option: Sao chép tin nhắn */}
+                              {/* Nút 3: Sao chép tin nhắn */}
                               {msg.message && (
                                 <button
                                   type="button"
@@ -2497,7 +2660,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                                     );
                                     setActiveOptionsMenuMsgId(null);
                                   }}
-                                  className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-[#3064AE]/20 text-slate-200 text-xs flex items-center space-x-2 transition cursor-pointer mt-0.5"
+                                  className="w-full text-left px-2.5 py-1.5 rounded-xl hover:bg-[#3064AE]/25 text-slate-200 text-xs flex items-center space-x-2 transition cursor-pointer mt-0.5"
                                 >
                                   <Copy className="w-3.5 h-3.5 text-[#C5E5EC]" />
                                   <span>{language === 'vi' ? 'Sao chép văn bản' : 'Copy text'}</span>
@@ -2508,7 +2671,7 @@ export const ChatSupportScreen: React.FC<ChatSupportScreenProps> = ({ onBack }) 
                         })()}
 
                         {/* Displayed Active Reactions Count Badge on Message */}
-                        {msg.reactions && Object.keys(msg.reactions).length > 0 && (
+                        {!msg.isRecalled && msg.reactions && Object.keys(msg.reactions).length > 0 && (
                           <div
                             className={`absolute -bottom-2 flex items-center space-x-0.5 px-1.5 py-0.5 bg-[#0C1B2E] border border-white/15 rounded-full text-[11px] shadow-sm z-10 ${
                               isMe ? 'right-1' : 'left-1'
